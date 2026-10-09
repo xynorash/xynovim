@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install Neovim stable
+        run: |
+          curl -fsSL -o nvim.tar.gz https://github.com/neovim/neovim/releases/download/stable/nvim-linux-x86_64.tar.gz
+          mkdir -p "$HOME/nvim"
+          tar -xzf nvim.tar.gz -C "$HOME/nvim" --strip-components=1
+          echo "$HOME/nvim/bin" >> "$GITHUB_PATH"
+
+      - name: Use the checkout as the Neovim config
+        run: |
+          mkdir -p "$HOME/.config"
+          ln -s "$GITHUB_WORKSPACE" "$HOME/.config/nvim"
+
+      - name: Restore plugins from the lockfile
+        run: nvim --headless '+Lazy! restore' +qa
+
+      - name: Startup smoke test
+        run: |
+          # Shared runners are noisy, so the time bound is generous: it only
+          # catches regressions like a blocking network call or a require
+          # loop. Any message on stderr (a failed plugin spec, a Lua error)
+          # fails the job.
+          start=$(date +%s%N)
+          nvim --headless +qa 2> startup.log
+          end=$(date +%s%N)
+          ms=$(( (end - start) / 1000000 ))
+          echo "headless startup: ${ms} ms"
+          if [ -s startup.log ]; then cat startup.log; exit 1; fi
+          if [ "$ms" -gt 3000 ]; then echo "startup slower than 3000 ms"; exit 1; fi

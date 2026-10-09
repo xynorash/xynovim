@@ -24,3 +24,8 @@ require("config.local_history").setup()
 require("config.rust_context").setup()
 require("config.rust_tasks").setup()
 require("config.rust_routes").setup()
+
+-- Rust server readiness in the statusline, right-click menu, Neovide,
+-- opt-in colourblind palette.
+require("config.lsp_status").setup()
+require("config.ux").setup()

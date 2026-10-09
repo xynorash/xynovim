@@ -76,8 +76,10 @@ return {
 		lazy = true,
 		priority = 1000,
 	},
+	-- gthelding/monokai-pro.nvim is gone (404); loctvl842/monokai-pro.nvim is the
+	-- upstream (same plugin name, same "monokai-pro" colorscheme).
 	{
-		"gthelding/monokai-pro.nvim",
+		"loctvl842/monokai-pro.nvim",
 		lazy = true,
 		priority = 1000,
 	},
