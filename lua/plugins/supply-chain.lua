@@ -56,6 +56,7 @@ return {
         end,
         cmd = "cargo",
         stdin = false,
+        append_fname = false, -- the checks are positional args; the manifest goes via --manifest-path
         stream = "stderr",
         ignore_exitcode = true,
         args = {
