@@ -48,8 +48,47 @@ return {
       end
     end
 
+    -- Safety wrapper around the stock Claude Code provider (see README
+    -- roadmap step 5): checkpoint the worktree as a git ref before every
+    -- request, keep auto-save from writing the agent's edits straight to disk
+    -- while requests are in flight, and run claude inside bubblewrap.
+    local Claude = _99.Providers.ClaudeCodeProvider
+    local Guarded = setmetatable({}, { __index = Claude })
+    local inflight, autosave_was_on = 0, false
+
+    function Guarded._build_command(self, query, context)
+      local cmd = Claude._build_command(self, query, context)
+      local project = vim.fs.root(0, ".git") or vim.uv.cwd()
+      return require("config.agent_sandbox").wrap(cmd, project, tmp_dir)
+    end
+
+    function Guarded.make_request(self, query, context, observer)
+      require("config.local_history").snapshot({
+        path = vim.api.nvim_buf_get_name(0),
+        force = true,
+        label = "before 99 request",
+      })
+      if inflight == 0 then
+        local ok, as = pcall(require, "auto-save")
+        autosave_was_on = ok and as.enabled() == true
+        if autosave_was_on then
+          as.off()
+        end
+      end
+      inflight = inflight + 1
+      local on_complete = observer.on_complete
+      observer.on_complete = function(...)
+        inflight = math.max(0, inflight - 1)
+        if inflight == 0 and autosave_was_on then
+          require("auto-save").on()
+        end
+        return on_complete(...)
+      end
+      return Claude.make_request(self, query, context, observer)
+    end
+
     _99.setup({
-      provider = _99.Providers.ClaudeCodeProvider,
+      provider = Guarded,
       model = "claude-sonnet-5",
       provider_extra_args = { "--effort", "medium" },
       -- MUST be absolute. 99 resolves a relative tmp_dir against nvim's cwd,
@@ -65,8 +104,8 @@ return {
         -- type = "file" is required for path to take effect; without it the
         -- logger silently uses a void sink (the README example omits it).
         type = "file",
-        level = _99.DEBUG,
-        path = "/tmp/" .. vim.fs.basename(vim.uv.cwd() or "nvim") .. ".99.debug",
+        level = _99.INFO,
+        path = vim.fn.stdpath("state") .. "/99.log",
         print_on_error = true,
       },
       completion = {
