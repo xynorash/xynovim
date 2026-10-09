@@ -3,6 +3,15 @@
 -- util.rest (kulala.nvim) is enabled through lazyvim.json.
 return {
   {
+    -- Pinned: from v6.32.0 on, kulala.nvim downloads its kulala-core backend
+    -- behind a license token (inputsecret prompt on first use, which also
+    -- hangs headless runs). v6.31.1 is the last release that fetches it from
+    -- public GitHub releases. Unpin only if you hold a token
+    -- (KULALA_CORE_LICENSE_TOKEN).
+    "mistweaverco/kulala.nvim",
+    tag = "v6.31.1",
+  },
+  {
     "nvim-treesitter/nvim-treesitter",
     opts = { ensure_installed = { "sql", "wgsl" } },
   },
