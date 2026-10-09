@@ -40,6 +40,12 @@ All notable changes to this config are documented here.
   across rust-analyzer and bacon-ls), `:RustTargets`, `:RustNew`. Verified
   headless including persistence across restarts.
 
+- Roadmap step 9: supply-chain diagnostics (cargo-deny, cargo-machete,
+  actionlint, zizmor as nvim-lint sources), coverage signs via cargo-llvm-cov
+  (`<leader>tc/tg/tG`), `:RustTools` (`<leader>rZ`), `:ActJob`, samply and
+  flamegraph actions in `:RustTargets`. Verified headless except samply (needs
+  `kernel.perf_event_paranoid=1`, documented), act and the flamegraph run.
+
 ### Fixed
 - **Clippy tier was silently dead**: the `bacon_ls` `cmd` override pointed at
   `~/.cargo/bin/bacon-ls`, which does not exist. Removed it; Mason's bacon-ls
