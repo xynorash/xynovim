@@ -26,6 +26,11 @@ All notable changes to this config are documented here.
   snapshot, auto-save paused during requests, bubblewrap sandbox, log moved to
   the state dir). Everything verified except a live `99` request.
 
+- Roadmap step 6: diffview.nvim keys, mergiraf merge driver for Rust,
+  zdiff3 + rerere + autosquash/updateRefs git defaults, difftastic aliases,
+  delta in lazygit, git-absorb and gitleaks installed. Merge driver verified
+  on a scratch repo.
+
 ### Fixed
 - **Clippy tier was silently dead**: the `bacon_ls` `cmd` override pointed at
   `~/.cargo/bin/bacon-ls`, which does not exist. Removed it; Mason's bacon-ls

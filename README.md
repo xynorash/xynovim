@@ -98,12 +98,23 @@ RustRover's Local History covers deleted files, `reset --hard` and AI edits; xyn
 - 99's log moved from `/tmp/<dir>.99.debug` to `~/.local/state/nvim/99.log` at INFO level (flip `level` back to `_99.DEBUG` in `ninety-nine.lua` when debugging).
 - Deliberately not done: gating auto-save on ERROR diagnostics (it would stall `didSave` and bacon-ls); snapper on btrfs `/home` as an extra OS-level layer is optional and not configured.
 
-### 6. Git depth
-- diffview.nvim (`:DiffviewOpen origin/main...HEAD`, `:DiffviewFileHistory %`).
-- `git config merge.conflictstyle zdiff3`, `rerere.enabled true`.
-- **mergiraf** as a syntax-aware merge driver (`*.rs merge=mergiraf` in `.gitattributes`): auto-resolves `use`-list conflicts. `Cargo.lock` still needs special handling.
-- difftastic as `diff.external` (ignores rustfmt-only churn); `git-absorb` + `rebase.autoSquash` + `rebase.updateRefs`; `.git-blame-ignore-revs` for formatter commits (gitsigns honours `blame.ignoreRevsFile`).
-- Hooks (lefthook): fmt/clippy/gitleaks, with a separate `CARGO_TARGET_DIR`; hooks cannot depend on a running LSP.
+### 6. Git depth: done 2026-10-09
+- **diffview.nvim** (`lua/plugins/diffview.lua`): `<leader>gv` working tree / merge conflicts (3-way), `<leader>gV` branch vs `origin/HEAD`, `<leader>gF` file history (visual: selection history), `<leader>gq` close. Verified it opens a file panel tab on a scratch repo; the conflict resolution flow itself was not exercised by hand.
+- **mergiraf** (pacman) as a syntax-aware merge driver for `*.rs` (registered in global git config, attributes in `~/.config/git/attributes`). Verified: two branches adding different `use` lines at the same spot merged cleanly into a sorted-by-intent result with no conflict markers. `Cargo.lock` conflicts are not handled (a regenerate-on-conflict driver was only a sketch; untested).
+- Global git config (user `xynorash`, `~/.gitconfig`): `merge.conflictstyle = zdiff3`, `rerere.enabled` + `rerere.autoUpdate`, `rebase.autoSquash`, `rebase.updateRefs`; aliases `git dft` / `git dlog` (difftastic, structural diff that ignores rustfmt-only churn; deliberately an alias, not a global `diff.external`, so lazygit/gitsigns keep parsing plain diffs).
+- lazygit uses `delta` as its pager (`~/.config/lazygit/config.yml`, only created because none existed).
+- `git-absorb` and `gitleaks` installed (pacman). Use `git absorb --and-rebase` to fold fixups into the right earlier commits.
+- **Per-repo opt-ins, not applied automatically:**
+  - Ignore formatter-only commits in blame: list the commit hashes in `.git-blame-ignore-revs` and run `git config blame.ignoreRevsFile .git-blame-ignore-revs` (gitsigns blame honours it).
+  - Pre-commit hooks (lefthook is not packaged for Arch; `cargo install lefthook` is not an option either, it is Go; use `go install github.com/evilmartians/lefthook@latest` or plain `.githooks/pre-commit`). Example `lefthook.yml`; keep a separate `CARGO_TARGET_DIR` so hooks never contend with the editor's builds, and never make hooks depend on a running LSP:
+    ```yaml
+    pre-commit:
+      parallel: true
+      commands:
+        fmt:      { glob: "*.rs", run: "cargo fmt --check" }
+        clippy:   { glob: "*.rs", run: "CARGO_TARGET_DIR=target/hooks cargo clippy --workspace --no-deps -- -D warnings" }
+        gitleaks: { run: "gitleaks protect --staged --redact" }
+    ```
 
 ### 7. Navigation and orientation
 - `ui.treesitter-context` (`max_lines = 3`) + `editor.navic` or `dropbar.nvim` (pick one outline provider; aerial collides with Trouble symbols on `<leader>cs`).
