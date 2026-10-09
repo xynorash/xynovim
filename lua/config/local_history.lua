@@ -55,7 +55,14 @@ function M.snapshot(opts)
       GIT_COMMITTER_NAME = "xynovim",
       GIT_COMMITTER_EMAIL = "lochist@xynovim",
     }
-    git({ "add", "-A", "--", ".", ":(exclude)target", ":(exclude,glob)**/target" }, root, env, function(ok)
+    -- An extra excludes file (additive to .gitignore) keeps cargo's target/
+    -- out even in projects that forgot to ignore it. A pathspec exclude would
+    -- make `git add` fail whenever target/ IS already ignored.
+    local excludes = gitdir .. "/lochist-exclude"
+    if not vim.uv.fs_stat(excludes) then
+      vim.fn.writefile({ "target/" }, excludes)
+    end
+    git({ "-c", "core.excludesFile=" .. excludes, "add", "-A" }, root, env, function(ok)
       if not ok then
         return finish()
       end
