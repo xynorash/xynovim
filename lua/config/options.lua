@@ -16,3 +16,6 @@ vim.g.loaded_node_provider = 0
 -- diagnostics. The lang.rust extra reads this and disables rust-analyzer's
 -- own checkOnSave/diagnostics so nothing is reported twice.
 vim.g.lazyvim_rust_diagnostics = "bacon-ls"
+
+-- Local History: shadow-ref snapshots on every (throttled) save.
+require("config.local_history").setup()

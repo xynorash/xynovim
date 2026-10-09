@@ -120,3 +120,10 @@ vim.api.nvim_create_autocmd("LspAttach", {
     end)
   end,
 })
+
+-- Safety net: built-in undotree (0.12) and the git-ref based local history.
+vim.keymap.set("n", "<leader>uu", function()
+  vim.cmd.packadd("nvim.undotree")
+  require("undotree").open()
+end, { desc = "Undotree" })
+vim.keymap.set("n", "<leader>gH", "<cmd>LocalHistory<cr>", { desc = "Local history (file)" })
