@@ -46,8 +46,8 @@ return {
       zizmor = { condition = in_workflows },
 
       -- Needs a deny.toml (`cargo deny init`) next to the manifest or in
-      -- .cargo/. --disable-fetch: never hit the network from an editor event;
-      -- refresh the advisory DB with `cargo deny fetch` (:RustTools).
+      -- .cargo/. --offline: never hit the network from an editor event (uses
+      -- the cached advisory DB; refresh it with `cargo deny fetch`, :RustTools).
       cargo_deny = {
         condition = function(ctx)
           local name = basename(ctx.filename)
@@ -65,10 +65,10 @@ return {
             local f = vim.api.nvim_buf_get_name(0)
             return manifest_dir(f) .. "/Cargo.toml"
           end,
+          "--offline",
           "--format",
           "json",
           "check",
-          "--disable-fetch",
           "advisories",
           "bans",
         },
