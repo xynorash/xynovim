@@ -64,12 +64,13 @@ Findings on this machine and what was done:
 - Not installed (needed by later steps): `lazygit`, `git-delta`, `difftastic`, `perf` (all in pacman `extra`), `cargo-nextest`, `rr` (not in the pacman repos). `cargo-audit`, `cargo-watch` and Mason's `codelldb` are present.
 - Unrelated config finding: nvim logs `Too many rounds of missing plugins` because `monokai-pro.nvim` is cloned from `gthelding/monokai-pro.nvim`, which 404s, and a missing `lua/plugins/theme.lua` is reported (see step 11 hygiene).
 
-### 2. Extras and packages (biggest win per line)
+### 2. Extras and packages: done 2026-10-09
 - LazyVim extras: `dap.core` (debugger front end: breakpoints, stepping, dap-ui; codelldb is already in Mason), `test.core` (neotest with rustaceanvim's adapter), `editor.overseer` (task runner), `lang.toml` / `lang.yaml` / `lang.json` / `lang.markdown` / `lang.git` (taplo for `Cargo.toml`, yamlls + SchemaStore for CI workflows). Verify names in `:LazyExtras`.
 - Enable LazyVim codelens (`opts.codelens.enabled = true`) for run/debug lenses.
 - `pacman -S lazygit git-delta difftastic`; `cargo install cargo-nextest` (rustaceanvim detects it at config load, so restart nvim).
 - Known interactions: auto-save uses `noautocmd`, so neotest's watch mode (`<leader>tw`) must be hooked to `User AutoSaveWritePost`; nextest cannot run doctests (keep `cargo test --doc`); in Rust buffers `<leader>dr` (debuggables) shadows the REPL toggle.
-- Smoke test: debug a crate, run a test from the UI, open `<leader>gg`.
+- **Done:** all extras above enabled in `lazyvim.json`, codelens enabled (`lua/plugins/codelens.lua`), `lazygit` / `git-delta` / `difftastic` installed via pacman, `cargo-nextest` 0.9.148 via cargo. Verified headless on a scratch crate: `<leader>db/dc` (dap), `<leader>tt/tr/to` (neotest), `<leader>cc` (codelens), `<leader>dr` (debuggables), `<leader>gg` (lazygit) are all mapped and the dap/neotest/overseer modules load. A real interactive debug session and test run are still untested.
+- `<leader>tw` (neotest watch) rides on `BufWritePost`, which auto-save's `noautocmd` writes skip; use manual `:w` while watching.
 
 ### 3. rust-analyzer command keymaps (`<leader>r*`, which-key group "rust")
 `lua/config/keymaps.lua` is empty, so everything below exists in rustaceanvim but is unbound. Use static maps, not runtime generation:
@@ -145,4 +146,4 @@ lua/plugins/   one spec per concern (bacon-ls, rustaceanvim, ninety-nine, auto-s
 plugin/after/  transparency
 ```
 
-LazyVim extras enabled (`lazyvim.json`): `editor.neo-tree`, `lang.rust`.
+LazyVim extras enabled (`lazyvim.json`): `editor.neo-tree`, `editor.overseer`, `lang.rust`, `lang.toml`, `lang.yaml`, `lang.json`, `lang.markdown`, `lang.git`, `dap.core`, `test.core`.

@@ -4,6 +4,13 @@ All notable changes to this config are documented here.
 
 ## [Unreleased]
 
+### Added
+- Roadmap step 2: LazyVim extras `dap.core`, `test.core`, `editor.overseer`,
+  `lang.toml/yaml/json/markdown/git`; rust-analyzer codelens on; installed
+  lazygit, git-delta, difftastic, cargo-nextest. Keymaps and module loading
+  verified headless; lockfile updated (restore also dropped the dead
+  monokai-pro.nvim entry).
+
 ### Fixed
 - **Clippy tier was silently dead**: the `bacon_ls` `cmd` override pointed at
   `~/.cargo/bin/bacon-ls`, which does not exist. Removed it; Mason's bacon-ls
