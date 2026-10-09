@@ -1,6 +1,10 @@
 {
   "extras": [
+    "lazyvim.plugins.extras.coding.mini-surround",
+    "lazyvim.plugins.extras.coding.neogen",
     "lazyvim.plugins.extras.dap.core",
+    "lazyvim.plugins.extras.editor.inc-rename",
+    "lazyvim.plugins.extras.editor.navic",
     "lazyvim.plugins.extras.editor.neo-tree",
     "lazyvim.plugins.extras.editor.overseer",
     "lazyvim.plugins.extras.lang.git",
@@ -9,7 +13,8 @@
     "lazyvim.plugins.extras.lang.rust",
     "lazyvim.plugins.extras.lang.toml",
     "lazyvim.plugins.extras.lang.yaml",
-    "lazyvim.plugins.extras.test.core"
+    "lazyvim.plugins.extras.test.core",
+    "lazyvim.plugins.extras.ui.treesitter-context"
   ],
   "install_version": 8,
   "news": {

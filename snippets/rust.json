@@ -1,0 +1,37 @@
+{
+  "Test module": {
+    "prefix": "tmod",
+    "body": ["#[cfg(test)]", "mod tests {", "\tuse super::*;", "", "\t#[test]", "\tfn ${1:it_works}() {", "\t\t$0", "\t}", "}"],
+    "description": "#[cfg(test)] mod tests"
+  },
+  "Test fn": {
+    "prefix": "tfn",
+    "body": ["#[test]", "fn ${1:name}() {", "\t$0", "}"],
+    "description": "#[test] fn"
+  },
+  "Tokio test": {
+    "prefix": "ttest",
+    "body": ["#[tokio::test]", "async fn ${1:name}() {", "\t$0", "}"],
+    "description": "#[tokio::test] async fn"
+  },
+  "Tokio main": {
+    "prefix": "tmain",
+    "body": ["#[tokio::main]", "async fn main() -> ${1:anyhow::Result<()>} {", "\t$0", "\tOk(())", "}"],
+    "description": "#[tokio::main] async fn main"
+  },
+  "impl Display": {
+    "prefix": "impldisp",
+    "body": ["impl std::fmt::Display for ${1:Type} {", "\tfn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {", "\t\twrite!(f, \"${2}\")$0", "\t}", "}"],
+    "description": "impl Display"
+  },
+  "impl From": {
+    "prefix": "implfrom",
+    "body": ["impl From<${1:Source}> for ${2:Target} {", "\tfn from(value: ${1:Source}) -> Self {", "\t\t$0", "\t}", "}"],
+    "description": "impl From"
+  },
+  "Derive common": {
+    "prefix": "dcommon",
+    "body": ["#[derive(Debug, Clone, PartialEq, Eq)]"],
+    "description": "derive Debug, Clone, PartialEq, Eq"
+  }
+}

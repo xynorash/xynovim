@@ -104,6 +104,13 @@ vim.api.nvim_create_autocmd("LspAttach", {
         vim.notify("find usages: tests " .. (refs.excludeTests and "excluded" or "included"))
       end, "Toggle tests in find usages")
 
+      map("n", "<leader>ru", function()
+        require("config.rust_nav").goto_super()
+      end, "Go to super method (trait item)")
+      map("n", "<leader>rl", function()
+        require("config.rust_nav").local_usages()
+      end, "Usages in file (R/W)")
+
       -- Server
       map("n", "<leader>rR", rust("reloadWorkspace"), "Reload workspace")
       map("n", "<leader>rP", rust("rebuildProcMacros"), "Rebuild proc macros")
