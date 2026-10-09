@@ -4,6 +4,15 @@ All notable changes to this config are documented here.
 
 ## [Unreleased]
 
+### Fixed
+- Review findings: agent sandbox now keeps `.git/hooks`, `.git/config` and
+  `~/.claude` settings/hooks read-only and hides more credential paths and
+  variables; local history retries forced snapshots, times out hung git and
+  reports `update-ref` failures; 99 guard restores auto-save on a synchronous
+  throw; npm installed and checked by `:checkhealth xynovim` (markdownlint
+  ENOENT); README startup time, log path, `:ClaudeCode`, kulala keys and
+  layout corrected.
+
 ### Added
 - Roadmap step 11: LazyVim extra `ai.claudecode`, a lualine rust-analyzer /
   bacon-ls readiness component, a right-click Rust menu, a Neovide block, an

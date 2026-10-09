@@ -84,7 +84,16 @@ return {
         end
         return on_complete(...)
       end
-      return Claude.make_request(self, query, context, observer)
+      -- A synchronous throw (e.g. spawn failure) never reaches on_complete.
+      local ok, res = pcall(Claude.make_request, self, query, context, observer)
+      if not ok then
+        inflight = math.max(0, inflight - 1)
+        if inflight == 0 and autosave_was_on then
+          require("auto-save").on()
+        end
+        error(res, 0)
+      end
+      return res
     end
 
     _99.setup({

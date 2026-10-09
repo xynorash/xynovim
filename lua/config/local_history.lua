@@ -29,7 +29,17 @@ function M.snapshot(opts)
   opts = opts or {}
   local path = opts.path or vim.api.nvim_buf_get_name(0)
   local root = path ~= "" and vim.fs.root(path, ".git") or nil
-  if not root or running[root] then
+  if not root then
+    return
+  end
+  if running[root] then
+    -- A forced snapshot must not be dropped: retry once the running one ends
+    -- (it gets a few seconds at most, see the timeout below).
+    if opts.force then
+      vim.defer_fn(function()
+        M.snapshot(opts)
+      end, 500)
+    end
     return
   end
   if not opts.force and last[root] and os.time() - last[root] < THROTTLE_S then
@@ -37,12 +47,22 @@ function M.snapshot(opts)
   end
   running[root] = true
   last[root] = os.time()
+  local finished = false
   local function finish(commit)
+    if finished then
+      return
+    end
+    finished = true
     running[root] = nil
     if opts.done then
       opts.done(commit)
     end
   end
+
+  -- A hung git must not disable history for this repo until restart.
+  vim.defer_fn(function()
+    finish()
+  end, 30000)
 
   git({ "rev-parse", "--absolute-git-dir" }, root, nil, function(gitdir)
     if not gitdir then
@@ -81,7 +101,11 @@ function M.snapshot(opts)
                 if not c then
                   return finish()
                 end
-                git({ "update-ref", ref, c }, root, env, function()
+                git({ "update-ref", ref, c }, root, env, function(_, o)
+                  if o.code ~= 0 then
+                    vim.notify("local history: update-ref failed: " .. vim.trim(o.stderr or ""), vim.log.levels.WARN)
+                    return finish()
+                  end
                   finish(c)
                 end)
               end)

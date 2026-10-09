@@ -26,7 +26,7 @@ local bacon_ls_settings = {
     -- burst into exactly 1 cargo spawn (500 and 800 both spawned 1 for an
     -- 18-keystroke burst; 300 spawned 18). 500ms is the sweet spot: 0.56s
     -- median latency, no extra churn. The old 800ms was compensating for
-    -- the upstream abort bug the patched binary fixes.
+    -- the abort bug fixed upstream in 0.31.0.
     updateOnInsertDebounceMillis = 500,
     -- OFF deliberately: with ~1s auto-save, checkOnSave is a second run
     -- pipeline racing the updateOnInsert one - runs cancel each other and
