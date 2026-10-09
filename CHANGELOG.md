@@ -36,6 +36,10 @@ All notable changes to this config are documented here.
   personal Rust snippets, super-method and per-file R/W usage helpers.
   Helpers and surround verified headless.
 
+- Roadmap step 8: `:RustContext` (per-project features/target kept in sync
+  across rust-analyzer and bacon-ls), `:RustTargets`, `:RustNew`. Verified
+  headless including persistence across restarts.
+
 ### Fixed
 - **Clippy tier was silently dead**: the `bacon_ls` `cmd` override pointed at
   `~/.cargo/bin/bacon-ls`, which does not exist. Removed it; Mason's bacon-ls
