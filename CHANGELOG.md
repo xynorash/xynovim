@@ -2,6 +2,14 @@
 
 All notable changes to this config are documented here.
 
+## [Unreleased]
+
+### Docs
+- README: added a "Roadmap: closing the gap with RustRover" section with the
+  11-step, ordered plan from a researched gap analysis against RustRover 2026.2
+  (research only; no config changes). Items not tested on this machine are
+  marked *(unverified)*.
+
 ## [1.4.1] — 2026-09-04
 
 ### Changed

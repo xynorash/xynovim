@@ -52,6 +52,89 @@ Hard-won configuration notes:
 - Remote-plugin providers (python3/ruby/perl/node) disabled — nothing uses them.
 - 99's request cache (`~/.cache/nvim/99`) is pruned of week-old files on load.
 
+## Roadmap: closing the gap with RustRover
+
+Result of a gap analysis against RustRover 2026.2 (researched 2026-10-08: 15 dimensions, each adversarially verified). xynovim already matches or beats RustRover on diagnostics latency, startup/footprint, raw rust-analyzer access and scriptability; the gaps below are mostly **tooling that is installed but inert** or unbound. Steps are in recommended order; each is verifiable (`:checkhealth`, a headless `nvim --headless` smoke run, or one real crate). Items marked *(unverified)* come from research that was not tested on this machine; test them before building on them.
+
+### 1. Reality check (do first, ~10 min)
+- Confirm the environment matches this README: `ls ~/.cargo/bin/bacon-ls`, `which mold lazygit delta rr perf`, `rustup show`, `ls ~/.cargo/config.toml`. The research reported `~/.cargo/bin/bacon-ls` and `~/.cargo/config.toml` missing and `mold` off PATH *(unverified)*; if so, live clippy is silently dead.
+- bacon-ls [#139](https://github.com/crisidev/bacon-ls/pull/139) reportedly merged and shipped in 0.31.0 *(unverified)*: drop the `cmd` override (Mason's build) or pin `cargo install bacon-ls --version 0.31.0 --locked`. Add a `vim.fn.executable` guard falling back to Mason.
+- Create `~/.cargo/config.toml` (mold via clang, `profile.dev.debug = "line-tables-only"`) and install `mold`, or correct the README above.
+- Only the stable toolchain was found: `cargo miri` and other nightly tooling need `rustup toolchain install nightly`.
+
+### 2. Extras and packages (biggest win per line)
+- LazyVim extras: `dap.core` (debugger front end: breakpoints, stepping, dap-ui; codelldb is already in Mason), `test.core` (neotest with rustaceanvim's adapter), `editor.overseer` (task runner), `lang.toml` / `lang.yaml` / `lang.json` / `lang.markdown` / `lang.git` (taplo for `Cargo.toml`, yamlls + SchemaStore for CI workflows). Verify names in `:LazyExtras`.
+- Enable LazyVim codelens (`opts.codelens.enabled = true`) for run/debug lenses.
+- `pacman -S lazygit git-delta difftastic`; `cargo install cargo-nextest` (rustaceanvim detects it at config load, so restart nvim).
+- Known interactions: auto-save uses `noautocmd`, so neotest's watch mode (`<leader>tw`) must be hooked to `User AutoSaveWritePost`; nextest cannot run doctests (keep `cargo test --doc`); in Rust buffers `<leader>dr` (debuggables) shadows the REPL toggle.
+- Smoke test: debug a crate, run a test from the UI, open `<leader>gg`.
+
+### 3. rust-analyzer command keymaps (`<leader>r*`, which-key group "rust")
+`lua/config/keymaps.lua` is empty, so everything below exists in rustaceanvim but is unbound. Use static maps, not runtime generation:
+- Refactor: code actions filtered to `refactor` on one key plus per-assist keys (extract variable/function, inline), `moveItem` on `<A-j>/<A-k>`, `joinLines` on its own key (not `J`), `ssr`.
+- Inspect: `expandMacro` (recursive), `view hir/mir`, `syntaxTree`, `parentModule`, `relatedTests`, `openCargo`, `openDocs`, visual-mode `hover range`.
+- Diagnostics: `explainError`, `renderDiagnostic`, `relatedDiagnostics` (these only work on rust-analyzer diagnostics, not bacon-ls/clippy ones).
+- Search: `:RustLsp workspaceSymbol` with `onlyTypes|allSymbols` and `workspaceAndDependencies` scope variants (RustRover's "include non-project items"); optionally a second picker over `rg --files` of `~/.cargo/registry/src` and the sysroot library.
+- Note `<leader>cR` in Rust buffers shadows LazyVim's Snacks file-rename. Add `editor.inc-rename` for live rename preview.
+
+### 4. rust-analyzer settings pass (`lua/plugins/rustaceanvim.lua`)
+- `references.excludeImports` / `references.excludeTests` for a cleaner Find Usages (exist in the installed binary, currently unset).
+- Resource budget: `cachePriming.numThreads` 2-4, `numThreads` ~6, `lru.capacity`, `check.workspace = false`; raise `fs.inotify.max_user_watches`. **Keep `procMacro.attributes.enable` on** (off breaks `tokio::main`/axum).
+- `completion.termSearch.enable` (one line, may be slow on big crates); custom postfix snippets via `completion.snippets.custom` (`{postfix|prefix, body, requires, scope}`).
+- Optional: cap the server with `systemd-run --user --scope -p MemoryMax=6G -p MemoryHigh=5G` as `server.cmd` (needs cgroup v2 delegation); or `ra-multiplex` to share one server across nvim instances (limited settings reload).
+
+### 5. Safety net (auto-save + AI agent = need a Local History equivalent)
+RustRover's Local History covers deleted files, `reset --hard` and AI edits; xynovim has only `undofile`, and `99` runs `claude --dangerously-skip-permissions` on top of 1s auto-save.
+- Built-in `:Undotree` (`:packadd nvim.undotree`, new in 0.12) for per-buffer history.
+- Shadow-ref snapshots on `User AutoSaveWritePost`: `git write-tree` with a separate `GIT_INDEX_FILE`, `update-ref refs/lochist/<branch>`, throttled (~1/min), excluding `target/`.
+- `git stash create` + `update-ref refs/checkpoints/<ts>` before every `99` request; pause auto-save during requests (99 exposes no hook, so wrap its API). Stash-create skips untracked files.
+- Sandbox the `99` provider command (`bwrap`/`firejail`); move its log to `stdpath('state')`.
+- snapper on btrfs `/home` as an OS-level timeline layer.
+- Do **not** gate auto-save on ERROR diagnostics (stalls `didSave` and bacon-ls).
+
+### 6. Git depth
+- diffview.nvim (`:DiffviewOpen origin/main...HEAD`, `:DiffviewFileHistory %`).
+- `git config merge.conflictstyle zdiff3`, `rerere.enabled true`.
+- **mergiraf** as a syntax-aware merge driver (`*.rs merge=mergiraf` in `.gitattributes`): auto-resolves `use`-list conflicts. `Cargo.lock` still needs special handling.
+- difftastic as `diff.external` (ignores rustfmt-only churn); `git-absorb` + `rebase.autoSquash` + `rebase.updateRefs`; `.git-blame-ignore-revs` for formatter commits (gitsigns honours `blame.ignoreRevsFile`).
+- Hooks (lefthook): fmt/clippy/gitleaks, with a separate `CARGO_TARGET_DIR`; hooks cannot depend on a running LSP.
+
+### 7. Navigation and orientation
+- `ui.treesitter-context` (`max_lines = 3`) + `editor.navic` or `dropbar.nvim` (pick one outline provider; aerial collides with Trouble symbols on `<leader>cs`).
+- `satellite.nvim` error/git/search scrollbar (exclude huge/generated files).
+- Trouble `lsp_incoming_calls` / `lsp_outgoing_calls` for a persistent call hierarchy. Type hierarchy is probably unsupported by rust-analyzer *(unverified)*; `gI` is the one-level substitute.
+- Treesitter helper for "go to super method" (enclosing `impl Trait for T` -> trait path -> same fn name).
+- `coding.mini-surround` with Rust `custom_surroundings` (`Some()`, `Box::new()`, `dbg!()`, `unsafe {}`), `coding.neogen`, `treesj`, personal snippets in blink `snippets.search_paths`.
+- Read/write-tagged Find Usages picker from `textDocument/documentHighlight` kinds.
+
+### 8. Context switcher (features / target / profile)
+`lang.rust` sets `allFeatures = true` and bacon-ls hardcodes `--all-features`, so mutually exclusive features (ssr/csr, std/no_std) give bogus errors, and there is no `cargo.target`/cfg switcher (wasm32, thumbv7).
+- Per-project `rust-analyzer.json` (loaded by rustaceanvim) with `allFeatures = false`; bacon-ls does not read it.
+- `:RustContext` picker over `cargo metadata --format-version 1 --no-deps`, pushing the choice to rust-analyzer (`didChangeConfiguration` + `:RustLsp reloadWorkspace`) **and** restarting bacon-ls with matching `--features`/`--target` so both diagnostic tiers agree *(live reconfiguration untested; restarting is the safe route)*. Persist per project; `cargo-hack` for feature-powerset checks.
+- `:RustNew` / scratch crate (`Snacks.scratch({ft='rust'})` + `rust-script`) and a Cargo-targets picker for run/test/debug; `.cargo/config.toml` `[env]`/`[alias]` as the shared run-configuration format; `direnv.nvim`.
+
+### 9. Supply chain, coverage, profiling
+- nvim-lint sources: actionlint (path-restricted to `.github/workflows/`), cargo-deny `--format json`, cargo-machete, gitleaks. `cargo audit --json` has no line numbers, so use quickfix. Verify JSON keys with one real run each. zizmor for workflow security; `act -j <job>` for local CI.
+- Coverage: `cargo-llvm-cov` + `llvm-tools-preview` (check rustup owns the toolchain) + `andythigpen/nvim-coverage`; refresh on demand (`cargo llvm-cov nextest --no-report` then `report --lcov --no-run`), not on every autosave.
+- Profiling: `perf` + `samply`/`flamegraph`, `[profile.profiling] inherits = "release" debug = true` with a dedicated target dir (`kernel.perf_event_paranoid` is 2 here); `cargo-bloat`, `cargo --timings`, tokio-console, `cargo-geiger`.
+- Diagnostics UX: code-action preview (`actions-preview.nvim` / `tiny-code-action.nvim`), `[lints.clippy]` / `[workspace.lints]` tuning (`undocumented_unsafe_blocks`, `dbg_macro`, `unsafe_op_in_unsafe_fn`), tier de-duplication via a `bacon_ls` handler wrapper, a treesitter "suppress with `#[allow]`" helper. Clippy deliberately skips `--all-targets` in the live tier; run it on demand for tests.
+
+### 10. Domain-specific, as needed
+- HTTP/backend: `util.rest` (kulala.nvim), treesitter endpoint picker over axum `.route(...)` / `#[get]`, sqlx SQL injections (`after/queries/rust/injections.scm`), `lang.sql`.
+- WASM/web: `trunk`, `wasm-pack`, `leptosfmt`, per-project target (ignore `target/bacon-ls-live/` in `Trunk.toml` to avoid rebuild storms under auto-save).
+- Bevy: mold, `dynamic_linking` per project, `wgsl-analyzer`, `ron-lsp`, BRP *(verify port/params on docs.rs)*.
+- Embedded: `probe-rs-tools`, per-project `cargo.target`. Containers: `nvim-dev-container` or distrobox.
+- Also useful: `cargo-expand` (nightly flags need nightly), `rustup component add rust-docs` for offline docs, unsafe underline (`@lsp.mod.unsafe.rust`, re-applied on `ColorScheme`).
+
+### 11. Optional: AI, UX, hygiene
+- Inline AI: `ai.copilot-native` (0.12 `vim.lsp.inline_completion`, don't combine with `vim.g.ai_cmp`), `ai.sidekick` (next-edit suggestions), or a free local fill-in-the-middle model via `minuet-ai.nvim` / `llama.vim` + Qwen2.5-Coder.
+- Agent grounding: `claudecode.nvim` (live diagnostics/selection over MCP), a project `CLAUDE.md`, git worktree per agent run.
+- Status: fidget.nvim or a lualine component for rust-analyzer indexing/quiescent and bacon-ls staleness; right-click Refactor submenu via `MenuPopup`; Neovide config; colourblind-safe diagnostic palette.
+- Hygiene: `lua/xynovim/health.lua` (`:checkhealth xynovim` for bacon-ls, mold, nextest, taplo, codelldb), CI running `nvim --headless '+Lazy! restore' +qa`, prune unused theme specs, remove dead `.neoconf.json`, guard Omarchy/remote-clipboard modules by capability for non-Arch machines.
+
+### Not worth chasing
+Type Hierarchy over LSP (unsupported), a tabbed Search Everywhere clone (`Snacks.picker.smart()` suffices), a full Cargo tool-window clone (a `cargo metadata` picker gets ~80%), RustRover's `macro_rules!` tester (use `expandMacro` + `cargo-expand`), Aquascope-style ownership visualisation, a `Cargo.toml` `BufWritePost` reload autocmd (rust-analyzer already reloads; harmful with auto-save), global `--all-targets` in live clippy, a second rust-analyzer instance.
+
 ## Layout
 
 ```
