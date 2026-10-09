@@ -40,6 +40,12 @@ All notable changes to this config are documented here.
   across rust-analyzer and bacon-ls), `:RustTargets`, `:RustNew`. Verified
   headless including persistence across restarts.
 
+- Roadmap step 10: `util.rest` (kulala.nvim, pinned to v5.3.4 because v6 needs a
+  license-gated backend), `:RustRoutes` axum/actix/rocket route picker, sqlx SQL
+  injections, wgsl-analyzer, unsafe underline that survives `ColorScheme`;
+  installed trunk, wasm-pack, wasm-bindgen, probe-rs, cargo-expand and the
+  wasm32 target. Verified headless except hardware and visual output.
+
 - Roadmap step 9: supply-chain diagnostics (cargo-deny, cargo-machete,
   actionlint, zizmor as nvim-lint sources), coverage signs via cargo-llvm-cov
   (`<leader>tc/tg/tG`), `:RustTools` (`<leader>rZ`), `:ActJob`, samply and
