@@ -115,6 +115,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
       map("n", "<leader>rX", "<cmd>RustTargets<cr>", "Cargo targets: run / test / bench")
 
       map("n", "<leader>rZ", "<cmd>RustTools<cr>", "Cargo tools (deny, audit, bloat, timings, ...)")
+      map("n", "<leader>rN", "<cmd>RustRoutes<cr>", "HTTP routes (axum / actix / rocket)")
 
       -- Server
       map("n", "<leader>rR", rust("reloadWorkspace"), "Reload workspace")
