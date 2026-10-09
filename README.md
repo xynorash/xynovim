@@ -106,7 +106,7 @@ RustRover's Local History covers deleted files, `reset --hard` and AI edits; xyn
 - `git-absorb` and `gitleaks` installed (pacman). Use `git absorb --and-rebase` to fold fixups into the right earlier commits.
 - **Per-repo opt-ins, not applied automatically:**
   - Ignore formatter-only commits in blame: list the commit hashes in `.git-blame-ignore-revs` and run `git config blame.ignoreRevsFile .git-blame-ignore-revs` (gitsigns blame honours it).
-  - Pre-commit hooks (lefthook is not packaged for Arch; `cargo install lefthook` is not an option either, it is Go; use `go install github.com/evilmartians/lefthook@latest` or plain `.githooks/pre-commit`). Example `lefthook.yml`; keep a separate `CARGO_TARGET_DIR` so hooks never contend with the editor's builds, and never make hooks depend on a running LSP:
+  - Pre-commit hooks (lefthook is not in the official Arch repos: install it with `go install github.com/evilmartians/lefthook@latest`, or use a plain `.githooks/pre-commit` script). Example `lefthook.yml`; keep a separate `CARGO_TARGET_DIR` so hooks never contend with the editor's builds, and never make hooks depend on a running LSP:
     ```yaml
     pre-commit:
       parallel: true
