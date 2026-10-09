@@ -40,7 +40,25 @@ return {
   },
   opts = {
     auto_reload = true,
-    lcov_file = "lcov.info",
     commands = true,
+    -- the stock rust backend shells out to grcov; read cargo-llvm-cov's lcov instead
+    lang = { rust = { coverage_file = "lcov.info" } },
   },
+  config = function(_, opts)
+    local common = require("coverage.languages.common")
+    local Path = require("plenary.path")
+    local util = require("coverage.util")
+    package.loaded["coverage.languages.rust"] = {
+      sign_list = common.sign_list,
+      summary = common.summary,
+      load = function(callback)
+        local p = Path:new(util.get_coverage_file(require("coverage.config").opts.lang.rust.coverage_file))
+        if not p:exists() then
+          return vim.notify("No coverage file (lcov.info); run <leader>tc", vim.log.levels.INFO)
+        end
+        callback(util.lcov_to_table(p))
+      end,
+    }
+    require("coverage").setup(opts)
+  end,
 }
