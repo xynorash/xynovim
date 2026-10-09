@@ -9,7 +9,7 @@ local function first_line(cmd)
   if not ok or o.code ~= 0 then
     return nil
   end
-  return vim.split(o.stdout ~= "" and o.stdout or o.stderr, "\n")[1]
+  return vim.split(o.stdout ~= "" and o.stdout or o.stderr, "\n")[1]:sub(1, 80)
 end
 
 --- Mason's bin dir first (installed by `ensure_installed`), then PATH.

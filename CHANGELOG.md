@@ -5,6 +5,13 @@ All notable changes to this config are documented here.
 ## [Unreleased]
 
 ### Added
+- Roadmap step 11: LazyVim extra `ai.claudecode`, a lualine rust-analyzer /
+  bacon-ls readiness component, a right-click Rust menu, a Neovide block, an
+  opt-in Okabe-Ito diagnostic palette (`<leader>uB`), `:checkhealth xynovim`,
+  and a CI smoke test (actionlint/zizmor clean). Verified headless except
+  Neovide, real mouse clicks, `claude` itself and a GitHub run. README gained
+  an "Optional / revisit" list.
+
 - Roadmap step 2: LazyVim extras `dap.core`, `test.core`, `editor.overseer`,
   `lang.toml/yaml/json/markdown/git`; rust-analyzer codelens on; installed
   lazygit, git-delta, difftastic, cargo-nextest. Keymaps and module loading
@@ -53,6 +60,10 @@ All notable changes to this config are documented here.
   `kernel.perf_event_paranoid=1`, documented), act and the flamegraph run.
 
 ### Fixed
+- Dead `monokai-pro.nvim` spec now points at `loctvl842/monokai-pro.nvim`
+  (ends "Too many rounds of missing plugins"); a dangling Omarchy
+  `plugins/theme.lua` symlink no longer errors at startup; removed the unused
+  `.neoconf.json`.
 - **Clippy tier was silently dead**: the `bacon_ls` `cmd` override pointed at
   `~/.cargo/bin/bacon-ls`, which does not exist. Removed it; Mason's bacon-ls
   0.31.0 already contains the upstreamed fixes (crisidev/bacon-ls#139).
