@@ -15,6 +15,10 @@ return {
     opts = { ensure_installed = { "sql", "wgsl" } },
   },
   {
+    "mason-org/mason.nvim",
+    opts = { ensure_installed = { "wgsl-analyzer" } },
+  },
+  {
     "neovim/nvim-lspconfig",
     opts = {
       servers = {
