@@ -67,8 +67,8 @@ return {
           end,
           "--format",
           "json",
-          "--disable-fetch",
           "check",
+          "--disable-fetch",
           "advisories",
           "bans",
         },
@@ -124,7 +124,9 @@ return {
           for line in vim.gsplit(output, "\n", { plain = true, trimempty = true }) do
             local path = line:match("^%S+ %-%- (.+):$")
             if path then
-              current = vim.fs.normalize(dir .. "/" .. path:gsub("^%./", "")) == file
+              -- relative to the scanned dir, or absolute when given an absolute dir
+              local full = path:sub(1, 1) == "/" and path or (dir .. "/" .. path:gsub("^%./", ""))
+              current = vim.fs.normalize(full) == file
             elseif current and line:match("^\t%S+$") then
               local dep = vim.trim(line)
               out[#out + 1] = {
