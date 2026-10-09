@@ -42,18 +42,10 @@ return {
   opts = {
     servers = {
       bacon_ls = {
-        -- Locally patched build (source: ~/.local/src/bacon-ls-upstream,
-        -- upstream 0.30.0 + our fix branch), NOT the Mason binary. Upstream
-        -- aborts the debounce task even after its sleep has elapsed - at that
-        -- point the task IS the in-flight cargo run, so any keystroke (or
-        -- auto-save's didSave, which lands ~200ms into every burst's final
-        -- run) kills the run outright: the progress token never gets its
-        -- "end" (permanently stacked "checking..." rows) and diagnostics go
-        -- stale. Two more bugs fixed in the same branch: didSave dropping the
-        -- only pending check when checkOnSave is off, and dirty-buffer close
-        -- leaving stale diagnostics + replaying cached warnings. Filed as
-        -- crisidev/bacon-ls#139. Drop this cmd override once it merges.
-        cmd = { vim.fn.expand("~/.cargo/bin/bacon-ls") },
+        -- Uses Mason's bacon-ls (>= 0.31.0). The run-abort / stale-diagnostics
+        -- fixes we needed were merged upstream as crisidev/bacon-ls#139 and
+        -- shipped in 0.31.0, so the old local patched-build `cmd` override
+        -- (~/.cargo/bin/bacon-ls) is gone.
         init_options = bacon_ls_settings,
         -- Also answered to the server's workspace/configuration pull.
         settings = { bacon_ls = bacon_ls_settings },

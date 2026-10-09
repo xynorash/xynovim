@@ -4,6 +4,14 @@ All notable changes to this config are documented here.
 
 ## [Unreleased]
 
+### Fixed
+- **Clippy tier was silently dead**: the `bacon_ls` `cmd` override pointed at
+  `~/.cargo/bin/bacon-ls`, which does not exist. Removed it; Mason's bacon-ls
+  0.31.0 already contains the upstreamed fixes (crisidev/bacon-ls#139).
+  Verified headless: bacon_ls attaches and publishes diagnostics.
+- Created `~/.cargo/config.toml` (outside this repo) and installed `mold`, as
+  the README already described. Verified a fresh crate links with mold.
+
 ### Docs
 - README: added a "Roadmap: closing the gap with RustRover" section with the
   11-step, ordered plan from a researched gap analysis against RustRover 2026.2
