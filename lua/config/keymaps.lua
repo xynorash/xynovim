@@ -111,6 +111,9 @@ vim.api.nvim_create_autocmd("LspAttach", {
         require("config.rust_nav").local_usages()
       end, "Usages in file (R/W)")
 
+      map("n", "<leader>rF", "<cmd>RustContext<cr>", "Cargo features / target (both diagnostic tiers)")
+      map("n", "<leader>rX", "<cmd>RustTargets<cr>", "Cargo targets: run / test / bench")
+
       -- Server
       map("n", "<leader>rR", rust("reloadWorkspace"), "Reload workspace")
       map("n", "<leader>rP", rust("rebuildProcMacros"), "Rebuild proc macros")

@@ -22,3 +22,4 @@ require("config.local_history").setup()
 
 -- :RustContext (cargo features / target for both diagnostic tiers).
 require("config.rust_context").setup()
+require("config.rust_tasks").setup()
