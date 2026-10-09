@@ -60,7 +60,8 @@ return {
           local s = vim.deepcopy(bacon_ls_settings)
           s.cargo.extraArgs = rc.bacon_args(ctx)
           params.initializationOptions = s
-          config.settings = { bacon_ls = s }
+          -- in place: the client already holds a reference to this table
+          config.settings.bacon_ls = s
         end,
         -- Also answered to the server's workspace/configuration pull.
         settings = { bacon_ls = bacon_ls_settings },
