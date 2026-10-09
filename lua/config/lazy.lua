@@ -16,12 +16,19 @@ vim.opt.rtp:prepend(lazypath)
 
 -- Omarchy manages lua/plugins/theme.lua as a symlink into
 -- ~/.local/state/omarchy. Without Omarchy (or in a bare clone) it dangles and
--- lazy reports "Failed to load plugins.theme". Give lazy an empty spec for it
--- instead; a working symlink is left alone.
+-- lazy reports "Failed to load plugins.theme". lazy reads spec files with
+-- loadfile(), so answer that one path with an empty spec; a working symlink is
+-- left alone.
 local theme_link = vim.fn.stdpath("config") .. "/lua/plugins/theme.lua"
 if vim.uv.fs_lstat(theme_link) and not vim.uv.fs_stat(theme_link) then
-  package.preload["plugins.theme"] = function()
-    return {}
+  local loadfile = _G.loadfile
+  _G.loadfile = function(filename, ...)
+    if filename == theme_link then
+      return function()
+        return {}
+      end
+    end
+    return loadfile(filename, ...)
   end
 end
 
