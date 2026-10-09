@@ -57,6 +57,20 @@ function M.targets()
     for _, t in ipairs(p.targets) do
       local kind = t.kind[1]
       kind = (kind == "proc-macro" or kind == "rlib" or kind == "cdylib" or kind == "staticlib" or kind == "dylib") and "lib" or kind
+      if kind == "bin" then
+        -- `profiling` profile = release + debug symbols (~/.cargo/config.toml)
+        local bin = ("%s/profiling/%s"):format(meta.target_directory, t.name)
+        local build = { "cargo", "build", "--profile", "profiling", "-p", p.name, "--bin", t.name }
+        vim.list_extend(build, ctx_flags(root))
+        items[#items + 1] = {
+          text = ("samply  bin %s (%s)"):format(t.name, p.name),
+          cmd = { "sh", "-c", table.concat(vim.tbl_map(vim.fn.shellescape, build), " ") .. " && samply record " .. vim.fn.shellescape(bin) },
+        }
+        items[#items + 1] = {
+          text = ("flamegraph  bin %s (%s)"):format(t.name, p.name),
+          cmd = { "cargo", "flamegraph", "--profile", "profiling", "-p", p.name, "--bin", t.name },
+        }
+      end
       for _, a in ipairs(ACTIONS[kind] or {}) do
         local cmd = { "cargo", a[2], "-p", p.name }
         if kind == "lib" then
@@ -118,8 +132,69 @@ function M.new(name)
   end
 end
 
+-- Workspace-wide tools (supply chain, size, build time).
+local TOOLS = {
+  { "timings (cargo build --timings; report in target/cargo-timings)", { "cargo", "build", "--timings" } },
+  { "bloat by crate (release)", { "cargo", "bloat", "--release", "--crates" } },
+  { "bloat by function (release, top 30)", { "cargo", "bloat", "--release", "-n", "30" } },
+  { "unused dependencies (cargo machete)", { "cargo", "machete" } },
+  { "deny: fetch advisory DB", { "cargo", "deny", "fetch" } },
+  { "deny: check all", { "cargo", "deny", "check" } },
+  { "audit (RustSec)", { "cargo", "audit" } },
+  { "duplicate dependency versions", { "cargo", "tree", "-d" } },
+  { "coverage report (summary in terminal)", { "cargo", "llvm-cov", "--workspace", "--summary-only" } },
+}
+
+function M.tools()
+  local root = rc.root()
+  if not root then
+    return vim.notify("no Cargo.toml found", vim.log.levels.WARN)
+  end
+  local items = vim.tbl_map(function(t)
+    return { text = t[1], cmd = t[2] }
+  end, TOOLS)
+  Snacks.picker({
+    title = "Cargo tools",
+    items = items,
+    format = "text",
+    layout = { preset = "select" },
+    confirm = function(picker, item)
+      picker:close()
+      if item then
+        Snacks.terminal(item.cmd, { cwd = root, win = { position = "bottom" } })
+      end
+    end,
+  })
+end
+
+--- :ActJob - run the GitHub Actions job under the cursor locally with `act`.
+function M.act_job()
+  local file = vim.api.nvim_buf_get_name(0)
+  local node = vim.treesitter.get_node()
+  local job
+  while node do
+    if node:type() == "block_mapping_pair" then
+      local pair_parent = node:parent() and node:parent():parent()
+      local grand = pair_parent and pair_parent:parent()
+      local gkey = grand and grand:type() == "block_mapping_pair" and grand:field("key")[1]
+      if gkey and vim.treesitter.get_node_text(gkey, 0) == "jobs" then
+        job = vim.treesitter.get_node_text(node:field("key")[1], 0)
+        break
+      end
+    end
+    node = node:parent()
+  end
+  if not job then
+    return vim.notify("cursor is not inside a job under `jobs:`", vim.log.levels.WARN)
+  end
+  local root = vim.fs.root(file, ".git") or vim.uv.cwd()
+  Snacks.terminal({ "act", "-j", job, "-W", file }, { cwd = root, win = { position = "bottom" } })
+end
+
 function M.setup()
   vim.api.nvim_create_user_command("RustTargets", M.targets, { desc = "Run/test/bench a cargo target" })
+  vim.api.nvim_create_user_command("RustTools", M.tools, { desc = "Cargo tools: deny, audit, bloat, timings, ..." })
+  vim.api.nvim_create_user_command("ActJob", M.act_job, { desc = "Run the GitHub Actions job under the cursor with act" })
   vim.api.nvim_create_user_command("RustNew", function(a)
     M.new(a.args)
   end, { nargs = "?", desc = "cargo new in the current directory" })
