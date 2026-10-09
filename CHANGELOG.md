@@ -17,6 +17,10 @@ All notable changes to this config are documented here.
   rename restored in Rust buffers. Verified headless (extract variable
   end-to-end).
 
+- Roadmap step 4: rust-analyzer settings (find-usages excludes + `<leader>rT`
+  toggle, thread caps, term search, extra postfix snippets). Verified
+  headless against the live server.
+
 ### Fixed
 - **Clippy tier was silently dead**: the `bacon_ls` `cmd` override pointed at
   `~/.cargo/bin/bacon-ls`, which does not exist. Removed it; Mason's bacon-ls

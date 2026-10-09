@@ -82,11 +82,13 @@ Findings on this machine and what was done:
 - `<leader>cR` is restored to LazyVim's Snacks file rename in Rust buffers (the extra had shadowed it with code actions; use `<leader>ca`).
 Verified headless: all maps present and buffer-local; `<leader>rv` on `1 + 2` produced `let var_name = 1 + 2 + 3;`; `:RustLsp view hir` opens. Not exercised: the other assists, `rW` interactively, move item.
 
-### 4. rust-analyzer settings pass (`lua/plugins/rustaceanvim.lua`)
-- `references.excludeImports` / `references.excludeTests` for a cleaner Find Usages (exist in the installed binary, currently unset).
-- Resource budget: `cachePriming.numThreads` 2-4, `numThreads` ~6, `lru.capacity`, `check.workspace = false`; raise `fs.inotify.max_user_watches`. **Keep `procMacro.attributes.enable` on** (off breaks `tokio::main`/axum).
-- `completion.termSearch.enable` (one line, may be slow on big crates); custom postfix snippets via `completion.snippets.custom` (`{postfix|prefix, body, requires, scope}`).
-- Optional: cap the server with `systemd-run --user --scope -p MemoryMax=6G -p MemoryHigh=5G` as `server.cmd` (needs cgroup v2 delegation); or `ra-multiplex` to share one server across nvim instances (limited settings reload).
+### 4. rust-analyzer settings pass: done 2026-10-09
+In `lua/plugins/rustaceanvim.lua` (all keys checked against `rust-analyzer --print-config-schema` of the installed 1.99.0 binary):
+- `references.excludeImports` and `references.excludeTests` on, so `gr` / call hierarchy skip `use` lines and test code. `<leader>rT` flips tests back in live (`workspace/didChangeConfiguration` answered from `client.settings`). Verified: a fn used in `main`, an import and a test returned 2 references (decl + `main` call), 3 after the toggle (test included; the import stays excluded).
+- Resource budget for this 16-core / 15 GiB machine: `numThreads = 8`, `cachePriming.numThreads = 4`. `procMacro.attributes.enable` deliberately left on (off breaks `tokio::main` / axum). `fs.inotify.max_user_watches` is already 524288, so no change. Not set: `check.workspace` (flycheck is off anyway), `lru.capacity` (default 128 until memory is actually a problem).
+- `completion.termSearch.enable = true`.
+- Custom postfix snippets: `.ok/.err/.some/.arc/.rc/.pinbox` plus new `.refcell`, `.mutex`, `.arcmutex`. The setting replaces rust-analyzer's default map rather than merging, so the defaults are repeated in the config. Config accepted by the server; snippet expansion itself not tried interactively.
+- Skipped on purpose: the optional `systemd-run` memory cap and `ra-multiplex` (see "Optional / revisit" below) until memory pressure shows up.
 
 ### 5. Safety net (auto-save + AI agent = need a Local History equivalent)
 RustRover's Local History covers deleted files, `reset --hard` and AI edits; xynovim has only `undofile`, and `99` runs `claude --dangerously-skip-permissions` on top of 1s auto-save.
