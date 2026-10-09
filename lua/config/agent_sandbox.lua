@@ -47,7 +47,11 @@ function M.wrap(cmd, project, tmp_dir)
       vim.list_extend(a, { "--tmpfs", p })
     end
   end
-  local rw = vim.list_extend({ project, tmp_dir }, WRITABLE)
+  -- Never make $HOME or / writable just because nvim was started there.
+  local rw = vim.list_extend({ tmp_dir }, WRITABLE)
+  if project ~= home and project ~= "/" then
+    table.insert(rw, 1, project)
+  end
   for _, p in ipairs(rw) do
     if exists(p) then
       vim.list_extend(a, { "--bind", p, p })

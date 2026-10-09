@@ -21,6 +21,11 @@ All notable changes to this config are documented here.
   toggle, thread caps, term search, extra postfix snippets). Verified
   headless against the live server.
 
+- Roadmap step 5: git-ref Local History (`refs/lochist/*`, `:LocalHistory`,
+  `<leader>gH`), `<leader>uu` undotree, and a guard around `99` (pre-request
+  snapshot, auto-save paused during requests, bubblewrap sandbox, log moved to
+  the state dir). Everything verified except a live `99` request.
+
 ### Fixed
 - **Clippy tier was silently dead**: the `bacon_ls` `cmd` override pointed at
   `~/.cargo/bin/bacon-ls`, which does not exist. Removed it; Mason's bacon-ls
