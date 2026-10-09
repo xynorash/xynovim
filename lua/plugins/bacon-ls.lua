@@ -47,6 +47,21 @@ return {
         -- shipped in 0.31.0, so the old local patched-build `cmd` override
         -- (~/.cargo/bin/bacon-ls) is gone.
         init_options = bacon_ls_settings,
+        -- Match the per-project Cargo context (:RustContext) so both
+        -- diagnostic tiers see the same features/target. Settings reach the
+        -- server in two ways, init_options (initialize) and the
+        -- workspace/configuration pull, so patch both.
+        before_init = function(params, config)
+          local rc = require("config.rust_context")
+          local ctx = rc.get(rc.root((config.root_dir or vim.uv.cwd()) .. "/x"))
+          if not ctx then
+            return
+          end
+          local s = vim.deepcopy(bacon_ls_settings)
+          s.cargo.extraArgs = rc.bacon_args(ctx)
+          params.initializationOptions = s
+          config.settings = { bacon_ls = s }
+        end,
         -- Also answered to the server's workspace/configuration pull.
         settings = { bacon_ls = bacon_ls_settings },
       },

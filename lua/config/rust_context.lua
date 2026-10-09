@@ -1,0 +1,228 @@
+-- Per-project Cargo "context" (features / target), RustRover's Cargo tool
+-- window toggles. rust-analyzer and bacon-ls (the clippy tier) must agree on
+-- both, otherwise mutually exclusive features give bogus errors from one tier.
+-- Stored per workspace root in stdpath("state"); applied at server start
+-- (rustaceanvim `server.settings`, bacon_ls `before_init`) and live by
+-- :RustContext.
+--
+-- ctx = { all = boolean, no_default = boolean, features = string[], target = string? }
+-- Default (nothing stored): all features, host target - i.e. the old behaviour.
+local M = {}
+
+local state_file = vim.fn.stdpath("state") .. "/rust-context.json"
+
+local function read_all()
+  local f = io.open(state_file)
+  if not f then
+    return {}
+  end
+  local ok, data = pcall(vim.json.decode, f:read("*a"))
+  f:close()
+  return ok and type(data) == "table" and data or {}
+end
+
+local function write_all(data)
+  vim.fn.mkdir(vim.fs.dirname(state_file), "p")
+  local f = assert(io.open(state_file, "w"))
+  f:write(vim.json.encode(data))
+  f:close()
+end
+
+--- Workspace root (dir holding the top Cargo.toml) for a path.
+function M.root(path)
+  path = path or vim.api.nvim_buf_get_name(0)
+  local found = vim.fs.find("Cargo.toml", { upward = true, path = vim.fs.dirname(path) })
+  local top
+  -- walk up to the outermost Cargo.toml that declares a [workspace]
+  for _, f in ipairs(vim.fs.find("Cargo.toml", { upward = true, path = vim.fs.dirname(path), limit = math.huge })) do
+    local fh = io.open(f)
+    if fh then
+      local txt = fh:read("*a")
+      fh:close()
+      if txt:find("%[workspace") then
+        top = f
+      end
+    end
+  end
+  local f = top or found[1]
+  return f and vim.fs.dirname(f) or nil
+end
+
+function M.get(root)
+  return root and read_all()[root] or nil
+end
+
+--- Settings.cargo table for rust-analyzer.
+function M.ra_cargo(ctx)
+  if not ctx then
+    return nil
+  end
+  return {
+    allFeatures = ctx.all == true,
+    noDefaultFeatures = ctx.no_default == true,
+    features = (ctx.all and {}) or ctx.features or {},
+    target = ctx.target,
+  }
+end
+
+--- cargo extraArgs for bacon-ls (replaces the hardcoded --all-features).
+function M.bacon_args(ctx)
+  local a = { "--workspace" }
+  if not ctx or ctx.all then
+    a[#a + 1] = "--all-features"
+  else
+    if ctx.no_default then
+      a[#a + 1] = "--no-default-features"
+    end
+    if ctx.features and #ctx.features > 0 then
+      vim.list_extend(a, { "--features", table.concat(ctx.features, ",") })
+    end
+  end
+  if ctx and ctx.target then
+    vim.list_extend(a, { "--target", ctx.target })
+  end
+  a[#a + 1] = "--no-deps"
+  return a
+end
+
+--- Human-readable summary, e.g. "features: ssr,csr | target: wasm32-unknown-unknown".
+function M.describe(ctx)
+  if not ctx or (ctx.all and not ctx.target) then
+    return "all features, host target"
+  end
+  local parts = {}
+  if ctx.all then
+    parts[#parts + 1] = "all features"
+  else
+    parts[#parts + 1] = "features: " .. ((ctx.features and #ctx.features > 0) and table.concat(ctx.features, ",") or "(none)")
+    if ctx.no_default then
+      parts[#parts + 1] = "no default"
+    end
+  end
+  parts[#parts + 1] = "target: " .. (ctx.target or "host")
+  return table.concat(parts, " | ")
+end
+
+local function cargo_metadata(root)
+  local o = vim.system({ "cargo", "metadata", "--format-version", "1", "--no-deps" }, { cwd = root, text = true }):wait(30000)
+  if o.code ~= 0 then
+    return nil, o.stderr
+  end
+  return vim.json.decode(o.stdout)
+end
+
+--- Push ctx into the running rust-analyzer and restart bacon-ls with matching args.
+--- `ctx == nil` resets to the defaults (all features, host target) and forgets the stored choice.
+function M.apply(root, ctx)
+  local all = read_all()
+  all[root] = ctx
+  write_all(all)
+  local eff = ctx or { all = true, features = {} }
+  for _, c in ipairs(vim.lsp.get_clients({ name = "rust-analyzer" })) do
+    if c.config.root_dir and M.root(c.config.root_dir .. "/x") == root then
+      local ra = c.settings["rust-analyzer"]
+      ra.cargo = vim.tbl_extend("force", ra.cargo or {}, M.ra_cargo(eff))
+      ra.cargo.target = eff.target -- nil clears it
+      c:notify("workspace/didChangeConfiguration", { settings = c.settings })
+    end
+  end
+  vim.schedule(function()
+    pcall(vim.cmd.RustLsp, "reloadWorkspace")
+    for _, c in ipairs(vim.lsp.get_clients({ name = "bacon_ls" })) do
+      if c.config.root_dir and M.root(c.config.root_dir .. "/x") == root then
+        vim.cmd("lsp restart bacon_ls")
+        break
+      end
+    end
+  end)
+  vim.notify("Rust context: " .. M.describe(eff))
+end
+
+--- Interactive picker: features (multi-select with <Tab>), then target.
+function M.pick()
+  local root = M.root()
+  if not root then
+    return vim.notify("no Cargo.toml found", vim.log.levels.WARN)
+  end
+  local meta, err = cargo_metadata(root)
+  if not meta then
+    return vim.notify("cargo metadata failed: " .. tostring(err), vim.log.levels.ERROR)
+  end
+  local cur = M.get(root) or { all = true }
+  local items = {
+    { text = "* all features", special = "all" },
+    { text = "* default features only (clears the list)", special = "default" },
+    { text = "* no-default-features", special = "nodefault" },
+  }
+  local multi = #meta.packages > 1
+  for _, p in ipairs(meta.packages) do
+    local names = vim.tbl_keys(p.features)
+    table.sort(names)
+    for _, f in ipairs(names) do
+      if f ~= "default" then
+        local q = multi and (p.name .. "/" .. f) or f
+        items[#items + 1] = { text = q, feature = q }
+      end
+    end
+  end
+  Snacks.picker({
+    title = "Cargo features (<Tab> multi-select) - now: " .. M.describe(cur),
+    items = items,
+    format = "text",
+    layout = { preset = "select" },
+    confirm = function(picker)
+      local sel = picker:selected({ fallback = true })
+      picker:close()
+      local ctx = { all = false, no_default = false, features = {}, target = cur.target }
+      for _, it in ipairs(sel) do
+        if it.special == "all" then
+          ctx.all = true
+        elseif it.special == "nodefault" then
+          ctx.no_default = true
+        elseif it.feature then
+          ctx.features[#ctx.features + 1] = it.feature
+        end
+      end
+      local targets = { "(host default)" }
+      local o = vim.system({ "rustup", "target", "list", "--installed" }, { text = true }):wait(10000)
+      for t in (o.stdout or ""):gmatch("[^\n]+") do
+        targets[#targets + 1] = t
+      end
+      vim.schedule(function()
+        vim.ui.select(targets, { prompt = "Target (currently " .. (cur.target or "host") .. ")" }, function(choice)
+          if choice then
+            ctx.target = choice ~= "(host default)" and choice or nil
+            M.apply(root, ctx)
+          end
+        end)
+      end)
+    end,
+  })
+end
+
+function M.reset()
+  local root = M.root()
+  if root then
+    M.apply(root, nil)
+  end
+end
+
+function M.setup()
+  vim.api.nvim_create_user_command("RustContext", function(a)
+    if a.args == "reset" then
+      M.reset()
+    elseif a.args == "show" then
+      vim.notify("Rust context: " .. M.describe(M.get(M.root())))
+    else
+      M.pick()
+    end
+  end, {
+    nargs = "?",
+    complete = function()
+      return { "show", "reset" }
+    end,
+    desc = "Pick cargo features / target for rust-analyzer + bacon-ls",
+  })
+end
+
+return M

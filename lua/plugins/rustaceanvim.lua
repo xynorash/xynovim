@@ -2,6 +2,20 @@ return {
   "mrcjkb/rustaceanvim",
   opts = {
     server = {
+      -- Layer the per-project Cargo context (:RustContext) over the defaults.
+      settings = function(root, default_settings)
+        local settings = require("rustaceanvim.config.server").load_rust_analyzer_settings(
+          root,
+          { default_settings = vim.deepcopy(default_settings) }
+        )
+        local ctx = require("config.rust_context")
+        local cargo = ctx.ra_cargo(ctx.get(ctx.root(root and (root .. "/x"))))
+        if cargo then
+          local ra = settings["rust-analyzer"]
+          ra.cargo = vim.tbl_extend("force", ra.cargo or {}, cargo)
+        end
+        return settings
+      end,
       default_settings = {
         ["rust-analyzer"] = {
           -- Two diagnostic tiers: rust-analyzer's NATIVE diagnostics are
