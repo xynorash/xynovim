@@ -91,6 +91,19 @@ vim.api.nvim_create_autocmd("LspAttach", {
         vim.cmd.RustLsp({ "workspaceSymbol", "allSymbols", bang = true })
       end, "Workspace symbol (+ dependencies, all kinds)")
 
+      -- Flip references.excludeTests live (rust-analyzer re-pulls config on
+      -- didChangeConfiguration, answered from client.settings).
+      map("n", "<leader>rT", function()
+        local c = vim.lsp.get_clients({ bufnr = ev.buf, name = "rust-analyzer" })[1]
+        if not c then
+          return
+        end
+        local refs = c.settings["rust-analyzer"].references
+        refs.excludeTests = not refs.excludeTests
+        c:notify("workspace/didChangeConfiguration", { settings = c.settings })
+        vim.notify("find usages: tests " .. (refs.excludeTests and "excluded" or "included"))
+      end, "Toggle tests in find usages")
+
       -- Server
       map("n", "<leader>rR", rust("reloadWorkspace"), "Reload workspace")
       map("n", "<leader>rP", rust("rebuildProcMacros"), "Rebuild proc macros")
