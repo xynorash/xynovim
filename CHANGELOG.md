@@ -31,6 +31,11 @@ All notable changes to this config are documented here.
   delta in lazygit, git-absorb and gitleaks installed. Merge driver verified
   on a scratch repo.
 
+- Roadmap step 7: sticky context, breadcrumbs, error-stripe scrollbar, call
+  hierarchy trees, Rust surroundings, treesj, doc stubs, rename preview,
+  personal Rust snippets, super-method and per-file R/W usage helpers.
+  Helpers and surround verified headless.
+
 ### Fixed
 - **Clippy tier was silently dead**: the `bacon_ls` `cmd` override pointed at
   `~/.cargo/bin/bacon-ls`, which does not exist. Removed it; Mason's bacon-ls

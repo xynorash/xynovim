@@ -116,13 +116,12 @@ RustRover's Local History covers deleted files, `reset --hard` and AI edits; xyn
         gitleaks: { run: "gitleaks protect --staged --redact" }
     ```
 
-### 7. Navigation and orientation
-- `ui.treesitter-context` (`max_lines = 3`) + `editor.navic` or `dropbar.nvim` (pick one outline provider; aerial collides with Trouble symbols on `<leader>cs`).
-- `satellite.nvim` error/git/search scrollbar (exclude huge/generated files).
-- Trouble `lsp_incoming_calls` / `lsp_outgoing_calls` for a persistent call hierarchy. Type hierarchy is probably unsupported by rust-analyzer *(unverified)*; `gI` is the one-level substitute.
-- Treesitter helper for "go to super method" (enclosing `impl Trait for T` -> trait path -> same fn name).
-- `coding.mini-surround` with Rust `custom_surroundings` (`Some()`, `Box::new()`, `dbg!()`, `unsafe {}`), `coding.neogen`, `treesj`, personal snippets in blink `snippets.search_paths`.
-- Read/write-tagged Find Usages picker from `textDocument/documentHighlight` kinds.
+### 7. Navigation and orientation: done 2026-10-09
+- Extras enabled: `ui.treesitter-context` (sticky scope, 3 lines), `editor.navic` (breadcrumbs in lualine; chosen over dropbar and aerial, which would collide with Trouble symbols on `<leader>cs`), `coding.mini-surround` (`gsa/gsd/gsr`), `coding.neogen` (`<leader>cn` doc stubs), `editor.inc-rename` (live rename preview).
+- `lua/plugins/navigation.lua`: `satellite.nvim` error stripe (diagnostics, git hunks, search, marks); Trouble call-hierarchy trees on `<leader>cI` / `<leader>cO` (persistent, unlike the flat `gai` / `gao`); Rust surroundings for mini.surround (`S` = `Some()`, `O` = `Ok()`, `N` = `Box::new()`, `D` = `dbg!()`, `U` = `unsafe { }`, e.g. `gsaiwS`); `treesj` split/join on `<leader>cj`; personal snippets directory `snippets/<filetype>.json` registered with blink (`snippets/rust.json`: `tmod`, `tfn`, `ttest`, `tmain`, `impldisp`, `implfrom`, `dcommon`).
+- `lua/config/rust_nav.lua` (keys in the `<leader>r` group): `<leader>ru` go to super method (from a method in `impl Trait for T` to the trait's own item, via treesitter + `textDocument/definition`), `<leader>rl` usages of the symbol in this file labelled `[R]` / `[W]` in the quickfix list (from `documentHighlight`).
+- Verified headless: `<leader>ru` from `impl Shape for Sq { fn area }` lands on `fn area(&self) -> f64;` in the trait; `<leader>rl` listed one `[W]` declaration, one `[W]` and one `[R]`; `gsaiwS` produced `Some(foo)`; satellite, treesitter-context, navic, treesj load; the keys and the blink search path are registered. Not exercised visually: the scrollbar, sticky context, breadcrumbs, the snippets themselves, treesj, `gsd`/`gsr` with the custom surroundings, the call-hierarchy trees.
+- Type hierarchy: rust-analyzer's support is unconfirmed (`gI` remains the one-level substitute).
 
 ### 8. Context switcher (features / target / profile)
 `lang.rust` sets `allFeatures = true` and bacon-ls hardcodes `--all-features`, so mutually exclusive features (ssr/csr, std/no_std) give bogus errors, and there is no `cargo.target`/cfg switcher (wasm32, thumbv7).
@@ -160,4 +159,4 @@ lua/plugins/   one spec per concern (bacon-ls, rustaceanvim, ninety-nine, auto-s
 plugin/after/  transparency
 ```
 
-LazyVim extras enabled (`lazyvim.json`): `editor.neo-tree`, `editor.overseer`, `lang.rust`, `lang.toml`, `lang.yaml`, `lang.json`, `lang.markdown`, `lang.git`, `dap.core`, `test.core`.
+LazyVim extras enabled (`lazyvim.json`): `editor.neo-tree`, `editor.overseer`, `lang.rust`, `lang.toml`, `lang.yaml`, `lang.json`, `lang.markdown`, `lang.git`, `dap.core`, `test.core`, `ui.treesitter-context`, `editor.navic`, `coding.mini-surround`, `coding.neogen`, `editor.inc-rename`.
