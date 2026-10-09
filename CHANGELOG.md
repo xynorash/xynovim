@@ -11,6 +11,12 @@ All notable changes to this config are documented here.
   verified headless; lockfile updated (restore also dropped the dead
   monokai-pro.nvim entry).
 
+- Roadmap step 3: `<leader>r*` rust-analyzer keymaps (extract/inline, SSR,
+  expand macro, view HIR/MIR, explain/render error, workspace symbol incl.
+  dependencies, move item) in `lua/config/keymaps.lua`; `<leader>cR` file
+  rename restored in Rust buffers. Verified headless (extract variable
+  end-to-end).
+
 ### Fixed
 - **Clippy tier was silently dead**: the `bacon_ls` `cmd` override pointed at
   `~/.cargo/bin/bacon-ls`, which does not exist. Removed it; Mason's bacon-ls

@@ -72,13 +72,15 @@ Findings on this machine and what was done:
 - **Done:** all extras above enabled in `lazyvim.json`, codelens enabled (`lua/plugins/codelens.lua`), `lazygit` / `git-delta` / `difftastic` installed via pacman, `cargo-nextest` 0.9.148 via cargo. Verified headless on a scratch crate: `<leader>db/dc` (dap), `<leader>tt/tr/to` (neotest), `<leader>cc` (codelens), `<leader>dr` (debuggables), `<leader>gg` (lazygit) are all mapped and the dap/neotest/overseer modules load. A real interactive debug session and test run are still untested.
 - `<leader>tw` (neotest watch) rides on `BufWritePost`, which auto-save's `noautocmd` writes skip; use manual `:w` while watching.
 
-### 3. rust-analyzer command keymaps (`<leader>r*`, which-key group "rust")
-`lua/config/keymaps.lua` is empty, so everything below exists in rustaceanvim but is unbound. Use static maps, not runtime generation:
-- Refactor: code actions filtered to `refactor` on one key plus per-assist keys (extract variable/function, inline), `moveItem` on `<A-j>/<A-k>`, `joinLines` on its own key (not `J`), `ssr`.
-- Inspect: `expandMacro` (recursive), `view hir/mir`, `syntaxTree`, `parentModule`, `relatedTests`, `openCargo`, `openDocs`, visual-mode `hover range`.
-- Diagnostics: `explainError`, `renderDiagnostic`, `relatedDiagnostics` (these only work on rust-analyzer diagnostics, not bacon-ls/clippy ones).
-- Search: `:RustLsp workspaceSymbol` with `onlyTypes|allSymbols` and `workspaceAndDependencies` scope variants (RustRover's "include non-project items"); optionally a second picker over `rg --files` of `~/.cargo/registry/src` and the sysroot library.
-- Note `<leader>cR` in Rust buffers shadows LazyVim's Snacks file-rename. Add `editor.inc-rename` for live rename preview.
+### 3. rust-analyzer command keymaps: done 2026-10-09
+`lua/config/keymaps.lua` binds the previously unbound rustaceanvim commands, buffer-local on rust-analyzer attach (scheduled so they also win over the `lang.rust` extra's own maps), under a which-key group `<leader>r` "rust":
+- Refactor: `ra` refactor actions, `rv` extract variable, `rf` extract function, `rc` extract constant, `rM` extract module, `ri` inline (assists applied by title, no menu), `rs` structural search & replace (also visual), `rj` semantic join lines (also visual), `<A-j>` / `<A-k>` move item down/up.
+- Inspect: `rm` expand macro, `rh` / `rH` view HIR / MIR, `rS` syntax tree, `rp` parent module, `rt` related tests, `rC` open Cargo.toml, `rd` docs.rs, `rE` external docs, visual `rk` hover range.
+- Diagnostics: `re` explain error, `rD` render diagnostic, `rr` related diagnostics (these only work on rust-analyzer diagnostics, not bacon-ls/clippy).
+- Symbols: `rw` workspace symbol, `rW` workspace + dependencies, all kinds (RustRover's "include non-project items").
+- Server: `rR` reload workspace, `rP` rebuild proc macros.
+- `<leader>cR` is restored to LazyVim's Snacks file rename in Rust buffers (the extra had shadowed it with code actions; use `<leader>ca`).
+Verified headless: all maps present and buffer-local; `<leader>rv` on `1 + 2` produced `let var_name = 1 + 2 + 3;`; `:RustLsp view hir` opens. Not exercised: the other assists, `rW` interactively, move item.
 
 ### 4. rust-analyzer settings pass (`lua/plugins/rustaceanvim.lua`)
 - `references.excludeImports` / `references.excludeTests` for a cleaner Find Usages (exist in the installed binary, currently unset).
