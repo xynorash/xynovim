@@ -1,7 +1,7 @@
 -- Make highlight groups transparent while preserving their other attributes.
 -- Applied immediately AND on every ColorScheme change, so a manual
--- `:colorscheme` mid-session keeps transparency too (the Omarchy hot-reload
--- re-sources this file, which is safe: the augroup clears its old autocmd).
+-- `:colorscheme` mid-session keeps transparency too (re-sourcing this file is
+-- safe: the augroup clears its old autocmd).
 local function make_transparent(name)
 	local ok, hl = pcall(vim.api.nvim_get_hl, 0, { name = name, link = false })
 	if ok and hl.bg ~= nil then

@@ -2,7 +2,7 @@
 -- modifier (unsafe calls, derefs of raw pointers, unsafe fns). A modifier
 -- group only adds an attribute on top of the token's own colour. Like
 -- transparency.lua this is applied now and on every ColorScheme, because a
--- theme switch (Omarchy hot-reload runs `highlight clear`) wipes it.
+-- theme switch (`highlight clear` from a theme switch) wipes it.
 local function apply()
 	vim.api.nvim_set_hl(0, "@lsp.mod.unsafe.rust", { underline = true })
 end

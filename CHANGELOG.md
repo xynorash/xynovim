@@ -4,6 +4,17 @@ All notable changes to this config are documented here.
 
 ## [Unreleased]
 
+### Removed
+- All Omarchy support. Deleted `lua/plugins/omarchy-theme-hotreload.lua`, the
+  `lua/plugins/theme.lua` symlink, `lua/plugins/all-themes.lua` (17 colourscheme
+  plugins that only Omarchy themes used) and the `theme.lua` loadfile guard in
+  `lua/config/lazy.lua`; `vim.g.xynovim_follow_omarchy` is gone and Island Dark
+  is set unconditionally. The 17 plugins are dropped from `lazy-lock.json`
+  (tokyonight and catppuccin stay: LazyVim specs them). The remote clipboard
+  provider is now `XynovimRemoteClipboard` and its OSC 52 opt-out is
+  `vim.g.xynovim_remote_clipboard_osc52` (was `omarchy_remote_clipboard_osc52`).
+  Older entries below keep their Omarchy wording as history.
+
 ## [1.8.0] — 2026-10-13
 
 ### Fixed (field test batch 5: fresh install, CI and docs)

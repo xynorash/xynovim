@@ -14,31 +14,6 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
--- Omarchy manages lua/plugins/theme.lua as a symlink into
--- ~/.local/state/omarchy. Island Dark is the permanent theme, so that spec is
--- answered with an empty one (it would pick Omarchy's colorscheme) unless
--- `vim.g.xynovim_follow_omarchy = true` (lua/config/options.lua, which LazyVim
--- loads before the spec files). A dangling symlink (no Omarchy) also yields an
--- empty spec instead of lazy's "Failed to load plugins.theme". lazy reads spec
--- files with loadfile(), so the answer is given there; the function runs at
--- import time, after options.lua.
-local theme_link = vim.fn.stdpath("config") .. "/lua/plugins/theme.lua"
-if vim.uv.fs_lstat(theme_link) then
-  local loadfile = _G.loadfile
-  _G.loadfile = function(filename, ...)
-    if filename == theme_link then
-      local chunk = vim.uv.fs_stat(theme_link) and loadfile(filename, ...)
-      return function(...)
-        if vim.g.xynovim_follow_omarchy and chunk then
-          return chunk(...)
-        end
-        return {}
-      end
-    end
-    return loadfile(filename, ...)
-  end
-end
-
 require("lazy").setup({
   spec = {
     -- add LazyVim and import its plugins

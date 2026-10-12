@@ -177,8 +177,8 @@ function M.setup()
     end,
   })
 
-  -- Re-apply after every colorscheme load (incl. the Omarchy hot reload,
-  -- which does `highlight clear` first).
+  -- Re-apply after every colorscheme load (a theme switch may
+  -- `highlight clear` first).
   vim.api.nvim_create_autocmd("ColorScheme", {
     group = group,
     callback = function()
