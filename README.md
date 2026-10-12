@@ -96,6 +96,25 @@ Hard-won configuration notes:
 - Remote-plugin providers (python3/ruby/perl/node) disabled — nothing uses them.
 - 99's request cache (`~/.cache/nvim/99`) is pruned of week-old files on load.
 
+## Tests
+
+```sh
+scripts/test.sh                 # or: make test
+scripts/test.sh routes smoke    # only spec files whose path contains one of the words
+scripts/test.sh --list          # the spec files, nothing run
+scripts/test.sh --coverage      # also a per-file line-coverage report (make coverage)
+scripts/test.sh --timeout 300 -v
+```
+
+- **What runs**: every `tests/*_spec.lua`, each in its **own** `nvim --headless` process with the full config and a hard `timeout` (default 120 s, `--timeout N` or `$TEST_TIMEOUT`; a hanging file is killed and counted as failed, the suite goes on). Per file it prints PASS/FAIL/TIMEOUT/CRASH with passed/failed/skipped counts, failures (with a trimmed traceback) and every skip with its reason, then a total. Exit status: 0 = no failure (skips allowed), 1 = a failure, timeout or crash, 2 = nothing matched or the setup is missing.
+- **Isolation**: the config is this checkout through a temp `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, `XDG_CACHE_HOME` and `TMPDIR` are temp dirs removed at the end (shada, undo, `lsp.log`, local history of the specs never touch yours), `XDG_DATA_HOME` is the **real** one: the installed plugins are reused, nothing is installed. A CI job or a fresh machine must run `scripts/bootstrap.sh` first (the script says so and exits 2 when no plugins are there). The script warns if `lazy-lock.json` changed during the run.
+- **Cleanup**: temp crates and dirs, language servers, spawned jobs and tmux servers (private sockets named `xynotest-<pid>-*`) are removed by the spec helpers at the end of each file and again by the script (each nvim runs in its own process group that is signalled afterwards).
+- **Writing a spec**: `tests/<name>_spec.lua` with `describe` / `it` / `before_each` / `after_each` / `pending` / `skip(reason)` (a small framework in `tests/harness.lua`; plenary's busted was not used because `PlenaryBustedFile` starts a nested nvim with its own minimal init, which would not load this config, and cannot carry the timeout or the coverage hook). `local H = require("xynotest.helpers")` (a private name: `tests.helpers` collides with other plugins' `lua/tests/`) gives assertions (`eq ok not_ok is_nil match no_match has throws`), `wait_for(pred, ms, msg)`, `wait_lsp(name, bufnr)`, `feed(keys)`, `open(path)` (also fires `User VeryLazy`, which never fires headless), `clients()`, `diagnostics(source)`, `messages()`, `capture_notify()`, `fixture(name, {git=true})` / `open_fixture(name, rel)` (a private copy of a fixture in a temp dir), `git(dir, ...)`, `sandbox_sh(script, project)` (a bash script inside the 99 sandbox wrapper), `tmux(args)`, `spawn(cmd)`, `tmpdir()`, `cleanup()`. `H.need_rust()`, `H.need_sandbox()`, `H.need_tmux()` (in a test or `before_each`) and `H.skip_file(reason)` skip with an explicit message when the tool is missing or unusable; `XYNO_TEST_SKIP_RUST=1` forces the Rust ones to skip.
+- **Fixtures** (`tests/fixtures/`, committed, copied per test): `basic` (lib + bin + integration test + trait + one clippy finding), `workspace` (two members, a path dependency, features `ssr`/`csr` with a `compile_error!` when both are on), `broken` (type error), `standalone.rs` (no Cargo.toml), `sql_and_routes.rs` (sqlx strings and axum/actix routes).
+- **Specs now**: `smoke_spec.lua` (clean startup, no messages, `island-dark`, lazy loaded), `harness_spec.lua` (the helpers, and the sandbox wrapper confining writes when bwrap works), `routes_spec.lua` (`:RustRoutes` scanner), `rust_spec.lua` (rust-analyzer attaches to the fixtures, documentSymbol, the type error of `broken`; skipped without rust-analyzer/cargo).
+- **Coverage** (`--coverage`): `tests/coverage_hook.lua` (a `debug.sethook` line collector, stdlib only, loaded with `--cmd` so it sees the config's own startup, coroutines included) records the executed lines of `lua/`, `colors/`, `plugin/` and `after/` per spec file; `scripts/coverage.lua` (run with `nvim -l`) merges the dumps and prints per-file percentages. The executable-line denominator is **estimated from the source text** (blank, comment and closer-only lines excluded), so read the numbers as a guide, not an exact figure. A covered run is several times slower (the hook switches LuaJIT's compiler off) and code in a child nvim process is not seen.
+- **CI**: the `ci` workflow runs `scripts/bootstrap.sh`, then `scripts/test.sh`, then the lockfile check again. rust-analyzer is installed there, so the Rust specs run; where a tool is missing its specs skip.
+
 ## Roadmap: closing the gap with RustRover
 
 Result of a gap analysis against RustRover 2026.2 (researched 2026-10-08: 15 dimensions, each adversarially verified). xynovim already matches or beats RustRover on diagnostics latency, startup/footprint, raw rust-analyzer access and scriptability; the gaps below are mostly **tooling that is installed but inert** or unbound. Steps are in recommended order; each is verifiable (`:checkhealth`, a headless `nvim --headless` smoke run, or one real crate). Items marked *(unverified)* come from research that was not tested on this machine; test them before building on them.
@@ -259,11 +278,13 @@ colors/        island-dark colourscheme entry point
 lua/island/    Island Dark: init.lua (mapping), palette.lua (generated)
 lua/lualine/   island-dark lualine theme
 tools/         icls2nvim.py + Dark.icls (the scheme it converts)
-scripts/       bootstrap.sh (fresh-install two-step restore, prerequisite check)
+scripts/       bootstrap.sh (fresh-install two-step restore, prerequisite check), test.sh (spec runner), coverage.lua (coverage report)
+tests/         *_spec.lua, harness.lua, helpers.lua, runner.lua, coverage_hook.lua, fixtures/ (see Tests)
+Makefile       make test / make coverage
 plugin/after/  transparency, unsafe highlight
 after/ftplugin/ Rust buffer settings (plain `'`, comment spelling)
 after/queries/ treesitter query extensions (sqlx SQL injection)
-.github/       CI: bootstrap, lockfile check, startup smoke test
+.github/       CI: bootstrap, lockfile check, startup smoke test, spec suite
 ```
 
 LazyVim extras enabled (`lazyvim.json`): `ai.claudecode`, `editor.neo-tree`, `editor.overseer`, `lang.rust`, `lang.toml`, `lang.yaml`, `lang.json`, `lang.markdown`, `lang.git`, `dap.core`, `test.core`, `ui.treesitter-context`, `editor.navic`, `coding.mini-surround`, `coding.neogen`, `editor.inc-rename`, `util.rest`.

@@ -51,3 +51,12 @@ jobs:
           echo "headless startup: ${ms} ms"
           if [ -s startup.log ]; then cat startup.log; exit 1; fi
           if [ "$ms" -gt 3000 ]; then echo "startup slower than 3000 ms"; exit 1; fi
+
+      - name: Spec suite
+        # tests/*_spec.lua, each file in its own headless nvim with a hard
+        # timeout. Specs whose tool is missing (bwrap cannot create a sandbox
+        # on runners that restrict user namespaces) skip with a message.
+        run: scripts/test.sh
+
+      - name: Lockfile still unchanged after the specs
+        run: git diff --exit-code lazy-lock.json

@@ -4,6 +4,10 @@ All notable changes to this config are documented here.
 
 ## [Unreleased]
 
+### Added
+- Test infrastructure. `scripts/test.sh` (`make test`) runs every `tests/*_spec.lua` in its own `nvim --headless` with a hard timeout (default 120 s), an isolated state/cache/tmp and the real plugin install; per-file and total summary with skip reasons, `[pattern]`, `--list`, `--coverage`, `--timeout`, `-v`; exit 1 on a failure, timeout or crash. `tests/harness.lua` is a small describe/it framework (plenary's busted spawns a nested nvim without this config), `tests/helpers.lua` the utilities (assertions, `wait_for`/`wait_lsp`, `feed`, fixture copies, git, sandbox wrapper, tmux, cleanup), `tests/fixtures/` the crates (`basic`, `workspace`, `broken`, `standalone.rs`, `sql_and_routes.rs`). Specs: smoke, harness, routes, rust. `tests/coverage_hook.lua` + `scripts/coverage.lua`: `debug.sethook` line coverage of the repo's Lua (denominator estimated from the source text). CI runs the suite after bootstrap. README section "Tests".
+- Verified: whole suite headless as the user (18 passed on this machine with rust-analyzer 1.99, bwrap and a clean tmp), `--coverage` (total about 54 % estimated lines), `XYNO_TEST_SKIP_RUST=1` (3 skipped with reason), a failing, a skipping, a load-error, a skip-at-load and a hanging (busy loop, killed after the timeout, exit 137) throwaway spec each reported correctly, no leftover process or temp dir, `actionlint` and `zizmor` clean on the workflow, `stylua --check`. Not verified: the new CI job itself (needs a push to run; runners that forbid user namespaces should skip the sandbox spec through the probe, not tried), the tmux helper (written, no spec uses it yet), a fresh machine after `scripts/bootstrap.sh`, `shellcheck` (not installed).
+
 ### Removed
 - All Omarchy support. Deleted `lua/plugins/omarchy-theme-hotreload.lua`, the
   `lua/plugins/theme.lua` symlink, `lua/plugins/all-themes.lua` (17 colourscheme
