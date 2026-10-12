@@ -56,6 +56,9 @@ require("lazy").setup({
     -- version = "*", -- try installing the latest stable version for plugins that support semver
   },
   install = { colorscheme = { "island-dark", "tokyonight", "habamax" } },
+  -- No plugin needs luarocks; without this `:checkhealth lazy` reports an
+  -- ERROR for the missing hererocks/luarocks.
+  rocks = { enabled = false },
   checker = {
     -- OFF: the periodic checker spawns background git fetches AND pulls
     -- lazy's whole management machinery (lazy.manage, view.commands,

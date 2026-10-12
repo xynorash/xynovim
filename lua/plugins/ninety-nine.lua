@@ -88,6 +88,17 @@ return {
       end
     end
 
+    -- The Claude provider's model list is static (the CLI cannot list models)
+    -- and predates claude-sonnet-5, the model set below.
+    function Guarded.fetch_models(callback)
+      Claude.fetch_models(function(models, err)
+        if models then
+          table.insert(models, 1, "claude-sonnet-5")
+        end
+        callback(models, err)
+      end)
+    end
+
     function Guarded._build_command(self, query, context)
       local cmd = Claude._build_command(self, query, context)
       local project = vim.fs.root(0, ".git") or vim.uv.cwd()

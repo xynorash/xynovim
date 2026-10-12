@@ -50,6 +50,9 @@ return {
   opts = {
     auto_reload = true,
     commands = true,
+    -- Summary float: plenary's default winblend = 15 let the code show
+    -- through the table; opaque and smaller (140x28 was most of the screen).
+    summary = { window = { winblend = 0 }, width_percentage = 0.6, height_percentage = 0.4 },
     -- the stock rust backend shells out to grcov; read cargo-llvm-cov's lcov instead
     lang = {
       rust = {

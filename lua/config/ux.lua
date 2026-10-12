@@ -8,6 +8,72 @@ function M.leader(suffix)
   vim.api.nvim_feedkeys(vim.keycode("<leader>") .. suffix, "mt", false)
 end
 
+-- Diagnostic virtual text --------------------------------------------------
+
+--- First line of a message.
+local function head(message)
+  return vim.split(message or "", "\n", { plain = true, trimempty = true })[1] or ""
+end
+
+--- What identifies a problem across the two tiers: the rustc error code
+--- (rust-analyzer sets `code`, clippy's rendered message has `error[E0308]:`),
+--- else the first line without its `error: ` prefix, case and end punctuation.
+local function same_key(d)
+  local code = type(d.code) == "string" and d.code:match("^E%d+$") or head(d.message):match("^%a+%[(E%d+)%]")
+  return code or (head(d.message):gsub("^%a+: ", ""):gsub("[%s%p]+$", ""):lower())
+end
+
+--- virtual_text.format: only the first line (clippy sends the whole rendered
+--- cargo message, ~14 lines, on one nowrap line) followed by [source]. A
+--- problem both tiers report on the same line (E0308 from rust-analyzer and
+--- from clippy) is shown once: the diagnostic with a `code` (rust-analyzer's,
+--- the more specific text), else the one from the earlier namespace.
+function M.diagnostic_text(d)
+  if d.bufnr and vim.api.nvim_buf_is_valid(d.bufnr) then
+    local key = same_key(d)
+    for _, o in ipairs(vim.diagnostic.get(d.bufnr, { lnum = d.lnum })) do
+      if o.namespace ~= d.namespace and same_key(o) == key then
+        local o_coded, d_coded = o.code ~= nil, d.code ~= nil
+        if o_coded ~= d_coded then
+          if o_coded then
+            return nil
+          end
+        elseif o.namespace < d.namespace then
+          return nil
+        end
+      end
+    end
+  end
+  local text = head(d.message)
+  return d.source and (text .. " [" .. d.source .. "]") or text
+end
+
+-- Completion -----------------------------------------------------------------
+
+--- blink.cmp snippets provider guard: false after a `.` (method position) and
+--- inside strings and comments.
+function M.snippets_allowed(ctx)
+  local before = ctx.line:sub(1, ctx.cursor[2])
+  if before:match("[^%.]%.[%w_]*$") then
+    return false
+  end
+  local ok, node = pcall(vim.treesitter.get_node, {
+    bufnr = ctx.bufnr,
+    pos = { ctx.cursor[1] - 1, math.max(ctx.cursor[2] - 1, 0) },
+  })
+  while ok and node do
+    local t = node:type()
+    local _, _, erow, ecol = node:range()
+    -- a literal ends at its closing quote: the cursor behind it is outside
+    local behind = t:find("literal$") and erow == ctx.cursor[1] - 1 and ecol <= ctx.cursor[2]
+    if (t:find("string") or t:find("comment")) and not behind then
+      return false
+    end
+    node = node:parent()
+  end
+  return true
+end
+
 -- Right-click menu --------------------------------------------------------
 
 -- { menu path, <leader> suffix | Lua expression }
@@ -89,6 +155,27 @@ end
 function M.setup()
   local group = vim.api.nvim_create_augroup("xynovim_ux", { clear = true })
   vim.api.nvim_create_autocmd("MenuPopup", { group = group, callback = rust_menu })
+
+  -- Virtual text is rendered per namespace, when that namespace changes; the
+  -- duplicate check in diagnostic_text needs the other tier's diagnostics, so
+  -- when one arrives (or goes) later, render the buffer's namespaces again.
+  local redraw = {}
+  vim.api.nvim_create_autocmd("DiagnosticChanged", {
+    group = group,
+    callback = function(args)
+      local buf = args.buf
+      if redraw[buf] then
+        return
+      end
+      redraw[buf] = true
+      vim.schedule(function()
+        redraw[buf] = nil
+        if vim.api.nvim_buf_is_valid(buf) then
+          vim.diagnostic.show(nil, buf)
+        end
+      end)
+    end,
+  })
 
   -- Re-apply after every colorscheme load (incl. the Omarchy hot reload,
   -- which does `highlight clear` first).

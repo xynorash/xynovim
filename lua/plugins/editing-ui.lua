@@ -1,0 +1,118 @@
+-- Editing and UI details from the field test: diagnostic virtual text, the
+-- snippet source, Cargo.toml schema, which-key group names.
+return {
+  -- Virtual text: the first line plus [source] (config.ux.diagnostic_text);
+  -- bacon-ls sends the whole rendered clippy message (about 14 lines).
+  {
+    "neovim/nvim-lspconfig",
+    opts = {
+      diagnostics = {
+        virtual_text = {
+          -- the source is part of the format ("if_many" put it in front)
+          source = false,
+          format = function(d)
+            return require("config.ux").diagnostic_text(d)
+          end,
+        },
+      },
+      servers = {
+        taplo = {
+          -- Cargo.toml itself is a root (a lone crate without .git used to
+          -- give no root: "this document has been excluded").
+          root_markers = { ".taplo.toml", "taplo.toml", "Cargo.toml", ".git" },
+          settings = {
+            evenBetterToml = {
+              schema = {
+                -- taplo 0.10.0 cannot parse the current SchemaStore catalog,
+                -- and its default catalog URL is a 404. The "failed to fetch
+                -- catalog" line in lsp.log stays: taplo fetches at initialize,
+                -- before it reads these settings (init_options did not
+                -- reach it). The one schema that matters is associated by
+                -- hand: key completion, hover and `edtion = ...` errors.
+                associations = {
+                  ["^(.*/)?Cargo\\.toml$"] = "https://json.schemastore.org/cargo.json",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+
+  -- Snippets: never after `.` (friendly-snippets' `if` outranked
+  -- rust-analyzer's `.if` postfix and expanded to `ok.if condition {`) and
+  -- never inside strings or comments.
+  {
+    "saghen/blink.cmp",
+    opts = {
+      sources = {
+        providers = {
+          snippets = {
+            should_show_items = function(ctx)
+              return require("config.ux").snippets_allowed(ctx)
+            end,
+          },
+        },
+      },
+    },
+  },
+
+  {
+    "folke/noice.nvim",
+    opts = function(_, opts)
+      -- noice renders hover and signature help itself, so winborder does not
+      -- reach them; this preset gives those floats the rounded border too.
+      opts.presets = opts.presets or {}
+      opts.presets.lsp_doc_border = true
+
+      -- The statusline "showcmd" component (pending keys) never cleared:
+      -- noice drops an empty msg_showmode but only stores an empty
+      -- msg_showcmd, and the status API reads the history, so the last
+      -- pending key stayed in the statusline. Remove it like showmode does.
+      local Msg = require("noice.ui.msg")
+      if not Msg.xynovim_showcmd then
+        Msg.xynovim_showcmd = true
+        local on_showcmd = Msg.on_showcmd
+        Msg.on_showcmd = function(event, content)
+          on_showcmd(event, content)
+          if vim.tbl_isempty(content) then
+            require("noice.message.manager").remove(Msg.get(event))
+          end
+        end
+      end
+    end,
+  },
+
+  -- Dashboard: the stock layout (6 header lines, a blank line between the 10
+  -- entries) needs 36 rows; at 80x24 the last entries and the footer were
+  -- cut off. On a short window the entries sit on consecutive lines.
+  {
+    "folke/snacks.nvim",
+    opts = function(_, opts)
+      local function tall()
+        return vim.o.lines >= 36
+      end
+      opts.dashboard = opts.dashboard or {}
+      opts.dashboard.sections = {
+        { section = "header" },
+        { section = "keys", gap = 1, padding = 1, enabled = tall },
+        {
+          section = "keys",
+          gap = 0,
+          padding = 1,
+          enabled = function()
+            return not tall()
+          end,
+        },
+        { section = "startup" },
+      }
+    end,
+  },
+
+  -- <leader>9 is the 99 agent (ninety-nine.lua); it had no group name
+  {
+    "folke/which-key.nvim",
+    opts = { spec = { { "<leader>9", group = "99 (agent)" } } },
+  },
+}

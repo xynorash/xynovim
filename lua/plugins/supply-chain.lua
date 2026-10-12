@@ -80,11 +80,18 @@ return {
           for line in vim.gsplit(output, "\n", { plain = true, trimempty = true }) do
             local ok, d = pcall(vim.json.decode, line)
             local f = ok and d and d.type == "diagnostic" and d.fields
-            if f then
+            if f and not (is_lock and f.code == "wildcard") then
               local label = f.labels and f.labels[1]
               local lnum, col = 0, 0
+              -- `wildcard` (bans) labels the `dep = "*"` line of a Cargo.toml:
+              -- skipped on the lockfile (not a Cargo.lock coordinate), and on
+              -- the manifest the label gives the line (it used to land on
+              -- line 1: the graph's crate is the package, not the dependency).
+              local on_manifest = f.code == "wildcard" and label and label.line
               if is_lock and label then
                 lnum, col = (label.line or 1) - 1, (label.column or 1) - 1
+              elseif on_manifest then
+                lnum, col = label.line - 1, (label.column or 1) - 1
               elseif not is_lock then
                 local krate = f.graphs and f.graphs[1] and f.graphs[1].Krate
                 lnum = krate and dep_line(bufnr, krate.name) or 0
@@ -112,6 +119,9 @@ return {
         end,
         cmd = "cargo-machete",
         stdin = false,
+        -- the directory is the argument: nvim-lint's default also appended
+        -- the file name, which ran cargo-machete twice (every finding doubled)
+        append_fname = false,
         ignore_exitcode = true,
         args = {
           function()

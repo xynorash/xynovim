@@ -49,6 +49,17 @@ Hard-won configuration notes:
 - **auto-save** (`lua/plugins/auto-save.lua`): okuuva/auto-save.nvim, ~1s debounce including while typing (`TextChangedI`). Autosaves skip format-on-save via `noautocmd`; a `User AutoSaveWritePost` hook re-sends `textDocument/didSave` so LSP save-triggered behavior survives. Manual `:w` still formats. Guards (`lua/config/disk_guard.lua`): it never writes into dependency/std sources (`~/.cargo/registry`, `~/.cargo/git`, `~/.rustup` buffers are `nomodifiable`; `:set modifiable` to edit one on purpose) and never over a file that changed on disk (the disk mtime recorded at read/write time is compared before the save and again right before the write; on a mismatch the save is skipped and one warning says `:w!` keeps the buffer, `:e!` takes the disk version; nvim's blocking W12 "Do you really want to write to it (y/n)?" used to swallow keystrokes). `FileChangedShell` never prompts (unmodified buffers reload, modified ones keep their edits), and LazyVim's `FocusGained` `:checktime` still runs. A workspace edit that touches other files (multi-file rename, file rename, code actions) is followed by a write of every modified buffer that passes the same check, so those files no longer stay unsaved. While a neotest watcher exists (`<leader>tw`), each autosave re-emits `BufWritePost` so the watcher reruns the tests (otherwise it is not emitted).
 - **harpoon** (`<leader>H` adds a file, `<C-e>` menu, `<M-1..4>` jump; `<leader>a` is only the `claudecode` AI prefix), and desktop integration: transparency (re-applied on every `ColorScheme` change, toggle `<leader>uO`), the Omarchy theme hot-reload (now re-applies Island Dark, see Theme) and remote clipboard (OSC52, activates only under tmux/SSH/herdr).
 - Format-on-save off globally (`vim.g.autoformat = false`), relative numbers off.
+- **Editing and UI** (batch 4): `lua/plugins/editing-ui.lua`, `lua/config/ux.lua`, `after/ftplugin/rust.lua`.
+  - `'` is typed plainly in Rust buffers (mini.pairs paired it after `&` and `<`, so `&'a str)` became `&'a str')`); a char literal's closing quote is one more key.
+  - Spell checking in Rust comments and doc comments (`spell` plus `spelloptions+=camel`; only the treesitter `@spell` captures are checked, so identifiers and strings are skipped).
+  - Diagnostic virtual text shows the first line plus `[source]` (clippy sends the whole rendered message, about 14 lines). A problem both tiers report on the same line (same rustc `E` code, else the same first line) is shown once, preferring rust-analyzer's text; the buffer's virtual text is redrawn when the other tier's diagnostics arrive or go. `<leader>cd` still shows the full message.
+  - blink.cmp snippets are hidden after a `.` and inside strings and comments (friendly-snippets' `if` outranked rust-analyzer's `.if` postfix).
+  - `winborder = "rounded"` (floats had no edge: solid `NormalFloat` on a transparent editor), noice's hover and signature help use the same border, `pumblend = 0` (LazyVim's 10 made buffer text show through the right-click menu), the coverage summary float is opaque and 60% x 40% of the screen.
+  - The dashboard puts its entries on consecutive lines below 36 rows (at 80x24 the last entries and the footer were cut off); the statusline showcmd (pending keys) clears (noice kept the last one); `<leader>9` is named in which-key; the 99 model picker lists `claude-sonnet-5` (the provider's list is static).
+  - taplo gets the Cargo.toml schema from schemastore (`edtion = ...` is reported, hover and completion know the keys) and `Cargo.toml` as a root marker. Not silenced: taplo 0.10.0's "failed to fetch catalog" line in `lsp.log` (it fetches before it reads settings).
+  - sqlx injection: multi-line strings (`[[:space:]]` instead of `\s`) and more statement keywords (explain, vacuum, analyze, set, show, ...); the keyword must be a whole word.
+  - cargo-machete findings are no longer doubled, cargo-deny `wildcard` lands on the dependency's line in `Cargo.toml` (label coordinates, so a wildcard of another workspace member can land on a wrong line) and is skipped on `Cargo.lock`; lazy's `rocks` is off (`:checkhealth lazy` no longer errors about luarocks).
+  - Known: a Rust file over 1.5 MB gets Snacks' bigfile treatment (no LSP, only a notification); raise `opts.bigfile.size` for snacks.nvim if you need it. wgsl-analyzer's "Project discovery failed" is still not fixable from here (see roadmap step 10). `<leader>uC` previews of light themes leak `background=light` until a colourscheme resets it; Island Dark sets it back to dark.
 
 ### Theme
 
@@ -236,6 +247,7 @@ lua/island/    Island Dark: init.lua (mapping), palette.lua (generated)
 lua/lualine/   island-dark lualine theme
 tools/         icls2nvim.py + Dark.icls (the scheme it converts)
 plugin/after/  transparency, unsafe highlight
+after/ftplugin/ Rust buffer settings (plain `'`, comment spelling)
 after/queries/ treesitter query extensions (sqlx SQL injection)
 .github/       CI smoke test
 ```

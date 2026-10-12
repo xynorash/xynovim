@@ -29,6 +29,28 @@ All notable changes to this config are documented here.
   colourschemes. Verified by computing WCAG ratios from the loaded highlight
   groups (headless, both transparency modes) and in tmux at 200x55.
 
+### Fixed (field test batch 4: editing and UI)
+- Rust: typing a lifetime no longer leaves a stray quote (`after/ftplugin/rust.lua`);
+  comments are spell checked (treesitter `@spell`, `camel`).
+- Diagnostic virtual text: first line plus `[source]`, identical problems from
+  rust-analyzer and clippy shown once. blink snippets hidden after `.` and in
+  strings and comments. `winborder = rounded`, noice hover border, `pumblend = 0`,
+  opaque and smaller coverage summary, dashboard fits 80x24, showcmd clears,
+  `<leader>9` which-key group, 99 model picker lists `claude-sonnet-5`.
+- taplo: Cargo.toml schema association and a `Cargo.toml` root marker. sqlx
+  injection for multi-line strings and more keywords. cargo-machete findings no
+  longer doubled; cargo-deny `wildcard` on the right line; lazy `rocks` off.
+- Verified headless (`:checkhealth lazy` luarocks OK, options, spell, `'` mapping, injections via the language
+  tree, format and dedupe function, snippet guard cases, taplo schema error on
+  `edtion`, deny parser fed a fake wildcard record, colourscheme cycle) and in
+  tmux (insert-mode typing of `&'a str` and `'z'`, completion menu with `.if`
+  and no `if` snippet, hover border, virtual text dedupe, showcmd clearing,
+  dashboard at 80x24, coverage summary from a hand-written lcov, `:popup PopUp`).
+  Not verified: the right-click menu with a real mouse, `pumblend` blending
+  on a terminal (only the option value), the machete duplicate (no
+  cargo-machete run), a cargo-deny run against a real advisory DB, wgsl-analyzer
+  (unchanged), taplo's catalog line in `lsp.log` (still logged).
+
 ### Fixed (field test batch 3: data safety)
 - Local history: with several nvims saving at once the ref tip could hold an
   older tree than another instance's latest snapshot; the tree is now built

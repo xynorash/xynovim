@@ -3,7 +3,9 @@
 ; SQL inside sqlx: the macros (query!, query_as!, query_scalar!, query_unchecked!,
 ; ...) and the runtime functions (query, query_as, query_scalar, with or
 ; without a turbofish). Only string literals that start like a statement are
-; injected, so bind arguments such as "alice" are left alone.
+; injected, so bind arguments such as "alice" are left alone (the keyword must be
+; a whole word, so "selection" is not SQL). The leading whitespace is
+; [[:space:]]: \s does not match the newline of a multi-line string.
 
 ; sqlx::query!("...") / query_as!(Row, "...")
 ((macro_invocation
@@ -20,7 +22,7 @@
         (string_content) @injection.content)
     ]))
   (#any-of? @_name "query" "query_as" "query_scalar" "query_unchecked" "query_as_unchecked" "query_scalar_unchecked")
-  (#match? @injection.content "\\c^\\s*(select|insert|update|delete|with|create|alter|drop|replace|values|pragma|begin|commit|truncate)")
+  (#match? @injection.content "\\c^[[:space:]]*(select|insert|update|delete|with|create|alter|drop|replace|values|pragma|begin|commit|rollback|truncate|explain|vacuum|analyze|attach|detach|reindex|savepoint|release|set|show|grant|revoke|call|merge|lock)>")
   (#set! injection.language "sql"))
 
 ; sqlx::query("...") / query_as::<_, Row>("...")
@@ -44,5 +46,5 @@
         (string_content) @injection.content)
     ]))
   (#any-of? @_name "query" "query_as" "query_scalar")
-  (#match? @injection.content "\\c^\\s*(select|insert|update|delete|with|create|alter|drop|replace|values|pragma|begin|commit|truncate)")
+  (#match? @injection.content "\\c^[[:space:]]*(select|insert|update|delete|with|create|alter|drop|replace|values|pragma|begin|commit|rollback|truncate|explain|vacuum|analyze|attach|detach|reindex|savepoint|release|set|show|grant|revoke|call|merge|lock)>")
   (#set! injection.language "sql"))
