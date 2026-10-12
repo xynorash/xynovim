@@ -29,8 +29,14 @@ jobs:
           mkdir -p "$HOME/.config"
           ln -s "$GITHUB_WORKSPACE" "$HOME/.config/nvim"
 
+      - name: Add rust-analyzer (a prerequisite the bootstrap script checks)
+        run: rustup component add rust-analyzer
+
       - name: Restore plugins from the lockfile
-        run: nvim --headless '+Lazy! restore' +qa
+        run: scripts/bootstrap.sh
+
+      - name: Lockfile unchanged
+        run: git diff --exit-code lazy-lock.json
 
       - name: Startup smoke test
         run: |

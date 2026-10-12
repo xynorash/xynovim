@@ -28,6 +28,14 @@ end
 
 -- { binary, purpose, check Mason too, version args, severity when missing }
 local TOOLS = {
+  -- what scripts/bootstrap.sh and lazy/Mason need to bring the config up
+  { "git", "plugin manager (lazy.nvim clones and checks out the lockfile)", false, { "--version" }, "error" },
+  { "curl", "Mason downloads, tree-sitter parsers", false, { "--version" }, "warn" },
+  { "tar", "Mason and tree-sitter archives", false, { "--version" }, "warn" },
+  { "unzip", "Mason package archives", false, { "-v" }, "warn" },
+  { "gcc", "compiles tree-sitter parsers", false, { "--version" }, "warn" },
+  { "node", "Mason's npm tools and yaml-language-server", false, { "--version" }, "warn" },
+  { "cargo", "builds, clippy, tests (every Rust key)", false, { "--version" }, "error" },
   { "rust-analyzer", "language server (rustaceanvim)", false, { "--version" }, "error" },
   { "bacon-ls", "clippy diagnostics tier", true, { "--version" }, "error" },
   { "codelldb", "debugger (dap.core)", true, nil, "warn" },
@@ -47,11 +55,20 @@ function M.check()
   for _, t in ipairs(TOOLS) do
     local bin, purpose, mason, vargs, level = t[1], t[2], t[3], t[4], t[5]
     local path, where = find(bin, mason)
-    if path then
-      local v = vargs and first_line(vim.list_extend({ path }, vargs))
+    local v = path and vargs and first_line(vim.list_extend({ path }, vargs))
+    if path and vargs and not v then
+      -- e.g. rustup's rust-analyzer proxy when the component is not installed
+      vim.health[level](
+        ("%s found (%s: %s) but `%s` fails: %s"):format(bin, where, path, table.concat(vargs, " "), purpose),
+        bin == "rust-analyzer" and "rustup component add rust-analyzer" or "reinstall it"
+      )
+    elseif path then
       vim.health.ok(("%s (%s)%s: %s"):format(bin, where, v and (" " .. v) or "", purpose))
     else
       local hint = mason and "install it with :Mason or put it on PATH" or "install it and put it on PATH"
+      if bin == "rust-analyzer" then
+        hint = "rustup component add rust-analyzer (or put a rust-analyzer binary on PATH)"
+      end
       vim.health[level](("%s not found: %s"):format(bin, purpose), hint)
     end
   end

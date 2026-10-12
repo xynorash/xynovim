@@ -1,7 +1,7 @@
 -- bacon-ls 0.29+ has a native "cargo" backend that runs clippy itself and
 -- pushes diagnostics - no bacon process or .bacon-locations export needed
--- (the older "bacon" backend still works and is configured globally in
--- ~/.config/bacon/prefs.toml if we ever want to switch back).
+-- (the older "bacon" backend would need the `bacon` binary and its own
+-- prefs; it is not configured or used here).
 --
 -- updateOnInsert is the RustRover-style part: bacon-ls mirrors the workspace
 -- into a hardlinked shadow under target/bacon-ls-live/, writes dirty buffers

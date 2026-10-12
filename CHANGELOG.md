@@ -4,30 +4,54 @@ All notable changes to this config are documented here.
 
 ## [Unreleased]
 
+## [1.8.0] — 2026-10-13
+
+### Fixed (field test batch 5: fresh install, CI and docs)
+- Fresh install did not reproduce `lazy-lock.json` (bug 28). Reproduced with
+  empty XDG dirs and a clone: after `Lazy! restore` 6 of 79 plugins sat on newer
+  commits and the lockfile was rewritten. Cause (lazy's code read, behaviour
+  confirmed by experiments): the first install round only knows the plugins of
+  the user spec and writes the lockfile with those, dropping the pins of the
+  ones found in later rounds (LazyVim's extras). `Lazy! install`, original
+  lockfile back, `Lazy! restore` ended with an identical lockfile (twice);
+  restoring a second time without putting the lockfile back did not help.
+- New `scripts/bootstrap.sh`: checks git, curl, tar, unzip, gcc, npm, node,
+  cargo, rustup and rust-analyzer (prints what is missing, exit 1), refuses a
+  config dir that is not the checkout, runs the two steps above and fails with
+  a diff if the lockfile still changes. CI runs it (after
+  `rustup component add rust-analyzer`) and then `git diff --exit-code
+  lazy-lock.json`; `actionlint` and `zizmor` are clean. Verified locally with
+  fresh XDG dirs (exit 0, lockfile unchanged; the missing-prerequisite and
+  wrong-config-dir cases exit 1). Not verified: a GitHub run.
+- kulala v5.3.4 pin never checked out on a fresh install (bug 29): lazy's
+  `--recurse-submodules` failed on the `fmt/` submodule and left v6 with a dirty
+  tree. `submodules = false` in `lua/plugins/domain.lua`; verified with fresh
+  XDG dirs that kulala ends on `6656c9d` (v5.3.4).
+- `:checkhealth xynovim` also checks git, curl, tar, unzip, gcc, node and cargo;
+  a binary that is found but fails `--version` (rustup's rust-analyzer proxy
+  without the component) is an error with the fix instead of OK; the
+  rust-analyzer hint names `rustup component add`. Run on a PATH holding only
+  nvim and git, with a failing rust-analyzer stub, and on the normal PATH.
+
+### Docs
+- README: new Install section (prerequisites, bootstrap, why two steps). Stale
+  statements corrected: the `~/.config/bacon/prefs.toml` fallback (neither the
+  file nor `bacon` is used), "manual `:w` still formats" (format-on-save is
+  off, `<leader>cf` formats), "taplo absent" (Mason has it), the which-key
+  overlap count (0 in a batch 5 run, the field test's 5 were not reproduced),
+  the startup figure (~25 ms with its load conditions), the CI description and
+  the kulala "not verified" note. `:LocalHistoryRestore`'s Restore/Cancel step
+  is documented. The `options.lua` and `bacon-ls.lua` comments no longer
+  describe the old bacon-process design.
+- CHANGELOG: the long `[Unreleased]` section is cut into 1.5.0 to 1.8.0, each
+  with a git tag.
+
+## [1.7.0] — 2026-10-13
+
 ### Changed
 - `<leader>rM` (extract module) is visual-mode only: rust-analyzer offers the
   assist only for a selection, so the normal-mode map just reported "No code
   actions available". README and which-key say so. Not re-run in nvim.
-
-- Theme: Island Dark (the user's RustRover "Dark" scheme, parent Darcula) is now
-  the permanent colourscheme. `tools/icls2nvim.py` converts `tools/Dark.icls` to
-  `lua/island/palette.lua`; `lua/island/init.lua`, `colors/island-dark.lua` and a
-  lualine theme map it to UI, Treesitter, LSP semantic (`org.rust.*`) and plugin
-  groups. Omarchy's theme spec and hot-reload no longer override it (set
-  `vim.g.xynovim_follow_omarchy = true` to follow Omarchy again). Transparency
-  stays the default; new `<leader>uO` toggle. Verified headless (49 colour checks
-  against an independent parse of the `.icls`, real rust-analyzer tokens) and in
-  tmux (24-bit SGR); not verified with a live Omarchy theme switch.
-
-- Theme legibility (review of the Island Dark commit): floats, the completion
-  menu and `Pmenu` stay solid when transparency is on (only the editor surface
-  is transparent; `<leader>uO` toggles that); blink.cmp secondary text and
-  inactive statusline use the `sub` grey; git "modified" uses
-  `FILESTATUS_MODIFIED`; comments, doc comments and error text are lifted to
-  4.5:1, line numbers to 3.5:1 (documented in README, Theme); cursorline is
-  `#242d42` and `CursorLineNr` keeps its background; lualine follows other
-  colourschemes. Verified by computing WCAG ratios from the loaded highlight
-  groups (headless, both transparency modes) and in tmux at 200x55.
 
 ### Fixed (field test batch 4: editing and UI)
 - Rust: typing a lifetime no longer leaves a stray quote (`after/ftplugin/rust.lua`);
@@ -111,6 +135,29 @@ All notable changes to this config are documented here.
   Not verified: `rd` / `rE` on a documented item (would launch a browser),
   `:ActJob`, `:RustTargets` picker items (same helper as `:RustTools`),
   coverage without cargo-nextest installed, visual `rs` in tmux.
+
+## [1.6.0] — 2026-10-12
+
+### Changed
+- Theme: Island Dark (the user's RustRover "Dark" scheme, parent Darcula) is now
+  the permanent colourscheme. `tools/icls2nvim.py` converts `tools/Dark.icls` to
+  `lua/island/palette.lua`; `lua/island/init.lua`, `colors/island-dark.lua` and a
+  lualine theme map it to UI, Treesitter, LSP semantic (`org.rust.*`) and plugin
+  groups. Omarchy's theme spec and hot-reload no longer override it (set
+  `vim.g.xynovim_follow_omarchy = true` to follow Omarchy again). Transparency
+  stays the default; new `<leader>uO` toggle. Verified headless (49 colour checks
+  against an independent parse of the `.icls`, real rust-analyzer tokens) and in
+  tmux (24-bit SGR); not verified with a live Omarchy theme switch.
+
+- Theme legibility (review of the Island Dark commit): floats, the completion
+  menu and `Pmenu` stay solid when transparency is on (only the editor surface
+  is transparent; `<leader>uO` toggles that); blink.cmp secondary text and
+  inactive statusline use the `sub` grey; git "modified" uses
+  `FILESTATUS_MODIFIED`; comments, doc comments and error text are lifted to
+  4.5:1, line numbers to 3.5:1 (documented in README, Theme); cursorline is
+  `#242d42` and `CursorLineNr` keeps its background; lualine follows other
+  colourschemes. Verified by computing WCAG ratios from the loaded highlight
+  groups (headless, both transparency modes) and in tmux at 200x55.
 
 ### Fixed (field test batch 1: Rust workflow robustness)
 - bacon-ls (clippy tier) roots at the Cargo workspace instead of the nearest
@@ -197,6 +244,10 @@ All notable changes to this config are documented here.
 ### Fixed
 - blink.cmp ghost text disabled everywhere (it was on for the cmdline menu), per the no-inline-completion decision.
 - 99 sandbox second hardening pass: whole-directory read-only locks for `.cargo`/`.vscode`, absent-dir masks, member crates, `~/.claude` rules/chrome/memory, ephemeral shell-snapshots.
+
+## [1.5.0] — 2026-10-09
+
+### Fixed
 - Review findings: agent sandbox now keeps `.git/hooks`, `.git/config` and
   `~/.claude` settings/hooks read-only and hides more credential paths and
   variables; local history retries forced snapshots, times out hung git and

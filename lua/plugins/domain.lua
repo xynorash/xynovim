@@ -7,8 +7,13 @@ return {
     -- kulala-core binary (v6.32+ behind a license token, and the public
     -- GitHub release it used to fetch is gone, 404), so v6 cannot send a
     -- request without an account. 5.x talks to curl directly.
+    -- submodules = false: the repo has a v6 submodule (fmt/); lazy's
+    -- `--recurse-submodules` checkout of the pinned tag failed on a fresh
+    -- install ("gitfile does not point to a valid repository") and left
+    -- v6 checked out.
     "mistweaverco/kulala.nvim",
     tag = "v5.3.4",
+    submodules = false,
   },
   {
     "nvim-treesitter/nvim-treesitter",
