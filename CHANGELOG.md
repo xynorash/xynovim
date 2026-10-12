@@ -40,6 +40,7 @@ All notable changes to this config are documented here.
   description, telescope claim.
 
 ### Fixed
+- blink.cmp ghost text disabled everywhere (it was on for the cmdline menu), per the no-inline-completion decision.
 - 99 sandbox second hardening pass: whole-directory read-only locks for `.cargo`/`.vscode`, absent-dir masks, member crates, `~/.claude` rules/chrome/memory, ephemeral shell-snapshots.
 - Review findings: agent sandbox now keeps `.git/hooks`, `.git/config` and
   `~/.claude` settings/hooks read-only and hides more credential paths and
