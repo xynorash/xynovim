@@ -44,8 +44,19 @@ Hard-won configuration notes:
 ### Editor behavior
 
 - **auto-save** (`lua/plugins/auto-save.lua`): okuuva/auto-save.nvim, ~1s debounce including while typing (`TextChangedI`). Autosaves skip format-on-save via `noautocmd`; a `User AutoSaveWritePost` hook re-sends `textDocument/didSave` so LSP save-triggered behavior survives. Manual `:w` still formats.
-- **harpoon** (`<leader>H` adds a file, `<C-e>` menu, `<M-1..4>` jump; `<leader>a` is only the `claudecode` AI prefix), and Omarchy desktop integration: live theme hot-reload, transparency (re-applied on every `ColorScheme` change), remote clipboard (OSC52, activates only under tmux/SSH/herdr).
+- **harpoon** (`<leader>H` adds a file, `<C-e>` menu, `<M-1..4>` jump; `<leader>a` is only the `claudecode` AI prefix), and desktop integration: transparency (re-applied on every `ColorScheme` change, toggle `<leader>uO`), the Omarchy theme hot-reload (now re-applies Island Dark, see Theme) and remote clipboard (OSC52, activates only under tmux/SSH/herdr).
 - Format-on-save off globally (`vim.g.autoformat = false`), relative numbers off.
+
+### Theme
+
+**Island Dark** is the permanent colourscheme (`:colorscheme island-dark`, `vim.g.colors_name == "island-dark"`). It is the user's own JetBrains "Island" dark scheme (scheme name `Dark`, parent Darcula, exported from RustRover 2026.2.3), kept in the repo as `tools/Dark.icls`.
+
+- **Generated, not hand-copied**: `python3 tools/icls2nvim.py` (stdlib only) parses the `.icls` (colours, foreground/background, bold/italic, underline/undercurl/dotted effects, `baseAttributes` inheritance with the `DEFAULT_*` fallbacks) and writes `lua/island/palette.lua` (generated, do not edit). `lua/island/init.lua` maps that palette to editor UI, classic syntax groups, the Treesitter captures, LSP semantic tokens (`@lsp.type/mod/typemod`, incl. the scheme's `org.rust.*` colours) and the plugins in use (blink.cmp, snacks, which-key, neo-tree, trouble, gitsigns, diffview, dap/dap-ui, neotest, satellite, treesitter-context, navic, flash, noice, mini, harpoon, render-markdown, coverage, inlay hints, codelens); `colors/island-dark.lua` is the entry point and `lua/lualine/themes/island-dark.lua` the statusline theme. Only scheme colours are used. To change the colours, replace `tools/Dark.icls` and rerun the script (a restart picks up the new palette).
+- **Derived (not in the export)**: the file has no selection colour, so `Visual`/`PmenuSel` use its blue `VCS_ANNOTATIONS_COLOR_2` (`#2d416b`); borders use `SELECTED_INDENT_GUIDE`. It has no `org.rust.LIFETIME` or trait entry: lifetimes use the type-parameter colour, traits the struct colour. `org.rust.UNSAFE_CODE` (a background band) is not applied: unsafe code keeps the underline from `plugin/after/unsafe-highlight.lua`. rust-analyzer's inactive `#[cfg]` code is a normal "unnecessary" diagnostic, so it shares the dim `NOT_USED` grey instead of the olive `CFG_DISABLED_CODE` (`RustCfgDisabled` holds that colour).
+- **Transparency** stays the default (terminal background shows through). `<leader>uO` toggles it; off gives the scheme's solid `#1e1f22` background. `vim.g.xynovim_transparent = false` starts solid.
+- **Omarchy**: its theme spec (`lua/plugins/theme.lua`, a symlink managed by Omarchy) is answered with an empty spec in `lua/config/lazy.lua`, and the `LazyReload` hot-reload in `omarchy-theme-hotreload.lua` re-applies Island Dark instead of Omarchy's colorscheme. The files and `all-themes.lua` stay, so to follow Omarchy again put `vim.g.xynovim_follow_omarchy = true` in `lua/config/options.lua`.
+- **Verified**: headless, with the repo config: the colourscheme loads with no messages, `colors_name` is `island-dark`, 49 group/attribute checks against an independent parse of the `.icls` (colours, italic, underline) pass; on a scratch crate with the real rust-analyzer, struct, enum, enum variant, trait, macro, lifetime, static, const, `self`, derive/attribute, doc comment, `mut` binding, unsafe call/keyword and builtin type tokens resolve to the scheme colours; `:colorscheme tokyonight` and back, a simulated `User LazyReload`, the transparency toggle (real mapping), colourblind diagnostics and the unsafe underline survive; follow-Omarchy mode tested with a stand-in theme spec (catppuccin); startup about 1-2 ms slower than before (median 26.4 vs 24.5 ms headless, the colourscheme itself 2.3 ms). In tmux at 200x55 (24-bit colour): the SGR colours of Rust code, the completion menu, snacks picker, which-key, neo-tree, a diagnostic float, git signs, inlay hints and the statusline match the palette, solid mode paints `#1e1f22`.
+- **Not verified**: a real Omarchy theme switch (no Omarchy here; only the `LazyReload` event was simulated), the look on other terminals or with their own background, plugins whose groups are defined from knowledge of their docs but were not on screen (trouble, diffview, dap-ui, neotest, satellite, render-markdown, flash, mini.* beyond MiniIcons), and `Failed to load` cases with a live Omarchy symlink. With transparency on, the completion menu and floats have no background of their own; use `<leader>uO` if that is hard to read.
 
 ### Performance choices
 
@@ -192,7 +203,7 @@ Deliberately not done, in case the need shows up:
 - `cargo-geiger`, tokio-console, gitleaks as a lint source, and the `kernel.perf_event_paranoid=1` sysctl `samply` needs (step 9).
 - `rr` reverse debugging (not in the pacman repos), nightly toolchain tooling (`cargo miri`, `cargo expand` nightly options; `rustup toolchain install nightly`).
 - `lang.sql` (vim-dadbod), `ron-lsp`, `leptosfmt` and BRP for Bevy, `nvim-dev-container` (step 10).
-- Pruning unused theme specs; a type-hierarchy view (rust-analyzer support unconfirmed).
+- Pruning unused theme specs (`all-themes.lua` is now only needed when following Omarchy, see Theme); a type-hierarchy view (rust-analyzer support unconfirmed).
 
 ### Not worth chasing
 Type Hierarchy over LSP (unsupported), a tabbed Search Everywhere clone (`Snacks.picker.smart()` suffices), a full Cargo tool-window clone (a `cargo metadata` picker gets ~80%), RustRover's `macro_rules!` tester (use `expandMacro` + `cargo-expand`), Aquascope-style ownership visualisation, a `Cargo.toml` `BufWritePost` reload autocmd (rust-analyzer already reloads; harmful with auto-save), global `--all-targets` in live clippy, a second rust-analyzer instance.
@@ -213,7 +224,11 @@ A field test was planned from 16 angles; 4 have been run so far (sandbox/99 guar
 lua/config/    options, keymaps, autocmds, remote clipboard, statusline/UX helpers, local_history, rust_context/nav/tasks/routes, agent_sandbox
 lua/xynovim/   :checkhealth xynovim
 snippets/       rust.json (registered with blink)
-lua/plugins/   one spec per concern (bacon-ls, rustaceanvim, ninety-nine, auto-save, dap, gitsigns, telescope, …)
+lua/plugins/   one spec per concern (bacon-ls, rustaceanvim, ninety-nine, auto-save, dap, gitsigns, telescope, island-theme, …)
+colors/        island-dark colourscheme entry point
+lua/island/    Island Dark: init.lua (mapping), palette.lua (generated)
+lua/lualine/   island-dark lualine theme
+tools/         icls2nvim.py + Dark.icls (the scheme it converts)
 plugin/after/  transparency, unsafe highlight
 after/queries/ treesitter query extensions (sqlx SQL injection)
 .github/       CI smoke test

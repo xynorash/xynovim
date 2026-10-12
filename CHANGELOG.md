@@ -4,6 +4,17 @@ All notable changes to this config are documented here.
 
 ## [Unreleased]
 
+### Changed
+- Theme: Island Dark (the user's RustRover "Dark" scheme, parent Darcula) is now
+  the permanent colourscheme. `tools/icls2nvim.py` converts `tools/Dark.icls` to
+  `lua/island/palette.lua`; `lua/island/init.lua`, `colors/island-dark.lua` and a
+  lualine theme map it to UI, Treesitter, LSP semantic (`org.rust.*`) and plugin
+  groups. Omarchy's theme spec and hot-reload no longer override it (set
+  `vim.g.xynovim_follow_omarchy = true` to follow Omarchy again). Transparency
+  stays the default; new `<leader>uO` toggle. Verified headless (49 colour checks
+  against an independent parse of the `.icls`, real rust-analyzer tokens) and in
+  tmux (24-bit SGR); not verified with a live Omarchy theme switch.
+
 ### Fixed (field test 2026-10-12, 4 of 16 angles)
 - 99 sandbox hardening: pid/ipc/uts/cgroup/user namespaces, no capabilities,
   `--new-session`; whole `.git` (plus resolved gitdirs, nested repos to 2

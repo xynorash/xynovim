@@ -58,6 +58,11 @@ local groups = {
 }
 
 local function apply()
+	-- vim.g.xynovim_transparent = false keeps the theme's solid backgrounds
+	-- (toggle: <leader>uO)
+	if vim.g.xynovim_transparent == false then
+		return
+	end
 	for _, name in ipairs(groups) do
 		make_transparent(name)
 	end
@@ -69,3 +74,19 @@ vim.api.nvim_create_autocmd("ColorScheme", {
 })
 
 apply()
+
+-- Toggle: off re-runs the colorscheme to bring the solid backgrounds back.
+if _G.Snacks and Snacks.toggle then
+	Snacks.toggle({
+		name = "Transparent background",
+		get = function()
+			return vim.g.xynovim_transparent ~= false
+		end,
+		set = function(state)
+			vim.g.xynovim_transparent = state
+			if vim.g.colors_name then
+				pcall(vim.cmd.colorscheme, vim.g.colors_name)
+			end
+		end,
+	}):map("<leader>uO")
+end

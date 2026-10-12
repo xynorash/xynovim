@@ -10,6 +10,16 @@ return {
 			vim.api.nvim_create_autocmd("User", {
 				pattern = "LazyReload",
 				callback = function()
+					-- Island Dark is permanent (README "Theme"): Omarchy's theme must not
+					-- override it, so a reload just re-applies island-dark. Set
+					-- vim.g.xynovim_follow_omarchy = true to follow Omarchy as before.
+					if not vim.g.xynovim_follow_omarchy then
+						vim.schedule(function()
+							pcall(vim.cmd.colorscheme, vim.g.xynovim_theme or "island-dark")
+						end)
+						return
+					end
+
 					-- Unload the theme module
 					package.loaded["plugins.theme"] = nil
 

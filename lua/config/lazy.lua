@@ -15,16 +15,23 @@ end
 vim.opt.rtp:prepend(lazypath)
 
 -- Omarchy manages lua/plugins/theme.lua as a symlink into
--- ~/.local/state/omarchy. Without Omarchy (or in a bare clone) it dangles and
--- lazy reports "Failed to load plugins.theme". lazy reads spec files with
--- loadfile(), so answer that one path with an empty spec; a working symlink is
--- left alone.
+-- ~/.local/state/omarchy. Island Dark is the permanent theme, so that spec is
+-- answered with an empty one (it would pick Omarchy's colorscheme) unless
+-- `vim.g.xynovim_follow_omarchy = true` (lua/config/options.lua, which LazyVim
+-- loads before the spec files). A dangling symlink (no Omarchy) also yields an
+-- empty spec instead of lazy's "Failed to load plugins.theme". lazy reads spec
+-- files with loadfile(), so the answer is given there; the function runs at
+-- import time, after options.lua.
 local theme_link = vim.fn.stdpath("config") .. "/lua/plugins/theme.lua"
-if vim.uv.fs_lstat(theme_link) and not vim.uv.fs_stat(theme_link) then
+if vim.uv.fs_lstat(theme_link) then
   local loadfile = _G.loadfile
   _G.loadfile = function(filename, ...)
     if filename == theme_link then
-      return function()
+      local chunk = vim.uv.fs_stat(theme_link) and loadfile(filename, ...)
+      return function(...)
+        if vim.g.xynovim_follow_omarchy and chunk then
+          return chunk(...)
+        end
         return {}
       end
     end
@@ -48,7 +55,7 @@ require("lazy").setup({
     version = false, -- always use the latest git commit
     -- version = "*", -- try installing the latest stable version for plugins that support semver
   },
-  install = { colorscheme = { "tokyonight", "habamax" } },
+  install = { colorscheme = { "island-dark", "tokyonight", "habamax" } },
   checker = {
     -- OFF: the periodic checker spawns background git fetches AND pulls
     -- lazy's whole management machinery (lazy.manage, view.commands,
