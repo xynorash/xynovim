@@ -15,6 +15,16 @@ All notable changes to this config are documented here.
   against an independent parse of the `.icls`, real rust-analyzer tokens) and in
   tmux (24-bit SGR); not verified with a live Omarchy theme switch.
 
+- Theme legibility (review of the Island Dark commit): floats, the completion
+  menu and `Pmenu` stay solid when transparency is on (only the editor surface
+  is transparent; `<leader>uO` toggles that); blink.cmp secondary text and
+  inactive statusline use the `sub` grey; git "modified" uses
+  `FILESTATUS_MODIFIED`; comments, doc comments and error text are lifted to
+  4.5:1, line numbers to 3.5:1 (documented in README, Theme); cursorline is
+  `#242d42` and `CursorLineNr` keeps its background; lualine follows other
+  colourschemes. Verified by computing WCAG ratios from the loaded highlight
+  groups (headless, both transparency modes) and in tmux at 200x55.
+
 ### Fixed (field test 2026-10-12, 4 of 16 angles)
 - 99 sandbox hardening: pid/ipc/uts/cgroup/user namespaces, no capabilities,
   `--new-session`; whole `.git` (plus resolved gitdirs, nested repos to 2

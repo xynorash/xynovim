@@ -10,25 +10,21 @@ local function make_transparent(name)
 	end
 end
 
+-- Floats and the completion menu (NormalFloat, FloatBorder, Pmenu, Telescope,
+-- which-key) are deliberately NOT here: they keep the theme's solid popup
+-- background so they stay readable over code. CursorLineNr keeps its bg so the
+-- cursor-row band has no gap in the gutter. Only the editor surface is made
+-- transparent.
 local groups = {
 	-- transparent background
 	"Normal",
-	"NormalFloat",
-	"FloatBorder",
-	"Pmenu",
 	"Terminal",
 	"EndOfBuffer",
 	"FoldColumn",
 	"Folded",
 	"SignColumn",
 	"LineNr",
-	"CursorLineNr",
 	"NormalNC",
-	"WhichKeyFloat",
-	"TelescopeBorder",
-	"TelescopeNormal",
-	"TelescopePromptBorder",
-	"TelescopePromptTitle",
 	-- neotree
 	"NeoTreeNormal",
 	"NeoTreeNormalNC",

@@ -23,6 +23,47 @@ local function at(key, extra)
   return vim.tbl_extend("force", t, extra or {})
 end
 
+-- WCAG 2.x contrast helpers, used to lift the few scheme colours that fall
+-- short of the legibility targets (see README, Theme: "Legibility lifts").
+local function lum(hex)
+  local ch = {}
+  for i = 1, 3 do
+    local c = tonumber(hex:sub(2 * i, 2 * i + 1), 16) / 255
+    ch[i] = c <= 0.03928 and c / 12.92 or ((c + 0.055) / 1.055) ^ 2.4
+  end
+  return 0.2126 * ch[1] + 0.7152 * ch[2] + 0.0722 * ch[3]
+end
+
+local function ratio(a, b)
+  local x, y = lum(a), lum(b)
+  if x < y then
+    x, y = y, x
+  end
+  return (x + 0.05) / (y + 0.05)
+end
+
+--- `fg` mixed towards white in 1% steps until it reaches `target`:1 on `on`
+--- (unchanged when it already does; keeps the hue as far as possible)
+local function lift(fg, on, target)
+  local f = {}
+  for i = 1, 3 do
+    f[i] = tonumber(fg:sub(2 * i, 2 * i + 1), 16)
+  end
+  local out = fg
+  for t = 0, 100 do
+    out = string.format(
+      "#%02x%02x%02x",
+      f[1] + (255 - f[1]) * t / 100 + 0.5,
+      f[2] + (255 - f[2]) * t / 100 + 0.5,
+      f[3] + (255 - f[3]) * t / 100 + 0.5
+    )
+    if ratio(out, on) >= target then
+      break
+    end
+  end
+  return out
+end
+
 local function fgof(key)
   return (A[key] or {}).fg
 end
@@ -39,12 +80,19 @@ function M.setup()
   local bg, fg = A.TEXT.bg, A.TEXT.fg
   local float_bg = C.LOOKUP_COLOR -- popup/lookup background
   local line_bg = C.CARET_ROW_COLOR
+  -- the scheme's caret row (#26282e) is only 1.12:1 on the background; its own
+  -- darkest blue annotation colour (#242d42) reads as a band (1.20:1)
+  local cl_bg = C.VCS_ANNOTATIONS_COLOR_4
   local sel_bg = D.SELECTION_BACKGROUND
   local border = D.BORDER
   local muted = C.WHITESPACES -- 6f737a, the scheme's "disabled" grey
   local dim = C.LINE_NUMBERS_COLOR
+  local num = C.WHITESPACES -- line numbers: scheme #4b5059 is 2.0:1; its "whitespace" grey is 3.5:1
   local sub = fgof("BREADCRUMBS_DEFAULT") -- secondary text
   local bright = fgof("BREADCRUMBS_CURRENT")
+  -- comments (#7a7e85, 4.0:1) and doc comments (#5f826b, 3.8:1) lifted to 4.5:1
+  local comment_fg = lift(fgof("DEFAULT_LINE_COMMENT"), bg, 4.5)
+  local doc_fg = lift(fgof("DEFAULT_DOC_COMMENT"), bg, 4.5)
   local guide, guide_sel = C.INDENT_GUIDE, C.SELECTED_INDENT_GUIDE
   local red, yellow = fgof("CONSOLE_ERROR_OUTPUT"), fgof("LOG_INFO_OUTPUT")
   local blue = fgof("DEFAULT_FUNCTION_DECLARATION")
@@ -57,7 +105,9 @@ function M.setup()
   local err_stripe, warn_stripe = A.ERRORS_ATTRIBUTES.stripe, A.WARNING_ATTRIBUTES.stripe
   local info_c = blue
   local hint_c = C.ANNOTATIONS_COLOR
-  local add, chg, del = C.ADDED_LINES_COLOR, C.MODIFIED_LINES_COLOR, C.DELETED_LINES_COLOR
+  -- "modified" uses the scheme's file-status blue (6.0:1); MODIFIED_LINES_COLOR
+  -- #375fad is 2.2-2.7:1 as a sign / lualine count
+  local add, chg, del = C.ADDED_LINES_COLOR, C.FILESTATUS_MODIFIED, C.DELETED_LINES_COLOR
   local st_add, st_mod, st_del = C.FILESTATUS_ADDED, C.FILESTATUS_MODIFIED, C.FILESTATUS_UNKNOWN
   local st_ign, st_conf, st_merge =
     C.FILESTATUS_IDEA_FILESTATUS_IGNORED, C.FILESTATUS_MERGED_WITH_CONFLICTS, C.FILESTATUS_MERGED
@@ -74,15 +124,15 @@ function M.setup()
     lCursor = { link = "Cursor" },
     CursorIM = { link = "Cursor" },
     TermCursor = { link = "Cursor" },
-    CursorLine = { bg = line_bg },
+    CursorLine = { bg = cl_bg },
     CursorColumn = { bg = line_bg },
     ColorColumn = { bg = line_bg },
-    CursorLineNr = { fg = C.LINE_NUMBER_ON_CARET_ROW_COLOR, bg = line_bg },
-    CursorLineSign = { bg = line_bg },
-    CursorLineFold = { bg = line_bg },
-    LineNr = { fg = dim },
-    LineNrAbove = { fg = dim },
-    LineNrBelow = { fg = dim },
+    CursorLineNr = { fg = C.LINE_NUMBER_ON_CARET_ROW_COLOR, bg = cl_bg },
+    CursorLineSign = { bg = cl_bg },
+    CursorLineFold = { bg = cl_bg },
+    LineNr = { fg = num },
+    LineNrAbove = { fg = num },
+    LineNrBelow = { fg = num },
     SignColumn = { fg = dim, bg = bg },
     FoldColumn = { fg = dim, bg = bg },
     Folded = at("FOLDED_TEXT_ATTRIBUTES"),
@@ -100,9 +150,9 @@ function M.setup()
     MatchParen = at("MATCHED_BRACE_ATTRIBUTES"),
     Pmenu = { fg = fg, bg = float_bg },
     PmenuSel = { fg = bright, bg = sel_bg },
-    PmenuKind = { fg = muted, bg = float_bg },
+    PmenuKind = { fg = sub, bg = float_bg },
     PmenuKindSel = { fg = bright, bg = sel_bg },
-    PmenuExtra = { fg = muted, bg = float_bg },
+    PmenuExtra = { fg = sub, bg = float_bg },
     PmenuExtraSel = { fg = sub, bg = sel_bg },
     PmenuMatch = { fg = blue, bg = float_bg, bold = true },
     PmenuMatchSel = { fg = blue, bg = sel_bg, bold = true },
@@ -113,7 +163,7 @@ function M.setup()
     ComplHint = { fg = muted },
     ComplHintMore = { fg = muted },
     StatusLine = { fg = fg, bg = C.DIFF_SEPARATORS_BACKGROUND },
-    StatusLineNC = { fg = muted, bg = C.DIFF_SEPARATORS_BACKGROUND },
+    StatusLineNC = { fg = sub, bg = C.DIFF_SEPARATORS_BACKGROUND },
     StatusLineTerm = { link = "StatusLine" },
     StatusLineTermNC = { link = "StatusLineNC" },
     WinSeparator = { fg = C.RIGHT_MARGIN_COLOR },
@@ -161,7 +211,7 @@ function M.setup()
     DiagnosticUnderlineInfo = { undercurl = true, sp = A.INFO_ATTRIBUTES.effect_color },
     DiagnosticUnderlineHint = { underdotted = true, sp = hint_c },
     DiagnosticUnderlineOk = { undercurl = true, sp = green },
-    DiagnosticVirtualTextError = { fg = red, bg = C.ERROR_HINT },
+    DiagnosticVirtualTextError = { fg = lift(red, C.ERROR_HINT, 4.5), bg = C.ERROR_HINT },
     DiagnosticVirtualTextWarn = { fg = yellow },
     DiagnosticVirtualTextInfo = { fg = info_c },
     DiagnosticVirtualTextHint = { fg = hint_c },
@@ -171,7 +221,7 @@ function M.setup()
     DiagnosticSignInfo = { fg = info_c },
     DiagnosticSignHint = { fg = hint_c },
     DiagnosticSignOk = { fg = green },
-    DiagnosticFloatingError = { fg = red },
+    DiagnosticFloatingError = { fg = lift(red, float_bg, 4.5) },
     DiagnosticFloatingWarn = { fg = yellow },
     DiagnosticFloatingInfo = { fg = info_c },
     DiagnosticFloatingHint = { fg = hint_c },
@@ -183,7 +233,7 @@ function M.setup()
 
   -- Classic syntax groups ---------------------------------------------------
   local syn = {
-    Comment = at("DEFAULT_LINE_COMMENT"),
+    Comment = at("DEFAULT_LINE_COMMENT", { fg = comment_fg }),
     SpecialComment = at("DEFAULT_DOC_COMMENT_TAG"),
     Constant = at("DEFAULT_CONSTANT"),
     String = at("DEFAULT_STRING"),
@@ -234,7 +284,7 @@ function M.setup()
     ["@module.builtin"] = at("DEFAULT_KEYWORD"),
     ["@label"] = at("org.rust.TYPE_PARAMETER"),
     ["@string"] = at("DEFAULT_STRING"),
-    ["@string.documentation"] = at("DEFAULT_DOC_COMMENT"),
+    ["@string.documentation"] = at("DEFAULT_DOC_COMMENT", { fg = doc_fg }),
     ["@string.regexp"] = at("JS.REGEXP"),
     ["@string.escape"] = at("DEFAULT_VALID_STRING_ESCAPE"),
     ["@string.special"] = at("DEFAULT_VALID_STRING_ESCAPE"),
@@ -278,8 +328,8 @@ function M.setup()
     ["@punctuation.delimiter"] = at("DEFAULT_COMMA"),
     ["@punctuation.bracket"] = at("DEFAULT_BRACKETS"),
     ["@punctuation.special"] = at("org.rust.Q_OPERATOR"),
-    ["@comment"] = at("DEFAULT_LINE_COMMENT"),
-    ["@comment.documentation"] = at("DEFAULT_DOC_COMMENT"),
+    ["@comment"] = at("DEFAULT_LINE_COMMENT", { fg = comment_fg }),
+    ["@comment.documentation"] = at("DEFAULT_DOC_COMMENT", { fg = doc_fg }),
     ["@comment.error"] = { fg = red, bold = true },
     ["@comment.warning"] = { fg = yellow, bold = true },
     ["@comment.todo"] = at("TODO_DEFAULT_ATTRIBUTES"),
@@ -344,7 +394,7 @@ function M.setup()
     ["@lsp.type.macro"] = at("org.rust.MACRO"),
     ["@lsp.type.decorator"] = at("DEFAULT_METADATA"),
     ["@lsp.type.keyword"] = at("DEFAULT_KEYWORD"),
-    ["@lsp.type.comment"] = at("DEFAULT_LINE_COMMENT"),
+    ["@lsp.type.comment"] = at("DEFAULT_LINE_COMMENT", { fg = comment_fg }),
     ["@lsp.type.string"] = at("DEFAULT_STRING"),
     ["@lsp.type.number"] = at("DEFAULT_NUMBER"),
     ["@lsp.type.operator"] = at("DEFAULT_OPERATION_SIGN"),
@@ -393,7 +443,7 @@ function M.setup()
     -- modifiers (a modifier group only adds attributes on top of the token's colour)
     ["@lsp.mod.mutable.rust"] = { underline = true, sp = A["org.rust.MUT_BINDING"].effect_color },
     ["@lsp.mod.deprecated"] = at("DEPRECATED_ATTRIBUTES"),
-    ["@lsp.mod.documentation.rust"] = at("DEFAULT_DOC_COMMENT"),
+    ["@lsp.mod.documentation.rust"] = at("DEFAULT_DOC_COMMENT", { fg = doc_fg }),
     ["@lsp.mod.static.rust"] = at("org.rust.STATIC"),
     ["@lsp.mod.intraDocLink.rust"] = { fg = C.DOC_COMMENT_LINK, underline = true },
     -- type + modifier combinations
@@ -418,9 +468,9 @@ function M.setup()
     ["@lsp.typemod.keyword.controlFlow.rust"] = at("DEFAULT_KEYWORD"),
     ["@lsp.typemod.operator.controlFlow.rust"] = at("org.rust.Q_OPERATOR"), -- the `?` operator
     ["@lsp.typemod.keyword.unsafe.rust"] = at("DEFAULT_KEYWORD"),
-    ["@lsp.typemod.comment.documentation.rust"] = at("DEFAULT_DOC_COMMENT"),
-    ["@lsp.typemod.comment.injected.rust"] = at("DEFAULT_DOC_COMMENT"),
-    ["@lsp.typemod.string.documentation.rust"] = at("DEFAULT_DOC_COMMENT"),
+    ["@lsp.typemod.comment.documentation.rust"] = at("DEFAULT_DOC_COMMENT", { fg = doc_fg }),
+    ["@lsp.typemod.comment.injected.rust"] = at("DEFAULT_DOC_COMMENT", { fg = doc_fg }),
+    ["@lsp.typemod.string.documentation.rust"] = at("DEFAULT_DOC_COMMENT", { fg = doc_fg }),
   }
   for name, spec in pairs(lsp) do
     set(name, spec)
@@ -583,10 +633,10 @@ function M.setup()
     BlinkCmpLabel = { fg = fg },
     BlinkCmpLabelDeprecated = { fg = muted, strikethrough = true },
     BlinkCmpLabelMatch = { fg = blue, bold = true },
-    BlinkCmpLabelDetail = { fg = muted },
-    BlinkCmpLabelDescription = { fg = muted },
-    BlinkCmpKind = { fg = muted },
-    BlinkCmpSource = { fg = muted },
+    BlinkCmpLabelDetail = { fg = sub },
+    BlinkCmpLabelDescription = { fg = sub },
+    BlinkCmpKind = { fg = sub },
+    BlinkCmpSource = { fg = sub },
     BlinkCmpGhostText = { fg = dim },
     BlinkCmpDoc = { fg = fg, bg = float_bg },
     BlinkCmpDocBorder = { fg = border, bg = float_bg },
@@ -670,9 +720,9 @@ function M.setup()
     SnacksPickerPreview = { fg = fg, bg = bg },
     SnacksPickerPreviewBorder = { fg = border, bg = bg },
     SnacksPickerPreviewTitle = { fg = blue, bold = true },
-    SnacksPickerPreviewCursorLine = { bg = line_bg },
+    SnacksPickerPreviewCursorLine = { bg = cl_bg },
     SnacksPickerMatch = { fg = blue, bold = true },
-    SnacksPickerDir = { fg = muted },
+    SnacksPickerDir = { fg = sub },
     SnacksPickerFile = { fg = fg },
     SnacksPickerPathHidden = { fg = muted },
     SnacksPickerPathIgnored = { fg = dim },
