@@ -296,6 +296,20 @@ function M.readonly_paths(project)
   end
   -- Absent dirs to mask with an empty read-only tmpfs.
   local masks = member_masks
+  -- This project's own memory dir, also while it does not exist yet (claude
+  -- names it ~/.claude/projects/<path with every non-alphanumeric as "-">/memory
+  -- from its cwd): otherwise the agent could plant a MEMORY.md that the next
+  -- unsandboxed session loads. Needs ~/.claude (the mask is made inside it).
+  if exists(home .. "/.claude") then
+    local cwd = vim.uv.cwd() or project
+    for _, d in ipairs({ project, cwd, vim.uv.fs_realpath(project) or project, vim.uv.fs_realpath(cwd) or cwd }) do
+      local mem = home .. "/.claude/projects/" .. d:gsub("[^%w]", "-") .. "/memory"
+      if not seen[mem] and not exists(mem) then
+        seen[mem] = true
+        masks[#masks + 1] = mem
+      end
+    end
+  end
   for _, rel in ipairs(PROJECT_MASK_IF_ABSENT) do
     if not exists(project .. "/" .. rel) then
       masks[#masks + 1] = project .. "/" .. rel
@@ -384,7 +398,9 @@ function M.wrap(cmd, project, tmp_dir)
     vim.list_extend(a, { "--ro-bind", p, p })
   end
   for _, p in ipairs(masks) do
-    if project ~= home and project ~= "/" then
+    -- project-relative masks (.cargo, .claude) would hit $HOME's own when the
+    -- project is $HOME; the ones inside ~/.claude are safe either way
+    if (project ~= home and project ~= "/") or p:find(home .. "/.claude/", 1, true) == 1 then
       vim.list_extend(a, { "--tmpfs", p, "--remount-ro", p })
     end
   end

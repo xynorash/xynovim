@@ -16,13 +16,33 @@ return {
     -- earlier vim.cmd proxy that pattern-matched the plugin's internal
     -- command string; the User event survives plugin refactors, the string
     -- match didn't.)
+    --
+    -- Neotest's watch mode (<leader>tw) reruns tests from a BufWritePost
+    -- autocmd, which noautocmd writes skip too. So while a watcher exists the
+    -- event is re-emitted here (it also reaches neotest's rediscovery of
+    -- tests). Not otherwise: it would run every BufWritePost handler (and
+    -- local history's) on each autosave for nothing.
+    local function neotest_watching()
+      if not package.loaded["neotest.consumers.watch.watcher"] then
+        return false
+      end
+      for _, a in ipairs(vim.api.nvim_get_autocmds({ event = "BufWritePost" })) do
+        local src = type(a.callback) == "function" and debug.getinfo(a.callback, "S").source or ""
+        if src:find("neotest/consumers/watch/watcher.lua", 1, true) then
+          return true
+        end
+      end
+      return false
+    end
+
     local group = vim.api.nvim_create_augroup("user_autosave_didsave", { clear = true })
     vim.api.nvim_create_autocmd("User", {
       pattern = "AutoSaveWritePost",
       group = group,
       callback = function(ev)
         local buf = ev.data and ev.data.saved_buffer
-        if not (buf and vim.api.nvim_buf_is_valid(buf)) then
+        -- still modified: the write was refused (see config/disk_guard.lua)
+        if not (buf and vim.api.nvim_buf_is_valid(buf)) or vim.bo[buf].modified then
           return
         end
         for _, client in ipairs(vim.lsp.get_clients({ bufnr = buf })) do
@@ -32,12 +52,17 @@ return {
             })
           end
         end
+        if neotest_watching() then
+          vim.api.nvim_exec_autocmds("BufWritePost", { buffer = buf, modeline = false })
+        end
       end,
     })
 
     require("auto-save").setup({
       enabled = true,
       noautocmd = true,
+      -- never into dependency sources, never over a file that changed on disk
+      condition = require("config.disk_guard").can_save,
       trigger_events = {
         immediate_save = { "BufLeave", "FocusLost", "QuitPre", "VimSuspend" },
         -- TextChanged only fires for edits made OUTSIDE insert mode; its

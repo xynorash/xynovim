@@ -29,6 +29,35 @@ All notable changes to this config are documented here.
   colourschemes. Verified by computing WCAG ratios from the loaded highlight
   groups (headless, both transparency modes) and in tmux at 200x55.
 
+### Fixed (field test batch 3: data safety)
+- Local history: a save followed by a quick quit no longer loses the snapshot
+  (in-flight jobs are redone synchronously at exit); one index per nvim process
+  (`.git/lochist-index.<pid>`, stale ones cleaned, the newest seeds the next),
+  the ref moves by compare-and-swap with retries, the throttle starts only
+  after a success, lock errors notify once; untracked files over 10 MB
+  (`vim.g.xynovim_lochist_max_bytes`) are skipped; the git child is killed
+  after the 30 s timeout; new `:LocalHistoryPrune [N | Nd]` (`!` collects
+  everything unreachable); `:LocalHistory` no longer lists the deletion commit;
+  the user's global gitignore is honoured (`target/` goes into
+  `.git/info/exclude` instead of replacing `core.excludesFile`).
+- Auto-save (`lua/config/disk_guard.lua`): skips a buffer whose file changed on
+  disk (checked at the event and again before the write; one warning), never
+  writes dependency/std buffers (`nomodifiable`), `FileChangedShell` never
+  prompts; modified buffers touched by a multi-file rename, file rename or any
+  workspace edit are written afterwards; `BufWritePost` is re-emitted while a
+  neotest watcher exists, so `<leader>tw` reruns (README contradiction fixed).
+- `<leader>gV` falls back to `origin/main` / `origin/master` and explains when
+  there is no remote branch.
+- Agent sandbox: the project's `~/.claude/projects/<name>/memory` is read-only
+  also while it does not exist yet.
+- Verified headless as the user and in tmux (concurrent nvims, SIGKILL during
+  `git add`, 300/400/600 MB untracked blobs, an external write while typing:
+  no prompt, typed text kept, disk untouched, saving resumes after `:w!`),
+  a fixture crate (neotest watch reran after an autosave, not after stopping
+  the watcher; multi-file rename and Snacks file rename left no modified
+  buffers), the sandbox with bash stand-ins and a stub provider through the
+  real guard. Not verified: a real `99` request, the 30 s watchdog, stale ref locks, submodules, `stylua` formatting (not installed).
+
 ### Fixed (field test batch 2: keys and commands that did nothing)
 - `:RustTargets`, `:RustTools`, `:ActJob` and the new `<leader>tD` keep their
   terminal (and the output) after exit 0 (`auto_close = false`); a rerun

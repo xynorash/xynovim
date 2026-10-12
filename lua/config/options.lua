@@ -20,6 +20,10 @@ vim.g.lazyvim_rust_diagnostics = "bacon-ls"
 -- Local History: shadow-ref snapshots on every (throttled) save.
 require("config.local_history").setup()
 
+-- Auto-save safety: no writes into dependency sources or over files that
+-- changed on disk; save everything a multi-file rename touched.
+require("config.disk_guard").setup()
+
 -- :RustContext (cargo features / target for both diagnostic tiers).
 require("config.rust_context").setup()
 require("config.rust_tasks").setup()

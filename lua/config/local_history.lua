@@ -13,17 +13,34 @@
 -- branches); the old "detached" ref is left alone and still read by
 -- :LocalHistory.
 -- Saves inside the throttle window are not lost: one trailing snapshot is
--- scheduled for the end of the window (and one more on exit if still pending).
+-- scheduled for the end of the window (and one more on exit if still pending
+-- or still in flight: the running git is killed and the snapshot redone
+-- synchronously).
+-- Every nvim process uses its own index file (.git/lochist-index.<pid>), so
+-- concurrent instances never fight over one index.lock; leftovers of dead
+-- processes are cleaned up (the newest seeds the next one, so the first
+-- `git add -A` stays incremental). Untracked files over
+-- vim.g.xynovim_lochist_max_bytes (default 10 MB, <= 0 disables the cap) are
+-- left out. :LocalHistoryPrune trims old snapshots.
 local M = {}
 
 local THROTTLE_S = 60
+local FAIL_BACKOFF_S = 10
 local EXIT_BUDGET_MS = 5000
-local last = {} ---@type table<string, number>
+local MAX_BYTES = 10 * 1024 * 1024
+local last = {} ---@type table<string, number> time of the last SUCCESSFUL snapshot
+local failed = {} ---@type table<string, number> time of the last failed one
 local running = {} ---@type table<string, boolean>
+local runs = {} ---@type table<string, { dead: boolean, child: vim.SystemObj? }>
+local indexes = {} ---@type table<string, string> root -> this process's index file
+local prepared = {} ---@type table<string, boolean>
+local warned = {} ---@type table<string, boolean> notify-once keys
 local timers = {} ---@type table<string, uv.uv_timer_t>
 local deadline ---@type number? set (hrtime ms) only during the synchronous exit snapshot
 
-local function git(args, root, env, cb, raw)
+--- `run` (optional) lets a caller abandon the chain: once run.dead is set the
+--- callback never fires, and run.child is the git process to kill.
+local function git(args, root, env, cb, raw, run)
   local cmd = vim.list_extend({ "git" }, args)
   local function done(o)
     cb(o.code == 0 and (raw and (o.stdout or "") or vim.trim(o.stdout or "")) or nil, o)
@@ -35,11 +52,39 @@ local function git(args, root, env, cb, raw)
     end
     return done(vim.system(cmd, { cwd = root, env = env, text = true }):wait(math.floor(left)))
   end
-  vim.system(cmd, { cwd = root, env = env, text = true }, function(o)
+  local child = vim.system(cmd, { cwd = root, env = env, text = true }, function(o)
     vim.schedule(function()
-      done(o)
+      if not (run and run.dead) then
+        done(o)
+      end
     end)
   end)
+  if run then
+    run.child = child
+  end
+end
+
+--- Abandon the snapshot chain of `root`: no further callbacks, git child killed.
+local function abort(root, wait)
+  local run = runs[root]
+  if not run then
+    return
+  end
+  run.dead = true
+  runs[root] = nil
+  if run.child then
+    pcall(run.child.kill, run.child, 9)
+    if wait then
+      pcall(run.child.wait, run.child, 1000)
+    end
+  end
+end
+
+local function warn_once(key, msg, level)
+  if not warned[key] then
+    warned[key] = true
+    vim.notify(msg, level or vim.log.levels.WARN)
+  end
 end
 
 local function encode(branch)
@@ -121,13 +166,18 @@ local function stop_timer(root)
   end
 end
 
+--- Earliest time a non-forced snapshot of `root` may start.
+local function next_ok(root)
+  return math.max((last[root] or 0) + THROTTLE_S, (failed[root] or 0) + FAIL_BACKOFF_S)
+end
+
 -- Arm (once) the trailing-edge timer for `root`. It is unref'd so it never
 -- keeps nvim alive, and does nothing if the repo vanished meanwhile.
 local function arm(root)
   if timers[root] then
     return
   end
-  local wait_ms = math.max(1000, ((last[root] or 0) + THROTTLE_S - os.time()) * 1000 + 500)
+  local wait_ms = math.max(1000, (next_ok(root) - os.time()) * 1000 + 500)
   local t = assert(vim.uv.new_timer())
   timers[root] = t
   t:unref()
@@ -140,7 +190,7 @@ local function arm(root)
       end
       stop_timer(root)
       if vim.uv.fs_stat(root .. "/.git") then
-        M.snapshot({ path = root, force = true })
+        M.snapshot({ path = root, force = true, retried = true })
       else
         last[root] = nil
       end
@@ -150,8 +200,159 @@ end
 
 local pending = {} ---@type table<string, boolean>
 
+local function pid_alive(pid)
+  return vim.uv.kill(pid, 0) == 0
+end
+
+--- Once per repo and session: keep target/ out via .git/info/exclude (additive
+--- to .gitignore AND the user's global ignore, unlike core.excludesFile=),
+--- drop the index files of dead nvim processes (the newest one seeds ours so
+--- the first `git add -A` is incremental) and the old shared index.
+local function prepare(root, gitdir, exclude)
+  if prepared[root] then
+    return
+  end
+  prepared[root] = true
+  local mine = indexes[root]
+  local lines = vim.uv.fs_stat(exclude) and vim.fn.readfile(exclude) or {}
+  local has = false
+  for _, l in ipairs(lines) do
+    has = has or l:match("^/?target/?$") ~= nil
+  end
+  if not has then
+    vim.fn.mkdir(vim.fs.dirname(exclude), "p")
+    lines[#lines + 1] = "target/"
+    pcall(vim.fn.writefile, lines, exclude)
+  end
+  os.remove(gitdir .. "/lochist-exclude") -- replaced by info/exclude
+
+  local seed, seed_t = nil, -1
+  local stale = {}
+  for _, p in ipairs(vim.fn.glob(gitdir .. "/lochist-index*", true, true)) do
+    local base = p:gsub("%.lock$", "")
+    local pid = base:match("lochist%-index%.(%d+)$")
+    if base ~= mine and not (pid and pid_alive(tonumber(pid))) then
+      stale[#stale + 1] = p
+      local st = base == p and vim.uv.fs_stat(p) or nil
+      if st and st.mtime.sec > seed_t then
+        seed, seed_t = p, st.mtime.sec
+      end
+    end
+  end
+  if seed and not vim.uv.fs_stat(mine) then
+    vim.uv.fs_copyfile(seed, mine)
+  end
+  for _, p in ipairs(stale) do
+    os.remove(p)
+  end
+end
+
+--- A stale lock (killed git) older than a minute: remove it. `err` is git's stderr.
+local function clear_stale_lock(err)
+  local lock = (err or ""):match("Unable to create '([^']-%.lock)'")
+  local st = lock and vim.uv.fs_stat(lock)
+  if st and os.time() - st.mtime.sec > 60 then
+    return os.remove(lock) ~= nil
+  end
+  return false
+end
+
+local function lock_error(err)
+  return (err or ""):find(".lock'", 1, true) ~= nil or (err or ""):find("File exists", 1, true) ~= nil
+end
+
+local function size_cap()
+  local v = vim.g.xynovim_lochist_max_bytes
+  if v == nil then
+    return MAX_BYTES
+  end
+  v = tonumber(v)
+  return v and v > 0 and v or nil
+end
+
+--- cb(list of untracked files bigger than the cap). Untracked = not in the
+--- user's real index (the private index is empty in a new session).
+local function big_untracked(root, run, cb)
+  local cap = size_cap()
+  if not cap then
+    return cb({})
+  end
+  git({ "ls-files", "-o", "--exclude-standard", "-z" }, root, nil, function(out)
+    local big = {}
+    for _, rel in ipairs(vim.split(out or "", "\0", { plain = true })) do
+      local st = rel ~= "" and vim.uv.fs_stat(root .. "/" .. rel) or nil
+      if st and st.type == "file" and st.size > cap and #big < 2000 then
+        big[#big + 1] = rel
+        warn_once(
+          "big:" .. root .. "/" .. rel,
+          ("local history: skipping %s (%.0f MB, over the %.0f MB cap; vim.g.xynovim_lochist_max_bytes)"):format(
+            rel,
+            st.size / 1048576,
+            cap / 1048576
+          ),
+          vim.log.levels.INFO
+        )
+      end
+    end
+    cb(big)
+  end, true, run)
+end
+
+--- Second half of a snapshot: commit `tree` on top of the branch's lochist ref.
+--- The ref moves with a compare-and-swap, so concurrent nvims never overwrite
+--- each other's snapshot: on a mismatch or a lock the parent is read again.
+local function commit_tree(root, tree, env, opts, g, finish)
+  migrate(root, function()
+    ref_for(root, function(ref)
+      local function attempt(n)
+        g({ "rev-parse", "-q", "--verify", ref }, env, function(parent)
+          local function commit()
+            local args = { "commit-tree", tree, "-m", opts.label or "autosave" }
+            if parent then
+              vim.list_extend(args, { "-p", parent })
+            end
+            g(args, env, function(c)
+              if not c then
+                return finish()
+              end
+              g({ "update-ref", ref, c, parent or "" }, env, function(_, uo)
+                if uo.code == 0 then
+                  return finish(c, true)
+                end
+                clear_stale_lock(uo.stderr)
+                if n < 10 then
+                  if deadline then
+                    return attempt(n + 1)
+                  end
+                  return vim.defer_fn(function()
+                    attempt(n + 1)
+                  end, math.random(30, 150)) -- jitter: racers must not retry in lockstep
+                end
+                migrated[root] = nil -- retry the old-ref migration next time
+                vim.notify("local history: update-ref failed: " .. vim.trim(uo.stderr or ""), vim.log.levels.WARN)
+                finish()
+              end)
+            end)
+          end
+          if not parent then
+            return commit()
+          end
+          g({ "rev-parse", parent .. "^{tree}" }, env, function(prev_tree)
+            if prev_tree == tree then
+              finish(nil, true) -- nothing changed since the last snapshot
+            else
+              commit()
+            end
+          end)
+        end)
+      end
+      attempt(1)
+    end)
+  end)
+end
+
 --- Snapshot the worktree containing `path` (a file or dir).
---- @param opts? { path?: string, force?: boolean, label?: string, done?: fun(commit?: string) }
+--- @param opts? { path?: string, force?: boolean, label?: string, retried?: boolean, done?: fun(commit?: string) }
 function M.snapshot(opts)
   opts = opts or {}
   local path = opts.path or vim.api.nvim_buf_get_name(0)
@@ -161,7 +362,7 @@ function M.snapshot(opts)
   end
   if running[root] then
     -- A forced snapshot must not be dropped: retry once the running one ends
-    -- (it gets a few seconds at most, see the timeout below).
+    -- (it gets 30 seconds at most, see the watchdog below).
     if opts.force then
       vim.defer_fn(function()
         M.snapshot(opts)
@@ -172,7 +373,7 @@ function M.snapshot(opts)
     end
     return
   end
-  if not opts.force and last[root] and os.time() - last[root] < THROTTLE_S then
+  if not opts.force and os.time() < next_ok(root) then
     pending[root] = true
     arm(root)
     return
@@ -180,94 +381,105 @@ function M.snapshot(opts)
   pending[root] = nil
   stop_timer(root)
   running[root] = true
-  last[root] = os.time()
+  local run = { dead = false }
+  runs[root] = run
   local finished = false
-  local function finish(commit)
+  --- @param ok? boolean the snapshot was taken or nothing had changed
+  local function finish(commit, ok)
     if finished then
       return
     end
     finished = true
     running[root] = nil
+    if runs[root] == run then
+      runs[root] = nil
+    end
+    if ok then
+      last[root] = os.time()
+      failed[root] = nil
+    else
+      failed[root] = os.time()
+      -- one retry of the unrecorded save once the backoff is over
+      if not deadline and not opts.retried then
+        pending[root] = true
+        arm(root)
+      end
+    end
     if opts.done then
       opts.done(commit)
     end
   end
+  local function g(args, env, cb, raw)
+    git(args, root, env, cb, raw, run)
+  end
 
-  -- A hung git must not disable history for this repo until restart.
+  -- A hung git must not disable history for this repo until restart: kill it.
   if not deadline then
     vim.defer_fn(function()
-      finish()
+      if not finished then
+        abort(root)
+        finish()
+      end
     end, 30000)
   end
 
-  git({ "rev-parse", "--absolute-git-dir" }, root, nil, function(gitdir)
-    if not gitdir then
+  g({ "rev-parse", "--absolute-git-dir", "--path-format=absolute", "--git-path", "info/exclude" }, nil, function(out)
+    local gitdir, exclude = unpack(vim.split(out or "", "\n", { plain = true }))
+    if not gitdir or not exclude then
       return finish()
     end
+    local index = gitdir .. "/lochist-index." .. vim.uv.os_getpid()
+    indexes[root] = index
+    prepare(root, gitdir, exclude)
+    os.remove(index .. ".lock") -- ours alone: a leftover of a killed git
     local env = {
-      GIT_INDEX_FILE = gitdir .. "/lochist-index",
+      GIT_INDEX_FILE = index,
       GIT_AUTHOR_NAME = "xynovim",
       GIT_AUTHOR_EMAIL = "lochist@xynovim",
       GIT_COMMITTER_NAME = "xynovim",
       GIT_COMMITTER_EMAIL = "lochist@xynovim",
     }
-    -- An extra excludes file (additive to .gitignore) keeps cargo's target/
-    -- out even in projects that forgot to ignore it. A pathspec exclude would
-    -- make `git add` fail whenever target/ IS already ignored.
-    local excludes = gitdir .. "/lochist-exclude"
-    if not vim.uv.fs_stat(excludes) then
-      pcall(vim.fn.writefile, { "target/" }, excludes)
-    end
-    -- --ignore-errors: a nested repo without commits ("adding embedded
-    -- repository") makes plain `add -A` abort and index nothing; with it the
-    -- rest is indexed, that repo is skipped, and git exits 1 (tolerated).
-    git({ "-c", "core.excludesFile=" .. excludes, "add", "-A", "--ignore-errors" }, root, env, function(_, o)
-      if o.code ~= 0 and o.code ~= 1 then
-        return finish()
-      end
-      git({ "write-tree" }, root, env, function(tree)
-        if not tree then
-          return finish()
+    big_untracked(root, run, function(big)
+      -- --ignore-errors: a nested repo without commits ("adding embedded
+      -- repository") makes plain `add -A` abort and index nothing; with it the
+      -- rest is indexed, that repo is skipped, and git exits 1 (tolerated).
+      local add = { "add", "-A", "--ignore-errors" }
+      if #big > 0 then
+        vim.list_extend(add, { "--", "." })
+        for _, rel in ipairs(big) do
+          add[#add + 1] = ":(exclude,literal)" .. rel
         end
-        migrate(root, function()
-        ref_for(root, function(ref)
-          git({ "rev-parse", "-q", "--verify", ref }, root, env, function(prev)
-            do
-              local parent = prev
-              local function commit()
-                local args = { "commit-tree", tree, "-m", opts.label or "autosave" }
-                if parent then
-                  vim.list_extend(args, { "-p", parent })
-                end
-                git(args, root, env, function(c)
-                  if not c then
-                    return finish()
-                  end
-                  git({ "update-ref", ref, c }, root, env, function(_, uo)
-                    if uo.code ~= 0 then
-                      migrated[root] = nil -- retry the old-ref migration next time
-                      vim.notify("local history: update-ref failed: " .. vim.trim(uo.stderr or ""), vim.log.levels.WARN)
-                      return finish()
-                    end
-                    finish(c)
-                  end)
-                end)
-              end
-              if not parent then
-                return commit()
-              end
-              git({ "rev-parse", parent .. "^{tree}" }, root, env, function(prev_tree)
-                if prev_tree == tree then
-                  finish() -- nothing changed since the last snapshot
-                else
-                  commit()
-                end
-              end)
+      end
+      local function add_all(tries)
+        g(add, env, function(_, o)
+          if o.code ~= 0 and o.code ~= 1 then
+            if lock_error(o.stderr) and tries < 2 then
+              os.remove(index .. ".lock")
+              clear_stale_lock(o.stderr)
+              return add_all(tries + 1)
             end
+            if lock_error(o.stderr) then
+              warn_once("lock:" .. root, "local history: git lock error, snapshots skipped: " .. vim.trim(o.stderr or ""))
+            end
+            return finish()
+          end
+          g({ "write-tree" }, env, function(tree)
+            if not tree then
+              return finish()
+            end
+            commit_tree(root, tree, env, opts, g, finish)
           end)
         end)
+      end
+      if #big > 0 and vim.uv.fs_stat(index) then
+        -- indexed while it was still small: drop the stale copy
+        local rm = { "rm", "--cached", "-r", "-q", "-f", "--ignore-unmatch", "--" }
+        g(vim.list_extend(rm, big), env, function()
+          add_all(1)
         end)
-      end)
+      else
+        add_all(1)
+      end
     end)
   end)
 end
@@ -288,7 +500,7 @@ local function pick(cb)
         return vim.notify("no local history for " .. rel, vim.log.levels.INFO)
       end
       local args = vim.list_extend({ "log" }, refs)
-      vim.list_extend(args, { "--format=%H%x09%ar%x09%s", "-n", "100", "--", rel })
+      vim.list_extend(args, { "--format=%H%x09%ar%x09%s", "-n", "100", "--diff-filter=d", "--", rel })
       git(args, root, nil, function(out)
         if not out or out == "" then
           return vim.notify("no local history for " .. rel, vim.log.levels.INFO)
@@ -359,6 +571,92 @@ function M.restore()
   end)
 end
 
+--- Drop old snapshots of every branch of the current repo. `arg`: "N" keeps the
+--- newest N per branch, "Nd" keeps the last N days (default "30d"); at least
+--- the newest snapshot always stays. The kept commits are re-created without
+--- the cut-off parent (one `git fast-import`), then unreachable objects older
+--- than an hour are collected with `git gc`, which is what frees the space
+--- (`now` = `:LocalHistoryPrune!`: every unreachable object, also younger ones
+--- and other tools' dangling commits, and a snapshot being written right now).
+--- @param arg? string
+--- @param now? boolean
+function M.prune(arg, now)
+  arg = vim.trim(arg or "")
+  if arg == "" then
+    arg = "30d"
+  end
+  local days, keep = arg:match("^(%d+)d$"), arg:match("^(%d+)$")
+  if not ((days or keep) and tonumber(days or keep) > 0) then
+    return vim.notify("usage: :LocalHistoryPrune [N | Nd]  (keep the newest N snapshots per branch, or N days)", vim.log.levels.WARN)
+  end
+  local name = vim.api.nvim_buf_get_name(0)
+  local root = vim.fs.root(name ~= "" and name or vim.uv.cwd(), ".git")
+  if not root then
+    return vim.notify("not in a git worktree", vim.log.levels.WARN)
+  end
+  local function sgit(args, stdin)
+    local o = vim.system(vim.list_extend({ "git" }, args), { cwd = root, text = true, stdin = stdin }):wait(60000)
+    return o.code == 0 and vim.trim(o.stdout or "") or nil, o
+  end
+  local cutoff = days and os.time() - tonumber(days) * 86400
+  local dropped, total = 0, 0
+  for _, ref in ipairs(vim.split(sgit({ "for-each-ref", "--format=%(refname)", "refs/lochist" }) or "", "\n", { plain = true })) do
+    local log = ref ~= "" and sgit({ "log", ref, "--format=%H%x09%T%x09%ct%x09%s" }) or nil
+    if log then
+      local commits = {} -- newest first
+      for _, l in ipairs(vim.split(log, "\n", { plain = true })) do
+        local h, t, ct, msg = l:match("^(%x+)\t(%x+)\t(%d+)\t(.*)$")
+        if h then
+          commits[#commits + 1] = { h = h, t = t, ct = tonumber(ct), msg = msg }
+        end
+      end
+      local n = #commits
+      if keep then
+        n = math.min(n, tonumber(keep))
+      else
+        n = 0
+        for _, c in ipairs(commits) do
+          n = n + (c.ct >= cutoff and 1 or 0)
+        end
+      end
+      n = math.max(n, 1)
+      total = total + #commits
+      if n < #commits then
+        local stream = {}
+        for i = n, 1, -1 do
+          local c = commits[i]
+          local from = i < n and "from :" .. (n - i) .. "\n" or ""
+          vim.list_extend(stream, {
+            ("commit refs/xynovim-prune\nmark :%d\ncommitter xynovim <lochist@xynovim> %d +0000\ndata %d\n%s\n%sM 040000 %s \"\"\n"):format(
+              n - i + 1, c.ct, #c.msg, c.msg, from, c.t
+            ),
+          })
+        end
+        local tip = sgit({ "fast-import", "--quiet" }, table.concat(stream)) and sgit({ "rev-parse", "refs/xynovim-prune" })
+        if tip and sgit({ "update-ref", ref, tip, commits[1].h }) then
+          dropped = dropped + #commits - n
+        else
+          vim.notify("local history: could not prune " .. ref, vim.log.levels.WARN)
+        end
+        sgit({ "update-ref", "-d", "refs/xynovim-prune" })
+      end
+    end
+  end
+  if dropped == 0 then
+    return vim.notify(("local history: nothing to prune (%d snapshots)"):format(total))
+  end
+  vim.notify(("local history: dropped %d of %d snapshots, collecting garbage..."):format(dropped, total))
+  vim.system({ "git", "gc", "--quiet", now and "--prune=now" or "--prune=1.hour.ago" }, { cwd = root, text = true }, function(o)
+    vim.schedule(function()
+      vim.notify(
+        o.code == 0 and ("local history: pruned, git gc done" .. (now and "" or " (objects younger than an hour: next gc, or :LocalHistoryPrune!)"))
+          or "local history: git gc failed: " .. vim.trim(o.stderr or ""),
+        o.code == 0 and vim.log.levels.INFO or vim.log.levels.WARN
+      )
+    end)
+  end)
+end
+
 function M.setup()
   local group = vim.api.nvim_create_augroup("xynovim_local_history", { clear = true })
   vim.api.nvim_create_autocmd("User", {
@@ -366,7 +664,8 @@ function M.setup()
     pattern = "AutoSaveWritePost",
     callback = function(ev)
       local buf = ev.data and ev.data.saved_buffer
-      if buf and vim.api.nvim_buf_is_valid(buf) then
+      -- still modified: the write was refused (see config/disk_guard.lua)
+      if buf and vim.api.nvim_buf_is_valid(buf) and not vim.bo[buf].modified then
         M.snapshot({ path = vim.api.nvim_buf_get_name(buf) })
       end
     end,
@@ -378,7 +677,8 @@ function M.setup()
     end,
   })
   -- Exit: drop timers; take one bounded synchronous snapshot per repo that
-  -- still has an unrecorded save.
+  -- still has an unrecorded save OR a snapshot in flight (that one's git is
+  -- killed first: the async chain would die with nvim).
   vim.api.nvim_create_autocmd("VimLeavePre", {
     group = group,
     callback = function()
@@ -386,9 +686,14 @@ function M.setup()
         stop_timer(root)
       end
       deadline = vim.uv.hrtime() / 1e6 + EXIT_BUDGET_MS
-      for root in pairs(pending) do
+      local roots = vim.deepcopy(pending)
+      for root in pairs(runs) do
+        roots[root] = true
+      end
+      for root in pairs(roots) do
+        abort(root, true)
+        running[root] = nil
         if vim.uv.fs_stat(root .. "/.git") then
-          running[root] = nil
           pcall(M.snapshot, { path = root, force = true })
         end
       end
@@ -397,6 +702,9 @@ function M.setup()
     end,
   })
   vim.api.nvim_create_user_command("LocalHistory", M.browse, { desc = "Browse local history of this file" })
+  vim.api.nvim_create_user_command("LocalHistoryPrune", function(c)
+    M.prune(c.args, c.bang)
+  end, { nargs = "?", bang = true, desc = "Drop old local-history snapshots: [N] newest per branch or [N]d days (default 30d)" })
   vim.api.nvim_create_user_command(
     "LocalHistoryRestore",
     M.restore,
