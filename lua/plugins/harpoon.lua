@@ -3,11 +3,12 @@ return {
   branch = "harpoon2",
   dependencies = { "nvim-lua/plenary.nvim" },
   opts = {},
+  -- add key is <leader>H: <leader>a is the AI (claudecode) prefix.
   -- static keys table with requires deferred into the callbacks: a keys
   -- FUNCTION that requires harpoon at spec-build time force-loads
   -- harpoon+plenary during startup, defeating lazy-loading entirely.
   keys = {
-    { "<leader>a", function() require("harpoon"):list():add() end, desc = "Harpoon: Add file" },
+    { "<leader>H", function() require("harpoon"):list():add() end, desc = "Harpoon: Add file" },
     {
       "<C-e>",
       function()

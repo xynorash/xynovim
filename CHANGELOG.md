@@ -4,6 +4,41 @@ All notable changes to this config are documented here.
 
 ## [Unreleased]
 
+### Fixed (field test 2026-10-12, 4 of 16 angles)
+- 99 sandbox hardening: pid/ipc/uts/cgroup/user namespaces, no capabilities,
+  `--new-session`; whole `.git` (plus resolved gitdirs, nested repos to 2
+  levels) and `project/.claude` read-only, plus project config files that
+  run code later (`.envrc`, `.vscode/tasks.json`, `.cargo/config`, `.mcp.json`
+  ...); `~/.claude` settings/hooks/plugins/skills read-only, `daemon` and
+  `sessions` hidden, `~/.claude.json` a private copy; `~/.local/share/claude`
+  and `~/.config/claude` no longer writable; docker/dbus/containerd sockets
+  and more credential paths hidden; pattern-based env scrub. The agent can no
+  longer `git commit` inside the sandbox. Verified with 49 attack probes
+  headless; a real claude request was not run.
+- 99 guard: idempotent release (counter drops once), cancel (`<leader>9x`)
+  restores auto-save without `on_complete`, user toggles are not overridden.
+  13 unit checks.
+- Local history: nested commit-less repos no longer break snapshots; refs
+  percent-encoded (`refs/lochist/<branch>`, `/` -> `%2F`) with automatic
+  migration of old refs; detached HEAD keyed by sha; trailing-edge snapshot
+  after the 60s throttle window and a bounded snapshot on exit; new
+  `:LocalHistoryRestore`. gitsigns attaches to untracked files.
+- blink.cmp "snippets -> search_paths Unexpected field" warning removed
+  (snippets load from the default config path). Harpoon add moved from
+  `<leader>a` to `<leader>H` so the claudecode `<leader>a*` keys do not wait on
+  a prefix. telescope.nvim no longer loads at startup.
+- bacon-ls no longer attaches to standalone `.rs` files (root marker
+  `Cargo.toml`, workspace required).
+- Debugging: `profile.dev.debug = true` in `~/.cargo/config.toml` (only full
+  debuginfo without split-debuginfo shows locals in codelldb; clean build
+  about +14%, target about +28%); new `lua/plugins/dap.lua` with Rust launch
+  configs defaulting to the target dir binary, "Rust: run current package
+  binary (args prompt)", a wider wrapping dap-ui sidebar and `<leader>dR`
+  (workspace-wide debuggables).
+- README drift: plugin count (80) and startup (~35ms, 10 runs), harpoon key,
+  debug-info advice, restore command, lochist namespace note, sandbox
+  description, telescope claim.
+
 ### Fixed
 - Review findings: agent sandbox now keeps `.git/hooks`, `.git/config` and
   `~/.claude` settings/hooks read-only and hides more credential paths and

@@ -45,10 +45,4 @@ return {
     keys = { { "<leader>cj", "<cmd>TSJToggle<cr>", desc = "Split/join (treesitter)" } },
     opts = { use_default_keymaps = false, max_join_length = 160 },
   },
-
-  -- Personal snippets: ~/.config/nvim/snippets/<filetype>.json
-  {
-    "saghen/blink.cmp",
-    opts = { snippets = { search_paths = { vim.fn.stdpath("config") .. "/snippets" } } },
-  },
 }

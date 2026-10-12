@@ -1,66 +1,252 @@
 -- 99 launches `claude --dangerously-skip-permissions` with the user's full
--- privileges. Wrap it in bubblewrap: the whole filesystem is read-only except
--- the project, 99's tmp dir, claude's own state and cargo's download caches;
--- credential dirs are hidden behind empty tmpfs mounts, and git/claude hook
--- and settings paths stay read-only inside the writable binds. Network stays open
--- (the model needs it). Opt out with `vim.g.xynovim_99_sandbox = false`.
+-- privileges. Wrap it in bubblewrap. The whole filesystem is read-only except
+-- the project, 99's tmp dir, and the few paths claude/cargo must write.
+-- Everything that would later run UNSANDBOXED (git hooks/config, claude
+-- settings/hooks/plugins, direnv, editor task files, cargo config, the claude
+-- binary) is read-only even inside the writable binds. Credential dirs/files
+-- are hidden, credential env vars are stripped, pid/ipc/uts namespaces are
+-- unshared, capabilities dropped, nested user namespaces disabled.
+-- Network stays open (the model needs it). Opt out with
+-- `vim.g.xynovim_99_sandbox = false`.
 local M = {}
 
 local home = vim.uv.os_homedir()
+local uid = vim.uv.os_get_passwd().uid
 
--- Writable inside the sandbox when they exist.
+-- Writable inside the sandbox (when they exist). Deliberately NOT here:
+-- ~/.local/share/claude (the claude binary), ~/.cargo/bin, ~/.cargo/config.toml.
 local WRITABLE = {
-  home .. "/.claude",
-  home .. "/.claude.json",
-  home .. "/.config/claude",
+  home .. "/.claude", -- sessions/projects/todos/cache/...; exec-ish parts re-locked below
   home .. "/.cache/claude",
-  home .. "/.local/share/claude",
   home .. "/.local/state/claude",
   home .. "/.cargo/registry",
   home .. "/.cargo/git",
+  home .. "/.cargo/.package-cache", -- cargo's download locks (files)
+  home .. "/.cargo/.package-cache-mutate",
 }
+
+-- Re-bound read-only on top of the writable binds when they exist. Whatever an
+-- agent planted here would run (or steer a tool) outside the sandbox later.
+local HOME_READONLY = {
+  home .. "/.claude/settings.json",
+  home .. "/.claude/settings.local.json",
+  home .. "/.claude/CLAUDE.md",
+  home .. "/.claude/keybindings.json",
+  home .. "/.claude/hooks",
+  home .. "/.claude/commands",
+  home .. "/.claude/agents",
+  home .. "/.claude/skills",
+  home .. "/.claude/plugins",
+  home .. "/.claude/output-styles",
+  home .. "/.claude/ide", -- IDE lock files make claude connect to a local server
+}
+
+-- Project-relative auto-executing / tool-steering files (locked when present).
+local PROJECT_READONLY = {
+  ".gitmodules",
+  ".envrc",
+  ".mise.toml",
+  ".tool-versions",
+  ".nvim.lua",
+  ".nvimrc",
+  ".exrc",
+  ".vscode/tasks.json",
+  ".vscode/settings.json",
+  ".cargo/config.toml", -- runner / linker / rustflags: runs on the user's next cargo build
+  ".cargo/config",
+  ".mcp.json",
+}
+-- Project dir that is ALWAYS locked: read-only when present, otherwise masked
+-- with an empty read-only dir (leaves one empty dir behind), because a planted
+-- .claude/settings.local.json with hooks would run on the user's next claude.
+local PROJECT_MASKED = ".claude"
 
 -- Hidden (dirs: empty tmpfs, files: bound to /dev/null) when they exist.
 -- This is a denylist on a read-only view of the whole filesystem, so it is
 -- best effort: anything not listed is still readable, and the network is open.
 local HIDDEN = {
-  home .. "/.ssh",
-  home .. "/.gnupg",
-  home .. "/.aws",
-  home .. "/.config/gh",
-  home .. "/.config/rclone",
-  home .. "/.password-store",
-  home .. "/.local/share/keyrings",
-  home .. "/.config/google-chrome",
-  home .. "/.docker",
-  home .. "/.kube",
-  home .. "/.netrc",
-  home .. "/.git-credentials",
-  home .. "/.npmrc",
-  home .. "/.cargo/credentials.toml",
-  home .. "/.bash_history",
-  "/run/user/" .. vim.uv.os_get_passwd().uid, -- gpg/ssh agent, keyring and dbus sockets
+  -- shell/CLI credentials
+  "/.ssh", "/.gnupg", "/.aws", "/.azure", "/.gsutil", "/.boto", "/.docker", "/.kube",
+  "/.terraform.d", "/.vault-token", "/.netrc", "/.git-credentials", "/.npmrc", "/.pypirc",
+  "/.cargo/credentials", "/.cargo/credentials.toml", "/.pub-cache/credentials.json",
+  "/.android/adbkey", "/.pki", "/.password-store", "/.Xauthority", "/.pulse-cookie",
+  -- ~/.config
+  "/.config/gh", "/.config/git/credentials", "/.config/rclone", "/.config/pulumi",
+  "/.config/helm", "/.config/gcloud", "/.config/op", "/.config/doctl", "/.config/hub",
+  "/.config/Bitwarden", "/.config/1Password", "/.config/keepassxc", "/.config/pulse",
+  "/.config/Slack", "/.config/discord", "/.config/Signal", "/.config/rustdesk",
+  "/.config/winapps", "/.config/freerdp", "/.config/obs-studio", "/.config/JetBrains",
+  -- browsers / mail
+  "/.config/google-chrome", "/.config/google-chrome-headless", "/.config/Google",
+  "/.config/chromium", "/.config/BraveSoftware", "/.config/microsoft-edge",
+  "/.config/vivaldi", "/.config/opera", "/.mozilla", "/.thunderbird", "/.cache/google-chrome",
+  -- ~/.local/share
+  "/.local/share/keyrings", "/.local/share/password-store", "/.local/share/gnome-keyring",
+  "/.local/share/kwalletd", "/.local/share/TelegramDesktop", "/.local/share/fish",
+  -- remote-control keys of other claude sessions / the claude daemon
+  "/.claude/daemon", "/.claude/sessions",
+}
+-- Globs under $HOME (shell and tool histories).
+local HIDDEN_GLOBS = { "/.*_history*", "/.lesshst", "/.config/fish/fish_history" }
+-- Absolute system paths: container/dbus sockets are root-equivalent (the user
+-- is in group docker) or reach other services; /run/user holds the gpg/ssh
+-- agent, keyring, wayland and session-bus sockets.
+local HIDDEN_SYSTEM = {
+  "/run/user/" .. uid,
+  "/run/docker.sock", "/run/docker", "/run/containerd", "/run/podman", "/run/libvirt",
+  "/run/dbus", "/run/snapd.socket", "/run/snapd-snap.socket",
 }
 
--- Credential variables stripped from the environment.
-local UNSET = { "GITHUB_TOKEN", "GH_TOKEN", "SSH_AUTH_SOCK", "GPG_AGENT_INFO", "AWS_SECRET_ACCESS_KEY" }
-
--- Re-bound read-only on top of the writable binds: whatever the agent plants
--- here would later run unsandboxed (git hooks, claude hooks/settings).
-local function readonly_paths(project)
-  return {
-    project .. "/.git/hooks",
-    project .. "/.git/config",
-    home .. "/.claude/settings.json",
-    home .. "/.claude/settings.local.json",
-    home .. "/.claude/hooks",
-    home .. "/.claude/commands",
-    home .. "/.claude/CLAUDE.md",
-  }
-end
+-- Environment scrub: any variable whose name contains one of these ...
+local ENV_CONTAINS = {
+  "TOKEN", "SECRET", "PASSWORD", "PASSWD", "API_KEY", "APIKEY", "CREDENTIAL", "PRIVATE_KEY",
+  "ACCESS_KEY", "AUTH_SOCK", "AGENT_INFO",
+}
+-- ... or starts with one of these ...
+local ENV_PREFIX = {
+  "AWS_", "AZURE_", "GOOGLE_", "GCP_", "GCLOUD_", "DOCKER_", "KUBE", "GH_", "GITHUB_", "GITLAB_",
+  "NPM_", "CARGO_REGISTR", "VAULT_",
+}
+-- ... or is exactly one of these (session bus / display access).
+local ENV_EXACT = {
+  DATABASE_URL = true, DBUS_SESSION_BUS_ADDRESS = true, DISPLAY = true, WAYLAND_DISPLAY = true,
+  XAUTHORITY = true, SSH_AUTH_SOCK = true, GPG_AGENT_INFO = true, KUBECONFIG = true,
+}
+-- Variables claude itself authenticates with. Kept only when login is NOT
+-- file based (no ~/.claude/.credentials.json); with file-based login claude
+-- never reads them, so they are just secrets to strip.
+local ENV_CLAUDE_AUTH = { "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN" }
 
 local function exists(p)
   return vim.uv.fs_stat(p) ~= nil
+end
+
+--- Names to `--unsetenv`, computed from the live environment.
+--- @param env? table<string,string> defaults to vim.fn.environ()
+--- @param file_login? boolean defaults to: ~/.claude/.credentials.json exists
+--- @return string[]
+function M.scrub_names(env, file_login)
+  env = env or vim.fn.environ()
+  if file_login == nil then
+    file_login = exists(home .. "/.claude/.credentials.json")
+  end
+  local keep = {}
+  if not file_login then
+    for _, v in ipairs(ENV_CLAUDE_AUTH) do
+      keep[v] = true
+    end
+  end
+  local out = {}
+  for name in pairs(env) do
+    local u = name:upper()
+    local hit = ENV_EXACT[u] or false
+    for _, s in ipairs(ENV_CONTAINS) do
+      hit = hit or u:find(s, 1, true) ~= nil
+    end
+    for _, s in ipairs(ENV_PREFIX) do
+      hit = hit or u:sub(1, #s) == s
+    end
+    if hit and not keep[name] then
+      out[#out + 1] = name
+    end
+  end
+  table.sort(out)
+  return out
+end
+
+--- Real gitdir (and shared commondir) behind a `.git` FILE ("gitdir: ..." of
+--- worktrees, submodules and bare-repo layouts).
+local function resolve_gitfile(dotgit, dir)
+  local out = {}
+  local f = io.open(dotgit, "r")
+  if not f then
+    return out
+  end
+  local line = f:read("l") or ""
+  f:close()
+  local gd = line:match("^gitdir:%s*(.-)%s*$")
+  if not gd or gd == "" then
+    return out
+  end
+  if not gd:match("^/") then
+    gd = dir .. "/" .. gd
+  end
+  gd = vim.uv.fs_realpath(gd)
+  if not gd then
+    return out
+  end
+  out[#out + 1] = gd
+  local cf = io.open(gd .. "/commondir", "r")
+  if cf then
+    local cd = cf:read("l")
+    cf:close()
+    if cd and cd ~= "" then
+      cd = vim.uv.fs_realpath(cd:match("^/") and cd or (gd .. "/" .. cd))
+      if cd then
+        out[#out + 1] = cd
+      end
+    end
+  end
+  return out
+end
+
+local SCAN_SKIP = { target = true, node_modules = true, [".git"] = true, [".cache"] = true }
+
+--- Every `.git` (dir or file) in the project and 2 levels below (submodules,
+--- nested checkouts) plus the real gitdirs behind `.git` files.
+--- @return string[]
+local function git_paths(project)
+  local out, seen = {}, {}
+  local function add(p)
+    if not seen[p] and exists(p) then
+      seen[p] = true
+      out[#out + 1] = p
+    end
+  end
+  local function scan(dir, depth)
+    local dotgit = dir .. "/.git"
+    local st = vim.uv.fs_stat(dotgit)
+    if st then
+      if st.type == "file" then
+        for _, p in ipairs(resolve_gitfile(dotgit, dir)) do
+          add(p)
+        end
+      end
+      add(dotgit)
+    end
+    if depth < 2 then
+      for name, t in vim.fs.dir(dir) do
+        if t == "directory" and not SCAN_SKIP[name] then
+          scan(dir .. "/" .. name, depth + 1)
+        end
+      end
+    end
+  end
+  scan(project, 0)
+  return out
+end
+
+--- Paths re-bound read-only on top of the writable binds.
+--- @param project string
+--- @return string[] ro, string mask  mask: dir to mask with an empty read-only tmpfs ("" if none)
+function M.readonly_paths(project)
+  local ro = git_paths(project)
+  for _, rel in ipairs(PROJECT_READONLY) do
+    if exists(project .. "/" .. rel) then
+      ro[#ro + 1] = project .. "/" .. rel
+    end
+  end
+  for _, p in ipairs(HOME_READONLY) do
+    if exists(p) then
+      ro[#ro + 1] = p
+    end
+  end
+  local mask = project .. "/" .. PROJECT_MASKED
+  if exists(mask) then
+    ro[#ro + 1] = mask
+    mask = ""
+  end
+  return ro, mask
 end
 
 --- @param cmd string[] command to wrap
@@ -71,31 +257,71 @@ function M.wrap(cmd, project, tmp_dir)
   if vim.g.xynovim_99_sandbox == false or vim.fn.executable("bwrap") ~= 1 then
     return cmd
   end
-  local a = { "bwrap", "--die-with-parent", "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "--tmpfs", "/tmp" }
-  for _, p in ipairs(HIDDEN) do
-    local st = vim.uv.fs_stat(p)
-    if st then
-      vim.list_extend(a, st.type == "directory" and { "--tmpfs", p } or { "--ro-bind", "/dev/null", p })
-    end
-  end
-  for _, v in ipairs(UNSET) do
+  local a = {
+    "bwrap", "--die-with-parent",
+    "--new-session", -- no controlling tty: TIOCSTI keystroke injection
+    "--unshare-user", "--disable-userns", -- no nested bwrap / unshare -r
+    "--unshare-pid", -- other processes (/proc/PID/environ, /proc/PID/root) invisible
+    "--unshare-ipc", "--unshare-uts", "--unshare-cgroup-try",
+    "--cap-drop", "ALL",
+    "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "--tmpfs", "/tmp",
+  }
+
+  for _, v in ipairs(M.scrub_names()) do
     vim.list_extend(a, { "--unsetenv", v })
   end
+
   -- Never make $HOME or / writable just because nvim was started there.
-  local rw = vim.list_extend({ tmp_dir }, WRITABLE)
+  local rw = { tmp_dir }
   if project ~= home and project ~= "/" then
     table.insert(rw, 1, project)
   end
+  vim.list_extend(rw, WRITABLE)
   for _, p in ipairs(rw) do
     if exists(p) then
       vim.list_extend(a, { "--bind", p, p })
     end
   end
-  for _, p in ipairs(readonly_paths(project)) do
-    if exists(p) then
-      vim.list_extend(a, { "--ro-bind", p, p })
+
+  -- After the writable binds: hides inside ~/.claude must sit on top of it.
+  local function hide(p)
+    local st = vim.uv.fs_stat(p)
+    if st then
+      vim.list_extend(a, st.type == "directory" and { "--tmpfs", p } or { "--ro-bind", "/dev/null", p })
     end
   end
+  for _, p in ipairs(HIDDEN_SYSTEM) do
+    hide(p)
+  end
+  for _, p in ipairs(HIDDEN) do
+    hide(home .. p)
+  end
+  for _, g in ipairs(HIDDEN_GLOBS) do
+    for _, p in ipairs(vim.fn.glob(home .. g, true, true)) do
+      hide(p)
+    end
+  end
+
+  -- ~/.claude.json holds user-scope mcpServers (= commands the next claude
+  -- runs unsandboxed). Give the sandbox a private COPY: it works, but nothing
+  -- it writes reaches the real file.
+  local cj = home .. "/.claude.json"
+  if exists(cj) then
+    local copy = vim.fn.tempname() .. ".claude.json"
+    if vim.uv.fs_copyfile(cj, copy) then
+      vim.uv.fs_chmod(copy, tonumber("600", 8))
+      vim.list_extend(a, { "--bind", copy, cj })
+    end
+  end
+
+  local ro, mask = M.readonly_paths(project)
+  for _, p in ipairs(ro) do
+    vim.list_extend(a, { "--ro-bind", p, p })
+  end
+  if mask ~= "" and project ~= home and project ~= "/" then
+    vim.list_extend(a, { "--tmpfs", mask, "--remount-ro", mask })
+  end
+
   vim.list_extend(a, { "--chdir", vim.uv.cwd() or project, "--" })
   return vim.list_extend(a, cmd)
 end

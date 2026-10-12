@@ -47,6 +47,13 @@ return {
         -- shipped in 0.31.0, so the old local patched-build `cmd` override
         -- (~/.cargo/bin/bacon-ls) is gone.
         init_options = bacon_ls_settings,
+        -- Cargo.toml only (lspconfig's default also lists .bacon-locations).
+        -- With no match the client is not started (nvim 0.12 skips servers
+        -- whose root_markers find nothing), so a standalone solo.rs without
+        -- a crate no longer attaches and spams cargo errors; rust-analyzer's
+        -- detached-file mode is a separate client and is unaffected.
+        root_markers = { "Cargo.toml" },
+        workspace_required = true,
         -- Match the per-project Cargo context (:RustContext) so both
         -- diagnostic tiers see the same features/target. Settings reach the
         -- server in two ways, init_options (initialize) and the

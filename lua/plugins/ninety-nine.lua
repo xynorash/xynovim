@@ -54,7 +54,39 @@ return {
     -- while requests are in flight, and run claude inside bubblewrap.
     local Claude = _99.Providers.ClaudeCodeProvider
     local Guarded = setmetatable({}, { __index = Claude })
-    local inflight, autosave_was_on = 0, false
+    local inflight, we_disabled_autosave = 0, false
+
+    -- One token per request; release() is idempotent so the counter drops
+    -- exactly once however the request ends (on_complete, sync throw, or a
+    -- cancel that never reaches on_complete).
+    local function acquire()
+      if inflight == 0 then
+        local ok, as = pcall(require, "auto-save")
+        we_disabled_autosave = ok and as.enabled() == true
+        if we_disabled_autosave then
+          as.off()
+        end
+      end
+      inflight = inflight + 1
+      return { done = false }
+    end
+
+    local function release(token)
+      if token.done then
+        return
+      end
+      token.done = true
+      inflight = math.max(0, inflight - 1)
+      if inflight == 0 and we_disabled_autosave then
+        we_disabled_autosave = false
+        -- Only undo our own change: if the user switched auto-save back on
+        -- meanwhile, there is nothing to restore.
+        local ok, as = pcall(require, "auto-save")
+        if ok and as.enabled() ~= true then
+          as.on()
+        end
+      end
+    end
 
     function Guarded._build_command(self, query, context)
       local cmd = Claude._build_command(self, query, context)
@@ -68,29 +100,29 @@ return {
         force = true,
         label = "before 99 request",
       })
-      if inflight == 0 then
-        local ok, as = pcall(require, "auto-save")
-        autosave_was_on = ok and as.enabled() == true
-        if autosave_was_on then
-          as.off()
+      local token = acquire()
+      local guarded_observer = setmetatable({
+        on_complete = function(...)
+          release(token)
+          return observer.on_complete(...)
+        end,
+      }, { __index = observer })
+      -- <leader>9x (stop_all_requests) cancels the prompt; on_complete only
+      -- follows once the process exits, and never if none was started.
+      local cancel = context.cancel
+      if type(cancel) == "function" then
+        context.cancel = function(...)
+          local ok, err = pcall(cancel, ...)
+          release(token)
+          if not ok then
+            error(err, 0)
+          end
         end
-      end
-      inflight = inflight + 1
-      local on_complete = observer.on_complete
-      observer.on_complete = function(...)
-        inflight = math.max(0, inflight - 1)
-        if inflight == 0 and autosave_was_on then
-          require("auto-save").on()
-        end
-        return on_complete(...)
       end
       -- A synchronous throw (e.g. spawn failure) never reaches on_complete.
-      local ok, res = pcall(Claude.make_request, self, query, context, observer)
+      local ok, res = pcall(Claude.make_request, self, query, context, guarded_observer)
       if not ok then
-        inflight = math.max(0, inflight - 1)
-        if inflight == 0 and autosave_was_on then
-          require("auto-save").on()
-        end
+        release(token)
         error(res, 0)
       end
       return res
