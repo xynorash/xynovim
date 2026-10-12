@@ -5,6 +5,9 @@ return {
   -- dap is already loaded as the client is created, so load it first.
   dependencies = { "mfussenegger/nvim-dap" },
   init = function()
+    -- rustaceanvim's workspaceSymbol prompt (<leader>rw / rW) calls
+    -- vim.npcall, which moved to vim.F.npcall in nvim 0.12.
+    vim.npcall = vim.npcall or vim.F.npcall
     -- Upstream default: every rust-analyzer attach runs `cargo test --no-run
     -- --all-targets` to build the debuggables list (measured: up to 5 at
     -- once, fighting your own cargo for the build lock). <leader>dr / dR

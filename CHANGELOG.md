@@ -25,6 +25,32 @@ All notable changes to this config are documented here.
   colourschemes. Verified by computing WCAG ratios from the loaded highlight
   groups (headless, both transparency modes) and in tmux at 200x55.
 
+### Fixed (field test batch 2: keys and commands that did nothing)
+- `:RustTargets`, `:RustTools`, `:ActJob` and the new `<leader>tD` keep their
+  terminal (and the output) after exit 0 (`auto_close = false`); a rerun
+  replaces the previous terminal instead of toggling the finished one.
+- `<leader>rs` (normal and visual): own prompt, then `:RustLsp ssr <query>`
+  (rustaceanvim read the query before Snacks' async input answered); the
+  visual range is captured first. `<leader>rw` / `rW`: `vim.npcall` shim, plus
+  a single own prompt (rustaceanvim asks twice); `rW` lists std/dependency
+  symbols. `<leader>re`: takes the `E0000` code from any diagnostic on the line
+  and shows `rustc --explain` in a float (works for bacon-ls/clippy messages);
+  `rD` and `rr` removed (rustaceanvim only accepts cargo-check diagnostics,
+  which are off). `rM` matches "Extract Module"; `ri` no longer inlines
+  macros silently; `rS` pretty-prints the JSON syntax tree; `rd` / `rE` show a
+  notice for an undocumented item instead of throwing.
+- `<leader>tc`: `--ignore-run-fail` (a failing test no longer yields no
+  report), lcov written to `target/lcov.info`, warning when tests failed.
+  `<leader>tD`: `cargo test --doc` in a terminal (neotest doctests stay
+  unreliable, documented). Verified headless with the real mapped keys on a
+  fixture crate (rM, ri variable and macro, rs normal and visual, rS, rd/rE
+  on an undocumented item, rw, rW, re with a bacon-style and an rust-analyzer
+  diagnostic text, tD incl. rerun, `:RustTools` exit-0 terminal, `<leader>tc`
+  with a failing test: signs placed, warning shown) and in tmux (rs, rS, rW).
+  Not verified: `rd` / `rE` on a documented item (would launch a browser),
+  `:ActJob`, `:RustTargets` picker items (same helper as `:RustTools`),
+  coverage without cargo-nextest installed, visual `rs` in tmux.
+
 ### Fixed (field test batch 1: Rust workflow robustness)
 - bacon-ls (clippy tier) roots at the Cargo workspace instead of the nearest
   member `Cargo.toml` and no longer attaches to `~/.cargo/registry`, `~/.cargo/git`

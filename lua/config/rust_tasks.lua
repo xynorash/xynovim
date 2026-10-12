@@ -12,6 +12,17 @@ local function cargo_metadata(root)
   return vim.json.decode(o.stdout)
 end
 
+--- Run in a bottom terminal that stays open after exit 0 (Snacks closes it
+--- by default and the output is gone). A rerun replaces the previous one:
+--- Snacks.terminal would just toggle the finished window.
+local function term(cmd, root)
+  local old = Snacks.terminal.get(cmd, { cwd = root, create = false })
+  if old then
+    old:close({ buf = true })
+  end
+  Snacks.terminal.open(cmd, { cwd = root, auto_close = false, win = { position = "bottom" } })
+end
+
 --- Feature/target flags of the context (the default is --all-features).
 local function ctx_flags(root)
   return rc.cargo_flags(rc.get(root))
@@ -94,7 +105,7 @@ function M.targets()
     confirm = function(picker, item)
       picker:close()
       if item then
-        Snacks.terminal(item.cmd, { cwd = root, win = { position = "bottom" } })
+        term(item.cmd, root)
       end
     end,
   })
@@ -165,7 +176,7 @@ function M.tools()
     confirm = function(picker, item)
       picker:close()
       if item then
-        Snacks.terminal(item.cmd, { cwd = root, win = { position = "bottom" } })
+        term(item.cmd, root)
       end
     end,
   })
@@ -192,7 +203,16 @@ function M.act_job()
     return vim.notify("cursor is not inside a job under `jobs:`", vim.log.levels.WARN)
   end
   local root = vim.fs.root(file, ".git") or vim.uv.cwd()
-  Snacks.terminal({ "act", "-j", job, "-W", file }, { cwd = root, win = { position = "bottom" } })
+  term({ "act", "-j", job, "-W", file }, root)
+end
+
+--- <leader>tD: neotest (nextest) cannot run doctests.
+function M.doctests()
+  local root = rc.root()
+  if not root then
+    return vim.notify("no Cargo.toml found", vim.log.levels.WARN)
+  end
+  term(vim.list_extend({ "cargo", "test", "--doc", "--workspace" }, ctx_flags(root)), root)
 end
 
 function M.setup()

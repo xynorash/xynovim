@@ -1,6 +1,6 @@
 -- Code coverage in the gutter (RustRover "Run with Coverage").
 -- <leader>tc runs `cargo llvm-cov nextest` (falls back to plain cargo test),
--- writes lcov.info in the workspace root and loads it as signs. On demand
+-- writes target/lcov.info in the workspace root and loads it as signs. On demand
 -- only, never per autosave: an instrumented build is a separate target tree
 -- and takes as long as a full test run.
 return {
@@ -20,7 +20,9 @@ return {
         if nextest then
           table.insert(cmd, "nextest")
         end
-        vim.list_extend(cmd, { "--workspace", "--lcov", "--output-path", "lcov.info" })
+        -- --ignore-run-fail: without it one failing test aborts the run and no
+        -- lcov is written (it cannot be combined with --no-fail-fast).
+        vim.list_extend(cmd, { "--workspace", "--ignore-run-fail", "--lcov", "--output-path", "target/lcov.info" })
         -- same features/target as the diagnostics (:RustContext)
         local rc = require("config.rust_context")
         vim.list_extend(cmd, rc.cargo_flags(rc.get(root)))
@@ -32,7 +34,11 @@ return {
             end
             vim.cmd("CoverageLoad")
             vim.cmd("CoverageShow")
-            vim.notify("coverage loaded (" .. root .. "/lcov.info)")
+            vim.notify("coverage loaded (" .. root .. "/target/lcov.info)")
+            -- cargo test: "1 failed;", nextest: "1 failed,"
+            if (o.stderr or ""):find("[1-9]%d* failed") or (o.stdout or ""):find("[1-9]%d* failed") then
+              vim.notify("coverage: some tests FAILED (the report is still written)", vim.log.levels.WARN)
+            end
           end)
         end)
       end,
@@ -45,7 +51,13 @@ return {
     auto_reload = true,
     commands = true,
     -- the stock rust backend shells out to grcov; read cargo-llvm-cov's lcov instead
-    lang = { rust = { coverage_file = "lcov.info" } },
+    lang = {
+      rust = {
+        coverage_file = function()
+          return (require("config.rust_context").root() or vim.uv.cwd()) .. "/target/lcov.info"
+        end,
+      },
+    },
   },
   config = function(_, opts)
     local common = require("coverage.languages.common")
@@ -57,7 +69,7 @@ return {
       load = function(callback)
         local p = Path:new(util.get_coverage_file(require("coverage.config").opts.lang.rust.coverage_file))
         if not p:exists() then
-          return vim.notify("No coverage file (lcov.info); run <leader>tc", vim.log.levels.INFO)
+          return vim.notify("No coverage file (target/lcov.info); run <leader>tc", vim.log.levels.INFO)
         end
         callback(util.lcov_to_table(p))
       end,
