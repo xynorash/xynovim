@@ -44,7 +44,8 @@ vim.api.nvim_create_autocmd("LspAttach", {
       map({ "n", "x" }, "<leader>rv", assist("^Extract into variable"), "Extract variable")
       map({ "n", "x" }, "<leader>rf", assist("^Extract into function"), "Extract function")
       map({ "n", "x" }, "<leader>rc", assist("^Extract into constant"), "Extract constant")
-      map({ "n", "x" }, "<leader>rM", assist("^Extract [Mm]odule"), "Extract module")
+      -- rust-analyzer offers Extract Module only for a selection, so visual only.
+      map("x", "<leader>rM", assist("^Extract [Mm]odule"), "Extract module (visual)")
       -- "Inline macro" (cursor on println!) expanded silently: not matched.
       map({ "n", "x" }, "<leader>ri", assist("^Inline [^m]"), "Inline")
       -- Own prompt (rustaceanvim's reads the query before Snacks answers).

@@ -5,6 +5,10 @@ All notable changes to this config are documented here.
 ## [Unreleased]
 
 ### Changed
+- `<leader>rM` (extract module) is visual-mode only: rust-analyzer offers the
+  assist only for a selection, so the normal-mode map just reported "No code
+  actions available". README and which-key say so. Not re-run in nvim.
+
 - Theme: Island Dark (the user's RustRover "Dark" scheme, parent Darcula) is now
   the permanent colourscheme. `tools/icls2nvim.py` converts `tools/Dark.icls` to
   `lua/island/palette.lua`; `lua/island/init.lua`, `colors/island-dark.lua` and a
