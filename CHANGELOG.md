@@ -40,6 +40,7 @@ All notable changes to this config are documented here.
   description, telescope claim.
 
 ### Fixed
+- 99 sandbox second hardening pass: whole-directory read-only locks for `.cargo`/`.vscode`, absent-dir masks, member crates, `~/.claude` rules/chrome/memory, ephemeral shell-snapshots.
 - Review findings: agent sandbox now keeps `.git/hooks`, `.git/config` and
   `~/.claude` settings/hooks read-only and hides more credential paths and
   variables; local history retries forced snapshots, times out hung git and

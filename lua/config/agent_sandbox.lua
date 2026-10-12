@@ -39,6 +39,26 @@ local HOME_READONLY = {
   home .. "/.claude/plugins",
   home .. "/.claude/output-styles",
   home .. "/.claude/ide", -- IDE lock files make claude connect to a local server
+  home .. "/.claude/rules",
+  home .. "/.claude/chrome", -- chrome-native-host is a shell script Chrome launches unsandboxed
+}
+
+-- Same dirs, but when ABSENT the agent could create them (a later unsandboxed
+-- claude would load them: prompt injection), so mask them with an empty
+-- read-only dir (leaves one empty dir behind in ~/.claude).
+local HOME_MASK_IF_ABSENT = {
+  home .. "/.claude/hooks",
+  home .. "/.claude/commands",
+  home .. "/.claude/agents",
+  home .. "/.claude/skills",
+  home .. "/.claude/rules",
+  home .. "/.claude/output-styles",
+}
+
+-- Ephemeral inside the sandbox: claude sources these before running commands.
+local HOME_EPHEMERAL = {
+  home .. "/.claude/shell-snapshots",
+  home .. "/.claude/session-env",
 }
 
 -- Project-relative auto-executing / tool-steering files (locked when present).
@@ -52,10 +72,16 @@ local PROJECT_READONLY = {
   ".exrc",
   ".vscode/tasks.json",
   ".vscode/settings.json",
-  ".cargo/config.toml", -- runner / linker / rustflags: runs on the user's next cargo build
-  ".cargo/config",
+  ".cargo", -- whole dir: config.toml sets runner / linker / rustflags and runs on the next cargo build
+  ".vscode", -- whole dir, so tasks.json cannot be swapped by renaming the parent
   ".mcp.json",
 }
+-- Locked in workspace members (depth <= 3) too: cargo reads .cargo/config from
+-- every ancestor of the directory it runs in; direnv reads the nearest .envrc.
+local MEMBER_READONLY = { ".cargo", ".envrc" }
+-- Created empty-and-read-only when absent at the project root (leaves an empty
+-- .cargo dir behind): a planted .cargo/config.toml is the one that bites.
+local PROJECT_MASK_IF_ABSENT = { ".cargo" }
 -- Project dir that is ALWAYS locked: read-only when present, otherwise masked
 -- with an empty read-only dir (leaves one empty dir behind), because a planted
 -- .claude/settings.local.json with hooks would run on the user's next claude.
@@ -228,25 +254,64 @@ end
 
 --- Paths re-bound read-only on top of the writable binds.
 --- @param project string
---- @return string[] ro, string mask  mask: dir to mask with an empty read-only tmpfs ("" if none)
+--- @return string[] ro, string[] masks  masks: absent dirs to cover with an empty read-only tmpfs
 function M.readonly_paths(project)
   local ro = git_paths(project)
-  for _, rel in ipairs(PROJECT_READONLY) do
-    if exists(project .. "/" .. rel) then
-      ro[#ro + 1] = project .. "/" .. rel
-    end
+  local seen = {}
+  for _, p in ipairs(ro) do
+    seen[p] = true
   end
-  for _, p in ipairs(HOME_READONLY) do
-    if exists(p) then
+  local function lock(p)
+    if not seen[p] and exists(p) then
+      seen[p] = true
       ro[#ro + 1] = p
     end
   end
-  local mask = project .. "/" .. PROJECT_MASKED
-  if exists(mask) then
-    ro[#ro + 1] = mask
-    mask = ""
+  for _, rel in ipairs(PROJECT_READONLY) do
+    lock(project .. "/" .. rel)
   end
-  return ro, mask
+  local member_masks = {}
+  local function scan_members(dir, depth)
+    for name, t in vim.fs.dir(dir) do
+      if t == "directory" and not SCAN_SKIP[name] and name:sub(1, 1) ~= "." then
+        local d = dir .. "/" .. name
+        for _, rel in ipairs(MEMBER_READONLY) do
+          lock(d .. "/" .. rel)
+        end
+        if exists(d .. "/Cargo.toml") and not exists(d .. "/.cargo") then
+          member_masks[#member_masks + 1] = d .. "/.cargo"
+        end
+        if depth < 3 then
+          scan_members(d, depth + 1)
+        end
+      end
+    end
+  end
+  scan_members(project, 1)
+  for _, p in ipairs(HOME_READONLY) do
+    lock(p)
+  end
+  for _, p in ipairs(vim.fn.glob(home .. "/.claude/projects/*/memory", true, true)) do
+    lock(p) -- MEMORY.md auto-loads into the next unsandboxed session
+  end
+  -- Absent dirs to mask with an empty read-only tmpfs.
+  local masks = member_masks
+  for _, rel in ipairs(PROJECT_MASK_IF_ABSENT) do
+    if not exists(project .. "/" .. rel) then
+      masks[#masks + 1] = project .. "/" .. rel
+    end
+  end
+  if not exists(project .. "/" .. PROJECT_MASKED) then
+    masks[#masks + 1] = project .. "/" .. PROJECT_MASKED
+  else
+    lock(project .. "/" .. PROJECT_MASKED)
+  end
+  for _, p in ipairs(HOME_MASK_IF_ABSENT) do
+    if not exists(p) then
+      masks[#masks + 1] = p
+    end
+  end
+  return ro, masks
 end
 
 --- @param cmd string[] command to wrap
@@ -314,12 +379,19 @@ function M.wrap(cmd, project, tmp_dir)
     end
   end
 
-  local ro, mask = M.readonly_paths(project)
+  local ro, masks = M.readonly_paths(project)
   for _, p in ipairs(ro) do
     vim.list_extend(a, { "--ro-bind", p, p })
   end
-  if mask ~= "" and project ~= home and project ~= "/" then
-    vim.list_extend(a, { "--tmpfs", mask, "--remount-ro", mask })
+  for _, p in ipairs(masks) do
+    if project ~= home and project ~= "/" then
+      vim.list_extend(a, { "--tmpfs", p, "--remount-ro", p })
+    end
+  end
+  for _, p in ipairs(HOME_EPHEMERAL) do
+    if exists(p) then
+      vim.list_extend(a, { "--tmpfs", p })
+    end
   end
 
   vim.list_extend(a, { "--chdir", vim.uv.cwd() or project, "--" })
