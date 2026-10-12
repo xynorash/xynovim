@@ -298,14 +298,17 @@ local function big_untracked(root, run, cb)
   end, true, run)
 end
 
---- Second half of a snapshot: commit `tree` on top of the branch's lochist ref.
---- The ref moves with a compare-and-swap, so concurrent nvims never overwrite
---- each other's snapshot: on a mismatch or a lock the parent is read again.
-local function commit_tree(root, tree, env, opts, g, finish)
+--- Second half of a snapshot: commit the tree from `build(cb)` on top of the
+--- branch's lochist ref. The ref moves with a compare-and-swap, so concurrent
+--- nvims never overwrite each other's snapshot: on a mismatch or a lock the
+--- parent is read again and the tree rebuilt (it is built after the parent is
+--- read, so a stale tree cannot land on top of another instance's newer one).
+local function commit_tree(root, build, env, opts, g, finish)
   migrate(root, function()
     ref_for(root, function(ref)
       local function attempt(n)
         g({ "rev-parse", "-q", "--verify", ref }, env, function(parent)
+          local tree
           local function commit()
             local args = { "commit-tree", tree, "-m", opts.label or "autosave" }
             if parent then
@@ -334,15 +337,18 @@ local function commit_tree(root, tree, env, opts, g, finish)
               end)
             end)
           end
-          if not parent then
-            return commit()
-          end
-          g({ "rev-parse", parent .. "^{tree}" }, env, function(prev_tree)
-            if prev_tree == tree then
-              finish(nil, true) -- nothing changed since the last snapshot
-            else
-              commit()
+          build(function(t)
+            tree = t
+            if not parent then
+              return commit()
             end
+            g({ "rev-parse", parent .. "^{tree}" }, env, function(prev_tree)
+              if prev_tree == tree then
+                finish(nil, true) -- nothing changed since the last snapshot
+              else
+                commit()
+              end
+            end)
           end)
         end)
       end
@@ -450,13 +456,13 @@ function M.snapshot(opts)
           add[#add + 1] = ":(exclude,literal)" .. rel
         end
       end
-      local function add_all(tries)
+      local function add_all(tries, cb)
         g(add, env, function(_, o)
           if o.code ~= 0 and o.code ~= 1 then
             if lock_error(o.stderr) and tries < 2 then
               os.remove(index .. ".lock")
               clear_stale_lock(o.stderr)
-              return add_all(tries + 1)
+              return add_all(tries + 1, cb)
             end
             if lock_error(o.stderr) then
               warn_once("lock:" .. root, "local history: git lock error, snapshots skipped: " .. vim.trim(o.stderr or ""))
@@ -467,18 +473,22 @@ function M.snapshot(opts)
             if not tree then
               return finish()
             end
-            commit_tree(root, tree, env, opts, g, finish)
+            cb(tree)
           end)
         end)
+      end
+      local function build(cb)
+        add_all(1, cb)
+      end
+      local function go()
+        commit_tree(root, build, env, opts, g, finish)
       end
       if #big > 0 and vim.uv.fs_stat(index) then
         -- indexed while it was still small: drop the stale copy
         local rm = { "rm", "--cached", "-r", "-q", "-f", "--ignore-unmatch", "--" }
-        g(vim.list_extend(rm, big), env, function()
-          add_all(1)
-        end)
+        g(vim.list_extend(rm, big), env, go)
       else
-        add_all(1)
+        go()
       end
     end)
   end)

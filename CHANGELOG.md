@@ -30,6 +30,12 @@ All notable changes to this config are documented here.
   groups (headless, both transparency modes) and in tmux at 200x55.
 
 ### Fixed (field test batch 3: data safety)
+- Local history: with several nvims saving at once the ref tip could hold an
+  older tree than another instance's latest snapshot; the tree is now built
+  after the parent is read and rebuilt on every compare-and-swap retry. Verified
+  headless: 4 concurrent nvims x 3 forced snapshots, tip equals the disk, and no
+  file ever goes back to an older value along the history (9 commits, unchanged
+  trees skipped). Not verified: more than 4 racers.
 - Local history: a save followed by a quick quit no longer loses the snapshot
   (in-flight jobs are redone synchronously at exit); one index per nvim process
   (`.git/lochist-index.<pid>`, stale ones cleaned, the newest seeds the next),
