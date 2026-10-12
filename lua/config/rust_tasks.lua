@@ -12,26 +12,26 @@ local function cargo_metadata(root)
   return vim.json.decode(o.stdout)
 end
 
---- Feature/target flags of the stored context.
+--- Feature/target flags of the context (the default is --all-features).
 local function ctx_flags(root)
-  local ctx = rc.get(root)
-  local f = {}
-  if ctx then
-    if ctx.all then
-      f[#f + 1] = "--all-features"
-    else
-      if ctx.no_default then
-        f[#f + 1] = "--no-default-features"
-      end
-      if ctx.features and #ctx.features > 0 then
-        vim.list_extend(f, { "--features", table.concat(ctx.features, ",") })
-      end
-    end
-    if ctx.target then
-      vim.list_extend(f, { "--target", ctx.target })
+  return rc.cargo_flags(rc.get(root))
+end
+
+--- cargo-flamegraph has no --all-features: spell the package's features out.
+local function flamegraph_flags(root, pkg)
+  local flags = ctx_flags(root)
+  local i = vim.fn.index(flags, "--all-features")
+  if i >= 0 then
+    table.remove(flags, i + 1)
+    local names = vim.tbl_filter(function(n)
+      return n ~= "default"
+    end, vim.tbl_keys(pkg.features))
+    table.sort(names)
+    if #names > 0 then
+      vim.list_extend(flags, { "--features", table.concat(names, ",") })
     end
   end
-  return f
+  return flags
 end
 
 -- target kind -> { label, cargo subcommand words, target selector flag }
@@ -68,7 +68,7 @@ function M.targets()
         }
         items[#items + 1] = {
           text = ("flamegraph  bin %s (%s)"):format(t.name, p.name),
-          cmd = { "cargo", "flamegraph", "--profile", "profiling", "-p", p.name, "--bin", t.name },
+          cmd = vim.list_extend({ "cargo", "flamegraph", "--profile", "profiling", "-p", p.name, "--bin", t.name }, flamegraph_flags(root, p)),
         }
       end
       for _, a in ipairs(ACTIONS[kind] or {}) do
@@ -142,7 +142,7 @@ local TOOLS = {
   { "deny: check all", { "cargo", "deny", "check" } },
   { "audit (RustSec)", { "cargo", "audit" } },
   { "duplicate dependency versions", { "cargo", "tree", "-d" } },
-  { "coverage report (summary in terminal)", { "cargo", "llvm-cov", "--workspace", "--summary-only" } },
+  { "coverage report (summary in terminal)", { "cargo", "llvm-cov", "--workspace", "--summary-only" }, true },
 }
 
 function M.tools()
@@ -151,7 +151,11 @@ function M.tools()
     return vim.notify("no Cargo.toml found", vim.log.levels.WARN)
   end
   local items = vim.tbl_map(function(t)
-    return { text = t[1], cmd = t[2] }
+    local cmd = t[2]
+    if t[3] then -- builds the workspace: same features/target as the diagnostics
+      cmd = vim.list_extend(vim.deepcopy(cmd), ctx_flags(root))
+    end
+    return { text = t[1], cmd = cmd }
   end, TOOLS)
   Snacks.picker({
     title = "Cargo tools",

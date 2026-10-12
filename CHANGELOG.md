@@ -25,6 +25,53 @@ All notable changes to this config are documented here.
   colourschemes. Verified by computing WCAG ratios from the loaded highlight
   groups (headless, both transparency modes) and in tmux at 200x55.
 
+### Fixed (field test batch 1: Rust workflow robustness)
+- bacon-ls (clippy tier) roots at the Cargo workspace instead of the nearest
+  member `Cargo.toml` and no longer attaches to `~/.cargo/registry`, `~/.cargo/git`
+  and `~/.rustup` files: live clippy now works in workspaces (before: no
+  diagnostics, one client and `target/` per member). `:RustContext reset`
+  rebuilds the bacon-ls settings from the defaults (it kept the old
+  `--no-default-features --features ...`), and warns outside a crate.
+  Verified headless with real servers on a 2-member workspace opened from a
+  member (one client at the workspace root, a clippy warning arrives, context
+  apply/reset change the bacon-ls args, no member `target/`), and on a single
+  crate. Not verified: `exclude`d members, nested workspaces.
+- Statusline: `clippy stale` no longer sticks after an auto-save while typing
+  (edits are counted with `nvim_buf_attach`, not `changedtick`, which a write
+  bumps); `clippy failed` when cargo cannot run (broken manifest) instead of
+  `clippy ok`; `RA stopped` / `clippy stopped` for a dead server.
+- New `lua/config/rust_restart.lua`: a killed rust-analyzer / bacon-ls is
+  restarted automatically (3 per minute, then it gives up); `:RustRestart`;
+  bacon-ls is restarted on `FocusGained` when an open Rust/Cargo file was
+  reloaded from disk or the git HEAD moved (external `sed -i` / `git checkout`
+  left clippy checking old content); bacon-ls clients whose workspace
+  directory was deleted are stopped. Verified headless (`kill -9` of both
+  servers in a single crate and in the workspace, crash-loop guard, broken
+  manifest, `sed -i` + `FocusGained`, commit + `FocusGained`, deleted
+  workspace). Not verified: a real terminal focus event (`:doautocmd`
+  stand-in), changes to files that are not open in nvim without a HEAD move.
+- Debugger: configs 1-3, `<leader>dr` and `<leader>dR` get rust's lldb
+  formatters (`lldb_lookup.py`) and `breakpoint set -n rust_panic` through an
+  nvim-dap `on_config` listener (Strings, Vecs and enums showed as `{...}`
+  via `<leader>dc`; a panic ended the session with exit 101); `<leader>dR`
+  keeps per-test entries (dedupe key now includes `executableArgs`);
+  `dap.autoload_configurations = false` (an upstream `cargo test --no-run
+  --all-targets` ran on every rust-analyzer attach) with `<leader>dr/dR`
+  re-checked; nvim-dap is a rustaceanvim dependency so the "Debug" codelens
+  exists (+5ms on the first Rust buffer). Verified against codelldb on a
+  panicking crate through all four launch paths. Not verified: a click on a
+  lens in a UI, `lldb-dap`.
+- `:RustTargets`, flamegraph, `:RustTools` llvm-cov and `<leader>tc` use the
+  default all-features context (they passed no flags before, so they built
+  with default features while both diagnostic tiers used all of them).
+- rust-analyzer `diagnostics.experimental` decision: left OFF. Measured on a
+  copy of a real 196-file axum/sqlx workspace: 0 rust-analyzer diagnostics off,
+  82 false errors on (E0282, E0277 `Handler`); README line 13 corrected
+  (unresolved names/methods/imports come from the clippy tier).
+- Not fixed: wgsl-analyzer's `Project discovery failed: no wgsl-analyzer table`
+  in a Cargo crate. A custom `root_dir` changes nothing (the server walks up
+  to `Cargo.toml` itself); documented, harmless.
+
 ### Fixed (field test 2026-10-12, 4 of 16 angles)
 - 99 sandbox hardening: pid/ipc/uts/cgroup/user namespaces, no capabilities,
   `--new-session`; whole `.git` (plus resolved gitdirs, nested repos to 2

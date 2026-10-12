@@ -21,6 +21,9 @@ return {
           table.insert(cmd, "nextest")
         end
         vim.list_extend(cmd, { "--workspace", "--lcov", "--output-path", "lcov.info" })
+        -- same features/target as the diagnostics (:RustContext)
+        local rc = require("config.rust_context")
+        vim.list_extend(cmd, rc.cargo_flags(rc.get(root)))
         vim.notify("coverage: running " .. table.concat(cmd, " "))
         vim.system(cmd, { cwd = root, text = true }, function(o)
           vim.schedule(function()

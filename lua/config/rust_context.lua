@@ -65,24 +65,29 @@ function M.ra_cargo(ctx)
   }
 end
 
---- cargo extraArgs for bacon-ls (replaces the hardcoded --all-features).
-function M.bacon_args(ctx)
-  local a = { "--workspace" }
+--- Feature/target CLI flags of a context (nil = the defaults: all features,
+--- host target), for the cargo commands the config runs itself.
+function M.cargo_flags(ctx)
+  local f = {}
   if not ctx or ctx.all then
-    a[#a + 1] = "--all-features"
+    f[#f + 1] = "--all-features"
   else
     if ctx.no_default then
-      a[#a + 1] = "--no-default-features"
+      f[#f + 1] = "--no-default-features"
     end
     if ctx.features and #ctx.features > 0 then
-      vim.list_extend(a, { "--features", table.concat(ctx.features, ",") })
+      vim.list_extend(f, { "--features", table.concat(ctx.features, ",") })
     end
   end
   if ctx and ctx.target then
-    vim.list_extend(a, { "--target", ctx.target })
+    vim.list_extend(f, { "--target", ctx.target })
   end
-  a[#a + 1] = "--no-deps"
-  return a
+  return f
+end
+
+--- cargo extraArgs for bacon-ls (replaces the hardcoded --all-features).
+function M.bacon_args(ctx)
+  return vim.list_extend(vim.list_extend({ "--workspace" }, M.cargo_flags(ctx)), { "--no-deps" })
 end
 
 --- Human-readable summary, e.g. "features: ssr,csr | target: wasm32-unknown-unknown".
@@ -202,9 +207,10 @@ end
 
 function M.reset()
   local root = M.root()
-  if root then
-    M.apply(root, nil)
+  if not root then
+    return vim.notify("no Cargo.toml found: nothing to reset", vim.log.levels.WARN)
   end
+  M.apply(root, nil)
 end
 
 function M.setup()

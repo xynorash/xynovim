@@ -1,20 +1,46 @@
 -- Server-readiness indicator for the statusline: rust-analyzer (starting /
--- indexing N% / ready, plus its health) and bacon-ls (clippy running / stale
--- / fresh). Purely event driven (LspProgress, experimental/serverStatus,
--- TextChanged) - no timers, nothing runs at idle.
+-- indexing N% / ready, plus its health) and bacon-ls (clippy running / failed
+-- / stale / fresh). Purely event driven (LspProgress, experimental/serverStatus,
+-- window/showMessage, TextChanged) - no timers, nothing runs at idle.
 --
 -- rustaceanvim handles experimental/serverStatus itself but keeps no state, so
 -- the client's handler is wrapped once on attach. bacon-ls reports each clippy
--- run as $/progress; "stale" means the buffer changed after the last finished
--- run started, i.e. the clippy diagnostics on screen predate your edit.
+-- run as $/progress; "stale" means the buffer's text changed after the last
+-- finished run started, i.e. the clippy diagnostics on screen predate your
+-- edit. Edits are counted with nvim_buf_attach (not b:changedtick, which a
+-- write also bumps: every auto-save would have left "stale" up for good). When cargo cannot run at all (broken manifest, cyclic
+-- dependency) bacon-ls ends the run normally and only sends an error
+-- window/showMessage: that is "failed". "stopped" is a server that exited
+-- (rust_restart.lua records it and restarts it).
 local M = {}
 
----@type table<integer, { tokens: table<string, table>, last: string?, health: string?, quiescent: boolean?, stale: boolean?, edited: boolean? }>
+---@type table<integer, { tokens: table<string, table>, last: string?, health: string?, quiescent: boolean?, failed: boolean?, begin_ticks: table<integer, integer>?, ticks: table<integer, integer>?, wrapped: boolean? }>
 local state = {}
 
 local function st(id)
   state[id] = state[id] or { tokens = {} }
   return state[id]
+end
+
+--- buf -> number of text changes seen since the buffer was first attached.
+---@type table<integer, integer>
+local edits = {}
+
+local function count_edits(buf)
+  if edits[buf] then
+    return
+  end
+  edits[buf] = 0
+  local function bump()
+    edits[buf] = (edits[buf] or 0) + 1
+  end
+  vim.api.nvim_buf_attach(buf, false, {
+    on_lines = bump,
+    on_reload = bump,
+    on_detach = function()
+      edits[buf] = nil
+    end,
+  })
 end
 
 local function redraw()
@@ -36,10 +62,16 @@ local function progress_text(s)
   return text
 end
 
+--- True when the server `name` exited under this buffer (see rust_restart.lua).
+local function stopped(bufnr, name)
+  local flags = vim.b[bufnr].xynovim_stopped
+  return flags ~= nil and flags[name] == true
+end
+
 function M.rust_analyzer(bufnr)
   local c = vim.lsp.get_clients({ bufnr = bufnr or 0, name = "rust-analyzer" })[1]
   if not c then
-    return nil
+    return stopped(bufnr or 0, "rust-analyzer") and "RA stopped" or nil
   end
   local s = st(c.id)
   local busy = progress_text(s)
@@ -58,12 +90,17 @@ end
 function M.bacon(bufnr)
   local c = vim.lsp.get_clients({ bufnr = bufnr or 0, name = "bacon_ls" })[1]
   if not c then
-    return nil
+    return stopped(bufnr or 0, "bacon_ls") and "clippy stopped" or nil
   end
   local s = st(c.id)
   if next(s.tokens) then
     return "clippy running"
-  elseif s.stale then
+  elseif s.failed then
+    return "clippy failed"
+  end
+  local buf = bufnr and bufnr ~= 0 and bufnr or vim.api.nvim_get_current_buf()
+  local seen = s.ticks and s.ticks[buf]
+  if seen and (edits[buf] or 0) > seen then
     return "clippy stale"
   end
   return "clippy ok"
@@ -88,8 +125,31 @@ function M.setup()
       if not client then
         return
       end
+      -- a restarted/attached server is no longer "stopped"
+      local flags = vim.b[ev.buf].xynovim_stopped
+      if flags and flags[client.name] then
+        flags[client.name] = nil
+        vim.b[ev.buf].xynovim_stopped = flags
+      end
       if client.name == "bacon_ls" then
-        vim.b[ev.buf].xynovim_bacon = client.id
+        local s = st(client.id)
+        s.ticks = s.ticks or {}
+        count_edits(ev.buf)
+        s.ticks[ev.buf] = s.ticks[ev.buf] or edits[ev.buf]
+        if not s.wrapped then
+          s.wrapped = true
+          local orig = client.handlers["window/showMessage"] or vim.lsp.handlers["window/showMessage"]
+          client.handlers["window/showMessage"] = function(err, result, ctx, config)
+            -- type 1 = Error: "cargo exited with exit status: 101: ..."
+            if result and result.type == vim.lsp.protocol.MessageType.Error then
+              s.failed = true
+              redraw()
+            end
+            if orig then
+              return orig(err, result, ctx, config)
+            end
+          end
+        end
       elseif client.name == "rust-analyzer" and not st(client.id).wrapped then
         local s = st(client.id)
         s.wrapped = true
@@ -121,12 +181,17 @@ function M.setup()
         if s.last == token then
           s.last = next(s.tokens)
         end
-        if client.name == "bacon_ls" and not s.edited then
-          s.stale = false
+        -- the finished run saw every buffer as of its begin
+        if client.name == "bacon_ls" and not next(s.tokens) and s.begin_ticks then
+          s.ticks = s.begin_ticks
         end
       else
         if v.kind == "begin" and client.name == "bacon_ls" then
-          s.edited = false
+          s.failed = false
+          s.begin_ticks = {}
+          for b in pairs(client.attached_buffers) do
+            s.begin_ticks[b] = edits[b] or 0
+          end
         end
         local p = s.tokens[token] or {}
         p.title = v.title or p.title
@@ -142,15 +207,8 @@ function M.setup()
   vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
     group = group,
     callback = function(ev)
-      local id = vim.b[ev.buf].xynovim_bacon
-      if not id then
-        return
-      end
-      local s = st(id)
-      s.edited = true
-      if not s.stale then
-        s.stale = true
-        redraw()
+      if vim.b[ev.buf].xynovim_bacon then
+        redraw() -- "stale" is derived from the edit counter when drawn
       end
     end,
   })

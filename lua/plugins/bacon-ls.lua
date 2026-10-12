@@ -47,27 +47,53 @@ return {
         -- shipped in 0.31.0, so the old local patched-build `cmd` override
         -- (~/.cargo/bin/bacon-ls) is gone.
         init_options = bacon_ls_settings,
-        -- Cargo.toml only (lspconfig's default also lists .bacon-locations).
-        -- With no match the client is not started (nvim 0.12 skips servers
-        -- whose root_markers find nothing), so a standalone solo.rs without
-        -- a crate no longer attaches and spams cargo errors; rust-analyzer's
-        -- detached-file mode is a separate client and is unaffected.
-        root_markers = { "Cargo.toml" },
-        workspace_required = true,
+        -- One client per Cargo WORKSPACE, rooted at the outermost manifest
+        -- with a [workspace] table (config.rust_context.root), not at the
+        -- nearest Cargo.toml: bacon-ls mirrors its root into a shadow, so a
+        -- member-rooted shadow lacks the workspace manifest and the sibling
+        -- path dependencies and cargo fails ("believes it's in a workspace
+        -- when it's not"). Paths under the cargo registry/git checkouts and
+        -- rustup (what `gd` into a dependency or std opens) get no client at
+        -- all: each ships its own Cargo.toml and would be a root of its own,
+        -- compiled by clippy with target/ written into ~/.cargo. With no
+        -- root found the client is not started, so a standalone solo.rs
+        -- without a crate no longer attaches and spams cargo errors;
+        -- rust-analyzer's detached-file mode is a separate client and is
+        -- unaffected.
+        root_dir = function(bufnr, on_dir)
+          local name = vim.api.nvim_buf_get_name(bufnr)
+          if name == "" then
+            return
+          end
+          for _, skip in ipairs({ "/.cargo/registry/", "/.cargo/git/", "/.rustup/" }) do
+            if name:find(skip, 1, true) then
+              return
+            end
+          end
+          local root = require("config.rust_context").root(name)
+          if root then
+            on_dir(root)
+          end
+        end,
+        -- A crashed server is restarted (rust_restart.lua).
+        on_exit = function(...)
+          return require("config.rust_restart").on_exit("bacon_ls")(...)
+        end,
         -- Match the per-project Cargo context (:RustContext) so both
         -- diagnostic tiers see the same features/target. Settings reach the
         -- server in two ways, init_options (initialize) and the
-        -- workspace/configuration pull, so patch both.
+        -- workspace/configuration pull, so patch both. Always rebuilt from
+        -- the defaults (also with no stored context): after
+        -- `:RustContext reset` the restarted client must not keep the
+        -- previous context's args.
         before_init = function(params, config)
           local rc = require("config.rust_context")
           local ctx = rc.get(rc.root((config.root_dir or vim.uv.cwd()) .. "/x"))
-          if not ctx then
-            return
-          end
           local s = vim.deepcopy(bacon_ls_settings)
           s.cargo.extraArgs = rc.bacon_args(ctx)
           params.initializationOptions = s
           -- in place: the client already holds a reference to this table
+          config.settings = config.settings or {}
           config.settings.bacon_ls = s
         end,
         -- Also answered to the server's workspace/configuration pull.

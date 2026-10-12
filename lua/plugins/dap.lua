@@ -124,6 +124,46 @@ local function package_dir()
   return b and b.dir or vim.fn.getcwd()
 end
 
+local sysroot_script
+
+--- `<rustc sysroot>/lib/rustlib/etc/lldb_lookup.py` (rust's lldb formatters:
+--- String, Vec, Option, enums...) or nil when the toolchain does not ship it.
+--- Resolved once, on the first launch (not at startup).
+local function lldb_lookup_script()
+  if sysroot_script == nil then
+    local o = vim.system({ "rustc", "--print", "sysroot" }, { text = true }):wait(10000)
+    local script = o.code == 0 and vim.trim(o.stdout) .. "/lib/rustlib/etc/lldb_lookup.py"
+    sysroot_script = script and vim.uv.fs_stat(script) and script or false
+  end
+  return sysroot_script or nil
+end
+
+--- Every codelldb launch of Rust code (configs 1-3 below, <leader>dr via
+--- rustaceanvim, <leader>dR, launch.json: all carry sourceLanguages = rust)
+--- gets rust's lldb formatters and a breakpoint on `rust_panic`, so a panic
+--- stops at the panicking frame instead of the session ending with exit 101.
+--- Done here, not in the configs, because rustaceanvim overwrites initCommands
+--- on its own launches. A `#[should_panic]` test stops there too. Only the
+--- lldb_lookup.py import is added, never `command source .../lldb_commands`
+--- (that file does not exist on current toolchains).
+local function rust_lldb_init(config)
+  if config.type ~= "codelldb" or not vim.tbl_contains(config.sourceLanguages or {}, "rust") then
+    return config
+  end
+  local cmds = vim.deepcopy(type(config.initCommands) == "table" and config.initCommands or {})
+  local script = lldb_lookup_script()
+  if script and not vim.iter(cmds):any(function(c)
+    return c:find("lldb_lookup.py", 1, true)
+  end) then
+    table.insert(cmds, 1, 'command script import "' .. script .. '"')
+  end
+  if not vim.tbl_contains(cmds, "breakpoint set -n rust_panic") then
+    cmds[#cmds + 1] = "breakpoint set -n rust_panic"
+  end
+  config.initCommands = cmds
+  return config
+end
+
 --- Replace mason-nvim-dap's generic codelldb configs for Rust.
 local function rust_configurations()
   return {
@@ -131,6 +171,7 @@ local function rust_configurations()
       name = "LLDB: Launch",
       type = "codelldb",
       request = "launch",
+      sourceLanguages = { "rust" },
       program = prompt_program,
       cwd = "${workspaceFolder}",
       stopOnEntry = false,
@@ -141,6 +182,7 @@ local function rust_configurations()
       name = "LLDB: Launch (args)",
       type = "codelldb",
       request = "launch",
+      sourceLanguages = { "rust" },
       program = prompt_program,
       cwd = "${workspaceFolder}",
       stopOnEntry = false,
@@ -151,6 +193,7 @@ local function rust_configurations()
       name = "Rust: run current package binary (args prompt)",
       type = "codelldb",
       request = "launch",
+      sourceLanguages = { "rust" },
       program = build_current_binary,
       cwd = package_dir,
       stopOnEntry = false,
@@ -167,7 +210,8 @@ local function workspace_debuggables(ra_result)
   local ra_runnables = require("rustaceanvim.runnables")
   local items, seen = {}, {}
   local function add(label, args)
-    local key = table.concat(args.cargoArgs, " ")
+    -- per-test entries differ only in executableArgs (the test name)
+    local key = table.concat(args.cargoArgs, " ") .. " -- " .. table.concat(args.executableArgs or {}, " ")
     if not seen[key] then
       seen[key] = true
       items[#items + 1] = { label = label, args = args }
@@ -193,7 +237,7 @@ local function workspace_debuggables(ra_result)
     if c and c.args.cargoArgs[1] ~= "check" then
       overrides.sanitize_command_for_debugging(c.args.cargoArgs)
       add(
-        "test/run: " .. table.concat(c.args.cargoArgs, " ") .. " " .. table.concat(c.args.executableArgs or {}, " "),
+        "test/run: " .. table.concat(c.args.cargoArgs, " ") .. " -- " .. table.concat(c.args.executableArgs or {}, " "),
         c.args
       )
     end
@@ -246,6 +290,7 @@ return {
           -- default_setup extends c/cpp/rust with the same shared tables;
           -- give Rust its own list.
           require("dap").configurations.rust = rust_configurations()
+          require("dap").listeners.on_config["xynovim_rust_lldb"] = rust_lldb_init
         end,
       },
     },

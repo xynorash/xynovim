@@ -1,7 +1,25 @@
 return {
   "mrcjkb/rustaceanvim",
+  -- nvim-dap is lazy-loaded, and rustaceanvim only advertises the
+  -- `rust-analyzer.debugSingle` client command (the "Debug" codelens) when
+  -- dap is already loaded as the client is created, so load it first.
+  dependencies = { "mfussenegger/nvim-dap" },
+  init = function()
+    -- Upstream default: every rust-analyzer attach runs `cargo test --no-run
+    -- --all-targets` to build the debuggables list (measured: up to 5 at
+    -- once, fighting your own cargo for the build lock). <leader>dr / dR
+    -- and :RustLsp debuggables ask rust-analyzer on demand instead. Set in
+    -- init because LazyVim's rust extra overwrites `opts.dap`.
+    vim.g.rustaceanvim = vim.tbl_deep_extend("force", vim.g.rustaceanvim or {}, {
+      dap = { autoload_configurations = false },
+    })
+  end,
   opts = {
     server = {
+      -- A crashed server is restarted (rust_restart.lua).
+      on_exit = function(...)
+        return require("config.rust_restart").on_exit("rust-analyzer")(...)
+      end,
       -- Layer the per-project Cargo context (:RustContext) over the defaults.
       settings = function(root, default_settings)
         local settings = require("rustaceanvim.config.server").load_rust_analyzer_settings(
@@ -25,6 +43,10 @@ return {
           -- (the extra disables it) so no cargo pipeline is duplicated;
           -- overlap is only visual: a type error may briefly show from both
           -- sources. styleLints stay off - that's clippy's job.
+          -- diagnostics.experimental stays off on purpose: it adds
+          -- unresolved name/method/import errors but gave 82 false errors
+          -- (E0282, axum Handler E0277) in a 196-file workspace that
+          -- builds cleanly (README, Rust). Those come from bacon-ls.
           diagnostics = { enable = true },
           -- Separate target dir for rust-analyzer's own cargo runs (build
           -- scripts, proc-macros) so they never contend for the build-dir

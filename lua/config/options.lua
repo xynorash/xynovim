@@ -28,4 +28,5 @@ require("config.rust_routes").setup()
 -- Rust server readiness in the statusline, right-click menu, Neovide,
 -- opt-in colourblind palette.
 require("config.lsp_status").setup()
+require("config.rust_restart").setup()
 require("config.ux").setup()
