@@ -376,6 +376,15 @@ describe("ux.snippets_allowed", function()
     H.eq(true, allowed('foo("abc") |'))
   end)
 
+  it("is false in expression positions (call arguments, struct literals, macro token trees), true in a block inside them", function()
+    H.eq(false, allowed("fn f() { call(a, be|"), "unfinished call arguments")
+    H.eq(false, allowed("fn f() { call(a, be|) }"), "call arguments")
+    H.eq(false, allowed("fn f() { S { a: be| } }"), "struct literal")
+    H.eq(false, allowed("fn f() { vec![1, be|] }"), "macro token tree")
+    H.eq(true, allowed("fn f() { call(unsafe { be| }) }"), "statement position in a block inside the arguments")
+    H.eq(true, allowed("fn f() { call(a); be| }"), "after the call")
+  end)
+
   it("is true when treesitter's get_node errors", function()
     local orig = vim.treesitter.get_node
     vim.treesitter.get_node = function()

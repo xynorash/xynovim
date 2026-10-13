@@ -89,13 +89,15 @@ return {
           local file = vim.api.nvim_buf_get_name(bufnr)
           local is_lock = basename(file) == "Cargo.lock"
           local out = {}
+          local failed -- one "cargo-deny failed" per run: a broken manifest logged it twice
           for line in vim.gsplit(output, "\n", { plain = true, trimempty = true }) do
             local ok, d = pcall(vim.json.decode, line)
             if not (ok and type(d) == "table") then -- also JSON `null` (vim.NIL is truthy)
               d = {}
             end
             local f = d.type == "diagnostic" and d.fields
-            if d.type == "log" and type(d.fields) == "table" and d.fields.level == "ERROR" then
+            if d.type == "log" and type(d.fields) == "table" and d.fields.level == "ERROR" and not failed then
+              failed = true
               -- a broken deny.toml, an unreachable crate source...: no
               -- diagnostics follow, which looked the same as a clean result
               out[#out + 1] = {
@@ -139,6 +141,19 @@ return {
                 code = f.code,
                 message = f.message .. (label and label.message and (" - " .. label.message) or ""),
               }
+              -- several wildcard dependencies: one label (one line) each
+              if on_manifest then
+                for i = 2, #f.labels do
+                  local l = f.labels[i]
+                  if l.line then
+                    local extra = vim.deepcopy(out[#out])
+                    extra.lnum = math.min(l.line - 1, math.max(vim.api.nvim_buf_line_count(bufnr) - 1, 0))
+                    extra.col = (l.column or 1) - 1
+                    extra.message = f.message .. (l.message and (" - " .. l.message) or "")
+                    out[#out + 1] = extra
+                  end
+                end
+              end
             end
           end
           return out

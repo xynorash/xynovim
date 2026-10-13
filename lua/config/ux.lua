@@ -56,8 +56,30 @@ end
 
 -- Completion -----------------------------------------------------------------
 
---- blink.cmp snippets provider guard: false after a `.` (method position) and
---- inside strings and comments.
+--- blink.cmp snippets provider guard: false after a `.` (method position),
+--- inside strings and comments and in expression positions (call arguments,
+--- struct literals, macro token trees: Enter on `bench` expanded `#[bench] fn`
+--- inside `call(a, b`).
+--- Whether the innermost bracket still open between the start of the (error) node and the
+--- cursor is a `(` or `[`.
+function M.unclosed_paren(node, ctx)
+  local srow, scol = node:start()
+  if srow ~= ctx.cursor[1] - 1 then
+    return false
+  end
+  local stack = {}
+  for ch in ctx.line:sub(scol + 1, ctx.cursor[2]):gmatch("[%(%)%[%]{}]") do
+    if ch == "(" or ch == "[" or ch == "{" then
+      stack[#stack + 1] = ch
+    else
+      stack[#stack] = nil
+    end
+  end
+  return stack[#stack] == "(" or stack[#stack] == "["
+end
+
+local EXPRESSION_NODES = { arguments = true, field_initializer_list = true, token_tree = true }
+
 function M.snippets_allowed(ctx)
   local before = ctx.line:sub(1, ctx.cursor[2])
   if before:match("[^%.]%.[%w_]*$") then
@@ -74,6 +96,15 @@ function M.snippets_allowed(ctx)
     local behind = t:find("literal$") and erow == ctx.cursor[1] - 1 and ecol <= ctx.cursor[2]
     if (t:find("string") or t:find("comment")) and not behind then
       return false
+    end
+    if t == "block" then
+      break -- statement position (a closure body inside call arguments)
+    end
+    if EXPRESSION_NODES[t] then
+      return false
+    end
+    if t == "ERROR" and M.unclosed_paren(node, ctx) then
+      return false -- `call(a, be` while typing: the parser has no `arguments` node yet
     end
     node = node:parent()
   end

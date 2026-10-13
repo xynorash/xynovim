@@ -126,6 +126,12 @@ return {
       -- last line overdrew the border row. A short window gets the preview-less
       -- `select` layout instead (snacks' `<A-p>` toggles the preview).
       opts.picker = opts.picker or {}
+      -- Without a .gitignore (no git, or a fresh crate) the file picker listed all of
+      -- target/ (313 of 318 items); anchored, so src/target/ stays.
+      opts.picker.sources = vim.tbl_deep_extend("force", opts.picker.sources or {}, {
+        files = { exclude = { "/target" } },
+        grep = { exclude = { "/target" } },
+      })
       opts.picker.layout = vim.tbl_deep_extend("force", opts.picker.layout or {}, {
         preset = function()
           if vim.o.columns >= 120 then
@@ -134,6 +140,20 @@ return {
           return vim.o.lines < 30 and "select" or "vertical"
         end,
       })
+    end,
+  },
+
+  -- Document outline (<leader>cs / <leader>ss): rust-analyzer reports `impl Trait for X` as
+  -- SymbolKind Object, which LazyVim's default kind filter drops, so the methods of every
+  -- impl showed up at the top level without their owner.
+  {
+    "LazyVim/LazyVim",
+    opts = function(_, opts)
+      opts.kind_filter = opts.kind_filter or {}
+      opts.kind_filter.rust = {
+        "Class", "Constructor", "Enum", "Field", "Function", "Interface", "Method", "Module",
+        "Namespace", "Object", "Package", "Property", "Struct", "Trait",
+      }
     end,
   },
 

@@ -374,6 +374,7 @@ before_each(function()
   vim.fn.delete(ctl, "rf")
   vim.fn.mkdir(ctl, "p")
   vim.g.xynovim_lochist_max_bytes = nil
+  vim.g.xynovim_lochist_max_total_bytes = nil
   time_offset, timer_scale, scale_watchdog = 0, nil, false
   deferred, timer_starts, timer_news = {}, {}, 0
   notes = {}
@@ -739,6 +740,37 @@ describe("size cap (vim.g.xynovim_lochist_max_bytes)", function()
     H.ok(c2, "a new commit (the file dropped out)")
     H.eq({ "a.txt", "tracked.bin" }, names(root, c2))
     H.ok(log_count("rm %-%-cached %-r %-q %-f %-%-ignore%-unmatch %-%- grow%.bin") == 1, "git rm --cached ran")
+  end)
+end)
+
+describe("size budget of a whole snapshot (vim.g.xynovim_lochist_max_total_bytes)", function()
+  local MB = 1024 * 1024
+
+  it("leaves the largest files out until the snapshot fits, with one notice each", function()
+    vim.g.xynovim_lochist_max_bytes = 2 * MB
+    vim.g.xynovim_lochist_max_total_bytes = 3 * MB
+    local root = mkrepo()
+    write(root .. "/m1.bin", string.rep("x", MB))
+    write(root .. "/m2.bin", string.rep("y", MB))
+    write(root .. "/m3.bin", string.rep("z", MB + MB / 2))
+    write(root .. "/small.txt", "s\n")
+    local c = snap(root)
+    H.eq({ "a.txt", "m1.bin", "m2.bin", "small.txt" }, names(root, c), "the 1.5 MB file went")
+    H.eq(1, #note_matching("local history: skipping m3.bin"))
+    H.match(note_matching("local history: skipping m3.bin")[1].msg, "vim.g.xynovim_lochist_max_total_bytes", true)
+    vim.g.xynovim_lochist_max_total_bytes = nil
+  end)
+
+  it("a budget of 0 (or the cap disabled) lifts it; a snapshot under the 200 MB default is untouched", function()
+    local root = mkrepo()
+    write(root .. "/m1.bin", string.rep("x", 3 * MB))
+    write(root .. "/m2.bin", string.rep("y", 3 * MB))
+    H.eq({ "a.txt", "m1.bin", "m2.bin" }, names(root, snap(root)))
+    vim.g.xynovim_lochist_max_total_bytes = 0
+    vim.g.xynovim_lochist_max_bytes = 4 * MB
+    write(root .. "/a.txt", "a2\n")
+    H.eq({ "a.txt", "m1.bin", "m2.bin" }, names(root, snap(root)))
+    vim.g.xynovim_lochist_max_total_bytes = nil
   end)
 end)
 

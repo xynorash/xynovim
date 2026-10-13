@@ -212,7 +212,7 @@ describe("rust_restart: setup and on_exit", function()
     fresh_restart()
   end)
 
-  it("defines :RustRestart (no args) and the four autocmds in its group", function()
+  it("defines :RustRestart (no args) and the autocmds in its group", function()
     local cmd = vim.api.nvim_get_commands({}).RustRestart
     H.ok(cmd, "RustRestart is defined")
     H.eq("0", cmd.nargs)
@@ -220,7 +220,7 @@ describe("rust_restart: setup and on_exit", function()
     for _, a in ipairs(vim.api.nvim_get_autocmds({ group = RR_GROUP })) do
       events[a.event] = true
     end
-    H.eq({ FileChangedShellPost = true, FocusGained = true, LspAttach = true, VimLeavePre = true }, events)
+    H.eq({ BufWritePost = true, FileChangedShellPost = true, FocusGained = true, LspAttach = true, User = true, VimLeavePre = true }, events)
   end)
 
   it("a clean exit (code 0, signal 0) does nothing", function()
@@ -358,6 +358,25 @@ describe("rust_restart: :RustRestart and sweep", function()
     vim.fn.delete(d .. "/Cargo.toml")
     require("config.rust_restart").sweep()
     H.eq(true, c.stopped)
+  end)
+
+  it("a save (BufWritePost or auto-save's User AutoSaveWritePost) sweeps too: a moved project is noticed without FocusGained", function()
+    for _, fire_it in ipairs({
+      function()
+        vim.api.nvim_exec_autocmds("BufWritePost", { modeline = false })
+      end,
+      function()
+        vim.api.nvim_exec_autocmds("User", { pattern = "AutoSaveWritePost", modeline = false })
+      end,
+    }) do
+      local alive, gone = H.tmpdir(), H.tmpdir()
+      local c1 = fake_client(s, { name = "bacon_ls", root = alive })
+      local c2 = fake_client(s, { name = "bacon_ls", root = gone })
+      vim.fn.delete(gone, "rf")
+      fire_it()
+      H.is_nil(c1.stopped)
+      H.eq(true, c2.stopped, "stopped on save")
+    end
   end)
 
   it("the exit of a client sweep stopped (SIGTERM) is no crash: no 'exited ... restarting' warning, no restart", function()

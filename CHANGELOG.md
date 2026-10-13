@@ -11,6 +11,22 @@ All notable changes to this config are documented here.
 - `scripts/test.sh`: a spec may raise its own timeout with a `-- xyno-timeout: N` line near the top (`keymaps-global`), a spec whose nvim does not exit within 30 s of its result line is killed and its result counts (with a note), tmux socket files of the specs are removed. `tests/runner.lua` prints the result line before the cleanup. `tests/helpers.lua`: `H.very_lazy()` waits for noice to replace `vim.notify` (flaky notification assertions), `H.cleanup()` drops the tabline and wipes the buffers (without autocmds) before waiting for the LSP clients: bufferline's quadratic tabline redraw made nvim spin for minutes at exit after `keymaps-global`, which timed out the file at 120 s in 2 of 5 full runs.
 - Not verified: a full run on a loaded machine (specs were flaky only under a load average of 60-120 from parallel writers, not re-checked), the CI job, `shellcheck`, the network fresh-install test (`XYNO_TEST_NETWORK=1`, passed once in the writer's run, not in the default suite). The bugs the new specs found were skipped tests at first; all are fixed below (final loop round 1), list in `tests/COVERAGE.md`.
 
+### Fixed (final loop round 4: field test leftovers)
+- The spec-writer bugs of the b2fee5c list (empty `goto_super` list, nested `target` in the route scan, `RustContext` for a second workspace, sandbox rename and missing `~/.claude`, cargo-deny lockfile line and `null` line, `b:xynovim_bacon`, `:edit!` counter, `--timeout` exit status, plugin count, non-numeric byte cap, `gc`, `lazy.manage`, `::1`) were already fixed in rounds 1 to 3 and are asserted by the suite; this round checked each one again (`scripts/test.sh --timeout` without a value exits 2). The medium bug of the report (auto-save writing the readonly 99 select buffers) is round 3's `can_save` fix, covered by `auto-save-disk-guard`.
+- `<leader>rl`: a declaration without a `kind` is labelled `[W]` (it was `[T]`); `rd` / `rE` descriptions say what they do (local rustup docs, else docs.rs).
+- Rust buffers: `"` behind an odd number of backslashes is inserted plainly (mini.pairs overtyped the auto-inserted closer: `"a\"b"` ended as `"a\"b";"`); Rust words (`Vec`, `tokio`, `impl`, `usize`, ...) are in `spell/en.utf-8.add` (compiled to a git-ignored `.spl` on the first Rust buffer; `zg` still writes to the user's own list); `.http` buffers get `conceallevel=0` (JSON quotes were hidden).
+- Completion: no snippets in call arguments, struct literals and macro token trees (also while the call is still unclosed), but in a block inside them.
+- Pickers: `/target` is excluded from the file and grep pickers (a crate without `.gitignore` listed 313 of 318 items from `target/`); the rust document outline keeps `impl` blocks (SymbolKind Object added to the rust `kind_filter`).
+- `:RustTools` "deny: check all" without a `deny.toml` runs `advisories bans sources` (every dependency failed the empty licence list); cargo-deny: one `deny-failed` warning per run and one diagnostic per label of a multi-dependency wildcard finding.
+- `:RustContext bogus` warns with the usage instead of opening the picker; `:RustContext show` outside a crate warns "no Cargo.toml found" instead of printing the default.
+- SSR: a query that matches nothing says "SSR: no matches".
+- A save (`BufWritePost`, auto-save's `AutoSaveWritePost`) sweeps bacon-ls clients whose project directory moved or lost its `Cargo.toml` (it waited for FocusGained, which tmux does not send without `focus-events on`).
+- `config.lazy`: an unwritable `XDG_CACHE_HOME` turns lazy's module cache off instead of aborting `init.lua` with E739.
+- Local history: a snapshot is limited to 200 MB (`vim.g.xynovim_lochist_max_total_bytes`, 0 disables): the largest files that pass the per-file cap are left out with one notice each (thirty 9.5 MB files added about 285 MB to `.git`; computed from the code, not measured).
+- Suite after round 4: 1057 passed, 0 failed, 24 skipped (24 files; one full run, then the two files I fixed afterwards re-run alone: 54 and 86 passed); 15 new tests.
+- README: doc-tests get no live diagnostics, no F-key maps exist, submodule edits and local history, 18 theme-only plugins.
+- Not changed (reported, see README "Field test 2026-10-14"): neotest feedback (neotest itself prints "No tests found"; not reproduced), `rm` / `rh` / `cc` cursor-position quirks, extract-then-rename, treesj/`gc` quirks, Trouble first-line formatter, flattening the right-click menu, DAP attach configuration, local-history `positionEncodings` warning, `bootstrap.sh` waiting for Mason downloads, `:RenameUndo`.
+
 ### Fixed (final loop round 1: field test and spec findings)
 - 99 sandbox: `~/.claude/security` is read-only (the security-guidance hook imports from `security/agent-sdk-venv` outside the sandbox; a `.pth` planted there ran with the user's privileges) and masked when absent; `~/.claude/projects` is bound read-only with only this project's own directory writable (a bind mount point cannot be renamed, so `mv projects/<name> ...; mkdir -p projects/<name>/memory; echo x > .../MEMORY.md` no longer works); `wrap` creates `~/.claude` when it is missing (bwrap aborted with "Can't mkdir parents"); the env scrub also hits `PASSPHRASE`, `ASKPASS`, `OPENAI_*`, `STRIPE_*`, `MYSQL_PWD`, `SSHPASS`. Both former skipped "known bug" tests now assert the correct behaviour.
 - 99 guard: the agent starts from the "before 99 request" snapshot's `done` callback (15 s fallback, a cancel before that never starts it, no repository starts it at once). A stub agent that rewrote `src/main.rs` immediately used to end up inside the checkpoint.
@@ -47,10 +63,10 @@ All notable changes to this config are documented here.
 
 ### Removed
 - All Omarchy support. Deleted `lua/plugins/omarchy-theme-hotreload.lua`, the
-  `lua/plugins/theme.lua` symlink, `lua/plugins/all-themes.lua` (17 colourscheme
+  `lua/plugins/theme.lua` symlink, `lua/plugins/all-themes.lua` (18 colourscheme
   plugins that only Omarchy themes used) and the `theme.lua` loadfile guard in
   `lua/config/lazy.lua`; `vim.g.xynovim_follow_omarchy` is gone and Island Dark
-  is set unconditionally. The 17 plugins are dropped from `lazy-lock.json`
+  is set unconditionally. The 18 plugins are dropped from `lazy-lock.json`
   (tokyonight and catppuccin stay: LazyVim specs them). The remote clipboard
   provider is now `XynovimRemoteClipboard` and its OSC 52 opt-out is
   `vim.g.xynovim_remote_clipboard_osc52` (was `omarchy_remote_clipboard_osc52`).

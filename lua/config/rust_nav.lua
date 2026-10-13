@@ -80,6 +80,7 @@ function M.local_usages()
     if err or not res or #res == 0 then
       return vim.notify("no usages in this file", vim.log.levels.INFO)
     end
+    -- rust-analyzer sends no kind on the declaration (`let x`): that is a write
     local kind = { [1] = "T", [2] = "R", [3] = "W" }
     local items = {}
     for _, h in ipairs(res) do
@@ -88,7 +89,7 @@ function M.local_usages()
         bufnr = buf,
         lnum = lnum,
         col = h.range.start.character + 1,
-        text = ("[%s] %s"):format(kind[h.kind or 1], vim.trim(vim.api.nvim_buf_get_lines(buf, lnum - 1, lnum, false)[1] or "")),
+        text = ("[%s] %s"):format(kind[h.kind or 3], vim.trim(vim.api.nvim_buf_get_lines(buf, lnum - 1, lnum, false)[1] or "")),
       }
     end
     table.sort(items, function(a, b)

@@ -21,13 +21,16 @@
 -- processes are cleaned up (the newest seeds the next one, so the first
 -- `git add -A` stays incremental). Untracked files over
 -- vim.g.xynovim_lochist_max_bytes (default 10 MB, <= 0 disables the cap) are
--- left out. :LocalHistoryPrune trims old snapshots.
+-- left out, and so are the largest files of a snapshot beyond
+-- vim.g.xynovim_lochist_max_total_bytes (default 200 MB: thirty files just under the
+-- per-file cap would add about 285 MB to .git). :LocalHistoryPrune trims old snapshots.
 local M = {}
 
 local THROTTLE_S = 60
 local FAIL_BACKOFF_S = 10
 local EXIT_BUDGET_MS = 5000
 local MAX_BYTES = 10 * 1024 * 1024
+local MAX_TOTAL_BYTES = 200 * 1024 * 1024
 local last = {} ---@type table<string, number> time of the last SUCCESSFUL snapshot
 local failed = {} ---@type table<string, number> time of the last failed one
 local running = {} ---@type table<string, boolean>
@@ -292,6 +295,15 @@ local function size_cap()
   return v > 0 and v or nil
 end
 
+--- Per-snapshot budget for the files that pass the per-file cap (nil: no budget).
+local function total_cap()
+  local v = tonumber(vim.g.xynovim_lochist_max_total_bytes)
+  if v == nil then
+    return MAX_TOTAL_BYTES
+  end
+  return v > 0 and v or nil
+end
+
 local STAT_SLICE = 2000
 
 --- cb(list of files bigger than the cap). Untracked = not in the user's real
@@ -305,6 +317,7 @@ local function big_untracked(root, run, cb)
   end
   git({ "ls-files", "-o", "-m", "--exclude-standard", "-z" }, root, nil, function(out)
     local big = {}
+    local kept = {} -- files under the per-file cap: { rel, size }
     local files = vim.split(out or "", "\0", { plain = true })
     -- one fs_stat per listed file: 100k untracked files froze the editor for ~0.5 to 1s
     -- in one go, so a slice of STAT_SLICE files per event-loop turn (not on exit, where
@@ -325,12 +338,43 @@ local function big_untracked(root, run, cb)
             ),
             vim.log.levels.INFO
           )
+        elseif st and st.type == "file" then
+          kept[#kept + 1] = { rel, st.size }
         end
       end
       if to < #files then
         return vim.schedule(function()
           step(to + 1)
         end)
+      end
+      -- the snapshot as a whole: leave out the largest files until it fits the budget
+      local budget, total = total_cap(), 0
+      for _, f in ipairs(kept) do
+        total = total + f[2]
+      end
+      if budget and total > budget then
+        table.sort(kept, function(a, b)
+          if a[2] ~= b[2] then
+            return a[2] > b[2]
+          end
+          return a[1] > b[1]
+        end)
+        for _, f in ipairs(kept) do
+          if total <= budget or #big >= 2000 then
+            break
+          end
+          total = total - f[2]
+          big[#big + 1] = f[1]
+          warn_once(
+            "big:" .. root .. "/" .. f[1],
+            ("local history: skipping %s (%.0f MB; the snapshot is over %.0f MB, vim.g.xynovim_lochist_max_total_bytes)"):format(
+              f[1],
+              f[2] / 1048576,
+              budget / 1048576
+            ),
+            vim.log.levels.INFO
+          )
+        end
       end
       cb(big)
     end

@@ -39,6 +39,10 @@ function M.ssr(visual)
           if err then
             return vim.notify("SSR: " .. tostring(err.message or err), vim.log.levels.WARN)
           end
+          -- a query that matches nothing answers an empty edit: say so
+          if not res or (vim.tbl_isempty(res.changes or {}) and vim.tbl_isempty(res.documentChanges or {})) then
+            return vim.notify("SSR: no matches", vim.log.levels.INFO)
+          end
           return handler(err, res, ctx, ...)
         end, ...)
       end

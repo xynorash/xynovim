@@ -431,6 +431,37 @@ describe("cargo_deny parser", function()
     H.match(r[1].message, "failed to parse config", true)
   end)
 
+  it("two ERROR log records give one 'deny-failed' warning", function()
+    local r = parse(
+      "Cargo.toml",
+      TOML,
+      json_lines({
+        { type = "log", fields = { level = "ERROR", message = "failed to load manifest" } },
+        { type = "log", fields = { level = "ERROR", message = "failed to gather" } },
+      })
+    )
+    H.eq(1, #r)
+    H.match(r[1].message, "failed to load manifest", true)
+  end)
+
+  it("Cargo.toml: two wildcard dependencies (two labels) give two diagnostics on their lines", function()
+    local r = parse(
+      "Cargo.toml",
+      TOML,
+      json_lines({
+        diag({
+          severity = "error",
+          code = "wildcard",
+          message = "found 2 wildcard dependencies for crate 'p'",
+          labels = { { line = 4, column = 1, message = "wildcard dependency" }, { line = 6, column = 1, message = "wildcard dependency" } },
+          graphs = { { Krate = { name = "p", version = "0.1.0" } } },
+        }),
+      })
+    )
+    H.eq(2, #r)
+    H.eq({ 3, 5 }, { r[1].lnum, r[2].lnum })
+  end)
+
   it("a JSON `null` line (vim.NIL is truthy) does not crash the parser", function()
     local r = parse("Cargo.toml", TOML, "null\n" .. json_lines({ diag({ severity = "note", code = "ok", message = "kept" }) }))
     H.eq(1, #r)

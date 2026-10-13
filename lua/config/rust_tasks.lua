@@ -165,6 +165,15 @@ local TOOLS = {
   { "coverage report (summary in terminal)", { "cargo", "llvm-cov", "--workspace", "--ignore-run-fail", "--summary-only" }, true },
 }
 
+local function has_deny_config(root)
+  for _, f in ipairs({ "deny.toml", ".deny.toml", ".cargo/deny.toml" }) do
+    if vim.uv.fs_stat(root .. "/" .. f) then
+      return true
+    end
+  end
+  return false
+end
+
 function M.tools()
   local root = rc.root()
   if not root then
@@ -174,6 +183,10 @@ function M.tools()
     local cmd = t[2]
     if t[3] then -- builds the workspace: same features/target as the diagnostics
       cmd = vim.list_extend(vim.deepcopy(cmd), ctx_flags(root))
+    end
+    -- no deny.toml: every dependency fails the (empty) licence allow list
+    if t[2][3] == "check" and #t[2] == 3 and not has_deny_config(root) then
+      return { text = t[1] .. " (no deny.toml: licenses skipped)", cmd = { "cargo", "deny", "check", "advisories", "bans", "sources" } }
     end
     return { text = t[1], cmd = cmd }
   end, TOOLS)

@@ -565,7 +565,7 @@ describe(":RustTools", function()
       { "bloat by function (release, top 30)", { "cargo", "bloat", "--release", "-n", "30" } },
       { "unused dependencies (cargo machete)", { "cargo", "machete" } },
       { "deny: fetch advisory DB", { "cargo", "deny", "fetch" } },
-      { "deny: check all", { "cargo", "deny", "check" } },
+      { "deny: check all (no deny.toml: licenses skipped)", { "cargo", "deny", "check", "advisories", "bans", "sources" } },
       { "audit (RustSec)", { "cargo", "audit" } },
       { "duplicate dependency versions", { "cargo", "tree", "-d" } },
       { "coverage report (summary in terminal)", cov },
@@ -580,6 +580,22 @@ describe(":RustTools", function()
     opts.confirm({ close = function() end }, opts.items[4])
     H.eq({ "cargo", "machete" }, term.opened[1].cmd)
     H.eq(dir, term.opened[1].opts.cwd)
+  end)
+
+  it("deny: check all runs the licence check only when the crate has a deny.toml", function()
+    H.need_rust()
+    local opts, dir = tools(nil)
+    H.eq("deny: check all (no deny.toml: licenses skipped)", opts.items[6].text)
+    H.eq({ "cargo", "deny", "check", "advisories", "bans", "sources" }, opts.items[6].cmd)
+    unstub_all()
+    vim.fn.writefile({ "[licenses]" }, dir .. "/deny.toml")
+    with_ctx(nil)
+    local cap = capture_picker()
+    vim.cmd("RustTools")
+    local opts2 = H.ok(cap.opts, "picker was not opened")
+    H.eq("deny: check all", opts2.items[6].text)
+    H.eq({ "cargo", "deny", "check" }, opts2.items[6].cmd)
+    vim.fn.delete(dir .. "/deny.toml")
   end)
 
   it("the default context puts --all-features on the coverage entry, repeated calls do not accumulate flags", function()

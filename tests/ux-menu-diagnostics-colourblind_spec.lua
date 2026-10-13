@@ -756,6 +756,37 @@ describe("which-key spec", function()
   end)
 end)
 
+describe("pickers and outline (field test)", function()
+  it("the file and grep pickers exclude an anchored /target (no .gitignore needed)", function()
+    local opts = {}
+    for _, spec in ipairs(dofile(H.repo .. "/lua/plugins/editing-ui.lua")) do
+      if spec[1] == "folke/snacks.nvim" and type(spec.opts) == "function" then
+        spec.opts({}, opts)
+      end
+    end
+    H.eq({ "/target" }, opts.picker.sources.files.exclude)
+    H.eq({ "/target" }, opts.picker.sources.grep.exclude)
+  end)
+
+  it("the rust kind filter of the document outline contains Object (impl blocks) on top of the default", function()
+    local opts = {}
+    for _, spec in ipairs(dofile(H.repo .. "/lua/plugins/editing-ui.lua")) do
+      if spec[1] == "LazyVim/LazyVim" and type(spec.opts) == "function" then
+        spec.opts({}, opts)
+      end
+    end
+    local rust = opts.kind_filter.rust
+    H.ok(vim.tbl_contains(rust, "Object"), "Object")
+    for _, k in ipairs(LazyVim.config.kind_filter.default) do
+      H.ok(vim.tbl_contains(rust, k), k)
+    end
+    -- and it is what the running LazyVim uses for a rust buffer
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.bo[buf].filetype = "rust"
+    H.ok(vim.tbl_contains(LazyVim.config.get_kind_filter(buf) or {}, "Object"), "live kind filter")
+  end)
+end)
+
 describe("snacks picker layout", function()
   it("a window under 30 lines and 120 columns gets the preview-less select layout (80x24 border overdraw)", function()
     local opts = {}

@@ -14,6 +14,15 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
+-- vim.loader (lazy's module cache) creates stdpath("cache")/luac; an
+-- unwritable XDG_CACHE_HOME raised E739 and init.lua aborted, leaving nvim
+-- without any config. Without a writable cache dir run uncached.
+local function writable_dir(dir)
+  pcall(vim.fn.mkdir, dir, "p")
+  return vim.fn.filewritable(dir) == 2
+end
+local cache_ok = writable_dir(vim.fn.stdpath("cache"))
+
 require("lazy").setup({
   spec = {
     -- add LazyVim and import its plugins
@@ -43,6 +52,7 @@ require("lazy").setup({
     notify = false,
   },
   performance = {
+    cache = { enabled = cache_ok },
     rtp = {
       -- disable some rtp plugins
       disabled_plugins = {

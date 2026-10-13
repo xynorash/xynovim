@@ -294,6 +294,22 @@ function M.setup()
 
   vim.api.nvim_create_autocmd("VimLeavePre", { group = group, callback = M.kill_uninitialised })
 
+  -- A project directory moved or deleted under a running nvim: bacon-ls recreated
+  -- <old path>/target/bacon-ls-live on the next edit and the status said `clippy ok` until
+  -- FocusGained (tmux has focus-events off by default). A save is cheap to hook: two stats per client.
+  vim.api.nvim_create_autocmd({ "BufWritePost", "User" }, {
+    group = group,
+    pattern = { "*", "AutoSaveWritePost" },
+    callback = function(ev)
+      if ev.event == "User" and ev.match ~= "AutoSaveWritePost" then
+        return
+      end
+      if #bacon_clients() > 0 then
+        M.sweep()
+      end
+    end,
+  })
+
   local timer
   vim.api.nvim_create_autocmd("FocusGained", {
     group = group,

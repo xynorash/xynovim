@@ -264,6 +264,25 @@ describe("config/lazy.lua", function()
     H.eq(true, probe().manage)
   end)
 
+  it("an unwritable XDG_CACHE_HOME turns lazy's module cache off instead of aborting init.lua (E739)", function()
+    local env = xdg_env()
+    env.XDG_CACHE_HOME = "/proc/xyno-unwritable-cache"
+    local r = child([[
+      return {
+        cache = require("lazy.core.config").options.performance.cache.enabled,
+        lazyvim = package.loaded["lazyvim.config"] ~= nil,
+        messages = vim.api.nvim_exec2("messages", { output = true }).output,
+      }
+    ]], { env = env })
+    H.eq(false, r.cache)
+    H.eq(true, r.lazyvim, "LazyVim was set up")
+    H.no_match(r.messages, "E739", true)
+  end)
+
+  it("with a writable cache dir the module cache stays on", function()
+    H.eq(true, Config.options.performance.cache.enabled)
+  end)
+
   it("disables exactly gzip, tarPlugin, tohtml, tutor, zipPlugin of the rtp plugins", function()
     local disabled = Config.options.performance.rtp.disabled_plugins
     table.sort(disabled)
@@ -391,6 +410,19 @@ describe("config/options.lua", function()
     }) do
       H.ok(cmds[c], "user command :" .. c .. " missing")
     end
+  end)
+end)
+
+describe("after/ftplugin/http.lua", function()
+  it("conceallevel is 0 in an http buffer (JSON quotes stay visible), LazyVim's 2 elsewhere", function()
+    local other = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_set_current_buf(other)
+    vim.bo[other].filetype = "lua"
+    H.eq(2, vim.wo.conceallevel)
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_set_current_buf(buf)
+    vim.bo[buf].filetype = "http"
+    H.eq(0, vim.wo.conceallevel)
   end)
 end)
 

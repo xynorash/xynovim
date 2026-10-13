@@ -2,7 +2,7 @@
 
 Which spec exercises which feature of the config, and what is not tested (with the reason).
 Line coverage is a different measure (`scripts/test.sh --coverage`); this table is about features.
-Counts are from the last full run: 1014 passed, 0 failed, 24 skipped (24 spec files). Skips are
+Counts are from the last full run: 1057 passed, 0 failed, 24 skipped (24 spec files). Skips are
 `pending` entries or tests that need something this machine lacks (not testable here). A bug a spec
 finds is written as an assertion of the correct behaviour (skipped while it reproduces); the ones
 found so far are fixed (listed at the end).

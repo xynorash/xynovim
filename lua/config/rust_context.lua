@@ -304,7 +304,13 @@ function M.setup()
     if a.args == "reset" then
       M.reset()
     elseif a.args == "show" then
-      vim.notify("Rust context: " .. M.describe(M.get(M.root())))
+      local root = M.root()
+      if not root then
+        return vim.notify("no Cargo.toml found", vim.log.levels.WARN)
+      end
+      vim.notify("Rust context: " .. M.describe(M.get(root)))
+    elseif a.args ~= "" then
+      vim.notify("RustContext: unknown argument '" .. a.args .. "' (use show or reset, or no argument for the picker)", vim.log.levels.WARN)
     else
       M.pick()
     end

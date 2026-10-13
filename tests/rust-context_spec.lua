@@ -536,13 +536,40 @@ end
       rc.apply(ws, { all = false, features = { "csr" }, target = "t" })
       vim.cmd("RustContext show")
       H.eq("Rust context: features: csr | target: t", cap.list[#cap.list].msg)
-      -- outside a crate: the default
+      -- outside a crate: a warning, not a made-up "all features"
       buf_named(H.tmpdir() .. "/notes.txt")
+      local n = #cap.list
       vim.cmd("RustContext show")
-      H.eq("Rust context: all features, host target", cap.list[#cap.list].msg)
+      H.eq(n + 1, #cap.list)
+      H.eq({ msg = "no Cargo.toml found", level = vim.log.levels.WARN }, cap.list[#cap.list])
     end)
 
-    it("reset calls M.reset, any other argument opens the picker", function()
+    it("reset calls M.reset, no argument opens the picker, any other argument warns with the usage", function()
+      local calls = {}
+      local orig_reset, orig_pick = rc.reset, rc.pick
+      rc.reset = function()
+        calls[#calls + 1] = "reset"
+      end
+      rc.pick = function()
+        calls[#calls + 1] = "pick"
+      end
+      on_undo(function()
+        rc.reset, rc.pick = orig_reset, orig_pick
+      end)
+      local cap = notes()
+      vim.cmd("RustContext reset")
+      H.eq({ "reset" }, calls)
+      vim.cmd("RustContext")
+      H.eq({ "reset", "pick" }, calls)
+      vim.cmd("RustContext bogus")
+      vim.cmd("RustContext resett")
+      H.eq({ "reset", "pick" }, calls, "an unknown argument opens nothing")
+      H.eq(2, #cap.list)
+      H.eq(vim.log.levels.WARN, cap.list[1].level)
+      H.match(cap.list[1].msg, "unknown argument 'bogus' (use show or reset", true)
+    end)
+
+    it("reset and the bare command still go to M.reset / M.pick", function()
       local calls = {}
       local orig_reset, orig_pick = rc.reset, rc.pick
       rc.reset = function()
@@ -557,9 +584,7 @@ end
       vim.cmd("RustContext reset")
       H.eq({ "reset" }, calls)
       vim.cmd("RustContext")
-      vim.cmd("RustContext features")
-      vim.cmd("RustContext resett")
-      H.eq({ "reset", "pick", "pick", "pick" }, calls)
+      H.eq({ "reset", "pick" }, calls)
     end)
 
     it("reset in a crate forgets the stored choice of that workspace only", function()

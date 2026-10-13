@@ -250,8 +250,8 @@ describe("buffer-local maps on a Rust buffer", function()
       ra = "Refactor actions", rv = "Extract variable", rf = "Extract function", rc = "Extract constant",
       ri = "Inline", rs = "Structural search & replace", rj = "Join lines (semantic)",
       rm = "Expand macro (recursive)", rh = "View HIR", rH = "View MIR", rS = "Syntax tree",
-      rp = "Parent module", rt = "Related tests", rC = "Open Cargo.toml", rd = "Open docs.rs",
-      rE = "External docs", re = "Explain error code", rw = "Workspace symbol",
+      rp = "Parent module", rt = "Related tests", rC = "Open Cargo.toml", rd = "Open docs (local rustup, else docs.rs)",
+      rE = "Open docs (same as rd)", re = "Explain error code", rw = "Workspace symbol",
       rW = "Workspace symbol (+ dependencies, all kinds)", tD = "Doctests (cargo test --doc)",
       rT = "Toggle tests in find usages", ru = "Go to super method (trait item)",
       rl = "Usages in file (R/W)", rF = "Cargo features / target (both diagnostic tiers)",
@@ -466,6 +466,17 @@ describe("buffer-local maps on a Rust buffer", function()
     local rv = require("rustaceanvim.rust_analyzer")
     H.eq(rv.buf_request, rv.buf_request)
     H.is_nil(debug.getinfo(rv.buf_request, "S").source:find("rust_assist", 1, true))
+  end)
+
+  it("8. a query that matches nothing says 'SSR: no matches' (real rust-analyzer)", function()
+    local ra = require("config.rust_assist")
+    local n = notifications()
+    answer_input("Some(98765) ==>> None")
+    ra.ssr()
+    H.wait_for(function()
+      return #n > 0
+    end, 30000, "a notice for the empty SSR result")
+    H.eq({ msg = "SSR: no matches", level = vim.log.levels.INFO }, n[1])
   end)
 
   it("8. <leader>rs maps: normal and selection variants", function()
@@ -774,8 +785,8 @@ describe("rust_assist", function()
     local NODOC = "no documentation for the item under the cursor"
 
     it("15. rd and rE both call M.open_docs and request externalDocs", function()
-      H.eq("Open docs.rs", mp("<leader>rd").desc)
-      H.eq("External docs", mp("<leader>rE").desc)
+      H.eq("Open docs (local rustup, else docs.rs)", mp("<leader>rd").desc)
+      H.eq("Open docs (same as rd)", mp("<leader>rE").desc)
       local calls = 0
       stub(ra, "open_docs", function()
         calls = calls + 1
@@ -1225,7 +1236,7 @@ describe("rust_nav", function()
         res = {
           { range = range(l + 1, 28), kind = 2 }, -- read: println line
           { range = range(l - 1, 8), kind = 3 }, -- write: the let
-          { range = range(l, 5) }, -- no kind: text (name_wrdx line)
+          { range = range(l, 5), kind = 1 }, -- text (name_wrdx line)
         },
       })
       vim.fn.setqflist({}, "r")
@@ -1242,6 +1253,10 @@ describe("rust_nav", function()
       H.match(qf.items[3].text, "^%[R%] println!")
       H.eq(S.buf, qf.items[1].bufnr)
       H.eq(9, qf.items[1].col)
+      -- rust-analyzer sends no kind on a declaration: labelled [W], not [T]
+      stub_definition({ res = { { range = range(l - 1, 8) } } })
+      mp("<leader>rl").callback()
+      H.match(vim.fn.getqflist({ items = true }).items[1].text, "^%[W%] let total")
       local has_qf = false
       for _, w in ipairs(vim.api.nvim_list_wins()) do
         has_qf = has_qf or vim.bo[vim.api.nvim_win_get_buf(w)].buftype == "quickfix"
@@ -1374,6 +1389,48 @@ describe("after/ftplugin/rust.lua", function()
     H.not_ok(vim.wo.spell and false)
   end)
 
+  it("33. the \" map inserts a plain quote behind an odd number of backslashes, every other one goes to mini.pairs", function()
+    -- (typing it through feedkeys evaluates expr maps before the preceding keys of the same
+    -- batch are inserted, so the map is called directly with the line state of each case)
+    local buf = scratch("rust")
+    vim.cmd("doautocmd User VeryLazy")
+    local m = vim.api.nvim_buf_call(buf, function()
+      return vim.fn.maparg('"', "i", false, true)
+    end)
+    H.eq(1, m.buffer)
+    H.eq(1, m.expr)
+    local function press(line, col, fn)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, { line })
+      -- (normal mode clamps the cursor onto the last character; insert mode may sit behind it)
+      local orig = vim.api.nvim_win_get_cursor
+      vim.api.nvim_win_get_cursor = function()
+        return { 1, col or #line }
+      end
+      local ok, res = pcall(fn or m.callback)
+      vim.api.nvim_win_get_cursor = orig
+      assert(ok, res)
+      return res
+    end
+    H.eq('"', press('let f = "a\\'), "one backslash: escaped quote")
+    H.eq('"', press('let f = "a\\\\\\'), "three backslashes")
+    -- every other state is delegated to the global mini.pairs mapping
+    local global
+    for _, g in ipairs(vim.api.nvim_get_keymap("i")) do
+      if g.lhs == '"' then
+        global = g
+      end
+    end
+    H.ok(global and global.expr == 1, "mini.pairs' global map")
+    for _, line in ipairs({ "let f = ", 'let f = "a\\\\' }) do
+      local got = press(line)
+      local expected = press(line, nil, function()
+        return vim.api.nvim_eval(global.rhs)
+      end)
+      H.eq(expected, got, "delegated: " .. line)
+    end
+    H.ok(press("let f = ") ~= '"', "a plain quote still pairs")
+  end)
+
   it("31. the ' map exists only in Rust buffers (not toml / lua)", function()
     for _, ft in ipairs({ "toml", "lua" }) do
       local buf = scratch(ft)
@@ -1444,6 +1501,22 @@ describe("after/ftplugin/rust.lua", function()
       H.ok(found["bdword"], "line comment word flagged: " .. vim.inspect(found))
       H.not_ok(found["wrdx"] or found["name_wrdx"] or found["strng"], "identifier/string flagged: " .. vim.inspect(found))
       H.ok(vim.api.nvim_buf_is_valid(buf))
+    end)
+
+    it("32. Rust words (Vec, tokio, usize, impl) are in the shipped spellfile and not flagged", function()
+      open_main()
+      vim.bo.spelllang = "en"
+      if vim.fn.spellbadword("misspeled")[1] == "" then
+        H.skip_file("no English spell dictionary available")
+      end
+      local files = vim.opt_local.spellfile:get()
+      H.eq(vim.fn.stdpath("config") .. "/spell/en.utf-8.add", files[#files])
+      for _, w in ipairs({ "Vec", "tokio", "serde", "usize", "impl", "async", "struct", "TODO" }) do
+        H.eq("", vim.fn.spellbadword(w)[1], w .. " flagged")
+      end
+      H.eq("misspeled", vim.fn.spellbadword("misspeled")[1])
+      -- `zg` goes to the user's own list, not into this repo
+      H.match(files[1], "/site/spell/en.utf-8.add", true)
     end)
   end)
 end)
