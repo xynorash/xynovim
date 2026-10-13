@@ -17,6 +17,8 @@ local starts = {} -- name -> os.time() of the automatic restarts in the last min
 local disk_changed = false
 local heads = {} -- workspace root -> git HEAD signature when last looked at
 local manifests = {} -- workspace root -> Cargo.toml mtime when last looked at
+local lives = {} -- workspace root -> identity of target/bacon-ls-live when last looked at
+local locks = {} -- workspace root -> Cargo.lock signature (kept while clippy is not failed)
 local swept = {} -- client ids stopped by sweep(): their exit is not a crash
 local SERVER_EXES = { ["rust-analyzer"] = true, ["bacon-ls"] = true }
 
@@ -133,6 +135,52 @@ end
 local function manifest_sig(root)
   local st = vim.uv.fs_stat(root .. "/Cargo.toml")
   return st and (st.mtime.sec .. "." .. st.mtime.nsec) or "-"
+end
+
+--- Inode and birth time of the root's target/bacon-ls-live ("-" when absent): a `cargo clean`
+--- deletes it and bacon-ls then recreates it, with the same path but another identity.
+local function live_sig(root)
+  local st = vim.uv.fs_stat(root .. "/target/bacon-ls-live")
+  return st and (st.ino .. ":" .. (st.birthtime and (st.birthtime.sec .. "." .. st.birthtime.nsec) or "")) or "-"
+end
+
+local function lock_sig(root)
+  local st = vim.uv.fs_stat(root .. "/Cargo.lock")
+  return st and (st.size .. ":" .. st.mtime.sec .. "." .. st.mtime.nsec) or "-"
+end
+
+--- On a save: restart bacon-ls when its in-memory shadow no longer matches the disk.
+---  * `cargo clean` wiped target/bacon-ls-live under a running bacon-ls, which then never
+---    reported a new error again while the status said `clippy ok` (field test).
+---  * Cargo.lock was repaired/deleted while clippy has `failed`: the shadow kept the bad
+---    hardlinked lock. (Watched only in that state: cargo rewrites the lock itself.)
+function M.check_shadow()
+  local restart = false
+  for _, c in ipairs(bacon_clients()) do
+    local root = c.config.root_dir
+    if root and root:sub(1, 1) == "/" then
+      local live = live_sig(root)
+      if live ~= "-" and lives[root] and lives[root] ~= live then
+        restart = true
+      end
+      lives[root] = live ~= "-" and live or lives[root]
+      local lock = lock_sig(root)
+      if not require("config.lsp_status").bacon_failed(c.id) then
+        locks[root] = lock
+      elseif locks[root] == nil then
+        locks[root] = lock
+      elseif locks[root] ~= lock then
+        locks[root] = lock
+        restart = true
+      end
+    end
+  end
+  if restart then
+    lives, locks = {}, {}
+    vim.cmd("lsp restart bacon_ls")
+    vim.notify("bacon-ls restarted (target/ was cleaned or Cargo.lock changed)", vim.log.levels.INFO)
+  end
+  return restart
 end
 
 --- Whether a buffer's file is a Rust/Cargo file below a bacon-ls workspace.
@@ -253,6 +301,14 @@ function M.kill_uninitialised()
   end
 end
 
+--- VimLeavePre: a SIGSTOPped server does not act on the SIGTERM/shutdown of nvim's exit and was
+--- orphaned (state T, PPID 1). SIGCONT lets it handle them (harmless for a running one).
+function M.resume_servers()
+  for pid in pairs(M.server_pids()) do
+    vim.uv.kill(pid, "sigcont")
+  end
+end
+
 function M.restart()
   M.sweep()
   M.kill_survivors(M.server_pids())
@@ -292,7 +348,13 @@ function M.setup()
     end,
   })
 
-  vim.api.nvim_create_autocmd("VimLeavePre", { group = group, callback = M.kill_uninitialised })
+  vim.api.nvim_create_autocmd("VimLeavePre", {
+    group = group,
+    callback = function()
+      M.resume_servers()
+      M.kill_uninitialised()
+    end,
+  })
 
   -- A project directory moved or deleted under a running nvim: bacon-ls recreated
   -- <old path>/target/bacon-ls-live on the next edit and the status said `clippy ok` until
@@ -306,6 +368,7 @@ function M.setup()
       end
       if #bacon_clients() > 0 then
         M.sweep()
+        M.check_shadow()
       end
     end,
   })

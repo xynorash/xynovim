@@ -97,6 +97,11 @@ function M.rust_analyzer(bufnr)
   return "RA ready"
 end
 
+--- Whether the last bacon-ls run of client `id` failed (cargo exited with an error).
+function M.bacon_failed(id)
+  return st(id).failed == true
+end
+
 function M.bacon(bufnr)
   local c = vim.lsp.get_clients({ bufnr = bufnr or 0, name = "bacon_ls" })[1]
   if not c then

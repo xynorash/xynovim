@@ -689,6 +689,7 @@ describe("editing-ui and domain specs", function()
     local k = Config.plugins["kulala.nvim"]
     H.eq("v5.3.4", k.tag)
     H.eq(false, k.submodules)
+    H.eq(true, opts_of("kulala.nvim").disable_news_popup)
     local ts = opts_of("nvim-treesitter").ensure_installed
     H.has(ts, "sql")
     H.has(ts, "wgsl")

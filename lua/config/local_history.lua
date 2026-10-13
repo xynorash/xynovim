@@ -458,8 +458,9 @@ function M.snapshot(opts)
         M.snapshot(opts)
       end, 500)
     else
+      -- only note it: finish() arms the timer once `last` is set. Armed here, the timer used the
+      -- previous snapshot's age and forced one about 1 s later (a second commit within the throttle)
       pending[root] = true
-      arm(root)
     end
     return
   end
@@ -487,6 +488,9 @@ function M.snapshot(opts)
     if ok then
       last[root] = os.time()
       failed[root] = nil
+      if pending[root] then
+        arm(root)
+      end
     else
       failed[root] = os.time()
       -- one retry of the unrecorded save once the backoff is over

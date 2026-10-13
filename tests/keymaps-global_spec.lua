@@ -466,8 +466,11 @@ describe("<leader>r outside Rust buffers", function()
     local l = vim.fn.search("^name", "cw")
     H.ok(l > 0)
     vim.api.nvim_win_set_cursor(0, { l, 0 })
-    H.eq("Rust (Rust buffers only)", md("<leader>r", "n").desc)
-    H.eq("Rust (Rust buffers only)", md("<leader>r", "x").desc)
+    -- per-key stubs, no `<leader>r` leaf: a leaf blocking in getcharstr() made which-key skip its popup
+    H.eq(0, next(md("<leader>r", "n")) and 1 or 0, "no <leader>r leaf mapping")
+    H.eq("which_key_ignore", md("<leader>rv", "n").desc)
+    H.eq("which_key_ignore", md("<leader>rv", "x").desc)
+    H.eq("which_key_ignore", md("<leader>r/", "n").desc)
     local cap = H.capture_notify()
     H.feed("<leader>rv")
     H.feed("<leader>rr")
@@ -480,6 +483,18 @@ describe("<leader>r outside Rust buffers", function()
     H.feed("v<leader>rv")
     H.eq(before, vim.api.nvim_buf_get_lines(0, 0, -1, false))
     H.feed("<Esc>")
+  end)
+
+  it("in a Rust buffer an unbound <leader>r<key> says so (not 'Rust buffers only')", function()
+    H.open(H.fixture("standalone.rs"))
+    H.eq("rust", vim.bo.filetype)
+    local before = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    local cap = H.capture_notify()
+    H.feed("<leader>rz")
+    cap.restore()
+    H.eq(before, vim.api.nvim_buf_get_lines(0, 0, -1, false))
+    H.eq(1, #cap.list)
+    H.match(cap.list[1].msg, "<leader>rz is not bound", true)
   end)
 end)
 
@@ -660,8 +675,10 @@ describe("keys in a Rust buffer", function()
     end, 15000, "<leader>ra")
     H.eq("Refactor actions", bmap("<leader>ra", "n").desc)
     for _, m in ipairs(vim.api.nvim_get_keymap("n")) do
-      H.no_match(m.lhs, "^ r%a", false, "global <leader>r* map " .. m.lhs)
-      H.no_match(m.lhs, "^<Space>r%a", false, "global <leader>r* map " .. m.lhs)
+      -- the only global ones are the hidden "not bound" stubs
+      if (m.lhs:match("^ r%a") or m.lhs:match("^<Space>r%a")) and m.desc ~= "which_key_ignore" then
+        error("global <leader>r* map " .. m.lhs .. " is not a stub")
+      end
     end
   end)
 

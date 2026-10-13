@@ -634,10 +634,12 @@ describe("buffer-local maps on a Rust buffer", function()
     end
   end)
 
-  it("34. <leader>rD and <leader>rr are not mapped", function()
+  it("34. <leader>rD and <leader>rr are not mapped (only the global hidden 'not bound' stub)", function()
     for _, lhs in ipairs({ "<leader>rD", "<leader>rr" }) do
       for _, mode in ipairs({ "n", "x" }) do
-        H.eq({}, mp(lhs, mode), lhs .. " in " .. mode)
+        local m = mp(lhs, mode)
+        H.eq(0, m.buffer or 0, lhs .. " in " .. mode .. " is not buffer-local")
+        H.eq("which_key_ignore", m.desc, lhs .. " in " .. mode)
       end
     end
   end)
@@ -916,16 +918,22 @@ describe("rust_assist", function()
   end)
 
   describe("workspace symbol", function()
-    it("18. rw / rW ask once ('Symbol query: '), strip whitespace, bang for rW", function()
+    it("18. rw / rW ask once ('Symbol query: '), search the first word (and say so), bang for rW", function()
       H.eq("Workspace symbol", mp("<leader>rw").desc)
       H.eq("Workspace symbol (+ dependencies, all kinds)", mp("<leader>rW").desc)
       local calls = capture_nvim_cmd()
       local prompts = answer_input("  Hash Map  ")
+      local cap = H.capture_notify()
       mp("<leader>rw").callback()
       mp("<leader>rW").callback()
+      cap.restore()
       H.eq({ "Symbol query: ", "Symbol query: " }, prompts)
-      H.eq({ cmd = "RustLsp", args = { "workspaceSymbol", "HashMap" } }, calls[1])
-      H.eq({ cmd = "RustLsp", args = { "workspaceSymbol", "HashMap" }, bang = true }, calls[2])
+      H.eq({ cmd = "RustLsp", args = { "workspaceSymbol", "Hash" } }, calls[1])
+      H.eq({ cmd = "RustLsp", args = { "workspaceSymbol", "Hash" }, bang = true }, calls[2])
+      H.match(cap.list[1].msg, "only one word is searched (Hash)", true)
+      prompts = answer_input("   ")
+      mp("<leader>rw").callback()
+      H.eq(2, #calls, "a blank query runs nothing")
     end)
 
     it("18. from the quickfix window rw runs in a Rust window of the tab (RustLsp does not exist elsewhere)", function()

@@ -416,7 +416,8 @@ describe("<leader>rN", function()
         return vim.fn.maparg(vim.g.mapleader .. "rN", "n", false, true)
       end)
     end
-    H.eq(0, vim.tbl_count(lookup(buf)) == 0 and 0 or 1, "map exists before attach")
+    -- (only the global hidden "not bound" stub, never the buffer-local map)
+    H.eq(0, lookup(buf).buffer or 0, "buffer-local map exists before attach")
 
     local orig = vim.lsp.get_client_by_id
     vim.lsp.get_client_by_id = function(id)
@@ -431,7 +432,7 @@ describe("<leader>rN", function()
       H.eq(1, #acs)
       acs[1].callback({ buf = buf, data = { client_id = 987654 } })
       H.wait_for(function()
-        return lookup(buf).rhs
+        return lookup(buf).buffer == 1 and lookup(buf).rhs
       end, 20000, "<leader>rN map")
     end)
     vim.lsp.get_client_by_id = orig
@@ -444,7 +445,7 @@ describe("<leader>rN", function()
     H.eq("HTTP routes (axum / actix / rocket)", m.desc)
     -- not global: another buffer has no such map
     vim.cmd.enew()
-    H.eq(0, vim.tbl_count(lookup(vim.api.nvim_get_current_buf())) == 0 and 0 or 1)
+    H.eq(0, lookup(vim.api.nvim_get_current_buf()).buffer or 0)
   end)
 end)
 

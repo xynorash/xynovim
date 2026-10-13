@@ -76,8 +76,17 @@ function M.workspace_symbol(deps)
     end
   end
   ask("Symbol query: ", function(q)
+    -- RustLsp splits its arguments on whitespace: the first word is the query ("Square area" became
+    -- "Squarearea" when the blanks were stripped, and found nothing)
+    local word = q:match("%S+")
+    if not word then
+      return
+    end
+    if word ~= vim.trim(q) then
+      vim.notify("workspace symbol: only one word is searched (" .. word .. ")", vim.log.levels.INFO)
+    end
     vim.api.nvim_win_call(win, function()
-      vim.api.nvim_cmd({ cmd = "RustLsp", args = { "workspaceSymbol", (q:gsub("%s+", "")) }, bang = deps }, {})
+      vim.api.nvim_cmd({ cmd = "RustLsp", args = { "workspaceSymbol", word }, bang = deps }, {})
     end)
   end)
 end

@@ -1002,7 +1002,7 @@ describe("throttle and timers", function()
     H.eq("second\n", blob(root, b_commit, "a.txt"))
   end)
 
-  it("a non-forced snapshot that finds another running marks pending and arms the timer", function()
+  it("a non-forced snapshot that finds another running marks pending; the timer is armed when that one ends, for the full throttle (it forced a second commit ~1 s later)", function()
     local root = mkrepo()
     fake("commit-tree", "slowonce:1")
     local done
@@ -1010,8 +1010,11 @@ describe("throttle and timers", function()
     wait_pidfile("commit-tree")
     LH.snapshot({ path = root })
     H.eq(true, state("pending")[root])
-    H.ok(state("timers")[root])
+    H.is_nil(state("timers")[root], "not armed while the snapshot runs")
     H.wait_for(function() return done end, 20000, "first snapshot")
+    H.ok(state("timers")[root], "armed by finish()")
+    local last_start = timer_starts[#timer_starts]
+    H.ok(last_start >= 59000 and last_start <= 61000, "due in " .. tostring(last_start) .. " ms, after the throttle")
   end)
 
   it("the 30 s watchdog aborts a hung git (kills the child), clears the running state, done fires once", function()

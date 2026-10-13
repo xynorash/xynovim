@@ -84,8 +84,33 @@ function M.root(path)
   return cargo_workspace(vim.fs.dirname(path), mtime(found[1]) .. "|" .. mtime(top)) or vim.fs.dirname(f)
 end
 
+--- A hand-edited state file may hold anything (`{"features":5,"target":[]}` raised in describe()
+--- and ra_cargo()): drop the fields of the wrong type, keep the rest as stored.
+local function sanitize(ctx)
+  if type(ctx) ~= "table" then
+    return nil
+  end
+  local out = vim.deepcopy(ctx)
+  for _, k in ipairs({ "all", "no_default" }) do
+    if type(out[k]) ~= "boolean" then
+      out[k] = nil
+    end
+  end
+  if type(out.features) == "table" then
+    out.features = vim.tbl_filter(function(f)
+      return type(f) == "string" and f ~= ""
+    end, vim.islist(out.features) and out.features or {})
+  else
+    out.features = nil
+  end
+  if type(out.target) ~= "string" or out.target == "" then
+    out.target = nil
+  end
+  return out
+end
+
 function M.get(root)
-  return root and read_all()[root] or nil
+  return root and sanitize(read_all()[root]) or nil
 end
 
 --- Settings.cargo table for rust-analyzer.

@@ -274,11 +274,32 @@ local function pick_workspace_debuggable()
   end)
 end
 
+--- <leader>dP: dap.pause() picks from session.threads, which codelldb fills only when it stops, so
+--- on a running process it saw no thread ("No thread to stop") and did nothing. Ask for the threads first.
+local function pause()
+  local dap = require("dap")
+  local session = dap.session()
+  if not session then
+    return notify("no debug session", vim.log.levels.WARN)
+  end
+  if next(session.threads or {}) then
+    return dap.pause()
+  end
+  session:request("threads", nil, function(err, resp)
+    local t = not err and resp and resp.threads and resp.threads[1]
+    if not t then
+      return notify("no thread to pause", vim.log.levels.WARN)
+    end
+    dap.pause(t.id)
+  end)
+end
+
 return {
   {
     "mfussenegger/nvim-dap",
     keys = {
       { "<leader>dR", pick_workspace_debuggable, desc = "Rust Debuggables (whole workspace)" },
+      { "<leader>dP", pause, desc = "Pause" },
     },
   },
   {

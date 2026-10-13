@@ -2,21 +2,20 @@
 -- Default keymaps that are always set: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/keymaps.lua
 -- Add any additional keymaps here
 
--- Global <leader>r catch-all: the r* maps below are buffer-local (rust-analyzer attached), so
+-- Global <leader>r<key> stubs: the r* maps below are buffer-local (rust-analyzer attached), so
 -- in Cargo.toml / Lua / markdown buffers (and for a key nothing binds) Vim parsed <Space>rv as
--- `l` + `rv`, replaced a character and auto-save wrote it. A real buffer-local map still wins.
-vim.keymap.set({ "n", "x" }, "<leader>r", function()
-  local key = vim.fn.getcharstr()
-  local lhs = "<leader>" .. key
-  local mode = vim.api.nvim_get_mode().mode:sub(1, 1) == "n" and "n" or "x"
-  local m = vim.fn.maparg(lhs, mode, false, true)
-  if key ~= "\27" and m.buffer == 1 then
-    return vim.api.nvim_feedkeys(vim.keycode(lhs), "m", false)
+-- `l` + `rv`, replaced a character and auto-save wrote it. A real buffer-local map wins. These
+-- are per-key stubs, not one `<leader>r` leaf blocking in getcharstr(): such a leaf made which-key
+-- skip its popup when `Space r` was typed at normal speed. which_key_ignore keeps them out of it.
+local function not_bound(key)
+  return function()
+    local what = vim.bo.filetype == "rust" and " is not bound" or ": Rust maps work in Rust buffers only"
+    vim.notify("<leader>r" .. key .. what, vim.log.levels.INFO)
   end
-  if key ~= "\27" then
-    vim.notify("<leader>r" .. vim.fn.keytrans(key) .. ": Rust maps work in Rust buffers only", vim.log.levels.INFO)
-  end
-end, { desc = "Rust (Rust buffers only)" })
+end
+for _, key in ipairs(vim.split("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{};:'\",.<>/?|~`", "")) do
+  vim.keymap.set({ "n", "x" }, "<leader>r" .. key, not_bound(key), { desc = "which_key_ignore" })
+end
 
 -- rust-analyzer commands that rustaceanvim exposes but nothing bound.
 -- Buffer-local, set on rust-analyzer attach (scheduled so we also win over

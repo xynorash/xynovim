@@ -154,9 +154,9 @@ end
 
 -- Workspace-wide tools (supply chain, size, build time).
 local TOOLS = {
-  { "timings (cargo build --timings; report in target/cargo-timings)", { "cargo", "build", "--timings" } },
-  { "bloat by crate (release)", { "cargo", "bloat", "--release", "--crates" } },
-  { "bloat by function (release, top 30)", { "cargo", "bloat", "--release", "-n", "30" } },
+  { "timings (cargo build --timings; report in target/cargo-timings)", { "cargo", "build", "--timings" }, true },
+  { "bloat by crate (release)", { "cargo", "bloat", "--release", "--crates" }, true },
+  { "bloat by function (release, top 30)", { "cargo", "bloat", "--release", "-n", "30" }, true },
   { "unused dependencies (cargo machete)", { "cargo", "machete" } },
   { "deny: fetch advisory DB", { "cargo", "deny", "fetch" } },
   { "deny: check all", { "cargo", "deny", "check" } },

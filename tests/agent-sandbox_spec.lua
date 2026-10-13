@@ -176,7 +176,8 @@ describe("wrapped command layout", function()
     local home = fake_home()
     local m = load_for(home)
     local project, tmp = H.tmpdir(), H.tmpdir()
-    local cwd = H.tmpdir()
+    local cwd = project .. "/sub"
+    mkdir(cwd)
     local a = wrap(m, { "echo", "hi there" }, project, tmp, cwd)
     local prefix = {
       "bwrap", "--die-with-parent", "--new-session", "--unshare-user", "--disable-userns", "--unshare-pid",
@@ -186,6 +187,33 @@ describe("wrapped command layout", function()
     H.eq(prefix, vim.list_slice(a, 1, #prefix))
     local n = #a
     H.eq({ "--chdir", cwd, "--", "echo", "hi there" }, vim.list_slice(a, n - 4, n))
+  end)
+
+  it("--chdir is the project root unless nvim's cwd is inside the project (from $HOME the agent started in $HOME)", function()
+    if vim.fn.executable("bwrap") ~= 1 then
+      return harness.skip("bwrap not found")
+    end
+    local home = fake_home()
+    local m = load_for(home)
+    local project, tmp = H.tmpdir(), H.tmpdir()
+    local function chdir_of(cwd)
+      local a = wrap(m, { "true" }, project, tmp, cwd)
+      return a[#a - 2]
+    end
+    H.eq(project, chdir_of(home), "cwd = $HOME")
+    H.eq(project, chdir_of(H.tmpdir()), "cwd elsewhere under /tmp")
+    H.eq(project, chdir_of(project))
+    mkdir(project .. "/crates")
+    H.eq(project .. "/crates", chdir_of(project .. "/crates"))
+    mkdir(project .. "-sibling")
+    H.eq(project, chdir_of(project .. "-sibling"), "a sibling sharing the name prefix is not inside")
+    vim.fn.delete(project .. "-sibling", "rf")
+  end)
+
+  it("wrap refuses a missing tmp_dir", function()
+    local ok, err = pcall(real_mod.wrap, { "true" }, "/tmp", nil)
+    H.not_ok(ok)
+    H.match(tostring(err), "tmp_dir is required", true)
   end)
 
   it("binds project and tmp_dir writable, but not a missing tmp_dir", function()

@@ -460,6 +460,28 @@ describe("auto-save and disk guard", function()
       H.eq(0, n())
     end)
 
+    it("an autosaved non-Rust buffer reaches nvim-lint's BufWritePost handler (Cargo.toml lints stayed stale); a Rust one does not", function()
+      local lint_was = package.loaded["lint"]
+      package.loaded["lint"] = lint_was or {}
+      local g = vim.api.nvim_create_augroup("nvim-lint", { clear = false })
+      local hits = {}
+      local id = vim.api.nvim_create_autocmd("BufWritePost", {
+        group = g,
+        callback = function(ev)
+          hits[#hits + 1] = ev.buf
+        end,
+      })
+      local _, buf = open_file("one\n")
+      vim.bo[buf].filetype = "toml"
+      autosave_once(buf)
+      H.eq({ buf }, hits)
+      vim.bo[buf].filetype = "rust"
+      autosave_once(buf)
+      H.eq({ buf }, hits, "no lint re-emit for Rust")
+      pcall(vim.api.nvim_del_autocmd, id)
+      package.loaded["lint"] = lint_was
+    end)
+
     it("6 an autosaved Rust buffer reaches neotest's own rediscovery (group neotest.Client) and no other BufWritePost handler", function()
       local _, buf = open_file("one\n")
       vim.bo[buf].filetype = "rust"

@@ -56,6 +56,12 @@ return {
             })
           end
         end
+        -- nvim-lint (group nvim-lint, LazyVim) lints on BufWritePost, which the noautocmd write
+        -- skipped: the InsertLeave lint fires ~1 s before this save and read the old disk text, so
+        -- Cargo.toml's cargo-deny / cargo-machete diagnostics stayed stale until a manual :w
+        if vim.bo[buf].filetype ~= "rust" and package.loaded["lint"] then
+          pcall(vim.api.nvim_exec_autocmds, "BufWritePost", { group = "nvim-lint", buffer = buf, modeline = false })
+        end
         if neotest_watching() then
           vim.api.nvim_exec_autocmds("BufWritePost", { buffer = buf, modeline = false })
         elseif vim.bo[buf].filetype == "rust" and package.loaded["neotest.client"] then

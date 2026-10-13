@@ -1,6 +1,13 @@
 -- Options are automatically loaded before lazy.nvim startup.
 require("config.remote_clipboard").setup()
 
+-- rustup's proxies (rust-analyzer, cargo) live in ~/.cargo/bin: a start from a desktop launcher or
+-- another non-login environment lacks it, and opening a .rs file raised a rustaceanvim error
+local cargo_bin = vim.uv.os_homedir() .. "/.cargo/bin"
+if vim.uv.fs_stat(cargo_bin) and not (":" .. (vim.env.PATH or "") .. ":"):find(":" .. cargo_bin .. ":", 1, true) then
+  vim.env.PATH = (vim.env.PATH or "") .. ":" .. cargo_bin
+end
+
 vim.opt.relativenumber = false
 vim.g.autoformat = false
 

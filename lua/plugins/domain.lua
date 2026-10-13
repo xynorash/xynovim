@@ -14,6 +14,9 @@ return {
     "mistweaverco/kulala.nvim",
     tag = "v5.3.4",
     submodules = false,
+    -- the "what's new" popup would come with every update of a pinned plugin; grpcurl and websocat
+    -- (`:checkhealth kulala` errors) are only needed for gRPC / WebSocket requests
+    opts = { disable_news_popup = true },
   },
   {
     "nvim-treesitter/nvim-treesitter",

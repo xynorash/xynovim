@@ -197,6 +197,21 @@ end)
 
 -- ------------------------------------------------------------- 5 - 9 lazy.lua
 
+describe("PATH", function()
+  it("~/.cargo/bin is appended when a non-login start lacks it (rust-analyzer not found)", function()
+    local cargo_bin = vim.uv.os_homedir() .. "/.cargo/bin"
+    if vim.fn.isdirectory(cargo_bin) == 0 then
+      return require("xynotest.harness").skip("no ~/.cargo/bin on this machine")
+    end
+    local env = xdg_env()
+    env.PATH = "/usr/bin:/bin"
+    local res = child("return { path = vim.env.PATH }", { env = env })
+    H.eq("/usr/bin:/bin:" .. cargo_bin, res.path)
+    env.PATH = cargo_bin .. ":/usr/bin"
+    H.eq(cargo_bin .. ":/usr/bin", child("return { path = vim.env.PATH }", { env = env }).path, "not added twice")
+  end)
+end)
+
 describe("config/lazy.lua", function()
   pending(
     "clones lazy.nvim with --filter=blob:none --branch=stable when missing, 'Failed to clone lazy.nvim' + exit 1 on failure",

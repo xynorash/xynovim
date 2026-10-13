@@ -379,6 +379,58 @@ describe("rust_restart: :RustRestart and sweep", function()
     end
   end)
 
+  it("a save restarts bacon-ls once target/bacon-ls-live was recreated (cargo clean: clippy stayed 'ok' and blind)", function()
+    local d = H.tmpdir()
+    fake_client(s, { name = "bacon_ls", root = d })
+    vim.fn.mkdir(d .. "/target/bacon-ls-live/shadow", "p")
+    local save = function()
+      vim.api.nvim_exec_autocmds("BufWritePost", { modeline = false })
+    end
+    save()
+    save()
+    H.eq(0, has_cmd(s, "lsp restart bacon_ls"), "same directory: nothing to do")
+    vim.fn.delete(d .. "/target", "rf")
+    save()
+    H.eq(0, has_cmd(s, "lsp restart bacon_ls"), "gone and not yet recreated: nothing to compare")
+    vim.fn.mkdir(d .. "/target/bacon-ls-live/shadow", "p")
+    save()
+    H.eq(1, has_cmd(s, "lsp restart bacon_ls"), "recreated: restart")
+    save()
+    H.eq(1, has_cmd(s, "lsp restart bacon_ls"), "once")
+  end)
+
+  it("a repaired or deleted Cargo.lock restarts bacon-ls only while clippy has failed", function()
+    local d = H.tmpdir()
+    local c = fake_client(s, { name = "bacon_ls", root = d })
+    local ls = require("config.lsp_status")
+    local orig, failed = ls.bacon_failed, false
+    ls.bacon_failed = function(id)
+      H.eq(c.id, id)
+      return failed
+    end
+    local save = function()
+      vim.api.nvim_exec_autocmds("BufWritePost", { modeline = false })
+    end
+    local ok, err = pcall(function()
+      vim.fn.writefile({ "garbage = [" }, d .. "/Cargo.lock")
+      save()
+      vim.fn.writefile({ "# cargo rewrote it", "version = 4" }, d .. "/Cargo.lock")
+      save()
+      H.eq(0, has_cmd(s, "lsp restart bacon_ls"), "not failed: the lock is cargo's business")
+      failed = true
+      save()
+      save()
+      H.eq(0, has_cmd(s, "lsp restart bacon_ls"), "failed, lock unchanged")
+      vim.fn.delete(d .. "/Cargo.lock")
+      save()
+      H.eq(1, has_cmd(s, "lsp restart bacon_ls"), "failed and the lock was deleted")
+      save()
+      H.eq(1, has_cmd(s, "lsp restart bacon_ls"), "once")
+    end)
+    ls.bacon_failed = orig
+    H.ok(ok, tostring(err))
+  end)
+
   it("the exit of a client sweep stopped (SIGTERM) is no crash: no 'exited ... restarting' warning, no restart", function()
     local gone = H.tmpdir()
     local c = fake_client(s, { name = "bacon_ls", root = gone, bufs = {} })
@@ -481,6 +533,23 @@ describe("rust_restart: VimLeavePre kill of servers that never initialised", fun
       return false
     end, 20)
     H.eq({}, s.ra_starts)
+  end)
+
+  it("VimLeavePre sends SIGCONT to this nvim's server children first (SIGSTOPped servers were orphaned at quit)", function()
+    local rr = require("config.rust_restart")
+    local sent = {}
+    local orig_kill, orig_pids = vim.uv.kill, rr.server_pids
+    vim.uv.kill = function(pid, sig)
+      sent[#sent + 1] = { pid, sig }
+      return 0
+    end
+    rr.server_pids = function()
+      return { [111] = "rust-analyzer" }
+    end
+    local ok, e = pcall(vim.api.nvim_exec_autocmds, "VimLeavePre", { group = "xynovim_rust_restart", modeline = false })
+    vim.uv.kill, rr.server_pids = orig_kill, orig_pids
+    H.ok(ok, tostring(e))
+    H.eq({ { 111, "sigcont" } }, sent)
   end)
 
   it("with every client initialised nothing is killed", function()

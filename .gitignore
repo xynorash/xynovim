@@ -7,3 +7,5 @@ foo.*
 *.log
 data
 spell/*.spl
+tests/fixtures/**/target/
+tests/fixtures/**/.rustc_info.json

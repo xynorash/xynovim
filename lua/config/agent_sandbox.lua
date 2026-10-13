@@ -368,6 +368,7 @@ end
 --- @param tmp_dir string 99's tmp dir (writable)
 --- @return string[]
 function M.wrap(cmd, project, tmp_dir)
+  assert(type(tmp_dir) == "string" and tmp_dir ~= "", "agent_sandbox.wrap: tmp_dir is required")
   if vim.g.xynovim_99_sandbox == false or vim.fn.executable("bwrap") ~= 1 then
     return cmd
   end
@@ -467,7 +468,11 @@ function M.wrap(cmd, project, tmp_dir)
     end
   end
 
-  vim.list_extend(a, { "--chdir", vim.uv.cwd() or project, "--" })
+  -- nvim's own cwd only when it is inside the project: from $HOME the agent started in $HOME, and
+  -- a cwd outside the project (e.g. under /tmp, which is a tmpfs here) made bwrap fail on chdir
+  local cwd = vim.uv.cwd()
+  local inside = cwd and (cwd == project or project == "/" or cwd:sub(1, #project + 1) == project .. "/")
+  vim.list_extend(a, { "--chdir", inside and cwd or project, "--" })
   return vim.list_extend(a, cmd)
 end
 

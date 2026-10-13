@@ -552,17 +552,18 @@ describe(":RustTools", function()
     return H.ok(cap.opts, "picker was not opened"), dir
   end
 
-  it("lists the 9 tools with their commands; only coverage gets the context flags", function()
+  it("lists the 9 tools with their commands; the builds (timings, bloat, coverage) get the context flags", function()
     H.need_rust()
     local ctx = { all = false, features = { "a" }, target = "x86_64-unknown-linux-gnu" }
     local opts, dir = tools(ctx)
     H.eq("Cargo tools", opts.title)
     H.eq("text", opts.format)
     local cov = { "cargo", "llvm-cov", "--workspace", "--ignore-run-fail", "--summary-only", "--features", "a", "--target", "x86_64-unknown-linux-gnu" }
+    local flags = { "--features", "a", "--target", "x86_64-unknown-linux-gnu" }
     local expected = {
-      { "timings (cargo build --timings; report in target/cargo-timings)", { "cargo", "build", "--timings" } },
-      { "bloat by crate (release)", { "cargo", "bloat", "--release", "--crates" } },
-      { "bloat by function (release, top 30)", { "cargo", "bloat", "--release", "-n", "30" } },
+      { "timings (cargo build --timings; report in target/cargo-timings)", vim.list_extend({ "cargo", "build", "--timings" }, flags) },
+      { "bloat by crate (release)", vim.list_extend({ "cargo", "bloat", "--release", "--crates" }, flags) },
+      { "bloat by function (release, top 30)", vim.list_extend({ "cargo", "bloat", "--release", "-n", "30" }, flags) },
       { "unused dependencies (cargo machete)", { "cargo", "machete" } },
       { "deny: fetch advisory DB", { "cargo", "deny", "fetch" } },
       { "deny: check all (no deny.toml: licenses skipped)", { "cargo", "deny", "check", "advisories", "bans", "sources" } },
@@ -602,7 +603,7 @@ describe(":RustTools", function()
     H.need_rust()
     local opts = tools(nil)
     H.eq({ "cargo", "llvm-cov", "--workspace", "--ignore-run-fail", "--summary-only", "--all-features" }, opts.items[9].cmd)
-    H.eq({ "cargo", "build", "--timings" }, opts.items[1].cmd)
+    H.eq({ "cargo", "build", "--timings", "--all-features" }, opts.items[1].cmd)
     unstub_all()
     local opts2 = tools(nil)
     H.eq({ "cargo", "llvm-cov", "--workspace", "--ignore-run-fail", "--summary-only", "--all-features" }, opts2.items[9].cmd)

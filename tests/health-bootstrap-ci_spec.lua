@@ -946,6 +946,12 @@ describe("README prerequisites vs health TOOLS and bootstrap", function()
       ["markdown-toc"] = "npm package Mason installs",
       ["markdownlint-cli2"] = "npm package Mason installs",
       ["yaml-language-server"] = "npm package Mason installs",
+      marksman = "Mason package",
+      ["lua-language-server"] = "Mason package",
+      ["json-lsp"] = "Mason package",
+      ["tree-sitter-cli"] = "Mason package (health checks the tree-sitter binary)",
+      stylua = "Mason package",
+      shfmt = "Mason package",
     }
     local all = {}
     for _, p in ipairs({ "- Required to bring the config up", "- Required for the Rust workflow", "- Installed by Mason", "- Optional" }) do

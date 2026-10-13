@@ -858,6 +858,59 @@ describe("<leader>dR workspace debuggables", function()
   end)
 end)
 
+describe("<leader>dP pause", function()
+  local function key_fn()
+    local k = fresh()[1].keys[2]
+    H.eq("<leader>dP", k[1])
+    return k[2]
+  end
+
+  it("a running session with no known threads asks for them and pauses the first (codelldb fills them only on a stop)", function()
+    local dap = require("dap")
+    local pauses, reqs = {}, {}
+    local orig_pause, orig_session = dap.pause, dap.session
+    dap.pause = function(...)
+      pauses[#pauses + 1] = { ... }
+    end
+    dap.session = function()
+      return {
+        threads = {},
+        request = function(_, cmd, _, cb)
+          reqs[#reqs + 1] = cmd
+          cb(nil, { threads = { { id = 7, name = "main" } } })
+        end,
+      }
+    end
+    local ok, err = pcall(key_fn())
+    dap.pause, dap.session = orig_pause, orig_session
+    H.ok(ok, tostring(err))
+    H.eq({ "threads" }, reqs)
+    H.eq({ { 7 } }, pauses)
+  end)
+
+  it("known threads: plain dap.pause(); no session: a notice", function()
+    local dap = require("dap")
+    local pauses = 0
+    local orig_pause, orig_session = dap.pause, dap.session
+    dap.pause = function()
+      pauses = pauses + 1
+    end
+    dap.session = function()
+      return { threads = { [1] = {} }, request = error }
+    end
+    local ok, err = pcall(key_fn())
+    H.ok(ok, tostring(err))
+    H.eq(1, pauses)
+    dap.session = function() end
+    local n = H.capture_notify()
+    pcall(key_fn())
+    n.restore()
+    dap.pause, dap.session = orig_pause, orig_session
+    H.eq(1, pauses)
+    H.eq("no debug session", n.list[1].msg)
+  end)
+end)
+
 -- 16, 17 -------------------------------------------------------------------
 describe("rustaceanvim dap settings", function()
   it("dap.autoload_configurations is false", function()
