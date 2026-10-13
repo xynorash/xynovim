@@ -33,6 +33,7 @@ local TOOLS = {
   { "curl", "Mason downloads, tree-sitter parsers", false, { "--version" }, "warn" },
   { "tar", "Mason and tree-sitter archives", false, { "--version" }, "warn" },
   { "unzip", "Mason package archives", false, { "-v" }, "warn" },
+  { "gzip", "Mason unpacks .gz archives", false, { "--version" }, "warn" },
   { "gcc", "compiles tree-sitter parsers", false, { "--version" }, "warn" },
   { "node", "Mason's npm tools and yaml-language-server", false, { "--version" }, "warn" },
   { "cargo", "builds, clippy, tests (every Rust key)", false, { "--version" }, "error" },
@@ -40,8 +41,10 @@ local TOOLS = {
   { "bacon-ls", "clippy diagnostics tier", true, { "--version" }, "error" },
   { "codelldb", "debugger (dap.core)", true, nil, "warn" },
   { "taplo", "Cargo.toml LSP/formatter (lang.toml)", true, { "--version" }, "warn" },
+  { "wgsl-analyzer", "WGSL / Bevy shader LSP (plugins/domain.lua)", true, { "--version" }, "warn" },
   { "cargo-nextest", "test runner (neotest, :RustTargets, coverage)", false, { "--version" }, "warn" },
   { "cargo-deny", "supply-chain diagnostics (supply-chain.lua)", false, { "--version" }, "warn" },
+  { "cargo-expand", "full macro expansion (cargo expand; <leader>rm covers the rest)", false, { "--version" }, "warn" },
   { "lazygit", "git UI (<leader>gg)", false, { "--version" }, "warn" },
   { "delta", "diff pager (git config)", false, { "--version" }, "warn" },
   { "mold", "fast linker (~/.cargo/config.toml)", false, { "--version" }, "warn" },
@@ -93,6 +96,18 @@ function M.check()
       vim.health.ok(("stable has %s: %s"):format(c[2], c[3]))
     else
       vim.health.warn(("stable lacks %s: %s"):format(c[2], c[3]), "rustup component add --toolchain stable " .. c[2])
+    end
+  end
+  -- :RustContext's target step lists the installed targets: web/WASM crates need this one
+  local targets = vim.system({ "rustup", "target", "list", "--toolchain", "stable", "--installed" }, { text = true }):wait(10000)
+  if targets.code == 0 then
+    if (targets.stdout or ""):find("wasm32-unknown-unknown", 1, true) then
+      vim.health.ok("stable has the wasm32-unknown-unknown target: web/WASM crates (:RustContext target)")
+    else
+      vim.health.warn(
+        "stable lacks the wasm32-unknown-unknown target: web/WASM crates (:RustContext target)",
+        "rustup target add --toolchain stable wasm32-unknown-unknown"
+      )
     end
   end
 end

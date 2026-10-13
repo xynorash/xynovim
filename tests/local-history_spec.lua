@@ -674,12 +674,16 @@ describe("size cap (vim.g.xynovim_lochist_max_bytes)", function()
     H.eq(1, #note_matching("local history: skipping big.bin"), "notice only once")
   end)
 
-  it("defaults to 10 MB; 0, negative and a non-number disable the cap; a numeric string is honoured", function()
+  it("defaults to 10 MB; 0 and negative disable the cap, a non-number keeps the default; a numeric string is honoured", function()
     local root = mkrepo()
     write(root .. "/big.bin", string.rep("x", 11 * MB))
     local c = snap(root)
     H.eq({ "a.txt" }, names(root, c), "11 MB over the 10 MB default")
-    for _, v in ipairs({ 0, -1, "abc" }) do
+    vim.g.xynovim_lochist_max_bytes = "abc" -- not a number: still the 10 MB default
+    write(root .. "/a.txt", "abc\n")
+    c = snap(root)
+    H.not_ok(vim.tbl_contains(names(root, c), "big.bin"), "a non-numeric cap must not lift the cap")
+    for _, v in ipairs({ 0, -1 }) do
       vim.g.xynovim_lochist_max_bytes = v
       write(root .. "/a.txt", "v" .. tostring(v) .. "\n")
       c = snap(root)
@@ -703,6 +707,23 @@ describe("size cap (vim.g.xynovim_lochist_max_bytes)", function()
     H.ok(c2, "a new commit (the file dropped out)")
     H.eq({ "a.txt", "tracked.bin" }, names(root, c2))
     H.ok(log_count("rm %-%-cached %-r %-q %-f %-%-ignore%-unmatch %-%- grow%.bin") == 1, "git rm --cached ran")
+  end)
+end)
+
+describe("size cap and tracked files", function()
+  local MB = 1024 * 1024
+
+  it("a MODIFIED tracked file over the cap is left out of the snapshot (its blob would add its size each time)", function()
+    vim.g.xynovim_lochist_max_bytes = MB
+    local root = mkrepo({ ["a.txt"] = "a\n", ["data.db"] = string.rep("t", 2 * MB) })
+    local c1 = snap(root)
+    H.eq({ "a.txt", "data.db" }, names(root, c1), "unchanged tracked file: same blob as HEAD, kept")
+    write(root .. "/data.db", "X" .. string.rep("t", 2 * MB - 1))
+    write(root .. "/a.txt", "a2\n")
+    local c2 = snap(root)
+    H.ok(c2)
+    H.eq({ "a.txt" }, names(root, c2))
+    H.eq(1, #note_matching("local history: skipping data.db"))
   end)
 end)
 
@@ -1547,6 +1568,21 @@ describe(":LocalHistoryPrune", function()
   end)
 end)
 
+describe(":LocalHistoryPrune! with nothing left to drop", function()
+  it("still runs git gc --prune=now (the follow-up the notice recommends)", function()
+    local root = mkrepo()
+    six(root)
+    prune(root, "2")
+    H.eq(0, log_count("^[^\t]*\tgc %-%-quiet %-%-prune=now$"))
+    prune(root, "2", true)
+    H.eq(1, log_count("^[^\t]*\tgc %-%-quiet %-%-prune=now$"), "gc --prune=now ran")
+    H.eq(2, count(root, "refs/lochist/main"))
+    H.eq("local history: pruned, git gc done", notes[#notes].msg)
+    H.ok(note_matching("nothing to drop")[1], "says so")
+    fsck_clean(root)
+  end)
+end)
+
 -- --------------------------------------------------- 26. autosave, 27. 99
 
 describe("integrations", function()
@@ -1602,10 +1638,13 @@ describe("integrations", function()
       write(root .. "/a.txt", "request " .. i .. "\n")
       local before = tip(root, "refs/lochist/main")
       provider:make_request("prompt", {}, { on_complete = function() end })
-      H.eq(i, #observers, "the real provider got the request")
+      H.eq(i - 1, #observers, "the agent must not start before its checkpoint")
       H.wait_for(function()
         return tip(root, "refs/lochist/main") ~= before
       end, 15000, "labelled snapshot " .. i)
+      H.wait_for(function()
+        return #observers == i
+      end, 15000, "the real provider got the request, after the snapshot")
       H.eq("before 99 request", subject(root, "refs/lochist/main"))
       H.eq("request " .. i .. "\n", blob(root, "refs/lochist/main", "a.txt"))
       observers[i].on_complete()

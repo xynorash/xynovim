@@ -438,7 +438,7 @@ end)
 -- ----------------------------------------------------------- 9-11 colourblind
 
 describe("colourblind diagnostics", function()
-  local OKABE = { Error = "#d55e00", Warn = "#f0e442", Info = "#56b4e9", Hint = "#009e73", Ok = "#0072b2" }
+  local OKABE = { Error = "#e06a0e", Warn = "#f0e442", Info = "#56b4e9", Hint = "#009e73", Ok = "#0072b2" }
   local FG = { "Diagnostic", "DiagnosticSign", "DiagnosticFloating", "DiagnosticVirtualText", "DiagnosticVirtualLines" }
 
   before_each(function()
@@ -471,7 +471,7 @@ describe("colourblind diagnostics", function()
     H.eq(true, ux.colorblind(true))
     H.eq(true, ux.colorblind_enabled())
     check_on()
-    H.eq("#d55e00", hexc(hl("DiagnosticError").fg))
+    H.eq("#e06a0e", hexc(hl("DiagnosticError").fg))
     H.eq("#f0e442", hexc(hl("DiagnosticWarn").fg))
     H.eq("#56b4e9", hexc(hl("DiagnosticInfo").fg))
     H.eq("#009e73", hexc(hl("DiagnosticHint").fg))
@@ -495,7 +495,7 @@ describe("colourblind diagnostics", function()
 
   it("off re-runs the colourscheme and restores the island colours", function()
     ux.colorblind(true)
-    H.eq("#d55e00", hexc(hl("DiagnosticError").fg))
+    H.eq("#e06a0e", hexc(hl("DiagnosticError").fg))
     H.eq(false, ux.colorblind(false))
     H.eq("island-dark", vim.g.colors_name)
     H.eq("#f75464", hexc(hl("DiagnosticError").fg))

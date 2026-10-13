@@ -382,10 +382,7 @@ describe("scripts/test.sh option handling", function()
     H.not_ok(r.code == 0, "must not succeed")
     H.match(r.stderr, "--timeout needs seconds", true)
     H.eq("", vim.trim(r.stdout), "ran nothing")
-    if r.code ~= 2 then
-      -- usage errors are documented as exit status 2 (README Tests, header)
-      skip(("known bug: `scripts/test.sh --timeout` exits %d, not 2 (${1:?...} aborts the shell)"):format(r.code))
-    end
+    H.eq(2, r.code, "usage errors are documented as exit status 2 (README Tests, header)")
   end)
 end)
 
@@ -1507,14 +1504,7 @@ describe("README mechanical numeric claims", function()
     local loaded, total = readme:match("(%d+) of (%d+) plugins loaded")
     H.ok(loaded, "README states 'N of M plugins loaded'")
     H.ok(tonumber(loaded) < actual)
-    if tonumber(total) ~= actual then
-      skip(
-        ("known stale README figure: says %s plugins, this install has %d (lazy-lock.json %d entries, %d loaded now); "
-          .. "the Omarchy removal dropped 17 plugins after the figure was measured"):format(
-          total, actual, nlock, require("lazy").stats().loaded
-        )
-      )
-    end
+    H.eq(actual, tonumber(total), "README plugin count vs the installed plugin count")
   end)
 
   it("independent .icls parse: group colours/italics of the loaded scheme match (>= 35 checks)", function()

@@ -455,8 +455,12 @@ describe("Guarded.make_request", function()
     -- Claude.make_request records "claude" in rec.order; snapshot must precede it
     guarded():make_request("q", new_context(), new_observer())
     H.eq("snapshot", order[1])
+    H.eq(0, rec.n, "the agent must wait for the checkpoint")
+    H.wait_for(function()
+      return rec.n == 1
+    end, 20000, "the request to start after the snapshot")
+    H.eq("done", order[2], "claude started before the snapshot finished")
     H.eq("claude", rec.order[1])
-    H.eq(1, #order == 0 and 0 or 1)
     H.eq(buf_path, snap.path)
     H.eq(true, snap.force)
     H.eq("before 99 request", snap.label)
@@ -473,6 +477,35 @@ describe("Guarded.make_request", function()
         end
       end
     end, 20000, "refs/lochist commit 'before 99 request'")
+  end)
+
+  it("starts the agent only from the checkpoint's done callback; a cancel before that never starts it", function()
+    H.open_fixture("basic", "src/main.rs", { git = true })
+    local lh = require("config.local_history")
+    local dones = {}
+    patch(lh, {
+      snapshot = function(opts)
+        dones[#dones + 1] = opts.done
+      end,
+    })
+    local ctx = new_context()
+    guarded():make_request("q", ctx, new_observer())
+    H.eq(0, rec.n, "started before the checkpoint finished")
+    H.eq(false, autosave().enabled(), "in flight while waiting")
+    dones[1]("deadbeef")
+    H.eq(1, rec.n)
+    dones[1]("again") -- a late fallback timer must not start it twice
+    H.eq(1, rec.n)
+    rec.observers[1].on_complete("success", "")
+    H.eq(true, autosave().enabled())
+
+    local ctx2 = new_context()
+    guarded():make_request("q", ctx2, new_observer())
+    H.eq(1, rec.n)
+    ctx2.cancel(ctx2)
+    H.eq(true, autosave().enabled(), "cancel released")
+    dones[2]()
+    H.eq(1, rec.n, "a cancelled request was started anyway")
   end)
 
   it("the first request turns auto-save off, a second leaves it off, release happens once each", function()

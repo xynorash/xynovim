@@ -37,6 +37,8 @@ local bacon_ls_settings = {
   },
 }
 
+local no_cargo_told = false
+
 return {
   "neovim/nvim-lspconfig",
   opts = {
@@ -63,6 +65,15 @@ return {
         root_dir = function(bufnr, on_dir)
           local name = vim.api.nvim_buf_get_name(bufnr)
           if name == "" then
+            return
+          end
+          -- bacon-ls shells out to cargo: without it the client died with a
+          -- bare "No such file or directory (os error 2)"
+          if vim.fn.executable("cargo") ~= 1 then
+            if not no_cargo_told then
+              no_cargo_told = true
+              vim.notify("bacon-ls: cargo is not on PATH, the clippy tier is off", vim.log.levels.WARN)
+            end
             return
           end
           for _, skip in ipairs({ "/.cargo/registry/", "/.cargo/git/", "/.rustup/" }) do

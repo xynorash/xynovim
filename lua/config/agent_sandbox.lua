@@ -41,6 +41,7 @@ local HOME_READONLY = {
   home .. "/.claude/ide", -- IDE lock files make claude connect to a local server
   home .. "/.claude/rules",
   home .. "/.claude/chrome", -- chrome-native-host is a shell script Chrome launches unsandboxed
+  home .. "/.claude/security", -- the security-guidance hook imports from agent-sdk-venv here, unsandboxed
 }
 
 -- Same dirs, but when ABSENT the agent could create them (a later unsandboxed
@@ -53,6 +54,7 @@ local HOME_MASK_IF_ABSENT = {
   home .. "/.claude/skills",
   home .. "/.claude/rules",
   home .. "/.claude/output-styles",
+  home .. "/.claude/security",
 }
 
 -- Ephemeral inside the sandbox: claude sources these before running commands.
@@ -126,17 +128,18 @@ local HIDDEN_SYSTEM = {
 -- Environment scrub: any variable whose name contains one of these ...
 local ENV_CONTAINS = {
   "TOKEN", "SECRET", "PASSWORD", "PASSWD", "API_KEY", "APIKEY", "CREDENTIAL", "PRIVATE_KEY",
-  "ACCESS_KEY", "AUTH_SOCK", "AGENT_INFO",
+  "ACCESS_KEY", "AUTH_SOCK", "AGENT_INFO", "PASSPHRASE", "ASKPASS",
 }
 -- ... or starts with one of these ...
 local ENV_PREFIX = {
   "AWS_", "AZURE_", "GOOGLE_", "GCP_", "GCLOUD_", "DOCKER_", "KUBE", "GH_", "GITHUB_", "GITLAB_",
-  "NPM_", "CARGO_REGISTR", "VAULT_",
+  "NPM_", "CARGO_REGISTR", "VAULT_", "OPENAI_", "STRIPE_",
 }
 -- ... or is exactly one of these (session bus / display access).
 local ENV_EXACT = {
   DATABASE_URL = true, DBUS_SESSION_BUS_ADDRESS = true, DISPLAY = true, WAYLAND_DISPLAY = true,
   XAUTHORITY = true, SSH_AUTH_SOCK = true, GPG_AGENT_INFO = true, KUBECONFIG = true,
+  MYSQL_PWD = true, SSHPASS = true, -- not a "PASSWORD" by name; a bare PWD would also be the cwd
 }
 -- Variables claude itself authenticates with. Kept only when login is NOT
 -- file based (no ~/.claude/.credentials.json); with file-based login claude
@@ -252,6 +255,23 @@ local function git_paths(project)
   return out
 end
 
+--- ~/.claude/projects/<name> of this project: claude names it after its cwd
+--- (every non-alphanumeric character as "-"), project root and cwd, real and
+--- as given. These are the only parts of ~/.claude/projects left writable.
+--- @return string[]
+local function own_project_dirs(project)
+  local cwd = vim.uv.cwd() or project
+  local out, seen = {}, {}
+  for _, d in ipairs({ project, cwd, vim.uv.fs_realpath(project) or project, vim.uv.fs_realpath(cwd) or cwd }) do
+    local dir = home .. "/.claude/projects/" .. d:gsub("[^%w]", "-")
+    if not seen[dir] then
+      seen[dir] = true
+      out[#out + 1] = dir
+    end
+  end
+  return out
+end
+
 --- Paths re-bound read-only on top of the writable binds.
 --- @param project string
 --- @return string[] ro, string[] masks  masks: absent dirs to cover with an empty read-only tmpfs
@@ -301,9 +321,8 @@ function M.readonly_paths(project)
   -- from its cwd): otherwise the agent could plant a MEMORY.md that the next
   -- unsandboxed session loads. Needs ~/.claude (the mask is made inside it).
   if exists(home .. "/.claude") then
-    local cwd = vim.uv.cwd() or project
-    for _, d in ipairs({ project, cwd, vim.uv.fs_realpath(project) or project, vim.uv.fs_realpath(cwd) or cwd }) do
-      local mem = home .. "/.claude/projects/" .. d:gsub("[^%w]", "-") .. "/memory"
+    for _, d in ipairs(own_project_dirs(project)) do
+      local mem = d .. "/memory"
       if not seen[mem] and not exists(mem) then
         seen[mem] = true
         masks[#masks + 1] = mem
@@ -336,6 +355,9 @@ function M.wrap(cmd, project, tmp_dir)
   if vim.g.xynovim_99_sandbox == false or vim.fn.executable("bwrap") ~= 1 then
     return cmd
   end
+  -- The ~/.claude/<x> masks need the dir (bwrap cannot mkdir parents on the
+  -- read-only root), and a fresh machine has none until claude first runs.
+  vim.fn.mkdir(home .. "/.claude", "p")
   local a = {
     "bwrap", "--die-with-parent",
     "--new-session", -- no controlling tty: TIOCSTI keystroke injection
@@ -391,6 +413,18 @@ function M.wrap(cmd, project, tmp_dir)
       vim.uv.fs_chmod(copy, tonumber("600", 8))
       vim.list_extend(a, { "--bind", copy, cj })
     end
+  end
+
+  -- ~/.claude/projects is read-only except this project's own transcript dir:
+  -- a bind mount point cannot be renamed, so `mv projects/<name> ...; mkdir -p
+  -- projects/<name>/memory` cannot get round the memory mask (other projects'
+  -- transcripts and memory are read-only too).
+  local projects = home .. "/.claude/projects"
+  vim.fn.mkdir(projects, "p")
+  vim.list_extend(a, { "--ro-bind", projects, projects })
+  for _, d in ipairs(own_project_dirs(project)) do
+    vim.fn.mkdir(d, "p")
+    vim.list_extend(a, { "--bind", d, d })
   end
 
   local ro, masks = M.readonly_paths(project)

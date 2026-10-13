@@ -106,11 +106,6 @@ return {
     end
 
     function Guarded.make_request(self, query, context, observer)
-      require("config.local_history").snapshot({
-        path = vim.api.nvim_buf_get_name(0),
-        force = true,
-        label = "before 99 request",
-      })
       local token = acquire()
       local guarded_observer = setmetatable({
         on_complete = function(...)
@@ -130,13 +125,36 @@ return {
           end
         end
       end
+      local started, result = false, nil
       -- A synchronous throw (e.g. spawn failure) never reaches on_complete.
-      local ok, res = pcall(Claude.make_request, self, query, context, guarded_observer)
-      if not ok then
-        release(token)
-        error(res, 0)
+      local function start()
+        if started or token.done then -- done: cancelled while the checkpoint ran
+          return
+        end
+        started = true
+        local ok, res = pcall(Claude.make_request, self, query, context, guarded_observer)
+        if not ok then
+          release(token)
+          error(res, 0)
+        end
+        result = res
       end
-      return res
+      -- The agent must not start before the checkpoint holds the pre-request
+      -- state (a fast agent rewrote files while the snapshot was still
+      -- reading them): start from the snapshot's `done`, or after 15 s.
+      local path = vim.api.nvim_buf_get_name(0)
+      if path ~= "" and vim.fs.root(path, ".git") then
+        vim.defer_fn(start, 15000)
+        require("config.local_history").snapshot({
+          path = path,
+          force = true,
+          label = "before 99 request",
+          done = start,
+        })
+      else
+        start()
+      end
+      return result
     end
 
     _99.setup({

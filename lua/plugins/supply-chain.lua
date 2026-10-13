@@ -23,6 +23,18 @@ local function dep_line(bufnr, name)
   return 0
 end
 
+--- Line (0-based) of `name = "<name>"` of the `[[package]]` with this version in
+--- a Cargo.lock buffer, else nil. (cargo-deny's own label points at a synthetic
+--- rendering of the lockfile: it is not the line of this file.)
+local function lock_line(bufnr, name, version)
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  for i, l in ipairs(lines) do
+    if l == ('name = "%s"'):format(name) and (not version or lines[i + 1] == ('version = "%s"'):format(version)) then
+      return i - 1
+    end
+  end
+end
+
 local deny_severity = {
   error = vim.diagnostic.severity.ERROR,
   warning = vim.diagnostic.severity.WARN,
@@ -79,7 +91,22 @@ return {
           local out = {}
           for line in vim.gsplit(output, "\n", { plain = true, trimempty = true }) do
             local ok, d = pcall(vim.json.decode, line)
-            local f = ok and d and d.type == "diagnostic" and d.fields
+            if not (ok and type(d) == "table") then -- also JSON `null` (vim.NIL is truthy)
+              d = {}
+            end
+            local f = d.type == "diagnostic" and d.fields
+            if d.type == "log" and type(d.fields) == "table" and d.fields.level == "ERROR" then
+              -- a broken deny.toml, an unreachable crate source...: no
+              -- diagnostics follow, which looked the same as a clean result
+              out[#out + 1] = {
+                lnum = 0,
+                col = 0,
+                severity = vim.diagnostic.severity.WARN,
+                source = "cargo-deny",
+                code = "deny-failed",
+                message = "cargo-deny failed: " .. tostring(d.fields.message),
+              }
+            end
             if f and not (is_lock and f.code == "wildcard") then
               local label = f.labels and f.labels[1]
               local lnum, col = 0, 0
@@ -88,12 +115,20 @@ return {
               -- the manifest the label gives the line (it used to land on
               -- line 1: the graph's crate is the package, not the dependency).
               local on_manifest = f.code == "wildcard" and label and label.line
-              if is_lock and label then
-                lnum, col = (label.line or 1) - 1, (label.column or 1) - 1
+              local krate = f.graphs and f.graphs[1] and f.graphs[1].Krate
+              if is_lock then
+                local at = krate and lock_line(bufnr, krate.name, krate.version)
+                if at then
+                  lnum = at
+                elseif label then
+                  lnum, col = (label.line or 1) - 1, (label.column or 1) - 1
+                end
               elseif on_manifest then
-                lnum, col = label.line - 1, (label.column or 1) - 1
-              elseif not is_lock then
-                local krate = f.graphs and f.graphs[1] and f.graphs[1].Krate
+                -- the label may belong to another manifest (a virtual workspace
+                -- root has fewer lines than the member's): stay inside the buffer
+                lnum = math.min(label.line - 1, math.max(vim.api.nvim_buf_line_count(bufnr) - 1, 0))
+                col = (label.column or 1) - 1
+              else
                 lnum = krate and dep_line(bufnr, krate.name) or 0
               end
               out[#out + 1] = {

@@ -2,9 +2,10 @@
 
 Which spec exercises which feature of the config, and what is not tested (with the reason).
 Line coverage is a different measure (`scripts/test.sh --coverage`); this table is about features.
-Counts are from the last full run: 977 passed, 0 failed, 34 skipped (24 spec files). Skips are
-either `pending` entries (not testable here) or known bugs written as assertions of the correct
-behaviour (they start passing when the bug is fixed; listed at the end).
+Counts are from the last full run: 1014 passed, 0 failed, 24 skipped (24 spec files). Skips are
+`pending` entries or tests that need something this machine lacks (not testable here). A bug a spec
+finds is written as an assertion of the correct behaviour (skipped while it reproduces); the ones
+found so far are fixed (listed at the end).
 
 | Area (files) | Spec | Notes |
 |---|---|---|
@@ -45,22 +46,24 @@ behaviour (they start passing when the bug is fixed; listed at the end).
 | Interactive pickers (Snacks/telescope UI), mouse clicks on codelens, narrow terminals, threads that panic, lldb-dap, multi-bin debug launches | need a pty/mouse session or are untested in the README |
 | `:RustTargets` / `:RustTools` real terminal behaviour, `<leader>rF/rX/rZ/rN` execution | pickers and terminals are stubbed |
 | `<leader>rm rM rj rp rt rC rR rP rk`, `<A-j>/<A-k>`, `rd`, `rE` server effects | only the `RustLsp` call and desc are asserted |
-| Second-workspace live updates through rustaceanvim | blocked by the known bug below |
+| Second-workspace live updates through rustaceanvim | covered with a stand-in client (the shared client keeps the first root_dir); not with two real workspaces |
 | `vim.v.exiting` branch of `rust_restart.on_exit`, real rustaceanvim handler under the status wrap | cannot be set / only a stand-in is used |
 | Local history: real picker, interactive undo, a real 30 s watchdog wait, a lock aged exactly 60 s, submodules, thousands of snapshots | see the pending entries in the spec |
 | README timing claims (2.3 ms colourscheme load, 0.56 s edit-to-diagnostic) | printed, only bounded |
 | Light-theme background leak, E31 undo_ftplugin message | documented README limitations, informational |
 | `scripts/test.sh` under a CI runner without user namespaces | not run there |
 
-## Known bugs found by the specs (skipped, assertions of the correct behaviour)
+## Bugs found by the specs
 
-Repro in the spec named in brackets; each is a `skip("known bug: ...")` or `pending` entry that will start passing once fixed.
+All of them are fixed (final loop round 1) and their specs assert the correct behaviour; none is skipped as a known bug any more.
 
-1. `rust_nav.goto_super`: an empty definition list is treated as a location, no WARN (`keymaps-rust`). Repro: stub `textDocument/definition` to answer `{}`, press `<leader>ru` in an `impl Shape for Square` method.
-2. `rust_routes.collect`: `target`, `.git`, `node_modules`, `bacon-ls-live` are skipped only at the root, not in nested dirs (`rust-routes`). Repro: `crates/a/src/lib.rs` plus `crates/a/target/x.rs` with a route, `collect(root)` lists both.
-3. `rust_context.apply` for a second workspace matches no client, the live rust-analyzer is not updated although the state file and notice say it was (`rust-context`). Repro: open `tests/fixtures/workspace/core/src/lib.rs`, then `tests/fixtures/basic/src/lib.rs`, `rc.apply(<basic dir>, {all=false, features={"zzz"}})`: `cargo.allFeatures` stays true.
-4. `agent_sandbox`: renaming the parent of the masked memory dir lets an agent plant `MEMORY.md`; `wrap` aborts when `~/.claude` does not exist (`agent-sandbox`). Repro: `d=~/.claude/projects/<p>; mv $d $d-moved; mkdir -p $d/memory; echo x > $d/memory/MEMORY.md` inside the sandbox succeeds.
-5. cargo-deny diagnostics on `Cargo.lock` land on the wrong line (`git-lint-supply-chain`). Repro: crate with `time =0.1.45`, `deny.toml`, open `Cargo.lock`, `:lua require('lint').try_lint('cargo_deny')`: line 5 instead of the `time` package.
-6. `lsp_status`: the `TextChanged` redraw tests `b:xynovim_bacon`, which nothing sets; the edit counter restarts at 0 after `:edit!` (`server-supervision-statusline`). Repro for the counter: two edits, a clippy run, `:edit!`, LspAttach, one edit: status stays 'clippy ok'.
-7. `scripts/test.sh --timeout` without a value exits 1, not 2 (`test-infra-readme-claims`).
-8. README says "5 of 80 plugins loaded"; this install has 61 plugins (`test-infra-readme-claims`).
+| # | Bug | Spec that now covers it |
+| --- | --- | --- |
+| 1 | `rust_nav.goto_super`: an empty definition list gave no WARN | `keymaps-rust` |
+| 2 | `rust_routes.collect` skipped `target`, `.git`, ... only at the root | `rust-routes` |
+| 3 | `rust_context.apply` for a second workspace reached no client | `rust-context` |
+| 4 | `agent_sandbox`: renaming the parent of the masked memory dir; `wrap` without `~/.claude` | `agent-sandbox` |
+| 5 | cargo-deny diagnostics on `Cargo.lock` on the wrong line | `git-lint-supply-chain` |
+| 6 | `lsp_status`: dead `b:xynovim_bacon` test; the edit counter restarted after `:edit!` | `server-supervision-statusline` |
+| 7 | `scripts/test.sh --timeout` without a value exited 1, not 2 | `test-infra-readme-claims` |
+| 8 | README plugin count | `test-infra-readme-claims` |

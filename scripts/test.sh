@@ -27,7 +27,11 @@ while [ $# -gt 0 ]; do
   case $1 in
     --list) list=1 ;;
     --coverage) cov=1 ;;
-    --timeout) shift; timeout_s=${1:?--timeout needs seconds} ;;
+    --timeout)
+      shift
+      [ $# -gt 0 ] || { echo "test.sh: --timeout needs seconds" >&2; exit 2; }
+      timeout_s=$1
+      ;;
     -v | --verbose) verbose=1 ;;
     -h | --help) sed -n '2,/^set -uo/p' "${BASH_SOURCE[0]}" | sed '$d; s/^# \{0,1\}//'; exit 0 ;;
     -*) echo "test.sh: unknown option $1" >&2; exit 2 ;;

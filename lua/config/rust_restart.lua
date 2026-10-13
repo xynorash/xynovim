@@ -16,6 +16,8 @@ local M = {}
 local starts = {} -- name -> os.time() of the automatic restarts in the last minute
 local disk_changed = false
 local heads = {} -- workspace root -> git HEAD signature when last looked at
+local swept = {} -- client ids stopped by sweep(): their exit is not a crash
+local SERVER_EXES = { ["rust-analyzer"] = true, ["bacon-ls"] = true }
 
 local function bacon_clients()
   return vim.lsp.get_clients({ name = "bacon_ls" })
@@ -44,7 +46,7 @@ end
 --- quitting nvim exit with code 0 and signal 0 and are left alone).
 function M.on_exit(name)
   return function(code, signal, client_id)
-    if code == 0 and signal == 0 then
+    if (code == 0 and signal == 0) or swept[client_id] then
       return
     end
     -- runs in a fast event: read the buffers now (they are detached on the
@@ -89,6 +91,7 @@ function M.sweep()
   for _, c in ipairs(bacon_clients()) do
     local root = c.config.root_dir
     if root and not vim.uv.fs_stat(root) then
+      swept[c.id] = true
       c:stop(true)
     end
   end
@@ -154,8 +157,37 @@ local function refresh()
   end
 end
 
+--- pid -> name of the Rust servers that are children of this nvim.
+function M.server_pids()
+  local out = {}
+  for _, pid in ipairs(vim.api.nvim_get_proc_children(vim.uv.os_getpid())) do
+    local p = vim.api.nvim_get_proc(pid)
+    if p and SERVER_EXES[p.name] then
+      out[pid] = p.name
+    end
+  end
+  return out
+end
+
+--- SIGKILL the processes of `pids` that are still alive after `ms`. A server
+--- that hangs or was SIGSTOPped never answers the shutdown request and a
+--- stopped process does not act on SIGTERM either, so a graceful restart
+--- alone left it in place; its exit then lets the supervision above start a
+--- fresh one.
+function M.kill_survivors(pids, ms)
+  vim.defer_fn(function()
+    for pid, name in pairs(pids) do
+      local p = vim.api.nvim_get_proc(pid)
+      if p and p.name == name then
+        vim.uv.kill(pid, "sigkill")
+      end
+    end
+  end, ms or 3000)
+end
+
 function M.restart()
   M.sweep()
+  M.kill_survivors(M.server_pids())
   local buf = vim.api.nvim_get_current_buf()
   local bufs = vim.tbl_filter(function(b)
     return vim.api.nvim_buf_is_loaded(b) and vim.bo[b].filetype == "rust"

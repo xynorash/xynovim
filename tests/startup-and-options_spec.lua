@@ -300,6 +300,35 @@ end)
 
 -- ------------------------------------------------------------ 10 - 13 options
 
+describe("config/options.lua (field-test fixes)", function()
+  it("hides nextest's progress bar (neotest's pty output) and keeps the navic breadcrumb", function()
+    H.eq("1", vim.env.NEXTEST_HIDE_PROGRESS_BAR)
+    H.eq(false, vim.g.trouble_lualine)
+  end)
+
+  it("the lualine config has navic's breadcrumb and no Trouble symbols component", function()
+    H.very_lazy()
+    local c = require("lualine").get_config().sections.lualine_c
+    local has_navic, has_trouble = false, false
+    for _, item in ipairs(c) do
+      if type(item) == "table" and item[1] == "navic" then
+        has_navic = true
+      end
+      if type(item) == "table" and type(item[1]) == "function" then
+        has_trouble = has_trouble or (item.cond ~= nil and tostring(item.cond):find("trouble", 1, true) ~= nil)
+      end
+    end
+    H.ok(has_navic, "navic component in lualine_c: " .. vim.inspect(c))
+    H.not_ok(has_trouble)
+  end)
+
+  it("diagnostics update while typing (update_in_insert)", function()
+    H.very_lazy()
+    require("lazy").load({ plugins = { "nvim-lspconfig" } })
+    H.eq(true, vim.diagnostic.config().update_in_insert)
+  end)
+end)
+
 describe("config/options.lua", function()
   it("relativenumber off, autoformat off, rounded borders, pumblend 0", function()
     H.eq(false, vim.o.relativenumber)
@@ -694,6 +723,27 @@ describe("plugins/harpoon.lua", function()
     end
   end)
 
+  it("<C-e> opens the quick menu with a rounded border (harpoon hardcodes 'single')", function()
+    require("lazy").load({ plugins = { "harpoon" } })
+    local harpoon = require("harpoon")
+    local seen
+    local orig = harpoon.ui.toggle_quick_menu
+    harpoon.ui.toggle_quick_menu = function(_, _, o)
+      seen = o
+    end
+    local def
+    for _, k in ipairs(Config.plugins.harpoon.keys or {}) do
+      if k[1] == "<C-e>" then
+        def = k
+      end
+    end
+    H.ok(def, "<C-e> not in harpoon's keys")
+    local ok, err = pcall(def[2])
+    harpoon.ui.toggle_quick_menu = orig
+    H.ok(ok, err)
+    H.eq({ border = "rounded" }, seen)
+  end)
+
   it("does not claim <leader>a, which is the claudecode +ai group", function()
     for _, k in ipairs(Config.plugins.harpoon.keys or {}) do
       H.not_ok(k[1] == "<leader>a", "harpoon key on <leader>a")
@@ -747,11 +797,11 @@ describe("plugins/navigation.lua", function()
   end)
 
   local custom = {
-    S = { "Some%(().-()%)", "Some(", ")" },
-    O = { "Ok%(().-()%)", "Ok(", ")" },
-    N = { "Box::new%(().-()%)", "Box::new(", ")" },
-    D = { "dbg!%(().-()%)", "dbg!(", ")" },
-    U = { "unsafe { ().-() }", "unsafe { ", " }" },
+    S = { { "Some%b()", "^Some%(().*()%)$" }, "Some(", ")" },
+    O = { { "Ok%b()", "^Ok%(().*()%)$" }, "Ok(", ")" },
+    N = { { "Box::new%b()", "^Box::new%(().*()%)$" }, "Box::new(", ")" },
+    D = { { "dbg!%b()", "^dbg!%(().*()%)$" }, "dbg!(", ")" },
+    U = { { "unsafe%s*%b{}", "^unsafe%s*{ ?().-() ?}$" }, "unsafe { ", " }" },
   }
 
   it("mini.surround: custom surroundings S, O, N, D, U with the documented patterns", function()
@@ -762,7 +812,7 @@ describe("plugins/navigation.lua", function()
     require("lazy").load({ plugins = { "mini.surround" } })
     local cs = MiniSurround.config.custom_surroundings
     for k, want in pairs(custom) do
-      H.eq({ want[1] }, cs[k].input, k .. " input")
+      H.eq(want[1], cs[k].input, k .. " input")
       H.eq({ left = want[2], right = want[3] }, cs[k].output, k .. " output")
     end
   end)
@@ -791,6 +841,26 @@ describe("plugins/navigation.lua", function()
       H.feed("gsaiw" .. key)
       H.eq(want, line(), "gsaiw" .. key)
     end
+    vim.cmd("silent! bwipeout! " .. buf)
+  end)
+
+  it("mini.surround: S, O, N, D, U delete the RIGHT wrapper when the content has its own brackets", function()
+    require("lazy").load({ plugins = { "mini.surround" } })
+    local buf = vim.api.nvim_create_buf(true, false)
+    vim.api.nvim_set_current_buf(buf)
+    local function try(text, col, keys)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, { text })
+      vim.api.nvim_win_set_cursor(0, { 1, col })
+      H.feed(keys)
+      return vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1]
+    end
+    H.eq("x = vec![f(1), g(2)]", try("x = Ok(vec![f(1), g(2)])", 8, "gsdO"))
+    H.eq("x = f(a(1), b)", try("x = Some(f(a(1), b))", 12, "gsdS"))
+    H.eq("x = f(a(1), b)", try("x = Box::new(f(a(1), b))", 16, "gsdN"))
+    H.eq("x = f(g(1))", try("x = dbg!(f(g(1)))", 12, "gsdD"))
+    H.eq("let y = if a { 1 } else { 2 };", try("let y = unsafe { if a { 1 } else { 2 } };", 20, "gsdU"))
+    -- replace and the simple case still work
+    H.eq("x = Some(f(a(1), b))", try("x = Ok(f(a(1), b))", 8, "gsrOS"))
     vim.cmd("silent! bwipeout! " .. buf)
   end)
 

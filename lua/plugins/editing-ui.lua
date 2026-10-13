@@ -7,6 +7,9 @@ return {
     "neovim/nvim-lspconfig",
     opts = {
       diagnostics = {
+        -- LazyVim's default is false: rust-analyzer's instant tier only showed
+        -- after <Esc>
+        update_in_insert = true,
         virtual_text = {
           -- the source is part of the format ("if_many" put it in front)
           source = false,

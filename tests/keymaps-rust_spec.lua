@@ -377,7 +377,15 @@ describe("buffer-local maps on a Rust buffer", function()
 
   it("6. <leader>rM is visual only and matches Extract module / module", function()
     H.eq("Extract module (visual)", mp("<leader>rM", "x").desc)
-    H.eq({}, mp("<leader>rM", "n"), "no normal-mode <leader>rM")
+    -- normal mode: a notice, never `r M` on the character under the cursor
+    local before = lines()
+    local n = notifications()
+    local nm = mp("<leader>rM", "n")
+    H.eq("Extract module (visual only)", nm.desc)
+    vim.api.nvim_win_set_cursor(0, { 1, 0 })
+    nm.callback()
+    H.match(n[1].msg, "select code first", true)
+    H.eq(before, lines(), "normal-mode <leader>rM must not edit the buffer")
     local f = filter_for("<leader>rM", "x")
     H.ok(f("Extract module"))
     H.ok(f("Extract Module"))
@@ -410,6 +418,18 @@ describe("buffer-local maps on a Rust buffer", function()
       ra.ssr()
       H.eq(0, #calls, "empty answer does nothing")
     end
+  end)
+
+  it("8. a query without `==>>` is refused with a notice instead of a rustaceanvim traceback", function()
+    local ra = require("config.rust_assist")
+    local calls = capture_nvim_cmd()
+    local n = notifications()
+    answer_input("nonsense ==>")
+    ra.ssr()
+    H.eq(0, #calls)
+    H.eq(1, #n)
+    H.eq(vim.log.levels.WARN, n[1].level)
+    H.match(n[1].msg, "pattern ==>> replacement", true)
   end)
 
   it("8. <leader>rs maps: normal and selection variants", function()
@@ -478,7 +498,14 @@ describe("buffer-local maps on a Rust buffer", function()
     H.eq("Hover range (type of selection)", m.desc)
     m.callback()
     H.eq({ "hover", "range" }, calls[1])
-    H.eq({}, mp("<leader>rk", "n"))
+    local before = lines()
+    local n = notifications()
+    local nm = mp("<leader>rk", "n")
+    H.eq("Hover range (visual only)", nm.desc)
+    nm.callback()
+    H.eq(1, #calls, "normal mode must not call hover range again")
+    H.match(n[1].msg, "select code first", true)
+    H.eq(before, lines())
   end)
 
   it("11. <leader>rh really opens a HIR buffer (real rust-analyzer)", function()
@@ -802,6 +829,25 @@ describe("rust_assist", function()
       H.eq({ cmd = "RustLsp", args = { "workspaceSymbol", "HashMap" }, bang = true }, calls[2])
     end)
 
+    it("18. from the quickfix window rw runs in a Rust window of the tab (RustLsp does not exist elsewhere)", function()
+      local seen_ft
+      local orig = vim.api.nvim_cmd
+      stub(vim.api, "nvim_cmd", function(c, o)
+        if type(c) == "table" and c.cmd == "RustLsp" then
+          seen_ft = vim.bo.filetype
+          return ""
+        end
+        return orig(c, o)
+      end)
+      answer_input("Foo")
+      vim.fn.setqflist({}, "r", { items = { { text = "x" } } })
+      vim.cmd("copen")
+      H.eq("qf", vim.bo.filetype)
+      mp("<leader>rw", "n").callback()
+      H.eq("rust", seen_ft)
+      vim.fn.setqflist({}, "r")
+    end)
+
     it("18. an empty answer does nothing", function()
       local calls = capture_nvim_cmd()
       answer_input("")
@@ -955,18 +1001,13 @@ describe("rust_nav", function()
     H.eq({ { msg = "trait definition not found", level = vim.log.levels.WARN } }, n)
   end)
 
-  it("21. an empty definition list also gives 'trait definition not found' (known bug if skipped)", function()
+  it("21. an empty definition list also gives 'trait definition not found'", function()
     local n = notifications()
     local l = find("fn area(&self) -> f64 {")
     vim.api.nvim_win_set_cursor(0, { l + 1, 8 })
     stub_definition({ res = {} })
-    local ok, err = pcall(mp("<leader>ru").callback)
-    if not (ok and n[1] and n[1].msg == "trait definition not found") then
-      -- goto_super: `res and (vim.islist(res) and res[1] or res)` falls back to
-      -- the empty list itself, which is truthy, so the WARN is never shown
-      skip(("known bug: empty definition list is treated as a location (ok=%s err=%s notifications=%s)"):format(
-        tostring(ok), tostring(err), vim.inspect(n)))
-    end
+    mp("<leader>ru").callback()
+    H.eq({ { msg = "trait definition not found", level = vim.log.levels.WARN } }, n)
   end)
 
   it("21. fmt::Display (scoped path) and From<i32> (generic type) ask for the trait identifier", function()
@@ -1011,6 +1052,30 @@ describe("rust_nav", function()
     H.match(vim.api.nvim_get_current_line(), "fn area", true)
     local h = vim.api.nvim_win_get_height(0)
     H.ok(math.abs(vim.fn.winline() - math.ceil(h / 2)) <= 1, ("centred: winline %d of %d"):format(vim.fn.winline(), h))
+    vim.cmd("bwipeout!")
+  end)
+
+  it("21. a doc comment mentioning `fn area` before the method is skipped", function()
+    local dir = H.tmpdir()
+    local file = dir .. "/doc.rs"
+    vim.fn.writefile({
+      "pub trait Shape {",
+      "    /// Call it as `fn area(&self)` to get the area.",
+      "    /// See also fn area elsewhere.",
+      "    fn area(&self) -> f64;",
+      "}",
+    }, file)
+    local l = find("fn area(&self) -> f64 {")
+    vim.api.nvim_win_set_cursor(0, { l + 1, 8 })
+    stub_definition({
+      res = { {
+        uri = vim.uri_from_fname(file),
+        range = { start = { line = 0, character = 0 }, ["end"] = { line = 0, character = 5 } },
+      } },
+    })
+    mp("<leader>ru").callback()
+    H.eq(file, vim.api.nvim_buf_get_name(0))
+    H.eq(4, vim.api.nvim_win_get_cursor(0)[1], "landed on the doc comment, not the method")
     vim.cmd("bwipeout!")
   end)
 

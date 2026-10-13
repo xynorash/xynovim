@@ -46,6 +46,11 @@ vim.api.nvim_create_autocmd("LspAttach", {
       map({ "n", "x" }, "<leader>rc", assist("^Extract into constant"), "Extract constant")
       -- rust-analyzer offers Extract Module only for a selection, so visual only.
       map("x", "<leader>rM", assist("^Extract [Mm]odule"), "Extract module (visual)")
+      -- Without a mapping `<leader>r` + `M` is cursor-right plus `r M`: it
+      -- replaced the character under the cursor and auto-save wrote it.
+      map("n", "<leader>rM", function()
+        vim.notify("Extract module: select code first (visual mode)", vim.log.levels.INFO)
+      end, "Extract module (visual only)")
       -- "Inline macro" (cursor on println!) expanded silently: not matched.
       map({ "n", "x" }, "<leader>ri", assist("^Inline [^m]"), "Inline")
       -- Own prompt (rustaceanvim's reads the query before Snacks answers).
@@ -87,6 +92,9 @@ vim.api.nvim_create_autocmd("LspAttach", {
       map("x", "<leader>rk", function()
         vim.cmd.RustLsp({ "hover", "range" })
       end, "Hover range (type of selection)")
+      map("n", "<leader>rk", function()
+        vim.notify("Hover range: select code first (visual mode)", vim.log.levels.INFO)
+      end, "Hover range (visual only)")
 
       -- Explain the E-code of any diagnostic on the line (rustc --explain)
       map("n", "<leader>re", function()

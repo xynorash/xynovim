@@ -343,6 +343,29 @@ describe("rust_restart: :RustRestart and sweep", function()
     H.eq(true, c2.stopped, "stopped with force")
   end)
 
+  it("the exit of a client sweep stopped (SIGTERM) is no crash: no 'exited ... restarting' warning, no restart", function()
+    local gone = H.tmpdir()
+    local c = fake_client(s, { name = "bacon_ls", root = gone, bufs = {} })
+    vim.fn.delete(gone, "rf")
+    local rr = require("config.rust_restart")
+    -- earlier tests' deferred (500 ms) restarts fire in this window: let them go first
+    vim.wait(700, function()
+      return false
+    end, 20)
+    s.enabled, s.notes = {}, {}
+    rr.sweep()
+    H.eq(true, c.stopped)
+    rr.on_exit("bacon_ls")(nil, 15, c.id) -- what a SIGTERMed server reports
+    vim.wait(800, function()
+      return false
+    end, 20) -- the restart, if any, is deferred by 500 ms
+    local warned = vim.tbl_filter(function(n)
+      return n.msg:find("restarting", 1, true)
+    end, s.notes)
+    H.eq({}, warned)
+    H.eq({}, s.enabled, "bacon_ls restarted for a deleted workspace")
+  end)
+
   it("restarts rust-analyzer (RustAnalyzer restart) and bacon_ls, clears flags, notifies", function()
     local root, gone = H.tmpdir(), H.tmpdir()
     local rs = scratch_buf(root .. "/a.rs", "rust")
@@ -727,6 +750,26 @@ describe("lsp_status (fake clients)", function()
     H.eq("clippy stale", status.bacon(b))
   end)
 
+  it("a finished run with errors on screen says how many ('clippy 2E'), not 'clippy ok'", function()
+    local b = scratch_buf()
+    local c = fake_client(s, { name = "bacon_ls", bufs = { b } })
+    attach(c, b)
+    progress(c, "r1", { kind = "begin", title = "checking" })
+    progress(c, "r1", { kind = "end" })
+    H.eq("clippy ok", status.bacon(b))
+    local ns = vim.lsp.diagnostic.get_namespace(c.id)
+    local E, W = vim.diagnostic.severity.ERROR, vim.diagnostic.severity.WARN
+    vim.diagnostic.set(ns, b, {
+      { lnum = 0, col = 0, message = "e1", severity = E },
+      { lnum = 0, col = 0, message = "e2", severity = E },
+      { lnum = 0, col = 0, message = "w", severity = W },
+    })
+    H.eq("clippy 2E", status.bacon(b))
+    vim.diagnostic.set(ns, b, { { lnum = 0, col = 0, message = "w", severity = W } })
+    H.eq("clippy ok", status.bacon(b), "warnings do not count")
+    vim.diagnostic.reset(ns, b)
+  end)
+
   it("stale counts edits (nvim_buf_attach), not changedtick: :write does not leave it stale", function()
     local dir = H.tmpdir()
     local file = dir .. "/notes.txt"
@@ -755,7 +798,7 @@ describe("lsp_status (fake clients)", function()
     H.eq("clippy stale", status.bacon(b), "a reload counts as an edit")
   end)
 
-  it("edit counting survives :edit! (which detaches the buffer) once the client attaches again", function()
+  it("edit counting survives :edit! (which detaches the buffer): the first edit after it is stale", function()
     local dir = H.tmpdir()
     local file = dir .. "/again.txt"
     vim.fn.writefile({ "one" }, file)
@@ -773,14 +816,6 @@ describe("lsp_status (fake clients)", function()
     end) -- nvim_buf_attach detaches; the LSP client re-attaches (LspAttach again)
     attach(c, b)
     vim.api.nvim_buf_set_lines(b, 0, -1, false, { "four" })
-    if status.bacon(b) ~= "clippy stale" then
-      skip(
-        "known bug: after :edit! the edit counter restarts at 0 while the remembered tick of the last run keeps "
-          .. "its old value, so the first edits after a re-attach do not show 'clippy stale' (got "
-          .. status.bacon(b)
-          .. ")"
-      )
-    end
     H.eq("clippy stale", status.bacon(b))
   end)
 
@@ -855,32 +890,6 @@ describe("lsp_status (fake clients)", function()
     H.eq(before, #vim.fn.timer_info(), "no vim timers created")
   end)
 
-  it("TextChanged redraws the statusline only when b:xynovim_bacon is set (nothing in the repo sets it)", function()
-    local b = scratch_buf()
-    vim.api.nvim_set_current_buf(b)
-    local function textchanged_redraws()
-      flush()
-      s.redraws = 0
-      vim.api.nvim_exec_autocmds("TextChanged", { group = LS_GROUP, buffer = b, modeline = false })
-      vim.wait(200, function()
-        return false
-      end, 20)
-      return s.redraws
-    end
-    H.eq(0, textchanged_redraws(), "flag unset: no redraw")
-    vim.b[b].xynovim_bacon = true
-    H.ok(textchanged_redraws() >= 1, "flag set: redraw")
-    vim.b[b].xynovim_bacon = nil
-  end)
-
-  it("dead code check: nothing in the repo sets b:xynovim_bacon", function()
-    local hits = vim.fn.systemlist({ "grep", "-rn", "--include=*.lua", "xynovim_bacon", H.repo .. "/lua", H.repo .. "/plugin", H.repo .. "/after", H.repo .. "/init.lua" })
-    local setters = vim.tbl_filter(function(l)
-      return not l:find("lsp_status.lua", 1, true)
-    end, hits)
-    H.eq({}, setters, "no setter outside the reader in lsp_status.lua")
-  end)
-
   it("a TextChanged in a buffer bacon-ls is attached to redraws (stale shows without other redraws)", function()
     local b = scratch_buf()
     vim.api.nvim_set_current_buf(b)
@@ -892,13 +901,29 @@ describe("lsp_status (fake clients)", function()
     vim.wait(200, function()
       return false
     end, 20)
-    if s.redraws == 0 then
-      skip(
-        "known bug: the TextChanged handler tests b:xynovim_bacon, which nothing sets, so it never redraws "
-          .. "(minor: lualine redraws on CursorMoved anyway)"
-      )
-    end
     H.ok(s.redraws >= 1)
+  end)
+
+  it("TextChanged in a buffer without a bacon-ls client does not redraw", function()
+    local b = scratch_buf()
+    vim.api.nvim_set_current_buf(b)
+    flush()
+    s.redraws = 0
+    vim.api.nvim_exec_autocmds("TextChanged", { group = LS_GROUP, buffer = b, modeline = false })
+    vim.wait(200, function()
+      return false
+    end, 20)
+    H.eq(0, s.redraws)
+  end)
+
+  it("a standalone script ('Failed to discover workspace') is 'RA detached', other errors stay 'RA error'", function()
+    local b = scratch_buf()
+    local c = ra_client(b, function() end)
+    attach(c, b)
+    server_status(c, { health = "error", quiescent = true, message = "Failed to discover workspace.\nConsider adding the `Cargo.toml` of the workspace to the [`linkedProjects`] setting." })
+    H.eq("RA detached", status.rust_analyzer(b))
+    server_status(c, { health = "error", quiescent = true, message = "proc macro server crashed" })
+    H.eq("RA error", status.rust_analyzer(b))
   end)
 end)
 
@@ -923,10 +948,13 @@ describe("live servers", function()
     end, vim.lsp.get_clients())
     return ("component %q, clients %s, buf %s"):format(comp(), table.concat(names, ","), vim.api.nvim_buf_get_name(0))
   end
+  --- finished and idle: "clippy ok", or "clippy 1E" while the crate has a clippy error on screen
+  local function ready()
+    local c = comp()
+    return c == "RA ready | clippy ok" or c:match("^RA ready | clippy %d+E$") ~= nil
+  end
   local function wait_ready(msg)
-    if not vim.wait(120000, function()
-      return comp() == "RA ready | clippy ok"
-    end, 20) then
+    if not vim.wait(120000, ready, 20) then
       error((msg or "'RA ready | clippy ok'") .. ": " .. state(), 2)
     end
   end
@@ -1101,9 +1129,7 @@ describe("live servers", function()
     sh([[sed -i 's/^\[packge\]/[package]/' Cargo.toml]])
     focus()
     new_bacon(broken.id)
-    H.wait_for(function()
-      return comp() == "RA ready | clippy ok"
-    end, 90000, "'clippy ok' after the repair; is " .. comp())
+    H.wait_for(ready, 90000, "'clippy ok' after the repair; is " .. comp())
     pcall(vim.api.nvim_buf_delete, toml, { force = true })
     vim.cmd.buffer(buf)
   end)
@@ -1151,6 +1177,31 @@ describe("live servers", function()
     H.wait_for(function()
       return #bacon_diags(bc_new) > 0
     end, 90000, "clippy diagnostics from the new bacon-ls")
+  end)
+
+  it(":RustRestart revives SIGSTOPped (hung) rust-analyzer and bacon-ls: new pids, ok again", function()
+    vim.cmd.buffer(buf)
+    fresh_restart()
+    wait_ready()
+    local ra_old, bc_old = ra(), bacon()
+    local pids = { ra = pid(ra_old), bc = pid(bc_old) }
+    H.ok(pids.ra and pids.bc, "client pids")
+    vim.uv.kill(pids.ra, "sigstop")
+    vim.uv.kill(pids.bc, "sigstop")
+    local ok, err = pcall(function()
+      vim.cmd("RustRestart")
+      H.wait_for(function()
+        local r, b = ra(), bacon()
+        return r and b and r.id ~= ra_old.id and b.id ~= bc_old.id and pid(r) ~= pids.ra and pid(b) ~= pids.bc
+      end, 60000, "new clients with new pids; is " .. state())
+      wait_ready("both servers back after the hang; is " .. state())
+    end)
+    for _, p in pairs(pids) do
+      vim.uv.kill(p, "sigkill") -- whatever is left of the stopped ones
+    end
+    if not ok then
+      error(err, 0)
+    end
   end)
 
   it("a SIGTERM exit counts as abnormal and restarts the server", function()

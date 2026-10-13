@@ -15,12 +15,18 @@ end
 --- Run in a bottom terminal that stays open after exit 0 (Snacks closes it
 --- by default and the output is gone). A rerun replaces the previous one:
 --- Snacks.terminal would just toggle the finished window.
+local last_term
 local function term(cmd, root)
   local old = Snacks.terminal.get(cmd, { cwd = root, create = false })
   if old then
     old:close({ buf = true })
   end
-  Snacks.terminal.open(cmd, { cwd = root, auto_close = false, win = { position = "bottom" } })
+  -- a DIFFERENT command used to open one more split each time (only an
+  -- identical command was found above): the previous run's terminal goes too
+  if last_term and last_term ~= old and last_term.buf_valid and last_term:buf_valid() then
+    pcall(last_term.close, last_term, { buf = true })
+  end
+  last_term = Snacks.terminal.open(cmd, { cwd = root, auto_close = false, win = { position = "bottom" } })
 end
 
 --- Feature/target flags of the context (the default is --all-features).
@@ -130,6 +136,9 @@ function M.new(name)
     if not n or n == "" then
       return
     end
+    if n:sub(1, 1) == "-" then -- cargo would take it as an option
+      return vim.notify("crate name cannot start with '-': " .. n, vim.log.levels.ERROR)
+    end
     vim.ui.select({ "bin", "lib" }, { prompt = "Crate type" }, function(kind)
       if kind then
         create(n, kind)
@@ -153,7 +162,7 @@ local TOOLS = {
   { "deny: check all", { "cargo", "deny", "check" } },
   { "audit (RustSec)", { "cargo", "audit" } },
   { "duplicate dependency versions", { "cargo", "tree", "-d" } },
-  { "coverage report (summary in terminal)", { "cargo", "llvm-cov", "--workspace", "--summary-only" }, true },
+  { "coverage report (summary in terminal)", { "cargo", "llvm-cov", "--workspace", "--ignore-run-fail", "--summary-only" }, true },
 }
 
 function M.tools()

@@ -40,12 +40,25 @@ function M.goto_super()
     position = { line = row, character = col },
   }
   client:request("textDocument/definition", params, function(err, res)
-    local loc = res and (vim.islist(res) and res[1] or res)
+    -- a list (first entry) or a single Location; `{}` is "not found" (the
+    -- `islist and res[1] or res` form returned the empty list itself)
+    local loc = res
+    if type(res) == "table" and vim.islist(res) then
+      loc = res[1]
+    end
     if err or not loc then
       return vim.notify("trait definition not found", vim.log.levels.WARN)
     end
     vim.lsp.util.show_document(loc, client.offset_encoding, { focus = true })
-    vim.fn.search("\\<fn\\s\\+" .. name .. "\\>", "cw")
+    -- skip doc comments that mention `fn name` (std's Display::fmt has them first)
+    local pat = "\\<fn\\s\\+" .. name .. "\\>"
+    vim.fn.search(pat, "cw")
+    for _ = 1, 50 do
+      local ok, n = pcall(vim.treesitter.get_node)
+      if not (ok and n and n:type():find("comment")) or vim.fn.search(pat, "w") == 0 then
+        break
+      end
+    end
     vim.cmd("normal! zz")
   end, buf)
 end

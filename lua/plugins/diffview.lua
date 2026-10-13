@@ -26,7 +26,8 @@ return {
     },
     { "<leader>gF", "<cmd>DiffviewFileHistory %<cr>", desc = "Diffview: file history" },
     { "<leader>gF", ":DiffviewFileHistory<cr>", mode = "x", desc = "Diffview: selection history" },
-    { "<leader>gq", "<cmd>DiffviewClose<cr>", desc = "Diffview: close" },
+    -- write first: closing with an unsaved conflict buffer raised a raw E445 from tabclose
+    { "<leader>gq", "<cmd>silent! wall<cr><cmd>DiffviewClose<cr>", desc = "Diffview: close" },
   },
   opts = {
     enhanced_diff_hl = true,

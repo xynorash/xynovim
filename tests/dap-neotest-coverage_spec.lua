@@ -593,6 +593,17 @@ describe("dap-ui opts", function()
     H.eq(true, o.wrap)
   end)
 
+  it("the UI stays open when the session terminates or exits (the output is only in the hidden dap-terminal otherwise)", function()
+    local lazy = require("lazy")
+    lazy.load({ plugins = { "nvim-dap-ui" } })
+    local dap = require("dap")
+    H.wait_for(function()
+      return dap.listeners.before.event_terminated["dapui_config"] == nil
+    end, 5000, "LazyVim's closing listener to be removed")
+    H.is_nil(dap.listeners.before.event_exited["dapui_config"])
+    H.eq("function", type(dap.listeners.after.event_initialized["dapui_config"]), "it still opens on start")
+  end)
+
   it("wrap on; left sidebar elements and sizes; bottom panel", function()
     local o = opts()
     H.eq(true, o.wrap)
@@ -962,7 +973,7 @@ describe("neotest, overseer", function()
     f:close()
     H.match(readme, "nextest cannot run doctests", true)
     H.match(readme, "<leader>tD", true)
-    H.match(readme, "a failing doctest was shown as passed", true)
+    H.match(readme, "a failing doctest is shown as skipped, not failed", true)
   end)
 
   it("overseer: <leader>oo/ow/ot exist and the Overseer commands are defined after load", function()
@@ -1063,13 +1074,13 @@ describe("coverage honours :RustContext", function()
       end
     end
     H.ok(cov, "coverage entry")
-    H.eq({ "cargo", "llvm-cov", "--workspace", "--summary-only", "--features", "a,b" }, cov.cmd)
+    H.eq({ "cargo", "llvm-cov", "--workspace", "--ignore-run-fail", "--summary-only", "--features", "a,b" }, cov.cmd)
     require("config.rust_context").apply(dir, nil)
     items = nil
     require("config.rust_tasks").tools()
     for _, i in ipairs(items) do
       if i.text:find("coverage report", 1, true) then
-        H.eq({ "cargo", "llvm-cov", "--workspace", "--summary-only", "--all-features" }, i.cmd)
+        H.eq({ "cargo", "llvm-cov", "--workspace", "--ignore-run-fail", "--summary-only", "--all-features" }, i.cmd)
       end
     end
   end)

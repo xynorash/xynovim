@@ -37,11 +37,11 @@ local function stubdir(spec)
 end
 
 local HEALTH_BINS = {
-  "git", "curl", "tar", "unzip", "gcc", "node", "cargo", "rust-analyzer", "bacon-ls", "codelldb", "taplo",
-  "cargo-nextest", "cargo-deny", "lazygit", "delta", "mold", "clang", "npm", "bwrap",
+  "git", "curl", "tar", "unzip", "gzip", "gcc", "node", "cargo", "rust-analyzer", "bacon-ls", "codelldb", "taplo",
+  "wgsl-analyzer", "cargo-nextest", "cargo-deny", "cargo-expand", "lazygit", "delta", "mold", "clang", "npm", "bwrap",
 }
 local ERRORS = { git = 1, cargo = 1, ["rust-analyzer"] = 1, ["bacon-ls"] = 1 }
-local MASON = { ["bacon-ls"] = 1, codelldb = 1, taplo = 1 }
+local MASON = { ["bacon-ls"] = 1, codelldb = 1, taplo = 1, ["wgsl-analyzer"] = 1 }
 
 local function all_stubs(extra)
   local spec = {}
@@ -133,9 +133,9 @@ describe("health: TOOLS table", function()
     rec = run_check(stubdir({}), nil)
   end)
 
-  it("has 19 entries with the documented severities", function()
+  it("has 22 entries with the documented severities", function()
     local tools = section(rec, "xynovim: external tools")
-    H.eq(19, #tools)
+    H.eq(22, #tools)
     for _, bin in ipairs(HEALTH_BINS) do
       local r = H.ok(rec_for(rec, bin), "no record for " .. bin)
       H.eq(ERRORS[bin] and "error" or "warn", r.kind, bin .. " severity")
@@ -300,7 +300,7 @@ describe("health: rust toolchain", function()
   it("asks rustup for the installed components of the stable toolchain", function()
     local log = H.tmpdir() .. "/rustup.log"
     toolchain(("echo \"$*\" >> %s\n"):format(log) .. RUSTUP_OK)
-    H.eq({ "component list --toolchain stable --installed" }, vim.fn.readfile(log))
+    H.eq({ "component list --toolchain stable --installed", "target list --toolchain stable --installed" }, vim.fn.readfile(log))
   end)
 
   it("ok when clippy and llvm-tools are installed", function()
@@ -312,7 +312,7 @@ describe("health: rust toolchain", function()
 
   it("warns with the rustup command for each missing component", function()
     local tc = toolchain("printf 'cargo-x86_64\\nrustfmt-x86_64\\n'\n")
-    H.eq(2, #tc)
+    H.eq(3, #tc, "two components and the wasm32 target (this stub answers every call alike)")
     H.eq("warn", tc[1].kind)
     H.eq("stable lacks clippy: clippy tier and rust-analyzer lints", tc[1].msg)
     H.eq("rustup component add --toolchain stable clippy", tc[1].advice)
@@ -320,6 +320,19 @@ describe("health: rust toolchain", function()
     H.eq("rustup component add --toolchain stable llvm-tools", tc[2].advice)
     local only_clippy = toolchain("printf 'clippy-x86_64\\nrustfmt-x86_64\\n'\n")
     H.eq({ "ok", "warn" }, { only_clippy[1].kind, only_clippy[2].kind })
+  end)
+
+  it("checks the wasm32-unknown-unknown target: ok when listed, a warn with the rustup command when not, nothing when rustup cannot list", function()
+    local with = "case \"$*\" in\n  'target list --toolchain stable --installed') printf 'x86_64-unknown-linux-gnu\\nwasm32-unknown-unknown\\n' ;;\n" .. RUSTUP_OK:match("^case \"%$%*\" in\n(.*)$")
+    local tc = toolchain(with)
+    H.eq(3, #tc)
+    H.eq({ kind = "ok", msg = "stable has the wasm32-unknown-unknown target: web/WASM crates (:RustContext target)" }, { kind = tc[3].kind, msg = tc[3].msg })
+    local without = "case \"$*\" in\n  'target list --toolchain stable --installed') printf 'x86_64-unknown-linux-gnu\\n' ;;\n" .. RUSTUP_OK:match("^case \"%$%*\" in\n(.*)$")
+    tc = toolchain(without)
+    H.eq(3, #tc)
+    H.eq("warn", tc[3].kind)
+    H.eq("rustup target add --toolchain stable wasm32-unknown-unknown", tc[3].advice)
+    H.eq(2, #toolchain(RUSTUP_OK), "target list fails: no record")
   end)
 
   it("warns 'stable toolchain not installed' when rustup fails", function()
@@ -587,7 +600,7 @@ end)
 describe("bootstrap.sh: fresh install (network)", function()
   it("fresh XDG dirs: exit 0, lockfile unchanged, kulala on v5.3.4 (6656c9d) with only doc/tags untracked", function()
     if vim.env.XYNO_TEST_NETWORK ~= "1" then
-      skip("network/slow test: set XYNO_TEST_NETWORK=1 to run (clones ~80 plugins)")
+      skip("network/slow test: set XYNO_TEST_NETWORK=1 to run (clones ~60 plugins)")
     end
     for _, t in ipairs({ "git", "curl", "gcc", "node", "cargo" }) do
       if vim.fn.executable(t) ~= 1 then
@@ -961,11 +974,13 @@ describe("README prerequisites vs health TOOLS and bootstrap", function()
     H.ok(#rec > 0)
   end)
 
-  it("known gap: wgsl-analyzer is installed by Mason and named by the README but not checked by :checkhealth", function()
+  it("wgsl-analyzer (Mason) and cargo-expand are checked by :checkhealth", function()
     H.has(prereq, "`wgsl-analyzer`")
     H.has(read("lua/plugins/domain.lua"), 'ensure_installed = { "wgsl-analyzer" }')
     local rec = run_check(stubdir(all_stubs()))
-    H.is_nil(rec_for(rec, "wgsl-analyzer"), "wgsl-analyzer is now checked: update README/this test")
+    H.has(rec_for(rec, "wgsl-analyzer").msg, "wgsl-analyzer (PATH)")
+    H.has(rec_for(rec, "cargo-expand").msg, "cargo-expand (PATH)")
+    H.has(rec_for(rec, "gzip").msg, "gzip (PATH)")
   end)
 end)
 

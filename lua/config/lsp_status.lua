@@ -14,7 +14,7 @@
 -- (rust_restart.lua records it and restarts it).
 local M = {}
 
----@type table<integer, { tokens: table<string, table>, last: string?, health: string?, quiescent: boolean?, failed: boolean?, begin_ticks: table<integer, integer>?, ticks: table<integer, integer>?, wrapped: boolean? }>
+---@type table<integer, { tokens: table<string, table>, last: string?, health: string?, quiescent: boolean?, message: string?, failed: boolean?, begin_ticks: table<integer, integer>?, ticks: table<integer, integer>?, wrapped: boolean? }>
 local state = {}
 
 local function st(id)
@@ -23,14 +23,20 @@ local function st(id)
 end
 
 --- buf -> number of text changes seen since the buffer was first attached.
+--- Only ever grows: the remembered tick of the last clippy run is compared to
+--- it, and a counter that restarted at 0 after `:edit!` (which detaches the
+--- buffer) hid "stale" for the next N edits.
 ---@type table<integer, integer>
 local edits = {}
+---@type table<integer, boolean>
+local counting = {}
 
 local function count_edits(buf)
-  if edits[buf] then
+  if counting[buf] then
     return
   end
-  edits[buf] = 0
+  counting[buf] = true
+  edits[buf] = edits[buf] or 0
   local function bump()
     edits[buf] = (edits[buf] or 0) + 1
   end
@@ -38,7 +44,7 @@ local function count_edits(buf)
     on_lines = bump,
     on_reload = bump,
     on_detach = function()
-      edits[buf] = nil
+      counting[buf] = nil
     end,
   })
 end
@@ -80,6 +86,10 @@ function M.rust_analyzer(bufnr)
   elseif not s.quiescent or busy then
     return "RA " .. (busy or "loading")
   elseif s.health == "error" then
+    -- a standalone script (rust-script, a lone .rs): no workspace to load is not a failure
+    if (s.message or ""):find("Failed to discover workspace", 1, true) then
+      return "RA detached"
+    end
     return "RA error"
   elseif s.health == "warning" then
     return "RA ready (warn)"
@@ -102,6 +112,13 @@ function M.bacon(bufnr)
   local seen = s.ticks and s.ticks[buf]
   if seen and (edits[buf] or 0) > seen then
     return "clippy stale"
+  end
+  -- "ok" meant "finished", also with errors on screen: say how many
+  local ERROR = vim.diagnostic.severity.ERROR
+  local has_ns, ns = pcall(vim.lsp.diagnostic.get_namespace, c.id)
+  local errors = has_ns and vim.api.nvim_buf_is_valid(buf) and vim.diagnostic.count(buf, { namespace = ns, severity = ERROR })[ERROR] or 0
+  if errors > 0 then
+    return ("clippy %dE"):format(errors)
   end
   return "clippy ok"
 end
@@ -156,7 +173,7 @@ function M.setup()
         local orig = client.handlers["experimental/serverStatus"] or vim.lsp.handlers["experimental/serverStatus"]
         client.handlers["experimental/serverStatus"] = function(err, result, ctx, config)
           if result then
-            s.health, s.quiescent = result.health, result.quiescent
+            s.health, s.quiescent, s.message = result.health, result.quiescent, result.message
             redraw()
           end
           if orig then
@@ -207,8 +224,9 @@ function M.setup()
   vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
     group = group,
     callback = function(ev)
-      if vim.b[ev.buf].xynovim_bacon then
-        redraw() -- "stale" is derived from the edit counter when drawn
+      -- "stale" is derived from the edit counter when drawn
+      if #vim.lsp.get_clients({ bufnr = ev.buf, name = "bacon_ls" }) > 0 then
+        redraw()
       end
     end,
   })

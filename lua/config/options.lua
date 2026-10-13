@@ -19,6 +19,17 @@ vim.g.loaded_ruby_provider = 0
 vim.g.loaded_perl_provider = 0
 vim.g.loaded_node_provider = 0
 
+-- neotest runs nextest in a pty, so nextest drew its live progress bar and the
+-- output panel (<leader>to) held cursor-up/erase-line redraws instead of the
+-- failure text. (The bar is also gone from nextest runs in a Snacks terminal.)
+vim.env.NEXTEST_HIDE_PROGRESS_BAR = vim.env.NEXTEST_HIDE_PROGRESS_BAR or "1"
+
+-- The lualine breadcrumb is LazyVim's editor.navic one (it shows
+-- `impl Shape for Square`): with Trouble's symbols component (the default
+-- when this is true) navic's insert is skipped, and Trouble's kind filter
+-- drops impl blocks.
+vim.g.trouble_lualine = false
+
 -- Rust diagnostics via bacon-ls (lua/plugins/bacon-ls.lua): its native cargo
 -- backend runs clippy itself on every buffer change (no bacon process) and
 -- sends the results as LSP diagnostics. The lang.rust extra reads this and

@@ -57,8 +57,19 @@ local function capture_term(existing)
     cap.gets[#cap.gets + 1] = { cmd = cmd, opts = opts }
     return existing
   end)
+  cap.terms = {}
   stub(Snacks.terminal, "open", function(cmd, opts)
     cap.opened[#cap.opened + 1] = { cmd = cmd, opts = opts }
+    local t = {
+      buf_valid = function()
+        return true
+      end,
+      close = function(self, o)
+        self.closed = o
+      end,
+    }
+    cap.terms[#cap.terms + 1] = t
+    return t
   end)
   return cap
 end
@@ -386,6 +397,22 @@ describe("term (through :RustTools confirm)", function()
     H.eq({ cwd = dir, create = false }, term.gets[1].opts)
   end)
 
+  it("a DIFFERENT command closes the previous run's terminal too (no extra split per command)", function()
+    local dir = open_all()
+    with_ctx(nil)
+    local cap = capture_picker()
+    local term = capture_term(nil)
+    vim.cmd("RustTools")
+    cap.opts.confirm({ close = function() end }, cap.opts.items[1])
+    cap.opts.confirm({ close = function() end }, cap.opts.items[2])
+    H.eq(2, #term.opened)
+    H.eq({ buf = true }, term.terms[1].closed, "the first command's terminal was closed")
+    H.is_nil(term.terms[2].closed)
+    cap.opts.confirm({ close = function() end }, cap.opts.items[3])
+    H.eq({ buf = true }, term.terms[2].closed)
+    H.eq(dir, term.opened[3].opts.cwd)
+  end)
+
   it("closes (and wipes the buffer of) an existing terminal before reopening", function()
     local closed
     local old = {
@@ -477,6 +504,19 @@ describe(":RustNew", function()
     H.eq({}, vim.fn.readdir(dir))
   end)
 
+  it("a name starting with '-' is refused (cargo would take it as an option)", function()
+    local dir = setup_dir()
+    stub(vim.ui, "select", function()
+      error("no type question for a refused name")
+    end)
+    local n = H.capture_notify()
+    vim.cmd("RustNew -dash")
+    H.eq(1, #n.list)
+    H.eq(vim.log.levels.ERROR, n.list[1].level)
+    H.match(n.list[1].msg, "cannot start with '-'", true)
+    H.eq({}, vim.fn.readdir(dir))
+  end)
+
   it("a cancelled type question creates nothing", function()
     local dir = setup_dir()
     stub(vim.ui, "select", function(_, _, cb)
@@ -518,7 +558,7 @@ describe(":RustTools", function()
     local opts, dir = tools(ctx)
     H.eq("Cargo tools", opts.title)
     H.eq("text", opts.format)
-    local cov = { "cargo", "llvm-cov", "--workspace", "--summary-only", "--features", "a", "--target", "x86_64-unknown-linux-gnu" }
+    local cov = { "cargo", "llvm-cov", "--workspace", "--ignore-run-fail", "--summary-only", "--features", "a", "--target", "x86_64-unknown-linux-gnu" }
     local expected = {
       { "timings (cargo build --timings; report in target/cargo-timings)", { "cargo", "build", "--timings" } },
       { "bloat by crate (release)", { "cargo", "bloat", "--release", "--crates" } },
@@ -545,11 +585,11 @@ describe(":RustTools", function()
   it("the default context puts --all-features on the coverage entry, repeated calls do not accumulate flags", function()
     H.need_rust()
     local opts = tools(nil)
-    H.eq({ "cargo", "llvm-cov", "--workspace", "--summary-only", "--all-features" }, opts.items[9].cmd)
+    H.eq({ "cargo", "llvm-cov", "--workspace", "--ignore-run-fail", "--summary-only", "--all-features" }, opts.items[9].cmd)
     H.eq({ "cargo", "build", "--timings" }, opts.items[1].cmd)
     unstub_all()
     local opts2 = tools(nil)
-    H.eq({ "cargo", "llvm-cov", "--workspace", "--summary-only", "--all-features" }, opts2.items[9].cmd)
+    H.eq({ "cargo", "llvm-cov", "--workspace", "--ignore-run-fail", "--summary-only", "--all-features" }, opts2.items[9].cmd)
   end)
 
   it("warns outside a crate", function()

@@ -16,6 +16,16 @@ return {
     vim.g.rustaceanvim = vim.tbl_deep_extend("force", vim.g.rustaceanvim or {}, {
       dap = { autoload_configurations = false },
     })
+    -- LazyVim's `*` server config advertises workspace.fileOperations.willRename
+    -- to every client. With it rust-analyzer answers a module rename
+    -- (`vim.lsp.buf.rename`) with the file rename ALONE and expects the client
+    -- to send workspace/willRenameFiles, which nvim does not do for the
+    -- RenameFile of a workspace edit: `pub mod util;` and every `util::` path
+    -- stayed behind. Without the capability the response carries those edits
+    -- too. (<leader>cR still asks willRenameFiles itself, see keymaps.lua.)
+    vim.lsp.config("rust-analyzer", {
+      capabilities = { workspace = { fileOperations = { willRename = false } } },
+    })
   end,
   opts = {
     server = {
@@ -85,7 +95,7 @@ return {
                 ["Rc::new"] = { postfix = "rc", body = "Rc::new(${receiver})", requires = "std::rc::Rc", description = "Put into an `Rc`", scope = "expr" },
                 ["RefCell::new"] = { postfix = "refcell", body = "RefCell::new(${receiver})", requires = "std::cell::RefCell", description = "Put into a `RefCell`", scope = "expr" },
                 ["Mutex::new"] = { postfix = "mutex", body = "Mutex::new(${receiver})", requires = "std::sync::Mutex", description = "Put into a `Mutex`", scope = "expr" },
-                ["Arc<Mutex>"] = { postfix = "arcmutex", body = "Arc::new(Mutex::new(${receiver}))", requires = "std::sync::Mutex", description = "Put into an `Arc<Mutex<_>>`", scope = "expr" },
+                ["Arc<Mutex>"] = { postfix = "arcmutex", body = "Arc::new(Mutex::new(${receiver}))", requires = { "std::sync::Arc", "std::sync::Mutex" }, description = "Put into an `Arc<Mutex<_>>`", scope = "expr" },
               },
             },
           },

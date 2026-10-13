@@ -152,6 +152,8 @@ describe("Diffview keys", function()
     H.feed("<leader>gq")
     H.eq(1, #calls)
     H.eq("DiffviewClose", calls[1].cmd)
+    -- unsaved buffers are written first (a raw E445 from tabclose otherwise)
+    H.match(lower(md("<leader>gq").rhs), "silent! wall", true)
   end)
 
   it("<leader>gF (n) is :DiffviewFileHistory % for the current file", function()

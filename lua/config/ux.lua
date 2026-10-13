@@ -105,7 +105,7 @@ end
 
 -- Okabe-Ito: distinguishable under deuteranopia, protanopia and tritanopia.
 local OKABE_ITO = {
-  Error = "#D55E00", -- vermillion
+  Error = "#E06A0E", -- vermillion, lifted from Okabe-Ito #D55E00 (4.26:1 on the theme background) to 4.5:1 and more
   Warn = "#F0E442", -- yellow
   Info = "#56B4E9", -- sky blue
   Hint = "#009E73", -- bluish green

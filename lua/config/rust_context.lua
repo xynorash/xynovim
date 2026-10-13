@@ -23,9 +23,41 @@ end
 
 local function write_all(data)
   vim.fn.mkdir(vim.fs.dirname(state_file), "p")
-  local f = assert(io.open(state_file, "w"))
+  -- write aside and rename: a reader (another nvim) never sees a truncated file
+  local tmp = ("%s.%d.tmp"):format(state_file, vim.uv.os_getpid())
+  local f = assert(io.open(tmp, "w"))
   f:write(vim.json.encode(data))
   f:close()
+  assert(vim.uv.fs_rename(tmp, state_file))
+end
+
+local function mtime(path)
+  local st = path and vim.uv.fs_stat(path)
+  return st and (st.mtime.sec .. "." .. st.mtime.nsec) or "-"
+end
+
+--- Cargo's own answer for the workspace of `dir` (`cargo locate-project
+--- --workspace`): knows `members` and `exclude`, so an excluded crate or one
+--- with its own [workspace] is its own root. Cached per directory and the
+--- modification time of the manifests it was computed from.
+local located = {}
+local function cargo_workspace(dir, stamp)
+  local hit = located[dir]
+  if hit and hit.stamp == stamp then
+    return hit.root or nil
+  end
+  local root = false
+  if vim.fn.executable("cargo") == 1 then
+    local ok, o = pcall(function()
+      return vim.system({ "cargo", "locate-project", "--workspace", "--message-format", "plain" }, { cwd = dir, text = true }):wait(5000)
+    end)
+    local manifest = ok and o and o.code == 0 and vim.trim(o.stdout or "") or ""
+    if manifest:match("Cargo%.toml$") then
+      root = vim.fs.dirname(manifest)
+    end
+  end
+  located[dir] = { stamp = stamp, root = root }
+  return root or nil
 end
 
 --- Workspace root (dir holding the top Cargo.toml) for a path.
@@ -33,7 +65,8 @@ function M.root(path)
   path = path or vim.api.nvim_buf_get_name(0)
   local found = vim.fs.find("Cargo.toml", { upward = true, path = vim.fs.dirname(path) })
   local top
-  -- walk up to the outermost Cargo.toml that declares a [workspace]
+  -- Fallback when cargo cannot answer (no cargo, a manifest that does not
+  -- parse): walk up to the outermost Cargo.toml that declares a [workspace]
   for _, f in ipairs(vim.fs.find("Cargo.toml", { upward = true, path = vim.fs.dirname(path), limit = math.huge })) do
     local fh = io.open(f)
     if fh then
@@ -45,7 +78,10 @@ function M.root(path)
     end
   end
   local f = top or found[1]
-  return f and vim.fs.dirname(f) or nil
+  if not found[1] then
+    return nil
+  end
+  return cargo_workspace(vim.fs.dirname(path), mtime(found[1]) .. "|" .. mtime(top)) or vim.fs.dirname(f)
 end
 
 function M.get(root)
@@ -118,13 +154,31 @@ end
 
 --- Push ctx into the running rust-analyzer and restart bacon-ls with matching args.
 --- `ctx == nil` resets to the defaults (all features, host target) and forgets the stored choice.
+--- Whether a client serves the workspace `root`: its root_dir, or any workspace
+--- folder (rustaceanvim attaches a further workspace's buffers to the ONE
+--- running rust-analyzer as an added folder; its root_dir stays the first's).
+local function serves(c, root)
+  local function is(dir)
+    return dir ~= nil and M.root(dir .. "/x") == root
+  end
+  if is(c.config.root_dir) then
+    return true
+  end
+  for _, wf in ipairs(c.workspace_folders or {}) do
+    if is(wf.uri and vim.uri_to_fname(wf.uri)) then
+      return true
+    end
+  end
+  return false
+end
+
 function M.apply(root, ctx)
   local all = read_all()
   all[root] = ctx
   write_all(all)
   local eff = ctx or { all = true, features = {} }
   for _, c in ipairs(vim.lsp.get_clients({ name = "rust-analyzer" })) do
-    if c.config.root_dir and M.root(c.config.root_dir .. "/x") == root then
+    if serves(c, root) then
       local ra = c.settings["rust-analyzer"]
       ra.cargo = vim.tbl_extend("force", ra.cargo or {}, M.ra_cargo(eff))
       ra.cargo.target = eff.target -- nil clears it
@@ -134,7 +188,7 @@ function M.apply(root, ctx)
   vim.schedule(function()
     pcall(vim.cmd.RustLsp, "reloadWorkspace")
     for _, c in ipairs(vim.lsp.get_clients({ name = "bacon_ls" })) do
-      if c.config.root_dir and M.root(c.config.root_dir .. "/x") == root then
+      if serves(c, root) then
         vim.cmd("lsp restart bacon_ls")
         break
       end

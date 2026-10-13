@@ -196,7 +196,7 @@ describe("rustaceanvim spec", function()
       rc = { "Rc::new(${receiver})", "std::rc::Rc" },
       refcell = { "RefCell::new(${receiver})", "std::cell::RefCell" },
       mutex = { "Mutex::new(${receiver})", "std::sync::Mutex" },
-      arcmutex = { "Arc::new(Mutex::new(${receiver}))", "std::sync::Mutex" },
+      arcmutex = { "Arc::new(Mutex::new(${receiver}))", { "std::sync::Arc", "std::sync::Mutex" } }, -- both imports
     }
     local seen, n = {}, 0
     for _, snip in pairs(custom) do
@@ -557,6 +557,69 @@ describe("rust-analyzer effective settings", function()
 end)
 
 -- =========================================================== editing-ui / domain
+
+describe("module rename", function()
+  it("21. renaming a module through LSP updates `mod` and the paths, not only the file (willRename not advertised)", function()
+    H.need_rust()
+    local dir = H.tmpdir()
+    local function write(path, text)
+      vim.fn.mkdir(vim.fs.dirname(path), "p")
+      vim.fn.writefile(vim.split(text, "\n"), path)
+    end
+    write(dir .. "/Cargo.toml", '[package]\nname = "renm"\nversion = "0.1.0"\nedition = "2021"\n')
+    write(dir .. "/src/lib.rs", "pub mod util;\n\npub fn go() -> i32 {\n    util::helper()\n}\n")
+    write(dir .. "/src/util.rs", "pub fn helper() -> i32 {\n    1\n}\n")
+    local buf = H.open(dir .. "/src/lib.rs")
+    local client = H.wait_lsp("rust-analyzer", buf)
+    H.eq(false, client.config.capabilities.workspace.fileOperations.willRename, "willRename must not be advertised")
+    H.wait_for(function()
+      local res = vim.lsp.buf_request_sync(buf, "textDocument/documentSymbol", { textDocument = vim.lsp.util.make_text_document_params(buf) }, 5000)
+      for _, r in pairs(res or {}) do
+        for _, sym in ipairs(r.result or {}) do
+          if sym.name == "go" then
+            return true
+          end
+        end
+      end
+    end, 90000, "rust-analyzer to know lib.rs")
+    vim.api.nvim_win_set_cursor(0, { 1, 9 }) -- on `util` of `pub mod util;`
+    local params = vim.lsp.util.make_position_params(0, client.offset_encoding)
+    params.newName = "utils"
+    -- until the file is known to rust-analyzer the answer lacks the file rename
+    local res, edits, renames
+    H.wait_for(function()
+      res, edits, renames = nil, 0, 0
+      local r = vim.lsp.buf_request_sync(buf, "textDocument/rename", params, 20000)
+      for _, x in pairs(r or {}) do
+        res = x.result
+      end
+      for _, ch in ipairs(res and res.documentChanges or {}) do
+        if ch.kind == "rename" then
+          renames = renames + 1
+        elseif ch.edits then
+          edits = edits + #ch.edits
+        end
+      end
+      return renames > 0
+    end, 90000, "a rename answer with the file rename")
+    H.eq(1, renames, "the file rename: " .. vim.inspect(res))
+    H.ok(edits >= 2, "text edits for `mod util;` and `util::helper()` came with it (got " .. edits .. "): " .. vim.inspect(res))
+
+    -- <leader>cR (Snacks.rename.rename_file) asks willRenameFiles itself: it still gets the `mod` edit
+    local r = client:request_sync("workspace/willRenameFiles", {
+      files = { { oldUri = vim.uri_from_fname(dir .. "/src/util.rs"), newUri = vim.uri_from_fname(dir .. "/src/other.rs") } },
+    }, 20000, buf)
+    H.ok(r and r.result, "willRenameFiles answered: " .. vim.inspect(r))
+    local n = 0
+    for _, ch in ipairs(r.result.documentChanges or {}) do
+      n = n + #(ch.edits or {})
+    end
+    for _, es in pairs(r.result.changes or {}) do
+      n = n + #es
+    end
+    H.ok(n >= 1, "willRenameFiles edits for the `mod` declaration: " .. vim.inspect(r.result))
+  end)
+end)
 
 describe("editing-ui and domain specs", function()
   it("13. diagnostic virtual text: no separate source, format = ux.diagnostic_text", function()

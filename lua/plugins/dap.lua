@@ -297,6 +297,23 @@ return {
   },
   {
     "rcarriga/nvim-dap-ui",
+    -- LazyVim's dap.core closes the UI on terminated/exited: the program's
+    -- output then lived only in the hidden [dap-terminal] buffer. Keep it open
+    -- (close with <leader>du) once the session is over.
+    init = function()
+      vim.api.nvim_create_autocmd("User", {
+        pattern = "LazyLoad",
+        callback = function(ev)
+          if ev.data == "nvim-dap-ui" then
+            vim.schedule(function()
+              local l = require("dap").listeners.before
+              l.event_terminated["dapui_config"] = nil
+              l.event_exited["dapui_config"] = nil
+            end)
+          end
+        end,
+      })
+    end,
     opts = function()
       -- wide enough for `alloc::vec::Vec<alloc::string::String, alloc::alloc::Global>`
       -- on a normal terminal, but never more than a third of a narrow one.

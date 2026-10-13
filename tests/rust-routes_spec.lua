@@ -253,12 +253,7 @@ describe("rust_routes.collect", function()
       return i.rel
     end, R.collect(root))
     table.sort(rels)
-    local ok, err = pcall(H.eq, { "crates/a/src/lib.rs" }, rels)
-    if not ok then
-      -- real bug: vim.fs.dir passes the skip callback the dir's path relative
-      -- to root ("crates/a/target"), SKIP is keyed by bare names
-      require("xynotest.harness").skip("known bug: nested target/.git/... dirs are scanned: " .. rels[#rels])
-    end
+    H.eq({ "crates/a/src/lib.rs" }, rels)
   end)
 
   it("pre-filter: only files containing '.route(' or '#[' are parsed", function()

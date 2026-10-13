@@ -225,8 +225,11 @@ describe("wrapped command layout", function()
     vim.fn.delete(home .. "/.claude", "rf")
     local a = wrap(m, { "true" }, project, tmp)
     for _, p in ipairs(writable) do
-      expect_no_seq(a, "--bind", home .. p, home .. p)
+      if p ~= "/.claude" then -- wrap() creates it itself (the ~/.claude/<x> masks need it)
+        expect_no_seq(a, "--bind", home .. p, home .. p)
+      end
     end
+    H.eq(1, vim.fn.isdirectory(home .. "/.claude"), "wrap creates ~/.claude")
 
     for _, p in ipairs(writable) do
       mkdir(home .. p)
@@ -256,7 +259,7 @@ describe("scrub_names", function()
   it("hits names containing a secret-ish word", function()
     local words = {
       "TOKEN", "SECRET", "PASSWORD", "PASSWD", "API_KEY", "APIKEY", "CREDENTIAL", "PRIVATE_KEY", "ACCESS_KEY",
-      "AUTH_SOCK", "AGENT_INFO",
+      "AUTH_SOCK", "AGENT_INFO", "PASSPHRASE", "ASKPASS",
     }
     local env, want = {}, {}
     for _, w in ipairs(words) do
@@ -272,7 +275,7 @@ describe("scrub_names", function()
   it("hits the listed prefixes", function()
     local prefixes = {
       "AWS_", "AZURE_", "GOOGLE_", "GCP_", "GCLOUD_", "DOCKER_", "KUBE", "GH_", "GITHUB_", "GITLAB_", "NPM_",
-      "CARGO_REGISTR", "VAULT_",
+      "CARGO_REGISTR", "VAULT_", "OPENAI_", "STRIPE_",
     }
     local env, want = {}, {}
     for _, p in ipairs(prefixes) do
@@ -288,9 +291,9 @@ describe("scrub_names", function()
   it("hits the exact names", function()
     local names = {
       "DATABASE_URL", "DBUS_SESSION_BUS_ADDRESS", "DISPLAY", "WAYLAND_DISPLAY", "XAUTHORITY", "SSH_AUTH_SOCK",
-      "GPG_AGENT_INFO", "KUBECONFIG",
+      "GPG_AGENT_INFO", "KUBECONFIG", "MYSQL_PWD", "SSHPASS",
     }
-    local env = { DATABASE_URL_X = "1", MYDISPLAY = "1" }
+    local env = { PWD = "/home/x/proj", DATABASE_URL_X = "1", MYDISPLAY = "1" }
     for _, n in ipairs(names) do
       env[n] = "1"
     end
@@ -617,7 +620,7 @@ describe("readonly_paths", function()
     local home = fake_home()
     local m = load_for(home)
     local files = { "settings.json", "settings.local.json", "CLAUDE.md", "keybindings.json" }
-    local dirs = { "hooks", "commands", "agents", "skills", "plugins", "output-styles", "ide", "rules", "chrome" }
+    local dirs = { "hooks", "commands", "agents", "skills", "plugins", "output-styles", "ide", "rules", "chrome", "security" }
     for _, f in ipairs(files) do
       write(home .. "/.claude/" .. f)
     end
@@ -937,30 +940,58 @@ describe("project memory directory", function()
   end)
 end)
 
-describe("known bugs (assertions of the correct behaviour)", function()
+describe("former known bugs", function()
   it("renaming ~/.claude/projects/<name> cannot be used to plant memory/MEMORY.md", function()
     H.need_sandbox()
-    known_bug("rename of the parent of the masked memory dir succeeds, then mkdir -p + write reach the real fs", function()
-      local home = fake_home()
-      local m = load_for(home)
-      local base = H.tmpdir()
-      mkdir(base .. "/proj")
-      local project = vim.uv.fs_realpath(base .. "/proj")
-      local d = home .. "/.claude/projects/" .. project:gsub("[^%w]", "-")
-      sb(m, home, 'd="' .. d .. '"; mv "$d" "$d-moved"; mkdir -p "$d/memory"; echo planted > "$d/memory/MEMORY.md"', project)
-      H.eq(0, vim.fn.filereadable(d .. "/memory/MEMORY.md"), "MEMORY.md planted in the real ~/.claude")
-    end)
+    local home = fake_home()
+    local m = load_for(home)
+    local base = H.tmpdir()
+    mkdir(base .. "/proj")
+    local project = vim.uv.fs_realpath(base .. "/proj")
+    local d = home .. "/.claude/projects/" .. project:gsub("[^%w]", "-")
+    local script = table.concat({
+      'd="' .. d .. '"',
+      'mv "$d" "$d-moved" 2>/dev/null && echo MOVED',
+      'mkdir -p "$d/memory" 2>/dev/null',
+      'echo planted > "$d/memory/MEMORY.md" 2>/dev/null && echo PLANTED',
+      -- other projects' transcripts are read-only too
+      'mkdir -p "' .. home .. '/.claude/projects/other" 2>/dev/null && echo OTHER-CREATED',
+      'echo ok',
+    }, "\n")
+    local r = sb(m, home, script, project)
+    H.match(r.stdout, "ok", true, out(r))
+    H.no_match(r.stdout, "MOVED", true, out(r))
+    H.no_match(r.stdout, "PLANTED", true, out(r))
+    H.no_match(r.stdout, "OTHER-CREATED", true, out(r))
+    H.eq(0, vim.fn.filereadable(d .. "/memory/MEMORY.md"), "MEMORY.md planted in the real ~/.claude")
+    H.eq(0, vim.fn.isdirectory(d .. "-moved"))
   end)
 
   it("wrap works when ~/.claude does not exist (fresh machine)", function()
     H.need_sandbox()
-    known_bug("--tmpfs ~/.claude/hooks needs ~/.claude: bwrap aborts with 'Can't mkdir parents'", function()
-      local home = fake_home({ no_claude = true })
-      local m = load_for(home)
-      local r = sb(m, home, "echo alive", H.tmpdir())
-      H.eq(0, r.code, out(r))
-      H.match(r.stdout, "alive", true)
-    end)
+    local home = fake_home({ no_claude = true })
+    local m = load_for(home)
+    local r = sb(m, home, "echo alive", H.tmpdir())
+    H.eq(0, r.code, out(r))
+    H.match(r.stdout, "alive", true)
+  end)
+
+  it("~/.claude/security (the hook's python venv) is read-only, also when it did not exist", function()
+    H.need_sandbox()
+    local home = fake_home()
+    local m = load_for(home)
+    mkdir(home .. "/.claude/security/agent-sdk-venv/lib")
+    local project = H.tmpdir()
+    local r = sb(m, home, 'touch "' .. home .. '/.claude/security/agent-sdk-venv/lib/x.pth" 2>/dev/null && echo WRITABLE; echo done', project)
+    H.match(r.stdout, "done", true, out(r))
+    H.no_match(r.stdout, "WRITABLE", true, out(r))
+    H.eq(0, vim.fn.filereadable(home .. "/.claude/security/agent-sdk-venv/lib/x.pth"))
+
+    local home2 = fake_home()
+    local m2 = load_for(home2)
+    local r2 = sb(m2, home2, 'mkdir "' .. home2 .. '/.claude/security" 2>/dev/null && echo CREATED; echo done', project)
+    H.match(r2.stdout, "done", true, out(r2))
+    H.no_match(r2.stdout, "CREATED", true, out(r2))
   end)
 end)
 

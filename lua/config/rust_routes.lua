@@ -82,7 +82,7 @@ function M.collect(root)
   for name, type in vim.fs.dir(root, {
     depth = 12,
     skip = function(dir)
-      return not SKIP[dir]
+      return not SKIP[vim.fs.basename(dir)] -- dir is the path relative to root: nested target/ too
     end,
   }) do
     if type == "file" and name:match("%.rs$") then

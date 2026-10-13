@@ -386,6 +386,13 @@ function H.cleanup()
   pcall(vim.cmd, "silent! %bwipeout!")
   pcall(vim.cmd, "cd " .. vim.fn.fnameescape(vim.env.HOME or "/"))
   for _, d in ipairs(H._dirs) do
+    -- agent_sandbox.wrap() leaves an empty ~/.claude/projects/<dir>/memory
+    -- behind (the mask's mount point): remove what a spec's temp dir caused
+    -- (rmdir only: a directory with anything in it stays)
+    local name = (vim.uv.fs_realpath(d) or d):gsub("[^%w]", "-")
+    local proj = vim.uv.os_homedir() .. "/.claude/projects/" .. name
+    vim.uv.fs_rmdir(proj .. "/memory")
+    vim.uv.fs_rmdir(proj)
     vim.fn.delete(d, "rf")
   end
   H._dirs = {}

@@ -21,6 +21,10 @@ function M.ssr(visual)
     l1, l2 = vim.fn.line("'<"), vim.fn.line("'>")
   end
   ask("SSR query (pattern ==>> replacement): ", function(q)
+    -- rustaceanvim raises a raw traceback (ssr.lua:16) for a query without the arrow
+    if not q:find("==>>", 1, true) then
+      return vim.notify("SSR query needs `pattern ==>> replacement`", vim.log.levels.WARN)
+    end
     local cmd = { cmd = "RustLsp", args = { "ssr", q } }
     if visual then
       cmd.range = { l1, l2 }
@@ -32,8 +36,25 @@ end
 --- <leader>rw / rW: rustaceanvim's own prompt asks twice when no query is
 --- given, so ask once here. Results land in the quickfix list.
 function M.workspace_symbol(deps)
+  -- RustLsp only exists in a Rust buffer: from the quickfix list, a picker or
+  -- a terminal run it in a Rust window of this tab.
+  local win = vim.api.nvim_get_current_win()
+  if vim.bo.filetype ~= "rust" then
+    win = nil
+    for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+      if vim.bo[vim.api.nvim_win_get_buf(w)].filetype == "rust" then
+        win = w
+        break
+      end
+    end
+    if not win then
+      return vim.notify("workspace symbol: no Rust window in this tab", vim.log.levels.WARN)
+    end
+  end
   ask("Symbol query: ", function(q)
-    vim.api.nvim_cmd({ cmd = "RustLsp", args = { "workspaceSymbol", (q:gsub("%s+", "")) }, bang = deps }, {})
+    vim.api.nvim_win_call(win, function()
+      vim.api.nvim_cmd({ cmd = "RustLsp", args = { "workspaceSymbol", (q:gsub("%s+", "")) }, bang = deps }, {})
+    end)
   end)
 end
 

@@ -28,12 +28,15 @@ return {
   {
     "nvim-mini/mini.surround",
     opts = {
+      -- Two-step patterns: a balanced match first (a lazy `.-` stopped at the
+      -- first `)`: `gsdO` on Ok(vec![f(1), g(2)]) left `vec![f(1, g(2)])`), then
+      -- the empty captures mark where the wrapper ends and begins.
       custom_surroundings = {
-        S = { input = { "Some%(().-()%)" }, output = { left = "Some(", right = ")" } },
-        O = { input = { "Ok%(().-()%)" }, output = { left = "Ok(", right = ")" } },
-        N = { input = { "Box::new%(().-()%)" }, output = { left = "Box::new(", right = ")" } },
-        D = { input = { "dbg!%(().-()%)" }, output = { left = "dbg!(", right = ")" } },
-        U = { input = { "unsafe { ().-() }" }, output = { left = "unsafe { ", right = " }" } },
+        S = { input = { "Some%b()", "^Some%(().*()%)$" }, output = { left = "Some(", right = ")" } },
+        O = { input = { "Ok%b()", "^Ok%(().*()%)$" }, output = { left = "Ok(", right = ")" } },
+        N = { input = { "Box::new%b()", "^Box::new%(().*()%)$" }, output = { left = "Box::new(", right = ")" } },
+        D = { input = { "dbg!%b()", "^dbg!%(().*()%)$" }, output = { left = "dbg!(", right = ")" } },
+        U = { input = { "unsafe%s*%b{}", "^unsafe%s*{ ?().-() ?}$" }, output = { left = "unsafe { ", right = " }" } },
       },
     },
   },

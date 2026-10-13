@@ -190,11 +190,13 @@ describe("rust_context", function()
       local ws = H.fixture("workspace")
       H.eq(ws, rc.root(ws .. "/app/src/main.rs"))
       H.eq(ws, rc.root(ws .. "/core/src/lib.rs"))
-      -- nested workspaces: the outermost wins, not the nearest [workspace]
+      -- a nested crate with its own [workspace] is its own root when cargo
+      -- says so (see the excluded-crate test); without cargo the text walk
+      -- takes the outermost [workspace]
       local outer = crate('[workspace]\nmembers = ["inner"]\n')
       write_text(outer .. "/inner/Cargo.toml", '[package]\nname = "inner"\n[workspace]\n')
       write_text(outer .. "/inner/src/lib.rs", "")
-      H.eq(outer, rc.root(outer .. "/inner/src/lib.rs"))
+      H.eq(vim.fn.executable("cargo") == 1 and (outer .. "/inner") or outer, rc.root(outer .. "/inner/src/lib.rs"))
       -- a plain package above a workspace is not the root; [workspace.xxx] tables count
       local plain = crate('[package]\nname = "plain"\n')
       write_text(plain .. "/mid/Cargo.toml", "[workspace.package]\nedition = '2021'\n")
@@ -210,6 +212,28 @@ describe("rust_context", function()
       local outer = crate('[package]\nname = "o"\n')
       write_text(outer .. "/in/Cargo.toml", '[package]\nname = "i"\n')
       H.eq(outer .. "/in", rc.root(outer .. "/in/src/lib.rs"))
+    end)
+
+    it("an excluded crate and one with its own [workspace] are their own root (cargo locate-project)", function()
+      if vim.fn.executable("cargo") ~= 1 then
+        return H.skip_file("cargo not found")
+      end
+      local ws = H.tmpdir()
+      write_text(ws .. "/Cargo.toml", '[workspace]\nmembers = ["a"]\nexclude = ["ex", "nested"]\n')
+      write_text(ws .. "/a/Cargo.toml", '[package]\nname = "a"\nversion = "0.1.0"\nedition = "2021"\n')
+      write_text(ws .. "/ex/Cargo.toml", '[package]\nname = "ex"\nversion = "0.1.0"\nedition = "2021"\n')
+      write_text(ws .. "/nested/Cargo.toml", '[package]\nname = "nested"\nversion = "0.1.0"\nedition = "2021"\n[workspace]\n')
+      for _, d in ipairs({ "a", "ex", "nested" }) do
+        write_text(ws .. "/" .. d .. "/src/lib.rs", "")
+      end
+      H.eq(ws, rc.root(ws .. "/a/src/lib.rs"), "a member")
+      H.eq(ws .. "/ex", rc.root(ws .. "/ex/src/lib.rs"), "excluded from the parent workspace")
+      H.eq(ws .. "/nested", rc.root(ws .. "/nested/src/lib.rs"), "own [workspace]")
+      -- the answer follows edits of the manifests (cache keyed by their mtime)
+      write_text(ws .. "/Cargo.toml", '[workspace]\nmembers = ["a", "ex"]\nexclude = ["nested"]\n')
+      local st = vim.uv.fs_stat(ws .. "/Cargo.toml")
+      vim.uv.fs_utime(ws .. "/Cargo.toml", st.atime.sec, st.mtime.sec + 5)
+      H.eq(ws, rc.root(ws .. "/ex/src/lib.rs"), "now a member")
     end)
 
     it("defaults to the current buffer's name", function()
@@ -238,6 +262,25 @@ describe("rust_context", function()
       local ctx = { all = false, no_default = false, features = { "ssr" }, target = "t" }
       rc.apply("/r/one", ctx)
       H.eq({ ["/r/one"] = ctx }, state())
+    end)
+
+    it("is written aside and renamed (no truncated file for a reader, no leftover temp file)", function()
+      notes()
+      local seen_tmp = {}
+      local orig = vim.uv.fs_rename
+      vim.uv.fs_rename = function(from, to)
+        seen_tmp[#seen_tmp + 1] = { from, to }
+        return orig(from, to)
+      end
+      on_undo(function()
+        vim.uv.fs_rename = orig
+      end)
+      rc.apply("/r/one", { all = true, features = {} })
+      H.eq(1, #seen_tmp)
+      H.eq(state_file, seen_tmp[1][2])
+      H.match(seen_tmp[1][1], "rust%-context%.json%.%d+%.tmp$")
+      H.eq(0, vim.fn.filereadable(seen_tmp[1][1]))
+      H.eq({ ["/r/one"] = { all = true, features = {} } }, state())
     end)
 
     it("reads as empty when the file is missing, invalid or not a table", function()
@@ -535,6 +578,10 @@ describe("rust_context", function()
         end,
       })
       rc.pick()
+      -- (root() may also ask `cargo locate-project`: not what is checked here)
+      calls = vim.tbl_filter(function(c)
+        return c.cmd[2] == "metadata"
+      end, calls)
       H.eq(1, #calls)
       H.eq({ "cargo", "metadata", "--format-version", "1", "--no-deps" }, calls[1].cmd)
       H.eq(ws, calls[1].opts.cwd)
@@ -935,17 +982,37 @@ describe("rust_context with live servers", function()
     end
   end)
 
-  -- KNOWN BUG (confirmed by hand): rustaceanvim attaches every further
-  -- workspace's buffers to the ONE running rust-analyzer client (adding a
-  -- workspace folder) whose config.root_dir stays the first workspace's, so
-  -- apply(second_root, ctx) matches no client (M.root(client root) ~= second_root)
-  -- and the live rust-analyzer never gets the new context, while the stored
-  -- choice and the notification claim it was applied. Repro: open
-  -- tests/fixtures/workspace/core/src/lib.rs, then tests/fixtures/basic/src/lib.rs
-  -- in the same nvim (one client, two workspace folders), :RustContext in the
-  -- basic buffer and pick a feature: the client's settings cargo.features and
-  -- allFeatures are unchanged. Expected: the shared client is updated.
-  pending("apply for a second workspace reaches the shared rust-analyzer client", "known bug: shared rustaceanvim client keeps the first workspace's root_dir")
+  -- rustaceanvim attaches every further workspace's buffers to the ONE running
+  -- rust-analyzer client (an added workspace folder) whose config.root_dir stays
+  -- the first workspace's: apply(second_root, ctx) must still reach it.
+  it("apply for a second workspace reaches the shared rust-analyzer client", function()
+    notes()
+    local first, second = crate('[package]\nname = "first"\n'), crate('[package]\nname = "second"\n')
+    local sent = {}
+    local fake = {
+      name = "rust-analyzer",
+      config = { root_dir = first },
+      workspace_folders = { { name = first, uri = vim.uri_from_fname(first) }, { name = second, uri = vim.uri_from_fname(second) } },
+      settings = { ["rust-analyzer"] = { cargo = { allFeatures = true } } },
+      notify = function(_, method)
+        sent[#sent + 1] = method
+      end,
+    }
+    local orig = vim.lsp.get_clients
+    vim.lsp.get_clients = function(f)
+      if f and f.name == "rust-analyzer" then
+        return { fake }
+      end
+      return orig(f)
+    end
+    on_undo(function()
+      vim.lsp.get_clients = orig
+    end)
+    rc.apply(second, { all = false, no_default = false, features = { "zzz" } })
+    H.eq(false, fake.settings["rust-analyzer"].cargo.allFeatures)
+    H.eq({ "zzz" }, fake.settings["rust-analyzer"].cargo.features)
+    H.eq({ "workspace/didChangeConfiguration" }, sent)
+  end)
 
   it("a stored csr choice is applied on a fresh server start", function()
     H.need_rust()

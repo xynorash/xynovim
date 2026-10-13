@@ -122,6 +122,43 @@ describe("bacon-ls config", function()
     H.eq("none", root_of(vim.fn.bufadd(solo_dir .. "/solo.rs")), "no Cargo.toml above")
   end)
 
+  it("without cargo on PATH no client is started and one WARN says why (not a bare os error 2)", function()
+    local srv = plugin_server()
+    local dir = H.fixture("basic")
+    local b = vim.fn.bufadd(dir .. "/src/lib.rs")
+    local real = vim.fn.executable
+    rawset(vim.fn, "executable", function(name)
+      if name == "cargo" then
+        return 0
+      end
+      return real(name)
+    end)
+    local cap = H.capture_notify()
+    local got = "none"
+    local ok, err = pcall(function()
+      srv.root_dir(b, function(r)
+        got = r
+      end)
+      srv.root_dir(b, function(r)
+        got = r
+      end)
+    end)
+    rawset(vim.fn, "executable", nil)
+    cap.restore()
+    H.ok(ok, err)
+    H.eq("none", got)
+    H.eq(1, #cap.list, "told once")
+    H.eq(vim.log.levels.WARN, cap.list[1].level)
+    H.match(cap.list[1].msg, "cargo is not on PATH", true)
+    H.eq(dir, (function()
+      local r
+      srv.root_dir(b, function(x)
+        r = x
+      end)
+      return r
+    end)(), "with cargo again it roots normally")
+  end)
+
   it("a standalone .rs file attaches rust-analyzer but not bacon_ls", function()
     local _, buf = H.open_fixture("standalone.rs")
     H.wait_lsp("rust-analyzer", buf)

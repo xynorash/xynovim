@@ -267,17 +267,22 @@ local function size_cap()
     return MAX_BYTES
   end
   v = tonumber(v)
-  return v and v > 0 and v or nil
+  if v == nil then
+    return MAX_BYTES -- not a number: keep the default cap rather than silently lifting it
+  end
+  return v > 0 and v or nil
 end
 
---- cb(list of untracked files bigger than the cap). Untracked = not in the
---- user's real index (the private index is empty in a new session).
+--- cb(list of files bigger than the cap). Untracked = not in the user's real
+--- index (the private index is empty in a new session); modified tracked files
+--- count too: each snapshot of a changed large file would add its whole size
+--- to .git (an unchanged tracked file is the same blob as in HEAD).
 local function big_untracked(root, run, cb)
   local cap = size_cap()
   if not cap then
     return cb({})
   end
-  git({ "ls-files", "-o", "--exclude-standard", "-z" }, root, nil, function(out)
+  git({ "ls-files", "-o", "-m", "--exclude-standard", "-z" }, root, nil, function(out)
     local big = {}
     for _, rel in ipairs(vim.split(out or "", "\0", { plain = true })) do
       local st = rel ~= "" and vim.uv.fs_stat(root .. "/" .. rel) or nil
@@ -652,10 +657,15 @@ function M.prune(arg, now)
       end
     end
   end
-  if dropped == 0 then
+  if dropped == 0 and not now then
     return vim.notify(("local history: nothing to prune (%d snapshots)"):format(total))
   end
-  vim.notify(("local history: dropped %d of %d snapshots, collecting garbage..."):format(dropped, total))
+  -- also with nothing left to drop when forced: the follow-up bang of an
+  -- earlier prune still has the dangling commits to collect
+  vim.notify(
+    dropped == 0 and ("local history: nothing to drop (%d snapshots), collecting garbage..."):format(total)
+      or ("local history: dropped %d of %d snapshots, collecting garbage..."):format(dropped, total)
+  )
   vim.system({ "git", "gc", "--quiet", now and "--prune=now" or "--prune=1.hour.ago" }, { cwd = root, text = true }, function(o)
     vim.schedule(function()
       vim.notify(
