@@ -1,11 +1,11 @@
 {
   "Test module": {
-    "prefix": "tmod",
+    "prefix": "testmod",
     "body": ["#[cfg(test)]", "mod tests {", "\tuse super::*;", "", "\t#[test]", "\tfn ${1:it_works}() {", "\t\t$0", "\t}", "}"],
     "description": "#[cfg(test)] mod tests"
   },
   "Test fn": {
-    "prefix": "tfn",
+    "prefix": "testfn",
     "body": ["#[test]", "fn ${1:name}() {", "\t$0", "}"],
     "description": "#[test] fn"
   },

@@ -432,6 +432,27 @@ describe("buffer-local maps on a Rust buffer", function()
     H.match(n[1].msg, "pattern ==>> replacement", true)
   end)
 
+  it("8. a query rust-analyzer cannot parse gives a WARN notice, not rustaceanvim's traceback (real rust-analyzer)", function()
+    local ra = require("config.rust_assist")
+    local n = notifications()
+    local errs = {}
+    stub(vim.api, "nvim_err_writeln", function(m)
+      errs[#errs + 1] = m
+    end)
+    answer_input("nonsense ==>>")
+    ra.ssr()
+    H.wait_for(function()
+      return #n > 0
+    end, 30000, "a notice for the SSR parse error")
+    H.eq(vim.log.levels.WARN, n[1].level)
+    H.match(n[1].msg, "SSR: ", true)
+    H.eq({}, errs)
+    -- the wrapper is gone again
+    local rv = require("rustaceanvim.rust_analyzer")
+    H.eq(rv.buf_request, rv.buf_request)
+    H.is_nil(debug.getinfo(rv.buf_request, "S").source:find("rust_assist", 1, true))
+  end)
+
   it("8. <leader>rs maps: normal and selection variants", function()
     H.eq("Structural search & replace", mp("<leader>rs", "n").desc)
     H.eq("Structural search & replace (selection)", mp("<leader>rs", "x").desc)
@@ -1076,6 +1097,39 @@ describe("rust_nav", function()
     mp("<leader>ru").callback()
     H.eq(file, vim.api.nvim_buf_get_name(0))
     H.eq(4, vim.api.nvim_win_get_cursor(0)[1], "landed on the doc comment, not the method")
+    vim.cmd("bwipeout!")
+  end)
+
+  it("21. the doc-comment skip does not depend on a treesitter parser (field test: std's Display::fmt, `///` line)", function()
+    local dir = H.tmpdir()
+    local file = dir .. "/nots.rs"
+    vim.fn.writefile({
+      "pub trait Shape {",
+      "    /// Formats like `fn area(&self)` does.",
+      "    // fn area is also mentioned here",
+      "    /* fn area */",
+      "    fn area(&self) -> f64;",
+      "}",
+    }, file)
+    local l = find("fn area(&self) -> f64 {")
+    vim.api.nvim_win_set_cursor(0, { l + 1, 8 })
+    -- a freshly shown buffer has no parser yet: get_node() gave nil and the first match stuck
+    local orig_get_node = vim.treesitter.get_node
+    stub(vim.treesitter, "get_node", function(...)
+      if vim.api.nvim_buf_get_name(0) == file then
+        return nil
+      end
+      return orig_get_node(...)
+    end)
+    stub_definition({
+      res = { {
+        uri = vim.uri_from_fname(file),
+        range = { start = { line = 0, character = 0 }, ["end"] = { line = 0, character = 5 } },
+      } },
+    })
+    mp("<leader>ru").callback()
+    H.eq(file, vim.api.nvim_buf_get_name(0))
+    H.eq(5, vim.api.nvim_win_get_cursor(0)[1], "landed on a comment line, not the method")
     vim.cmd("bwipeout!")
   end)
 

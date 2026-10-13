@@ -33,6 +33,7 @@ local function install_stubs()
     redraws = 0,
     notes = {},
     enabled = {},
+    disabled = {},
     ra_starts = {},
     ra_cmds = {},
   }
@@ -88,7 +89,11 @@ local function install_stubs()
       end
     end,
   })
-  vim.lsp.enable = function(name)
+  vim.lsp.enable = function(name, on)
+    if on == false then
+      s.disabled[#s.disabled + 1] = name
+      return
+    end
     s.enabled[#s.enabled + 1] = name
   end
   vim.notify = function(msg, level)
@@ -122,6 +127,10 @@ local function fake_client(s, opts)
   local attached = {}
   for _, b in ipairs(opts.bufs or {}) do
     attached[b] = true
+  end
+  -- a bacon-ls root is a Cargo workspace root (sweep stops a client whose root lost it)
+  if opts.root and opts.name == "bacon_ls" and vim.fn.isdirectory(opts.root) == 1 and vim.fn.filereadable(opts.root .. "/Cargo.toml") == 0 then
+    vim.fn.writefile({ "[package]" }, opts.root .. "/Cargo.toml")
   end
   local c = {
     id = next_id,
@@ -203,7 +212,7 @@ describe("rust_restart: setup and on_exit", function()
     fresh_restart()
   end)
 
-  it("defines :RustRestart (no args) and the three autocmds in its group", function()
+  it("defines :RustRestart (no args) and the four autocmds in its group", function()
     local cmd = vim.api.nvim_get_commands({}).RustRestart
     H.ok(cmd, "RustRestart is defined")
     H.eq("0", cmd.nargs)
@@ -211,7 +220,7 @@ describe("rust_restart: setup and on_exit", function()
     for _, a in ipairs(vim.api.nvim_get_autocmds({ group = RR_GROUP })) do
       events[a.event] = true
     end
-    H.eq({ FileChangedShellPost = true, FocusGained = true, LspAttach = true }, events)
+    H.eq({ FileChangedShellPost = true, FocusGained = true, LspAttach = true, VimLeavePre = true }, events)
   end)
 
   it("a clean exit (code 0, signal 0) does nothing", function()
@@ -343,6 +352,14 @@ describe("rust_restart: :RustRestart and sweep", function()
     H.eq(true, c2.stopped, "stopped with force")
   end)
 
+  it("sweep also stops a bacon_ls whose root lost its Cargo.toml (status stayed 'clippy ok')", function()
+    local d = H.tmpdir()
+    local c = fake_client(s, { name = "bacon_ls", root = d })
+    vim.fn.delete(d .. "/Cargo.toml")
+    require("config.rust_restart").sweep()
+    H.eq(true, c.stopped)
+  end)
+
   it("the exit of a client sweep stopped (SIGTERM) is no crash: no 'exited ... restarting' warning, no restart", function()
     local gone = H.tmpdir()
     local c = fake_client(s, { name = "bacon_ls", root = gone, bufs = {} })
@@ -386,6 +403,14 @@ describe("rust_restart: :RustRestart and sweep", function()
     H.eq({ { msg = "restarting rust-analyzer and bacon-ls", level = nil } }, s.notes)
   end)
 
+  it("the bacon_ls start switches the config off and on (enable of an enabled config is a no-op: kill -9 stayed dead)", function()
+    local rs = scratch_buf(H.tmpdir() .. "/c.rs", "rust")
+    vim.api.nvim_set_current_buf(rs)
+    vim.cmd("RustRestart")
+    H.eq({ "bacon_ls" }, s.disabled)
+    H.eq({ "bacon_ls" }, s.enabled)
+  end)
+
   it("starts rust-analyzer for loaded rust buffers and bacon_ls when neither client exists", function()
     local rs = scratch_buf(H.tmpdir() .. "/b.rs", "rust")
     vim.b[rs].xynovim_stopped = { bacon_ls = true }
@@ -396,6 +421,64 @@ describe("rust_restart: :RustRestart and sweep", function()
     H.has(s.ra_starts, rs)
     H.eq({ "bacon_ls" }, s.enabled)
     H.is_nil(vim.b[rs].xynovim_stopped)
+  end)
+end)
+
+describe("rust_restart: VimLeavePre kill of servers that never initialised", function()
+  local s
+  before_each(function()
+    s = install_stubs()
+    fresh_restart()
+  end)
+  after_each(function()
+    remove_stubs()
+    fresh_restart()
+  end)
+
+  it("stops the uninitialised clients and SIGKILLs this nvim's server children of that name; initialised ones are left", function()
+    local rr = require("config.rust_restart")
+    local killed = {}
+    local orig_kill, orig_pids = vim.uv.kill, rr.server_pids
+    vim.uv.kill = function(pid, sig)
+      killed[#killed + 1] = { pid, sig }
+      return 0
+    end
+    rr.server_pids = function()
+      return { [111] = "rust-analyzer", [222] = "bacon-ls" }
+    end
+    local ra = fake_client(s, { name = "rust-analyzer" })
+    local bc = fake_client(s, { name = "bacon_ls", root = H.tmpdir() })
+    ra.initialized = false
+    bc.initialized = true
+    local ok, e = pcall(rr.kill_uninitialised)
+    vim.uv.kill, rr.server_pids = orig_kill, orig_pids
+    H.ok(ok, tostring(e))
+    H.eq(true, ra.stopped, "stopped with force")
+    H.is_nil(bc.stopped)
+    H.eq({ { 111, "sigkill" } }, killed)
+    -- and the exit of the stopped one is no crash to restart from
+    rr.on_exit("rust-analyzer")(nil, 9, ra.id)
+    vim.wait(700, function()
+      return false
+    end, 20)
+    H.eq({}, s.ra_starts)
+  end)
+
+  it("with every client initialised nothing is killed", function()
+    local rr = require("config.rust_restart")
+    local killed = 0
+    local orig_kill = vim.uv.kill
+    vim.uv.kill = function()
+      killed = killed + 1
+      return 0
+    end
+    local c = fake_client(s, { name = "rust-analyzer" })
+    c.initialized = true
+    local ok, e = pcall(rr.kill_uninitialised)
+    vim.uv.kill = orig_kill
+    H.ok(ok, tostring(e))
+    H.eq(0, killed)
+    H.is_nil(c.stopped)
   end)
 end)
 
@@ -508,6 +591,32 @@ describe("rust_restart: FocusGained refresh", function()
     focus()
     settle()
     H.eq(0, has_cmd(s, "lsp restart bacon_ls"))
+  end)
+
+  it("a Cargo.toml changed on disk restarts bacon_ls on focus (a repaired manifest: 'clippy failed' stayed)", function()
+    local d = repo()
+    local c = fake_client(s, { name = "bacon_ls", root = d })
+    attach(c)
+    focus()
+    H.wait_for(function()
+      return has_cmd(s, "silent! checktime") > 0
+    end, 3000)
+    settle()
+    H.eq(0, has_cmd(s, "lsp restart bacon_ls"), "nothing changed")
+    vim.uv.fs_utime(d .. "/Cargo.toml", 1000000000, 1000000000)
+    focus()
+    H.wait_for(function()
+      return has_cmd(s, "lsp restart bacon_ls") > 0
+    end, 3000, "restart after Cargo.toml changed")
+    s.cmds = {}
+    -- Cargo.lock is created and rewritten by cargo itself: no restart for it
+    vim.fn.writefile({ "# lock" }, d .. "/Cargo.lock")
+    focus()
+    settle()
+    H.eq(0, has_cmd(s, "lsp restart bacon_ls"), "Cargo.lock is not watched")
+    focus()
+    settle()
+    H.eq(0, has_cmd(s, "lsp restart bacon_ls"), "remembered, no further restart")
   end)
 
   it("git_head: follows `ref:` to the ref file, detached HEAD is the sha", function()

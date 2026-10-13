@@ -37,11 +37,11 @@ local function stubdir(spec)
 end
 
 local HEALTH_BINS = {
-  "git", "curl", "tar", "unzip", "gzip", "gcc", "node", "cargo", "rust-analyzer", "bacon-ls", "codelldb", "taplo",
+  "git", "curl", "tar", "unzip", "gzip", "gcc", "tree-sitter", "node", "cargo", "rust-analyzer", "bacon-ls", "codelldb", "taplo",
   "wgsl-analyzer", "cargo-nextest", "cargo-deny", "cargo-expand", "lazygit", "delta", "mold", "clang", "npm", "bwrap",
 }
 local ERRORS = { git = 1, cargo = 1, ["rust-analyzer"] = 1, ["bacon-ls"] = 1 }
-local MASON = { ["bacon-ls"] = 1, codelldb = 1, taplo = 1, ["wgsl-analyzer"] = 1 }
+local MASON = { ["tree-sitter"] = 1, ["bacon-ls"] = 1, codelldb = 1, taplo = 1, ["wgsl-analyzer"] = 1 }
 
 local function all_stubs(extra)
   local spec = {}
@@ -133,9 +133,9 @@ describe("health: TOOLS table", function()
     rec = run_check(stubdir({}), nil)
   end)
 
-  it("has 22 entries with the documented severities", function()
+  it("has 23 entries with the documented severities", function()
     local tools = section(rec, "xynovim: external tools")
-    H.eq(22, #tools)
+    H.eq(23, #tools)
     for _, bin in ipairs(HEALTH_BINS) do
       local r = H.ok(rec_for(rec, bin), "no record for " .. bin)
       H.eq(ERRORS[bin] and "error" or "warn", r.kind, bin .. " severity")
@@ -394,7 +394,7 @@ exit 0
     --- stub the prerequisite tools (all but `except`); rust-analyzer's version can be made to fail
     stub_prereqs = function(_, except, ra_fails)
       except = except or {}
-      for _, t in ipairs({ "nvim", "git", "curl", "tar", "unzip", "gcc", "npm", "node", "cargo", "rustup", "rust-analyzer" }) do
+      for _, t in ipairs({ "nvim", "git", "curl", "tar", "unzip", "gzip", "gcc", "npm", "node", "cargo", "rustup", "rust-analyzer" }) do
         if not vim.tbl_contains(except, t) and t ~= "nvim" then
           write_exec(bin .. "/" .. t, (t == "rust-analyzer" and ra_fails) and "exit 1\n" or "echo stub\n")
         end
@@ -516,7 +516,7 @@ describe("bootstrap.sh: prerequisites", function()
     H.eq({}, log_lines(c), "nvim must not run")
   end)
 
-  it("checks nvim, git, curl, tar, unzip, gcc, npm, node, cargo, rustup and rust-analyzer", function()
+  it("checks nvim, git, curl, tar, unzip, gzip, gcc, npm, node, cargo, rustup and rust-analyzer", function()
     local c = mkcheckout()
     -- bin holds only coreutils + the nvim stub: everything else is missing, in loop order
     local r = c:run()
@@ -525,8 +525,8 @@ describe("bootstrap.sh: prerequisites", function()
     for t in r.stderr:gmatch("\n  %- ([^\n]+)") do
       listed[#listed + 1] = t
     end
-    -- nvim is present (stub), the other ten are listed in the script's order
-    H.eq({ "git", "curl", "tar", "unzip", "gcc", "npm", "node", "cargo", "rustup", "rust-analyzer" }, listed)
+    -- nvim is present (stub), the other eleven are listed in the script's order
+    H.eq({ "git", "curl", "tar", "unzip", "gzip", "gcc", "npm", "node", "cargo", "rustup", "rust-analyzer" }, listed)
     local c2 = mkcheckout()
     sh({ "rm", c2.bin .. "/nvim" })
     c2:stub_prereqs()

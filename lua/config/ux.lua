@@ -18,8 +18,14 @@ end
 --- What identifies a problem across the two tiers: the rustc error code
 --- (rust-analyzer sets `code`, clippy's rendered message has `error[E0308]:`),
 --- else the first line without its `error: ` prefix, case and end punctuation.
+--- rust-analyzer names a lint-level problem by its lint (`code = "unsafe_op_in_unsafe_fn"`)
+--- where clippy's rendering carries the error code (`warning[E0133]: ...`) and words it
+--- differently, so the two never matched; known pairs.
+local LINT_CODES = { unsafe_op_in_unsafe_fn = "E0133" }
+
 local function same_key(d)
-  local code = type(d.code) == "string" and d.code:match("^E%d+$") or head(d.message):match("^%a+%[(E%d+)%]")
+  local code = type(d.code) == "string" and (d.code:match("^E%d+$") or LINT_CODES[d.code])
+    or head(d.message):match("^%a+%[(E%d+)%]")
   return code or (head(d.message):gsub("^%a+: ", ""):gsub("[%s%p]+$", ""):lower())
 end
 

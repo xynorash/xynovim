@@ -164,8 +164,8 @@ end
 -- ------------------------------------------------------------ snippets/rust.json
 
 local NAMES = {
-  ["Test module"] = "tmod",
-  ["Test fn"] = "tfn",
+  ["Test module"] = "testmod",
+  ["Test fn"] = "testfn",
   ["Tokio test"] = "ttest",
   ["Tokio main"] = "tmain",
   ["impl Display"] = "impldisp",
@@ -305,12 +305,12 @@ end)
 -- ------------------------------------------------------------ blink menu (insert)
 
 describe("blink menu in a Rust buffer", function()
-  it("offers tmod, and ttest which expands to the Tokio test snippet", function()
+  it("offers testmod (not tmod: rust-analyzer's own tmod outranked ours), and ttest which expands to the Tokio test snippet", function()
     open_rust_file()
-    local labels = in_insert(2, "tmo", function()
-      return snippet_labels(menu_items("tmod", "tmo"))
+    local labels = in_insert(2, "testm", function()
+      return snippet_labels(menu_items("testmod", "testm"))
     end)
-    H.has(labels, "tmod")
+    H.has(labels, "testmod")
     local result = in_insert(3, "tte", function()
       local items = menu_items("ttest", "tte")
       local idx
@@ -424,6 +424,41 @@ describe("injections.scm", function()
         H.eq({ "select 2" }, sql_regions(body(call .. 'r#"select 2"#);')), call .. 'r#"..."#')
       end
     end
+  end)
+
+  it("no nested Rust layer over the SQL string of a sqlx macro (it painted @string on top of the SQL highlights)", function()
+    -- field test: `:Inspect` on SELECT in `query!("SELECT ...")` listed @string.rust twice; the
+    -- headless captures-at-pos check passed because the SQL layer was there too. The nested
+    -- rust layer (nvim-treesitter parses every macro's token_tree as Rust) is skipped for the
+    -- sqlx macros in queries/rust/injections.scm.
+    local function rust_layers_over_sql(src)
+      local buf = scratch(vim.split(src, "\n", { plain = true }))
+      local parser = vim.treesitter.get_parser(buf, "rust")
+      parser:parse(true)
+      local sql = parser:children().sql
+      H.ok(sql, "sql layer exists")
+      local srow = sql:included_regions()[1][1][1]
+      local n = 0
+      for lang, child in pairs(parser:children()) do
+        if lang == "rust" then
+          for _, region in ipairs(child:included_regions()) do
+            for _, r in ipairs(region) do
+              if r[1] <= srow and r[4] >= srow then
+                n = n + 1
+              end
+            end
+          end
+        end
+      end
+      return n
+    end
+    H.eq(0, rust_layers_over_sql(body('let s = sqlx::query!("SELECT id FROM users WHERE id = $1", 1);')))
+    H.eq(0, rust_layers_over_sql(body('let s = query_as!(Row, "select 1");')))
+    -- other macros keep their nested Rust layer
+    local buf = scratch(vim.split(body('vec![1, 2];'), "\n", { plain = true }))
+    local parser = vim.treesitter.get_parser(buf, "rust")
+    parser:parse(true)
+    H.ok(parser:children().rust, "vec! token tree is still parsed as Rust")
   end)
 
   it("injects SQL into the string of the runtime calls query, query_as, query_scalar (also scoped and with turbofish)", function()

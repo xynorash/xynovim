@@ -172,10 +172,41 @@ local function serves(c, root)
   return false
 end
 
+--- Read, set one key, write, under a lock file: two nvims applying at once each read the
+--- old file and the later rename dropped the other's key (8 nvims x 20 applies kept 79 of
+--- 160). A lock older than 5s is a dead owner's; after ~2s without it the write goes on.
+local function store(root, ctx)
+  local lock = state_file .. ".lock"
+  vim.fn.mkdir(vim.fs.dirname(state_file), "p")
+  local fd
+  for _ = 1, 400 do
+    fd = vim.uv.fs_open(lock, "wx", 420)
+    if fd then
+      break
+    end
+    local st = vim.uv.fs_stat(lock)
+    if st and os.time() - st.mtime.sec > 5 then
+      vim.uv.fs_unlink(lock)
+    else
+      vim.uv.sleep(5)
+    end
+  end
+  local ok, err = pcall(function()
+    local all = read_all()
+    all[root] = ctx
+    write_all(all)
+  end)
+  if fd then
+    vim.uv.fs_close(fd)
+    vim.uv.fs_unlink(lock)
+  end
+  if not ok then
+    error(err, 0)
+  end
+end
+
 function M.apply(root, ctx)
-  local all = read_all()
-  all[root] = ctx
-  write_all(all)
+  store(root, ctx)
   local eff = ctx or { all = true, features = {} }
   for _, c in ipairs(vim.lsp.get_clients({ name = "rust-analyzer" })) do
     if serves(c, root) then

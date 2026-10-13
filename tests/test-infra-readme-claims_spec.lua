@@ -1123,6 +1123,9 @@ it("does everything", function()
   vim.fn.writefile({ "x" }, d .. "/f")
   local job = H.spawn({ "sleep", "300" })
   result.dir, result.pid = d, job.pid
+  -- what a sandbox spec leaves in the real ~/.claude/projects: the project below the temp dir
+  result.proj = vim.uv.os_homedir() .. "/.claude/projects/" .. (vim.uv.fs_realpath(d) or d):gsub("[^%w]", "-") .. "-basic"
+  vim.fn.mkdir(result.proj .. "/memory", "p")
   if vim.fn.executable("tmux") == 1 then
     H.tmux({ "new-session", "-d", "sleep 300" }, "cl")
     result.sock = vim.env.XYNO_TMUX_PREFIX .. "-cl"
@@ -1149,6 +1152,7 @@ it("does everything", function()
 
   H.cleanup()
 
+  result.proj_exists = vim.uv.fs_stat(result.proj) ~= nil
   result.dir_exists = vim.uv.fs_stat(d) ~= nil
   result.file_exists = vim.uv.fs_stat(f) ~= nil
   result.job_alive = vim.uv.fs_stat("/proc/" .. job.pid) ~= nil
@@ -1169,6 +1173,7 @@ end)
     H.eq(true, d.opened)
     H.eq(1, d.clients_before)
     H.eq(0, d.clients_after, "LSP clients stopped")
+    H.eq(false, d.proj_exists, "the empty ~/.claude/projects/<temp dir>-basic/memory a sandbox spec leaves is removed")
     H.eq(false, d.dir_exists, "temp dir removed")
     H.eq(false, d.file_exists, "files in temp dirs removed")
     H.eq(false, d.job_alive, "spawned job killed")
@@ -1388,10 +1393,10 @@ describe("README layout and path claims", function()
       H.ok(exists(repo .. "/" .. rel), "layout entry " .. first)
       n = n + 1
     end
-    H.eq(15, n, "layout lists 15 entries")
+    H.eq(16, n, "layout lists 16 entries")
     for _, want in ipairs({
       "lua/config/", "lua/xynovim/", "snippets/", "lua/plugins/", "colors/", "lua/island/", "lua/lualine/", "tools/",
-      "scripts/", "tests/", "Makefile", "plugin/after/", "after/ftplugin/", "after/queries/", ".github/",
+      "scripts/", "tests/", "Makefile", "plugin/after/", "after/ftplugin/", "queries/", "after/queries/", ".github/",
     }) do
       H.match("\n" .. layout, "\n" .. want, true, want)
     end
@@ -1665,7 +1670,7 @@ describe("README roadmap 'done' items that can be checked mechanically", functio
     for _, s in pairs(snippets) do
       prefixes[#prefixes + 1] = s.prefix
     end
-    for _, p in ipairs({ "tmod", "tfn", "ttest", "tmain", "impldisp", "implfrom", "dcommon" }) do
+    for _, p in ipairs({ "testmod", "testfn", "ttest", "tmain", "impldisp", "implfrom", "dcommon" }) do
       H.has(prefixes, p)
       H.match(readme, "`" .. p .. "`", true)
     end

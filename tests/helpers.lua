@@ -391,8 +391,12 @@ function H.cleanup()
     -- (rmdir only: a directory with anything in it stays)
     local name = (vim.uv.fs_realpath(d) or d):gsub("[^%w]", "-")
     local proj = vim.uv.os_homedir() .. "/.claude/projects/" .. name
-    vim.uv.fs_rmdir(proj .. "/memory")
-    vim.uv.fs_rmdir(proj)
+    -- (also the ones of a project below the temp dir, e.g. <dir>/basic: field test, the
+    -- sandbox specs had left 33 of them in the real ~/.claude/projects)
+    for _, p in ipairs(vim.list_extend({ proj }, vim.fn.glob(proj .. "-*", true, true))) do
+      vim.uv.fs_rmdir(p .. "/memory")
+      vim.uv.fs_rmdir(p)
+    end
     vim.fn.delete(d, "rf")
   end
   H._dirs = {}

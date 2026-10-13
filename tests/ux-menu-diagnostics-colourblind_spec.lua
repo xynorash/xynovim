@@ -136,6 +136,19 @@ describe("ux.diagnostic_text dedupe across namespaces", function()
     H.eq("mismatched types [rust-analyzer]", text_of(buf, b))
   end)
 
+  it("rust-analyzer's lint name unsafe_op_in_unsafe_fn and clippy's warning[E0133] are one problem (field test: shown twice)", function()
+    local buf = track(scratch())
+    local a, b = two_ns()
+    vim.diagnostic.set(a, buf, {
+      diag(1, "warning[E0133]: dereference of raw pointer is unsafe and requires unsafe block\n  --> src/lib.rs:2", { source = "bacon-ls" }),
+    })
+    vim.diagnostic.set(b, buf, {
+      diag(1, "unsafe operation in unsafe function", { code = "unsafe_op_in_unsafe_fn", source = "rust-analyzer" }),
+    })
+    H.is_nil(text_of(buf, a), "clippy duplicate has no virtual text")
+    H.eq("unsafe operation in unsafe function [rust-analyzer]", text_of(buf, b))
+  end)
+
   it("matches by the code inside the first line when `code` is absent on both", function()
     local buf = track(scratch())
     local a, b = two_ns()
@@ -724,6 +737,46 @@ describe("which-key spec", function()
       end
     end
     H.ok(found, "group <leader>9 = '99 (agent)' registered in which-key")
+  end)
+
+  it("registers the <leader>t (test) and <leader>a (ai) groups, whose popup was missing when typed fast", function()
+    local Wk = require("which-key.config")
+    H.wait_for(function()
+      return Wk.loaded
+    end, 5000, "which-key setup")
+    for lhs, desc in pairs({ t = "test", a = "ai" }) do
+      local found
+      for _, m in ipairs(Wk.mappings) do
+        if m.group and m.desc == desc and (m.lhs == "<leader>" .. lhs or m.lhs == vim.g.mapleader .. lhs) then
+          found = true
+        end
+      end
+      H.ok(found, "group <leader>" .. lhs .. " = '" .. desc .. "' registered in which-key")
+    end
+  end)
+end)
+
+describe("snacks picker layout", function()
+  it("a window under 30 lines and 120 columns gets the preview-less select layout (80x24 border overdraw)", function()
+    local opts = {}
+    for _, spec in ipairs(dofile(H.repo .. "/lua/plugins/editing-ui.lua")) do
+      if spec[1] == "folke/snacks.nvim" and type(spec.opts) == "function" then
+        spec.opts({}, opts)
+      end
+    end
+    local preset = opts.picker and opts.picker.layout and opts.picker.layout.preset
+    H.eq("function", type(preset))
+    local cols, lines = vim.o.columns, vim.o.lines
+    local function at(c, l)
+      vim.o.columns, vim.o.lines = c, l
+      return preset()
+    end
+    local ok, a, b, c, d = pcall(function()
+      return at(80, 24), at(80, 40), at(160, 24), at(160, 50)
+    end)
+    vim.o.columns, vim.o.lines = cols, lines
+    H.ok(ok, tostring(a))
+    H.eq({ "select", "vertical", "default", "default" }, { a, b, c, d })
   end)
 end)
 

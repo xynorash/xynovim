@@ -9,13 +9,14 @@
 --     `git checkout`/`pull`, an agent rewriting files) leaves clippy checking
 --     the old content. On FocusGained, bacon-ls is restarted when a Rust or
 --     Cargo file open in nvim was reloaded from disk, or the git HEAD of its
---     workspace moved.
+--     workspace moved, or its Cargo.toml changed on disk.
 --   * bacon-ls clients whose workspace directory no longer exists are stopped.
 local M = {}
 
 local starts = {} -- name -> os.time() of the automatic restarts in the last minute
 local disk_changed = false
 local heads = {} -- workspace root -> git HEAD signature when last looked at
+local manifests = {} -- workspace root -> Cargo.toml mtime when last looked at
 local swept = {} -- client ids stopped by sweep(): their exit is not a crash
 local SERVER_EXES = { ["rust-analyzer"] = true, ["bacon-ls"] = true }
 
@@ -27,6 +28,11 @@ end
 --- buffers that match its root_dir.
 local function start(name, bufs)
   if name == "bacon_ls" then
+    -- enable() of an already enabled config is a no-op, so a bacon-ls that died stayed
+    -- dead in headless nvim (the field test's kill -9): off and on re-attaches the buffers
+    if #bacon_clients() == 0 then
+      vim.lsp.enable("bacon_ls", false)
+    end
     vim.lsp.enable("bacon_ls")
     return
   end
@@ -85,12 +91,13 @@ function M.on_exit(name)
   end
 end
 
---- Stop bacon-ls clients whose workspace directory is gone (a deleted crate
---- would otherwise keep its client and shadow forever).
+--- Stop bacon-ls clients whose workspace directory is gone, or whose root
+--- lost its Cargo.toml (moved away: the status stayed `clippy ok`); a deleted
+--- crate would otherwise keep its client and shadow forever.
 function M.sweep()
   for _, c in ipairs(bacon_clients()) do
     local root = c.config.root_dir
-    if root and not vim.uv.fs_stat(root) then
+    if root and not (vim.uv.fs_stat(root) and vim.uv.fs_stat(root .. "/Cargo.toml")) then
       swept[c.id] = true
       c:stop(true)
     end
@@ -121,6 +128,13 @@ local function git_head(root)
   return read(git .. "/" .. ref) or head -- packed refs: only a branch switch shows
 end
 
+--- mtime of the root's Cargo.toml ("-" when absent). Not Cargo.lock: cargo/rust-analyzer
+--- create and rewrite it on their own, which restarted bacon-ls for nothing.
+local function manifest_sig(root)
+  local st = vim.uv.fs_stat(root .. "/Cargo.toml")
+  return st and (st.mtime.sec .. "." .. st.mtime.nsec) or "-"
+end
+
 --- Whether a buffer's file is a Rust/Cargo file below a bacon-ls workspace.
 local function relevant(file)
   if not file:match("%.rs$") and not file:match("%.toml$") and not file:match("%.lock$") then
@@ -147,6 +161,13 @@ local function refresh()
     end
     if root then
       heads[root] = head
+      -- a Cargo.toml repaired from outside: "clippy failed" stayed until the next edit
+      local sig = manifest_sig(root)
+      -- (a vanished manifest is sweep()'s business, not a reason to restart every client)
+      if sig ~= "-" and manifests[root] and manifests[root] ~= sig then
+        moved = true
+      end
+      manifests[root] = sig
     end
   end
   if disk_changed or moved then
@@ -183,6 +204,30 @@ function M.kill_survivors(pids, ms)
       end
     end
   end, ms or 3000)
+end
+
+--- VimLeavePre: a rust-analyzer or bacon-ls that has not answered `initialize` yet
+--- never gets (or answers) the shutdown handshake when nvim quits right after
+--- opening a file, and was left behind with PPID 1 (field test, seen under load,
+--- 1 of 40 quits). Those are stopped and SIGKILLed here; initialised servers
+--- shut down through nvim's own exit path.
+function M.kill_uninitialised()
+  local exes = {}
+  for _, name in ipairs({ "rust-analyzer", "bacon_ls" }) do
+    for _, c in ipairs(vim.lsp.get_clients({ name = name })) do
+      if not c.initialized then
+        swept[c.id] = true
+        pcall(c.stop, c, true)
+        exes[name == "bacon_ls" and "bacon-ls" or name] = true
+      end
+    end
+  end
+  -- (vim.lsp.rpc exposes no pid: the servers are this nvim's children, by name)
+  for pid, name in pairs(M.server_pids()) do
+    if exes[name] then
+      vim.uv.kill(pid, "sigkill")
+    end
+  end
 end
 
 function M.restart()
@@ -224,6 +269,8 @@ function M.setup()
     end,
   })
 
+  vim.api.nvim_create_autocmd("VimLeavePre", { group = group, callback = M.kill_uninitialised })
+
   local timer
   vim.api.nvim_create_autocmd("FocusGained", {
     group = group,
@@ -254,6 +301,7 @@ function M.setup()
       local root = c and c.name == "bacon_ls" and c.config.root_dir
       if root and heads[root] == nil then
         heads[root] = git_head(root) or false
+        manifests[root] = manifest_sig(root)
       end
     end,
   })

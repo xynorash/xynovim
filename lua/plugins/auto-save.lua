@@ -40,6 +40,10 @@ return {
       pattern = "AutoSaveWritePost",
       group = group,
       callback = function(ev)
+        -- the write closed the insert-mode undo block: join what is typed next to it
+        if vim.api.nvim_get_mode().mode:sub(1, 1) == "i" then
+          pcall(vim.cmd, "undojoin")
+        end
         local buf = ev.data and ev.data.saved_buffer
         -- still modified: the write was refused (see config/disk_guard.lua)
         if not (buf and vim.api.nvim_buf_is_valid(buf)) or vim.bo[buf].modified then

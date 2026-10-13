@@ -29,7 +29,27 @@ function M.ssr(visual)
     if visual then
       cmd.range = { l1, l2 }
     end
-    vim.api.nvim_cmd(cmd, {})
+    -- rust-analyzer's parse error (`nonsense ==>>`) reaches rustaceanvim's handler, which
+    -- error()s inside a scheduled callback (traceback): intercept the reply for this request
+    local ok, ra = pcall(require, "rustaceanvim.rust_analyzer")
+    local orig = ok and ra.buf_request
+    if orig then
+      ra.buf_request = function(bufnr, method, params, handler, ...)
+        return orig(bufnr, method, params, function(err, res, ctx, ...)
+          if err then
+            return vim.notify("SSR: " .. tostring(err.message or err), vim.log.levels.WARN)
+          end
+          return handler(err, res, ctx, ...)
+        end, ...)
+      end
+    end
+    local ran, e = pcall(vim.api.nvim_cmd, cmd, {})
+    if orig then
+      ra.buf_request = orig
+    end
+    if not ran then
+      error(e, 0)
+    end
   end)
 end
 

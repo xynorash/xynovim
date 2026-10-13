@@ -53,9 +53,13 @@ function M.goto_super()
     -- skip doc comments that mention `fn name` (std's Display::fmt has them first)
     local pat = "\\<fn\\s\\+" .. name .. "\\>"
     vim.fn.search(pat, "cw")
+    -- (by line text: the freshly shown buffer has no treesitter parser yet, so
+    -- get_node() was nil and the first match was always kept)
     for _ = 1, 50 do
-      local ok, n = pcall(vim.treesitter.get_node)
-      if not (ok and n and n:type():find("comment")) or vim.fn.search(pat, "w") == 0 then
+      if not vim.api.nvim_get_current_line():match("^%s*/[/*]") and not vim.api.nvim_get_current_line():match("^%s*%*") then
+        break
+      end
+      if vim.fn.search(pat, "w") == 0 then
         break
       end
     end

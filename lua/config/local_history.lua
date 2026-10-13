@@ -273,6 +273,8 @@ local function size_cap()
   return v > 0 and v or nil
 end
 
+local STAT_SLICE = 2000
+
 --- cb(list of files bigger than the cap). Untracked = not in the user's real
 --- index (the private index is empty in a new session); modified tracked files
 --- count too: each snapshot of a changed large file would add its whole size
@@ -284,22 +286,36 @@ local function big_untracked(root, run, cb)
   end
   git({ "ls-files", "-o", "-m", "--exclude-standard", "-z" }, root, nil, function(out)
     local big = {}
-    for _, rel in ipairs(vim.split(out or "", "\0", { plain = true })) do
-      local st = rel ~= "" and vim.uv.fs_stat(root .. "/" .. rel) or nil
-      if st and st.type == "file" and st.size > cap and #big < 2000 then
-        big[#big + 1] = rel
-        warn_once(
-          "big:" .. root .. "/" .. rel,
-          ("local history: skipping %s (%.0f MB, over the %.0f MB cap; vim.g.xynovim_lochist_max_bytes)"):format(
-            rel,
-            st.size / 1048576,
-            cap / 1048576
-          ),
-          vim.log.levels.INFO
-        )
+    local files = vim.split(out or "", "\0", { plain = true })
+    -- one fs_stat per listed file: 100k untracked files froze the editor for ~0.5 to 1s
+    -- in one go, so a slice of STAT_SLICE files per event-loop turn (not on exit, where
+    -- `deadline` is set and nothing may be left for later)
+    local function step(from)
+      local to = deadline and #files or math.min(from + STAT_SLICE - 1, #files)
+      for i = from, to do
+        local rel = files[i]
+        local st = rel ~= "" and vim.uv.fs_stat(root .. "/" .. rel) or nil
+        if st and st.type == "file" and st.size > cap and #big < 2000 then
+          big[#big + 1] = rel
+          warn_once(
+            "big:" .. root .. "/" .. rel,
+            ("local history: skipping %s (%.0f MB, over the %.0f MB cap; vim.g.xynovim_lochist_max_bytes)"):format(
+              rel,
+              st.size / 1048576,
+              cap / 1048576
+            ),
+            vim.log.levels.INFO
+          )
+        end
       end
+      if to < #files then
+        return vim.schedule(function()
+          step(to + 1)
+        end)
+      end
+      cb(big)
     end
-    cb(big)
+    step(1)
   end, true, run)
 end
 

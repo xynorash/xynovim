@@ -35,6 +35,7 @@ local TOOLS = {
   { "unzip", "Mason package archives", false, { "-v" }, "warn" },
   { "gzip", "Mason unpacks .gz archives", false, { "--version" }, "warn" },
   { "gcc", "compiles tree-sitter parsers", false, { "--version" }, "warn" },
+  { "tree-sitter", "CLI nvim-treesitter builds parsers with (Mason supplies it as tree-sitter-cli)", true, { "--version" }, "warn" },
   { "node", "Mason's npm tools and yaml-language-server", false, { "--version" }, "warn" },
   { "cargo", "builds, clippy, tests (every Rust key)", false, { "--version" }, "error" },
   { "rust-analyzer", "language server (rustaceanvim)", false, { "--version" }, "error" },

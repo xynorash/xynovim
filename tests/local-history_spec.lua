@@ -674,6 +674,22 @@ describe("size cap (vim.g.xynovim_lochist_max_bytes)", function()
     H.eq(1, #note_matching("local history: skipping big.bin"), "notice only once")
   end)
 
+  it("many untracked files: the size check runs in slices across event-loop turns and still finds a big file in the last slice", function()
+    vim.g.xynovim_lochist_max_bytes = MB
+    local root = mkrepo()
+    vim.fn.mkdir(root .. "/many", "p")
+    for i = 1, 4500 do
+      write(("%s/many/f%05d.txt"):format(root, i), "x")
+    end
+    write(root .. "/zz-big.bin", string.rep("x", 2 * MB))
+    local c = snap(root)
+    H.ok(c, "snapshot made")
+    local got = names(root, c)
+    H.eq(4501, #got, "a.txt + 4500 small files")
+    H.not_ok(vim.tbl_contains(got, "zz-big.bin"), "the big file in the last slice is skipped")
+    H.eq(1, #note_matching("local history: skipping zz-big.bin"))
+  end)
+
   it("defaults to 10 MB; 0 and negative disable the cap, a non-number keeps the default; a numeric string is honoured", function()
     local root = mkrepo()
     write(root .. "/big.bin", string.rep("x", 11 * MB))

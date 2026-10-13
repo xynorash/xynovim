@@ -382,7 +382,7 @@ describe("hidden credentials", function()
     "/.vault-token", "/.netrc", "/.git-credentials", "/.npmrc", "/.pypirc", "/.cargo/credentials",
     "/.cargo/credentials.toml", "/.pub-cache/credentials.json", "/.android/adbkey", "/.Xauthority",
     "/.pulse-cookie", "/.config/git/credentials", "/.bash_history", "/.zsh_history", "/.python_history",
-    "/.lesshst", "/.config/fish/fish_history",
+    "/.lesshst", "/.config/fish/fish_history", "/.claude/history.jsonl",
   }
 
   local function populated()
@@ -460,11 +460,11 @@ describe("hidden credentials", function()
     local r = sb(
       m, home,
       'echo "ssh=[$(ls -A "$HOME/.ssh" | wc -l)] netrc=[$(cat "$HOME/.netrc" 2>/dev/null | wc -c)] hist=[$(cat "$HOME/.bash_history" 2>/dev/null | wc -c)] '
-        .. 'daemon=[$(ls -A "$HOME/.claude/daemon" | wc -l)]"',
+        .. 'daemon=[$(ls -A "$HOME/.claude/daemon" | wc -l)] prompts=[$(cat "$HOME/.claude/history.jsonl" 2>/dev/null | wc -c)]"',
       H.tmpdir()
     )
     H.eq(0, r.code, out(r))
-    H.match(r.stdout, "ssh=[0] netrc=[0] hist=[0] daemon=[0]", true)
+    H.match(r.stdout, "ssh=[0] netrc=[0] hist=[0] daemon=[0] prompts=[0]", true)
     -- the real files are untouched
     H.eq("s", vim.fn.readfile(home .. "/.ssh/secret")[1])
   end)

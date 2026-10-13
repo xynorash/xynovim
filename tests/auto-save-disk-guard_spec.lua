@@ -283,6 +283,40 @@ describe("auto-save and disk guard", function()
       end, 6000, "second autosave, still typing")
     end)
 
+    it("3 an autosave in the middle of an insert does not split the undo block: one u undoes the whole insert", function()
+      H.need_tmux()
+      -- field test: the debounced write closed the insert-mode undo block, so `u` after
+      -- "abc" <pause> "def" <pause> "ghi" removed only " ghi"; the hook now runs :undojoin
+      local dir = H.tmpdir()
+      local path = dir .. "/undo.txt"
+      write(path, "one\n")
+      local function pane()
+        return H.tmux({ "capture-pane", "-p", "-t", "t" }, "undo").stdout or ""
+      end
+      local r = H.tmux({ "new-session", "-d", "-s", "t", "-x", "120", "-y", "30", "-c", dir, "nvim " .. path }, "undo")
+      H.eq(0, r.code, r.stderr)
+      H.wait_for(function()
+        return pane():find("one", 1, true)
+      end, 60000, "nvim to show the file")
+      vim.wait(1500)
+      H.tmux({ "send-keys", "-t", "t", "A", " abc" }, "undo")
+      H.wait_for(function()
+        return read(path) == "one abc\n"
+      end, 6000, "first autosave while typing")
+      H.tmux({ "send-keys", "-t", "t", " def" }, "undo")
+      H.wait_for(function()
+        return read(path) == "one abc def\n"
+      end, 6000, "second autosave while typing")
+      H.tmux({ "send-keys", "-t", "t", " ghi", "Escape" }, "undo")
+      H.wait_for(function()
+        return read(path) == "one abc def ghi\n"
+      end, 6000, "autosave on leaving insert mode")
+      H.tmux({ "send-keys", "-t", "t", "u" }, "undo")
+      H.wait_for(function()
+        return read(path) == "one\n"
+      end, 6000, "u undid the whole insert (and the undo was autosaved)")
+    end)
+
     it("3 does not write when nothing changed and when auto-save is off", function()
       local path, buf = open_file("one\n")
       set_lines(buf, { "off" })

@@ -29,12 +29,12 @@ if [ "$(readlink -f "$cfg" 2>/dev/null || true)" != "$(readlink -f "$repo")" ]; 
 fi
 
 # Prerequisites. Required to bring the config up and to build/run what Mason
-# and the Rust workflow need: git/curl/tar/unzip (lazy, Mason downloads), gcc
+# and the Rust workflow need: git/curl/tar/unzip/gzip (lazy, Mason downloads), gcc
 # (treesitter parsers, blink.cmp fallback), node/npm (Mason's markdownlint-cli2,
 # markdown-toc, yaml-language-server), cargo/rustup/rust-analyzer (Rust).
 if [ "${BOOTSTRAP_SKIP_PREREQS:-}" != 1 ]; then
   missing=()
-  for tool in nvim git curl tar unzip gcc npm node cargo rustup rust-analyzer; do
+  for tool in nvim git curl tar unzip gzip gcc npm node cargo rustup rust-analyzer; do
     command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
   done
   # rustup ships a rust-analyzer proxy even when the component is absent.

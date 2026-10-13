@@ -644,6 +644,24 @@ describe("editing-ui and domain specs", function()
     )
   end)
 
+  it("14. taplo is not started for Cargo.lock (it answered 'this document has been excluded')", function()
+    local taplo = opts_of("nvim-lspconfig").servers.taplo
+    local dir = H.tmpdir()
+    vim.fn.writefile({ "[package]", 'name = "x"' }, dir .. "/Cargo.toml")
+    vim.fn.writefile({ "version = 3" }, dir .. "/Cargo.lock")
+    local function root_for(name)
+      local buf = vim.fn.bufadd(dir .. "/" .. name) -- a file buffer: vim.fs.root uses cwd for a scratch one
+      local got
+      taplo.root_dir(buf, function(r)
+        got = r
+      end)
+      vim.api.nvim_buf_delete(buf, { force = true })
+      return got
+    end
+    H.eq(vim.uv.fs_realpath(dir), vim.uv.fs_realpath(root_for("Cargo.toml")))
+    H.is_nil(root_for("Cargo.lock"))
+  end)
+
   it("14b. taplo roots a lone Cargo.toml (no .git) and reports `edtion` (optional: network)", function()
     if vim.fn.executable("taplo") ~= 1 and vim.fn.filereadable(vim.fn.stdpath("data") .. "/mason/bin/taplo") ~= 1 then
       harness.skip("taplo not installed")

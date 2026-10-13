@@ -113,6 +113,8 @@ local HIDDEN = {
   "/.local/share/kwalletd", "/.local/share/TelegramDesktop", "/.local/share/fish",
   -- remote-control keys of other claude sessions / the claude daemon
   "/.claude/daemon", "/.claude/sessions",
+  -- every prompt typed in any project (readable, and it was writable too)
+  "/.claude/history.jsonl",
 }
 -- Globs under $HOME (shell and tool histories).
 local HIDDEN_GLOBS = { "/.*_history*", "/.lesshst", "/.config/fish/fish_history" }

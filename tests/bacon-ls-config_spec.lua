@@ -389,8 +389,12 @@ describe("bacon-ls config", function()
     local cap = H.capture_notify()
     rc.apply(rc.root(dir .. "/x"), { all = false, no_default = true, features = { "ssr" } })
     local new = H.wait_for(function()
-      local n = vim.lsp.get_clients({ name = "bacon_ls" })[1]
-      return n and n.id ~= c.id and n.initialized and n
+      -- (this root's client: a supervision restart of an earlier test's buffer may be running too)
+      for _, n in ipairs(vim.lsp.get_clients({ name = "bacon_ls" })) do
+        if n.id ~= c.id and n.initialized and n.config.root_dir == c.config.root_dir then
+          return n
+        end
+      end
     end, 30000, "restarted bacon_ls")
     local args = new.config.settings.bacon_ls.cargo.extraArgs
     H.eq({ "--workspace", "--no-default-features", "--features", "ssr", "--no-deps" }, args)
@@ -398,7 +402,10 @@ describe("bacon-ls config", function()
     H.has(cap.list[1].msg, "features: ssr")
     -- the stored choice is also what a later before_init would use
     H.eq({ all = false, no_default = true, features = { "ssr" } }, rc.get(rc.root(dir .. "/x")))
-    H.eq(1, #vim.lsp.get_clients({ name = "bacon_ls" }))
+    -- one client for this root (an earlier test's open buffer may have got its own after a supervision restart)
+    H.eq(1, #vim.tbl_filter(function(n)
+      return n.config.root_dir == c.config.root_dir
+    end, vim.lsp.get_clients({ name = "bacon_ls" })))
   end)
 
   -- 15

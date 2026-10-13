@@ -256,6 +256,38 @@ describe("rust_context", function()
   -- ----------------------------------------------------------------- state
 
   describe("state file", function()
+    it("concurrent nvims applying different roots lose none (8 x 15 applies; was 79 of 160 without the lock)", function()
+      local state = H.tmpdir()
+      local script = H.tmpdir() .. "/many.lua"
+      write_text(
+        script,
+        ([[
+package.path = %q .. "/lua/?.lua;" .. package.path
+local rc = require("config.rust_context")
+local id = tonumber(arg[1])
+for i = 1, 15 do
+  rc.apply(("/proj/%%d/%%d"):format(id, i), { all = false, features = { "f" .. i }, no_default = false })
+end
+]]):format(H.repo)
+      )
+      local jobs = {}
+      for id = 1, 8 do
+        jobs[id] = vim.system({ vim.fn.exepath("nvim"), "--headless", "-u", "NONE", "-l", script, tostring(id) }, {
+          env = { XDG_STATE_HOME = state, XDG_CONFIG_HOME = state, XDG_DATA_HOME = state, XDG_CACHE_HOME = state },
+          text = true,
+        })
+      end
+      for id, j in ipairs(jobs) do
+        local r = j:wait(60000)
+        H.eq(0, r.code, "worker " .. id .. ": " .. tostring(r.stderr))
+      end
+      local f = assert(io.open(state .. "/nvim/rust-context.json"))
+      local all = vim.json.decode(f:read("*a"))
+      f:close()
+      H.eq(120, vim.tbl_count(all), "every worker's keys are in the file")
+      H.eq(0, vim.fn.filereadable(state .. "/nvim/rust-context.json.lock"), "lock released")
+    end)
+
     it("holds { [root] = ctx } under stdpath('state')", function()
       H.eq(vim.fn.stdpath("state") .. "/rust-context.json", state_file)
       notes()
