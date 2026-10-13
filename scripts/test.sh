@@ -77,7 +77,9 @@ cleanup() {
   # leftover tmux servers of the specs
   if command -v tmux >/dev/null 2>&1; then
     for s in "${TMUX_TMPDIR:-/tmp}/tmux-$(id -u)/$XYNO_TMUX_PREFIX"-*; do
-      [ -S "$s" ] && tmux -L "$(basename "$s")" kill-server >/dev/null 2>&1
+      [ -S "$s" ] || continue
+      tmux -L "$(basename "$s")" kill-server >/dev/null 2>&1
+      rm -f "$s" # the dead server leaves its socket file behind
     done
   fi
   rm -rf "$work"
@@ -115,13 +117,34 @@ for rel in "${specs[@]}"; do
     extra+=(XYNO_COV_OUT="$work/cov/$(basename "$rel" .lua).json")
   fi
   t0=$(date +%s)
+  # A slow spec states its own limit in a "-- xyno-timeout: N" line near the top
+  # (it is never lower than the global one).
+  spec_to=$(head -n 15 "$repo/$rel" | sed -n 's/^-- xyno-timeout: *\([0-9][0-9]*\).*/\1/p' | head -n1)
+  eff_to=$timeout_s
+  [ -n "$spec_to" ] && [ "$spec_to" -gt "$eff_to" ] && eff_to=$spec_to
   # (a subshell, so bash does not print "Killed" when the timeout has to use -9)
   (env XYNO_SPEC="$repo/$rel" ${extra[@]+"${extra[@]}"} \
-    timeout -k 5 "$timeout_s" nvim "${args[@]}" -S "$repo/tests/runner.lua" \
+    timeout -k 5 "$eff_to" nvim "${args[@]}" -S "$repo/tests/runner.lua" \
     </dev/null >"$log" 2>&1) &
   pid=$!
+  # A spec that printed its result but whose nvim does not exit (seen once in a
+  # while, cause unknown) must not eat the whole timeout: 30 s of grace, then the
+  # process group is killed and the printed result counts, with a note.
+  seen="" hung=0
+  while kill -0 "$pid" 2>/dev/null; do
+    if [ -z "$seen" ] && grep -aq '^XYNO_RESULT ' "$log"; then seen=$SECONDS; fi
+    if [ -n "$seen" ] && [ $((SECONDS - seen)) -ge 30 ]; then
+      hung=1
+      kill -TERM -- "-$pid" 2>/dev/null
+      sleep 3
+      kill -KILL -- "-$pid" 2>/dev/null
+      break
+    fi
+    sleep 0.5
+  done
   wait "$pid"
   rc=$?
+  [ $hung = 1 ] && rc=0
   kill -TERM -- "-$pid" 2>/dev/null || true # stragglers (language servers...)
   secs=$(($(date +%s) - t0))
 
@@ -138,6 +161,7 @@ for rel in "${specs[@]}"; do
   fi
   tot_pass=$((tot_pass + p)); tot_fail=$((tot_fail + f)); tot_skip=$((tot_skip + s))
   printf '%-7s %s  %s passed, %s failed, %s skipped (%ss)\n' "$status" "$rel" "$p" "$f" "$s" "$secs"
+  [ $hung = 1 ] && echo "    NOTE: nvim did not exit 30 s after the result line and was killed (the result above counts)"
   [ "$status" = PASS ] || failed_files+=("$rel")
 
   if [ "$verbose" = 1 ]; then

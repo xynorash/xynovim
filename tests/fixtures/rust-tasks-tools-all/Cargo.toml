@@ -1,0 +1,17 @@
+[package]
+name = "rtt_all"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["a"]
+a = []
+b = []
+
+[[bin]]
+name = "tool"
+path = "src/main.rs"
+
+[[bench]]
+name = "bn"
+harness = false

@@ -147,8 +147,24 @@ end
 --- hangs off it). Returns the buffer number.
 function H.open(path)
   vim.cmd.edit(vim.fn.fnameescape(path))
-  vim.cmd("doautocmd User VeryLazy")
+  H.very_lazy()
   return vim.api.nvim_get_current_buf()
+end
+
+local very_lazy_done = false
+--- Fire User VeryLazy and, the first time, wait for the notify replacement that
+--- noice queues from it (vim.notify wrappers installed later made specs that
+--- capture vim.notify flaky: "vim.notify has been overwritten by another plugin").
+function H.very_lazy()
+  local before = vim.notify
+  vim.cmd("doautocmd User VeryLazy")
+  if not very_lazy_done then
+    very_lazy_done = true
+    vim.wait(2000, function()
+      return vim.notify ~= before
+    end, 20)
+    vim.wait(300) -- the rest of the queued callbacks
+  end
 end
 
 --- Text of :messages.
@@ -337,6 +353,15 @@ function H.cleanup()
     pcall(fn)
   end
   H._restore = {}
+  -- bufferline recomputes its tabline (quadratic in the buffer count) on every
+  -- event while the LSP clients are waited for: a spec that had listed many
+  -- buffers then spun for minutes and nvim never got to exit. Drop the tabline
+  -- and the buffers (without autocmds) before anything waits.
+  pcall(function()
+    vim.o.showtabline = 0
+    vim.o.tabline = ""
+    vim.cmd("noautocmd silent! %bwipeout!")
+  end)
   pcall(function()
     for _, c in ipairs(vim.lsp.get_clients()) do
       c:stop(true)

@@ -15,6 +15,11 @@ for _, name in ipairs({ "helpers", "harness" }) do
 end
 
 local function finish(n)
+  -- The result goes out first: a cleanup that hangs (a language server that does
+  -- not die) must not turn a finished spec into a timeout; test.sh gives the
+  -- process a grace period after the result line, then kills it.
+  io.stdout:write(("XYNO_RESULT passed=%d failed=%d skipped=%d\n"):format(n.passed, n.failed, n.skipped))
+  io.stdout:flush()
   local ok, helpers = pcall(function()
     return package.loaded["xynotest.helpers"]
   end)
@@ -24,8 +29,6 @@ local function finish(n)
   if vim.env.XYNO_COV_OUT and _G.__xyno_cov then
     pcall(_G.__xyno_cov.dump, vim.env.XYNO_COV_OUT)
   end
-  io.stdout:write(("XYNO_RESULT passed=%d failed=%d skipped=%d\n"):format(n.passed, n.failed, n.skipped))
-  io.stdout:flush()
   if n.failed > 0 then
     vim.cmd("cquit 1")
   else
