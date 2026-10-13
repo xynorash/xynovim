@@ -149,8 +149,31 @@ local function relevant(file)
   return false
 end
 
+--- A loaded Rust buffer whose workspace has a Cargo.toml but no bacon-ls client.
+local function orphan_rust_buffer()
+  local ok, rc = pcall(require, "config.rust_context")
+  if not ok then
+    return false
+  end
+  for _, b in ipairs(vim.api.nvim_list_bufs()) do
+    local name = vim.api.nvim_buf_get_name(b)
+    if vim.api.nvim_buf_is_loaded(b) and vim.bo[b].filetype == "rust" and vim.bo[b].buftype == "" and name:sub(1, 1) == "/" and not name:find("/%.cargo/registry/") and not name:find("/%.cargo/git/") and not name:find("/%.rustup/") then
+      local root = rc.root(name)
+      if root and root:sub(1, 1) == "/" and vim.uv.fs_stat(root .. "/Cargo.toml") then
+        return true
+      end
+    end
+  end
+  return false
+end
+
 local function refresh()
   M.sweep()
+  -- the manifest was away (deleted, a checkout without it) and is back: the sweep had stopped
+  -- the client and nothing re-enabled it; only :RustRestart or reopening the buffer did
+  if #bacon_clients() == 0 and orphan_rust_buffer() then
+    start("bacon_ls")
+  end
   vim.cmd("silent! checktime") -- reloads unmodified buffers; FileChangedShellPost marks them
   local moved = false
   for _, c in ipairs(bacon_clients()) do
@@ -275,7 +298,7 @@ function M.setup()
   vim.api.nvim_create_autocmd("FocusGained", {
     group = group,
     callback = function()
-      if #bacon_clients() == 0 then
+      if #bacon_clients() == 0 and not orphan_rust_buffer() then
         return
       end
       if timer then

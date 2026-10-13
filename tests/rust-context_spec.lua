@@ -446,22 +446,22 @@ end
 
   describe("bacon_args", function()
     it("defaults to the workspace, all features, no deps", function()
-      H.eq({ "--workspace", "--all-features", "--no-deps" }, rc.bacon_args(nil))
+      H.eq({ "--workspace", "--all-features", "--no-deps", "--keep-going" }, rc.bacon_args(nil))
     end)
 
     it("is --workspace, the context flags, --no-deps in that order", function()
       local ctx = { no_default = true, features = { "ssr" }, target = "t" }
       H.eq(
-        vim.list_extend(vim.list_extend({ "--workspace" }, rc.cargo_flags(ctx)), { "--no-deps" }),
+        vim.list_extend(vim.list_extend({ "--workspace" }, rc.cargo_flags(ctx)), { "--no-deps", "--keep-going" }),
         rc.bacon_args(ctx)
       )
       H.eq(
-        { "--workspace", "--no-default-features", "--features", "ssr", "--target", "t", "--no-deps" },
+        { "--workspace", "--no-default-features", "--features", "ssr", "--target", "t", "--no-deps", "--keep-going" },
         rc.bacon_args(ctx)
       )
       -- calling twice gives the same answer (no shared table mutated)
-      H.eq({ "--workspace", "--all-features", "--no-deps" }, rc.bacon_args(nil))
-      H.eq({ "--workspace", "--all-features", "--no-deps" }, rc.bacon_args(nil))
+      H.eq({ "--workspace", "--all-features", "--no-deps", "--keep-going" }, rc.bacon_args(nil))
+      H.eq({ "--workspace", "--all-features", "--no-deps", "--keep-going" }, rc.bacon_args(nil))
     end)
   end)
 
@@ -813,14 +813,14 @@ end
       local def = plugin_opts("nvim-lspconfig").servers.bacon_ls
       local root = crate('[package]\nname = "p"\n')
       notes()
-      local default_args = { "--workspace", "--all-features", "--no-deps" }
+      local default_args = { "--workspace", "--all-features", "--no-deps", "--keep-going" }
       H.eq(default_args, def.init_options.cargo.extraArgs, "precondition: defaults")
 
       rc.apply(root, { all = false, no_default = false, features = { "ssr" }, target = "t" })
       local params, config = {}, { root_dir = root, settings = { keep = 1 } }
       local settings_ref = config.settings
       def.before_init(params, config)
-      local want = { "--workspace", "--features", "ssr", "--target", "t", "--no-deps" }
+      local want = { "--workspace", "--features", "ssr", "--target", "t", "--no-deps", "--keep-going" }
       H.eq(want, params.initializationOptions.cargo.extraArgs)
       H.eq(want, config.settings.bacon_ls.cargo.extraArgs)
       H.ok(config.settings == settings_ref, "settings patched in place")
@@ -844,6 +844,7 @@ end
       local ws = H.fixture("workspace")
       local b = vim.api.nvim_create_buf(false, true)
       vim.api.nvim_buf_set_name(b, ws .. "/app/src/main.rs")
+      vim.bo[b].buftype = "" -- a real file buffer (a scratch one gets no client)
       local got
       def.root_dir(b, function(r)
         got = r
@@ -851,6 +852,7 @@ end
       H.eq(ws, got)
       local b2 = vim.api.nvim_create_buf(false, true)
       vim.api.nvim_buf_set_name(b2, H.tmpdir() .. "/solo.rs")
+      vim.bo[b2].buftype = ""
       got = nil
       def.root_dir(b2, function(r)
         got = r
@@ -993,7 +995,7 @@ describe("rust_context with live servers", function()
     end, 60000, "rust-analyzer's error to disappear with only ssr")
     if s.bacon then
       H.wait_for(function()
-        return vim.deep_equal(bacon_args(), { "--workspace", "--features", "ssr", "--no-deps" })
+        return vim.deep_equal(bacon_args(), { "--workspace", "--features", "ssr", "--no-deps", "--keep-going" })
       end, 30000, "bacon_ls restarted with '--workspace --features ssr --no-deps'")
       H.wait_for(function()
         return not conflict(s.buf, "bacon-ls")
@@ -1006,7 +1008,7 @@ describe("rust_context with live servers", function()
     end, 60000, "rust-analyzer's error to come back after reset")
     if s.bacon then
       H.wait_for(function()
-        return vim.deep_equal(bacon_args(), { "--workspace", "--all-features", "--no-deps" })
+        return vim.deep_equal(bacon_args(), { "--workspace", "--all-features", "--no-deps", "--keep-going" })
       end, 30000, "bacon_ls restarted without the stale --features args")
       H.wait_for(function()
         return conflict(s.buf, "bacon-ls")
@@ -1060,7 +1062,7 @@ describe("rust_context with live servers", function()
     H.eq(false, cargo.noDefaultFeatures)
     if vim.fn.executable("bacon-ls") == 1 then
       local bacon = H.wait_lsp("bacon_ls", buf)
-      H.eq({ "--workspace", "--features", "csr", "--no-deps" }, bacon.settings.bacon_ls.cargo.extraArgs)
+      H.eq({ "--workspace", "--features", "csr", "--no-deps", "--keep-going" }, bacon.settings.bacon_ls.cargo.extraArgs)
     end
   end)
 
@@ -1092,7 +1094,7 @@ describe("rust_context with live servers", function()
     H.eq(wasm, state()[s.root].target)
     if s.bacon then
       H.wait_for(function()
-        return vim.deep_equal(bacon_args(), { "--workspace", "--all-features", "--target", wasm, "--no-deps" })
+        return vim.deep_equal(bacon_args(), { "--workspace", "--all-features", "--target", wasm, "--no-deps", "--keep-going" })
       end, 30000, "bacon_ls restarted with --target " .. wasm)
     end
 
@@ -1102,7 +1104,7 @@ describe("rust_context with live servers", function()
     H.is_nil(state()[s.root])
     if s.bacon then
       H.wait_for(function()
-        return vim.deep_equal(bacon_args(), { "--workspace", "--all-features", "--no-deps" })
+        return vim.deep_equal(bacon_args(), { "--workspace", "--all-features", "--no-deps", "--keep-going" })
       end, 30000, "bacon_ls restarted without --target")
     end
   end)

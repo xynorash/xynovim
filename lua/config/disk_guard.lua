@@ -67,6 +67,11 @@ end
 --- @param buf integer
 --- @return boolean
 function M.can_save(buf)
+  -- Non-file buffers (the 99 prompt is an acwrite buffer) and readonly ones are
+  -- never written: `:write` on them raised a blocking "'readonly' option is set" prompt.
+  if not vim.api.nvim_buf_is_valid(buf) or vim.bo[buf].buftype ~= "" or vim.bo[buf].readonly then
+    return false
+  end
   if not is_file_buf(buf) then
     return true
   end

@@ -11,6 +11,10 @@ return {
       function()
         -- origin/HEAD only exists after a clone (or `git remote set-head`)
         local root = vim.fs.root(0, ".git") or vim.uv.cwd()
+        vim.fn.system({ "git", "-C", root, "rev-parse", "--git-dir" })
+        if vim.v.shell_error ~= 0 then
+          return vim.notify("not a git repository", vim.log.levels.WARN)
+        end
         for _, base in ipairs({ "origin/HEAD", "origin/main", "origin/master" }) do
           vim.fn.system({ "git", "-C", root, "rev-parse", "-q", "--verify", base })
           if vim.v.shell_error == 0 then

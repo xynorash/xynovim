@@ -604,6 +604,33 @@ describe("dap-ui opts", function()
     H.eq("function", type(dap.listeners.after.event_initialized["dapui_config"]), "it still opens on start")
   end)
 
+  it("the console is re-scrolled when its topline is at or past the buffer end; breakpoint signs use the theme's groups", function()
+    require("lazy").load({ plugins = { "nvim-dap-ui" } })
+    local dap = require("dap")
+    H.wait_for(function()
+      return dap.listeners.after.event_stopped["xynovim_console"] ~= nil
+    end, 5000, "the console listener")
+    for _, ev in ipairs({ "event_stopped", "event_terminated", "event_exited" }) do
+      H.eq("function", type(dap.listeners.after[ev]["xynovim_console"]), ev)
+    end
+    H.eq("DapBreakpoint", vim.fn.sign_getdefined("DapBreakpoint")[1].texthl)
+    H.eq("DapBreakpointCondition", vim.fn.sign_getdefined("DapBreakpointCondition")[1].texthl)
+    -- a window in the state the field test saw: 10 lines, topline 19
+    local b = vim.api.nvim_create_buf(false, true)
+    vim.bo[b].filetype = "dapui_console"
+    vim.api.nvim_buf_set_lines(b, 0, -1, false, vim.fn["repeat"]({ "out" }, 10))
+    vim.cmd("botright 5split")
+    local w = vim.api.nvim_get_current_win()
+    vim.api.nvim_win_set_buf(w, b)
+    vim.fn.winrestview({ topline = 10 })
+    local before = vim.fn.getwininfo(w)[1].topline
+    dap.listeners.after.event_terminated["xynovim_console"]()
+    H.wait_for(function()
+      return vim.fn.getwininfo(w)[1].topline == 1
+    end, 2000, "topline back at 1 (was " .. before .. ")")
+    vim.api.nvim_win_close(w, true)
+  end)
+
   it("wrap on; left sidebar elements and sizes; bottom panel", function()
     local o = opts()
     H.eq(true, o.wrap)

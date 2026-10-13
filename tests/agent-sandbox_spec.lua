@@ -100,6 +100,16 @@ local function expect_no_seq(a, ...)
   H.not_ok(find_seq(a, ...), "unexpected in wrapped command: " .. table.concat({ ... }, " "))
 end
 
+--- Hidden files are bound to an empty regular file (/dev/null gave EACCES): is `p` bound from one?
+local function hidden_file(a, p)
+  for i = 1, #a - 2 do
+    if a[i] == "--ro-bind" and a[i + 2] == p then
+      return a[i + 1] ~= "/dev/null" and a[i + 1]:match("%.empty$") ~= nil
+    end
+  end
+  return false
+end
+
 local function contains(list, v)
   return vim.tbl_contains(list, v)
 end
@@ -376,7 +386,8 @@ describe("hidden credentials", function()
     "/.config/vivaldi", "/.config/opera", "/.mozilla", "/.thunderbird", "/.cache/google-chrome",
     "/.local/share/keyrings", "/.local/share/password-store", "/.local/share/gnome-keyring",
     "/.local/share/kwalletd", "/.local/share/TelegramDesktop", "/.local/share/fish",
-    "/.claude/daemon", "/.claude/sessions",
+    "/.claude/daemon", "/.claude/sessions", "/.config/spotify", "/.config/herdr", "/.anydesk",
+    "/.neuralstark-live", "/.local/share/winapps",
   }
   local hidden_files = {
     "/.vault-token", "/.netrc", "/.git-credentials", "/.npmrc", "/.pypirc", "/.cargo/credentials",
@@ -396,7 +407,7 @@ describe("hidden credentials", function()
     return home
   end
 
-  it("hides existing credential dirs with --tmpfs and files with --ro-bind /dev/null", function()
+  it("hides existing credential dirs with --tmpfs and files with an empty file bound read-only", function()
     if vim.fn.executable("bwrap") ~= 1 then
       return harness.skip("bwrap not found")
     end
@@ -406,7 +417,7 @@ describe("hidden credentials", function()
       expect_seq(a, "--tmpfs", home .. p)
     end
     for _, p in ipairs(hidden_files) do
-      expect_seq(a, "--ro-bind", "/dev/null", home .. p)
+      H.ok(hidden_file(a, home .. p), "not hidden with an empty file: " .. p)
     end
   end)
 
@@ -420,7 +431,7 @@ describe("hidden credentials", function()
       expect_no_seq(a, "--tmpfs", home .. p)
     end
     for _, p in ipairs(hidden_files) do
-      expect_no_seq(a, "--ro-bind", "/dev/null", home .. p)
+      H.not_ok(hidden_file(a, home .. p), "hidden although absent: " .. p)
     end
   end)
 
@@ -431,7 +442,7 @@ describe("hidden credentials", function()
     local a = wrap(load_for(fake_home()), { "true" }, H.tmpdir(), H.tmpdir())
     local sys = {
       "/run/user/" .. uid, "/run/docker.sock", "/run/docker", "/run/containerd", "/run/podman", "/run/libvirt",
-      "/run/dbus", "/run/snapd.socket", "/run/snapd-snap.socket",
+      "/run/dbus", "/run/snapd.socket", "/run/snapd-snap.socket", "/run/tailscale", "/run/seatd.sock",
     }
     local seen = 0
     for _, p in ipairs(sys) do
@@ -441,11 +452,11 @@ describe("hidden credentials", function()
         if st.type == "directory" then
           expect_seq(a, "--tmpfs", p)
         else
-          expect_seq(a, "--ro-bind", "/dev/null", p)
+          H.ok(hidden_file(a, p), "socket not hidden: " .. p)
         end
       else
         expect_no_seq(a, "--tmpfs", p)
-        expect_no_seq(a, "--ro-bind", "/dev/null", p)
+        H.not_ok(hidden_file(a, p))
       end
     end
     if seen == 0 then
@@ -641,6 +652,30 @@ describe("readonly_paths", function()
     H.ok(ro[home .. "/.claude/projects/-p2/memory"])
     H.not_ok(ro[home .. "/.claude/projects/-p3/memory"])
     H.not_ok(ro[home .. "/.claude/projects/-p3"])
+  end)
+
+  it("masks an absent project/.git (a planted core.fsmonitor ran unsandboxed), locks a present one", function()
+    local home = fake_home()
+    local m = load_for(home)
+    local project = H.tmpdir()
+    local ro, masks = m.readonly_paths(project)
+    H.has(masks, project .. "/.git")
+    mkdir(project .. "/.git")
+    ro, masks = m.readonly_paths(project)
+    H.not_ok(contains(masks, project .. "/.git"))
+    H.ok(set(ro)[project .. "/.git"])
+  end)
+
+  it("a project that is $HOME gets no project-relative locks or masks (they hit ~/.claude and ~/.cargo)", function()
+    local home = fake_home()
+    mkdir(home .. "/.cargo")
+    mkdir(home .. "/.claude/hooks")
+    local m = load_for(home)
+    local ro, masks = m.readonly_paths(home)
+    H.not_ok(set(ro)[home .. "/.cargo"], ".cargo")
+    H.not_ok(set(ro)[home .. "/.claude"], ".claude")
+    H.not_ok(contains(masks, home .. "/.git"))
+    H.not_ok(contains(masks, home .. "/.cargo"))
   end)
 
   it("masks absent project/.claude and project/.cargo, locks them when present", function()

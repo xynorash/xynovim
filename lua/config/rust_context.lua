@@ -123,7 +123,7 @@ end
 
 --- cargo extraArgs for bacon-ls (replaces the hardcoded --all-features).
 function M.bacon_args(ctx)
-  return vim.list_extend(vim.list_extend({ "--workspace" }, M.cargo_flags(ctx)), { "--no-deps" })
+  return vim.list_extend(vim.list_extend({ "--workspace" }, M.cargo_flags(ctx)), { "--no-deps", "--keep-going" })
 end
 
 --- Human-readable summary, e.g. "features: ssr,csr | target: wasm32-unknown-unknown".
@@ -177,7 +177,8 @@ end
 --- 160). A lock older than 5s is a dead owner's; after ~2s without it the write goes on.
 local function store(root, ctx)
   local lock = state_file .. ".lock"
-  vim.fn.mkdir(vim.fs.dirname(state_file), "p")
+  -- (mkdir "p" raises E739 when another nvim creates the dir between its stat and mkdir)
+  pcall(vim.fn.mkdir, vim.fs.dirname(state_file), "p")
   local fd
   for _ = 1, 400 do
     fd = vim.uv.fs_open(lock, "wx", 420)

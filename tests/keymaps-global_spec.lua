@@ -318,16 +318,30 @@ describe("harpoon, claudecode and coverage keys", function()
       H.no_match(k.lhs, "^<leader>a", false, "harpoon key " .. k.lhs)
     end
     for _, lhs in ipairs({ "<leader>ab", "<leader>ac", "<leader>af", "<leader>ar", "<leader>aC", "<leader>aa", "<leader>ad" }) do
-      H.ok(lazy_key("claudecode.nvim", lhs, "n"), lhs .. " is not a claudecode key")
       local m = md(lhs, "n")
       H.ok(next(m), lhs .. " not mapped")
       H.no_match(m.desc or "", "Harpoon")
     end
-    H.ok(lazy_key("claudecode.nvim", "<leader>as", "v"), "<leader>as (visual) is not a claudecode key")
     H.eq("Send to Claude", md("<leader>as", "v").desc)
-    local grp = lazy_key("claudecode.nvim", "<leader>a")
-    H.ok(grp, "<leader>a group key")
-    H.eq("+ai", grp.desc)
+    -- the extra's empty-rhs "+ai" stub became a real no-op mapping that shadowed which-key's
+    -- trigger (no popup when typed fast): it is off, the group comes from which-key's spec
+    for _, mode in ipairs({ "n", "v" }) do
+      local m = md("<leader>a", mode)
+      H.ok(not next(m) or (m.desc or ""):find("which-key-trigger", 1, true), "no stub mapping on <leader>a (" .. mode .. ")")
+    end
+    local nt = md("<leader>t", "n")
+    H.ok(not next(nt) or (nt.desc or ""):find("which-key-trigger", 1, true), "no stub mapping on <leader>t")
+    H.eq("Run File (Neotest)", md("<leader>tt", "n").desc, "the real neotest keys stay")
+    require("lazy").load({ plugins = { "which-key.nvim" } })
+    local groups = {}
+    for _, km in ipairs(require("which-key.config").mappings) do
+      if km.group then
+        groups[km.lhs] = type(km.desc) == "string" and km.desc or true
+      end
+    end
+    for _, k in ipairs({ "<leader>a", "<leader>t", "<leader>R", "<leader>r" }) do
+      H.ok(groups[k], "which-key group " .. k)
+    end
   end)
 
   it("coverage keys are lazy: present with their descs while nvim-coverage stays unloaded", function()
@@ -438,9 +452,34 @@ describe("LazyVim keys of the enabled extras", function()
       return next(md("<leader>Rb", "n")) ~= nil
     end, 10000, "<leader>Rb in the http buffer")
     H.ok(next(md("<leader>Rr", "n")), "<leader>Rr")
-    local group = lazy_key("kulala.nvim", "<leader>R")
-    H.ok(group, "<leader>R group key of kulala.nvim")
-    H.match(group.desc or "", "Rest", true)
+    -- (the extra's empty "+Rest" stub shadowed which-key's trigger: off, which-key's spec names it)
+    local m = md("<leader>R", "n")
+    H.ok(not next(m) or (m.desc or ""):find("which-key-trigger", 1, true), "no stub mapping on <leader>R")
+  end)
+end)
+
+describe("<leader>r outside Rust buffers", function()
+  it("an unbound <leader>r<key> in Cargo.toml notifies instead of replacing a character (<Space>rv made `name` into `nvme`)", function()
+    local dir = H.fixture("basic")
+    H.open(dir .. "/Cargo.toml")
+    local before = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    local l = vim.fn.search("^name", "cw")
+    H.ok(l > 0)
+    vim.api.nvim_win_set_cursor(0, { l, 0 })
+    H.eq("Rust (Rust buffers only)", md("<leader>r", "n").desc)
+    H.eq("Rust (Rust buffers only)", md("<leader>r", "x").desc)
+    local cap = H.capture_notify()
+    H.feed("<leader>rv")
+    H.feed("<leader>rr")
+    cap.restore()
+    H.eq(before, vim.api.nvim_buf_get_lines(0, 0, -1, false))
+    H.not_ok(vim.bo.modified)
+    H.eq(2, #cap.list)
+    H.match(cap.list[1].msg, "Rust buffers only", true)
+    -- a visual-mode press: the selection is not touched either
+    H.feed("v<leader>rv")
+    H.eq(before, vim.api.nvim_buf_get_lines(0, 0, -1, false))
+    H.feed("<Esc>")
   end)
 end)
 

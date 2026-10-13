@@ -204,7 +204,7 @@ local function pid_alive(pid)
   return vim.uv.kill(pid, 0) == 0
 end
 
---- Once per repo and session: keep target/ out via .git/info/exclude (additive
+--- Once per repo and session: keep /target/ (and the members') out via .git/info/exclude (additive
 --- to .gitignore AND the user's global ignore, unlike core.excludesFile=),
 --- drop the index files of dead nvim processes (the newest one seeds ours so
 --- the first `git add -A` is incremental) and the old shared index.
@@ -215,13 +215,32 @@ local function prepare(root, gitdir, exclude)
   prepared[root] = true
   local mine = indexes[root]
   local lines = vim.uv.fs_stat(exclude) and vim.fn.readfile(exclude) or {}
-  local has = false
-  for _, l in ipairs(lines) do
-    has = has or l:match("^/?target/?$") ~= nil
+  -- Anchored: a bare `target/` matched at any depth and hid `src/target/mod.rs` from git
+  -- status, `git add -A` and the snapshots. The root and the workspace members (depth <= 2)
+  -- get their own line; the unanchored line of an older version is migrated.
+  local want = { "/target/" }
+  for _, c in ipairs(vim.list_extend(vim.fn.glob(root .. "/*/Cargo.toml", true, true), vim.fn.glob(root .. "/*/*/Cargo.toml", true, true))) do
+    want[#want + 1] = "/" .. vim.fs.dirname(c):sub(#root + 2) .. "/target/"
   end
-  if not has then
+  local have, changed = {}, false
+  for i, l in ipairs(lines) do
+    if l == "target/" then
+      lines[i], changed = "/target/", true
+    end
+    have[lines[i]] = true
+    if lines[i]:match("^/target/?$") or lines[i] == "target" then
+      have["/target/"] = true -- the user's own line already covers the root
+    end
+  end
+  for _, w in ipairs(want) do
+    if not have[w] then
+      have[w] = true
+      lines[#lines + 1] = w
+      changed = true
+    end
+  end
+  if changed then
     vim.fn.mkdir(vim.fs.dirname(exclude), "p")
-    lines[#lines + 1] = "target/"
     pcall(vim.fn.writefile, lines, exclude)
   end
   os.remove(gitdir .. "/lochist-exclude") -- replaced by info/exclude

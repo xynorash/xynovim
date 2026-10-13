@@ -752,14 +752,16 @@ describe("plugins/harpoon.lua", function()
     if p.maps.a ~= vim.NIL then
       H.no_match(p.maps.a.desc or "", "arpoon")
     end
+    -- the extra's empty "+ai" key stub is switched off (it shadowed which-key's trigger): the
+    -- spec entry is the `false` one
     local found
     for _, k in ipairs(Config.plugins["claudecode.nvim"].keys or {}) do
       if k[1] == "<leader>a" then
         found = k
       end
     end
-    H.ok(found, "claudecode has no <leader>a key")
-    H.eq("+ai", found.desc)
+    H.ok(found, "claudecode has no <leader>a entry")
+    H.eq(false, found[2], "disabled")
   end)
 end)
 

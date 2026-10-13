@@ -2,14 +2,46 @@
 -- Default keymaps that are always set: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/keymaps.lua
 -- Add any additional keymaps here
 
+-- Global <leader>r catch-all: the r* maps below are buffer-local (rust-analyzer attached), so
+-- in Cargo.toml / Lua / markdown buffers (and for a key nothing binds) Vim parsed <Space>rv as
+-- `l` + `rv`, replaced a character and auto-save wrote it. A real buffer-local map still wins.
+vim.keymap.set({ "n", "x" }, "<leader>r", function()
+  local key = vim.fn.getcharstr()
+  local lhs = "<leader>" .. key
+  local mode = vim.api.nvim_get_mode().mode:sub(1, 1) == "n" and "n" or "x"
+  local m = vim.fn.maparg(lhs, mode, false, true)
+  if key ~= "\27" and m.buffer == 1 then
+    return vim.api.nvim_feedkeys(vim.keycode(lhs), "m", false)
+  end
+  if key ~= "\27" then
+    vim.notify("<leader>r" .. vim.fn.keytrans(key) .. ": Rust maps work in Rust buffers only", vim.log.levels.INFO)
+  end
+end, { desc = "Rust (Rust buffers only)" })
+
 -- rust-analyzer commands that rustaceanvim exposes but nothing bound.
 -- Buffer-local, set on rust-analyzer attach (scheduled so we also win over
 -- the lang.rust extra's own on_attach maps). <leader>r is free: the
 -- editor.refactoring extra is not enabled.
+-- lang.rust's on_attach rebinds <leader>cR to RustLsp codeAction, LazyVim's LSP keys bind it to
+-- Snacks' rename (an fs rename that overwrote an existing destination). Ours asks first; it is set
+-- again when another client (bacon-ls) attaches later, because LazyVim's keys follow every attach.
+local function set_rename(buf)
+  vim.keymap.set("n", "<leader>cR", function()
+    require("config.rust_assist").rename_file()
+  end, { buffer = buf, desc = "Rename File" })
+end
+
 vim.api.nvim_create_autocmd("LspAttach", {
   group = vim.api.nvim_create_augroup("xynovim_rust_keymaps", { clear = true }),
   callback = function(ev)
     local client = vim.lsp.get_client_by_id(ev.data.client_id)
+    if client and client.name ~= "rust-analyzer" and #vim.lsp.get_clients({ bufnr = ev.buf, name = "rust-analyzer" }) > 0 then
+      vim.schedule(function()
+        if vim.api.nvim_buf_is_valid(ev.buf) then
+          set_rename(ev.buf)
+        end
+      end)
+    end
     if not (client and client.name == "rust-analyzer") then
       return
     end
@@ -52,7 +84,23 @@ vim.api.nvim_create_autocmd("LspAttach", {
         vim.notify("Extract module: select code first (visual mode)", vim.log.levels.INFO)
       end, "Extract module (visual only)")
       -- "Inline macro" (cursor on println!) expanded silently: not matched.
-      map({ "n", "x" }, "<leader>ri", assist("^Inline [^m]"), "Inline")
+      -- "Inline into all callers" (cursor on the fn declaration) deletes the definition and
+      -- rewrote every call site silently (`helper(1) as usize` became `1 + 1 as usize`: rust-analyzer
+      -- does not parenthesise), so that variant asks first.
+      map({ "n", "x" }, "<leader>ri", function()
+        vim.lsp.buf.code_action({
+          apply = true,
+          filter = function(a)
+            if a.title:find("^Inline [^m]") == nil then
+              return false
+            end
+            if a.title:find("all callers", 1, true) then
+              return vim.fn.confirm(a.title .. "? The definition is deleted.", "&Yes\n&No", 2) == 1
+            end
+            return true
+          end,
+        })
+      end, "Inline")
       -- Own prompt (rustaceanvim's reads the query before Snacks answers).
       map("n", "<leader>rs", function()
         require("config.rust_assist").ssr()
@@ -62,11 +110,12 @@ vim.api.nvim_create_autocmd("LspAttach", {
       end, "Structural search & replace (selection)")
       map("n", "<leader>rj", rust("joinLines"), "Join lines (semantic)")
       map("x", "<leader>rj", ":RustLsp joinLines<CR>", "Join lines (semantic)")
+      -- own request: :RustLsp moveItem expanded `$name` in the moved item as snippet variables
       map("n", "<A-j>", function()
-        vim.cmd.RustLsp({ "moveItem", "down" })
+        require("config.rust_assist").move_item("Down")
       end, "Move item down")
       map("n", "<A-k>", function()
-        vim.cmd.RustLsp({ "moveItem", "up" })
+        require("config.rust_assist").move_item("Up")
       end, "Move item up")
 
       -- Inspect
@@ -144,11 +193,8 @@ vim.api.nvim_create_autocmd("LspAttach", {
       map("n", "<leader>rR", rust("reloadWorkspace"), "Reload workspace")
       map("n", "<leader>rP", rust("rebuildProcMacros"), "Rebuild proc macros")
 
-      -- lang.rust's on_attach rebinds <leader>cR to RustLsp codeAction,
-      -- shadowing LazyVim's file rename; restore it (code actions: <leader>ca).
-      map("n", "<leader>cR", function()
-        Snacks.rename.rename_file()
-      end, "Rename File")
+      -- (code actions: <leader>ca)
+      set_rename(ev.buf)
 
       pcall(function()
         require("which-key").add({ { "<leader>r", group = "rust", buffer = ev.buf } })

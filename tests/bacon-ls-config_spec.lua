@@ -47,7 +47,7 @@ describe("bacon-ls config", function()
       backend = "cargo",
       cargo = {
         command = "clippy",
-        extraArgs = { "--workspace", "--all-features", "--no-deps" },
+        extraArgs = { "--workspace", "--all-features", "--no-deps", "--keep-going" },
         updateOnInsert = true,
         updateOnInsertDebounceMillis = 500,
         checkOnSave = false,
@@ -120,6 +120,25 @@ describe("bacon-ls config", function()
     local solo_dir = H.tmpdir()
     vim.fn.writefile({ "fn main() {}" }, solo_dir .. "/solo.rs")
     H.eq("none", root_of(vim.fn.bufadd(solo_dir .. "/solo.rs")), "no Cargo.toml above")
+  end)
+
+  it("virtual buffers (diffview://, fugitive://) and non-file buftypes get no client (root came out as `.`)", function()
+    local srv = plugin_server()
+    local function root_of(buf)
+      local got = "none"
+      srv.root_dir(buf, function(r)
+        got = r
+      end)
+      return got
+    end
+    for _, name in ipairs({ "diffview://" .. H.fixture("basic") .. "/.git/:0:/src/lib.rs", "fugitive:///x/.git//0/src/lib.rs" }) do
+      local b = vim.fn.bufadd(name)
+      H.eq("none", root_of(b), name)
+    end
+    local dir = H.fixture("basic")
+    local b = vim.fn.bufadd(dir .. "/src/lib.rs")
+    vim.bo[b].buftype = "nofile"
+    H.eq("none", root_of(b), "nofile buffer")
   end)
 
   it("without cargo on PATH no client is started and one WARN says why (not a bare os error 2)", function()
@@ -214,7 +233,7 @@ describe("bacon-ls config", function()
       local cap = H.capture_notify()
       rc.apply(dir, { all = false, no_default = true, features = { "csr", "ssr" }, target = "wasm32-unknown-unknown" })
       cap.restore()
-      local want = { "--workspace", "--no-default-features", "--features", "csr,ssr", "--target", "wasm32-unknown-unknown", "--no-deps" }
+      local want = { "--workspace", "--no-default-features", "--features", "csr,ssr", "--target", "wasm32-unknown-unknown", "--no-deps", "--keep-going" }
       local params, config = run_before_init(srv, dir)
       H.eq(want, params.initializationOptions.cargo.extraArgs)
       H.eq(want, config.settings.bacon_ls.cargo.extraArgs)
@@ -222,13 +241,13 @@ describe("bacon-ls config", function()
       H.eq("clippy", params.initializationOptions.cargo.command)
       H.eq(true, params.initializationOptions.cargo.updateOnInsert)
       -- the shared upvalue is a deep copy source, not mutated
-      H.eq({ "--workspace", "--all-features", "--no-deps" }, srv.init_options.cargo.extraArgs)
-      H.eq({ "--workspace", "--all-features", "--no-deps" }, srv.settings.bacon_ls.cargo.extraArgs)
+      H.eq({ "--workspace", "--all-features", "--no-deps", "--keep-going" }, srv.init_options.cargo.extraArgs)
+      H.eq({ "--workspace", "--all-features", "--no-deps", "--keep-going" }, srv.settings.bacon_ls.cargo.extraArgs)
       H.ok(params.initializationOptions ~= srv.init_options)
       -- a context stored for ANOTHER root does not leak in
       local other = H.fixture("broken")
       local p2 = run_before_init(srv, other)
-      H.eq({ "--workspace", "--all-features", "--no-deps" }, p2.initializationOptions.cargo.extraArgs)
+      H.eq({ "--workspace", "--all-features", "--no-deps", "--keep-going" }, p2.initializationOptions.cargo.extraArgs)
     end)
 
     it("rebuilds from the defaults when no context is stored (also after a reset)", function()
@@ -246,8 +265,8 @@ describe("bacon-ls config", function()
         settings = { bacon_ls = { cargo = { extraArgs = { "--features", "x" } } } },
       }
       srv.before_init(params, config)
-      H.eq({ "--workspace", "--all-features", "--no-deps" }, params.initializationOptions.cargo.extraArgs)
-      H.eq({ "--workspace", "--all-features", "--no-deps" }, config.settings.bacon_ls.cargo.extraArgs)
+      H.eq({ "--workspace", "--all-features", "--no-deps", "--keep-going" }, params.initializationOptions.cargo.extraArgs)
+      H.eq({ "--workspace", "--all-features", "--no-deps", "--keep-going" }, config.settings.bacon_ls.cargo.extraArgs)
     end)
   end)
 
@@ -397,7 +416,7 @@ describe("bacon-ls config", function()
       end
     end, 30000, "restarted bacon_ls")
     local args = new.config.settings.bacon_ls.cargo.extraArgs
-    H.eq({ "--workspace", "--no-default-features", "--features", "ssr", "--no-deps" }, args)
+    H.eq({ "--workspace", "--no-default-features", "--features", "ssr", "--no-deps", "--keep-going" }, args)
     H.not_ok(has_arg(args, "--all-features"))
     H.has(cap.list[1].msg, "features: ssr")
     -- the stored choice is also what a later before_init would use

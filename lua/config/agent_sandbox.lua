@@ -83,7 +83,10 @@ local PROJECT_READONLY = {
 local MEMBER_READONLY = { ".cargo", ".envrc" }
 -- Created empty-and-read-only when absent at the project root (leaves an empty
 -- .cargo dir behind): a planted .cargo/config.toml is the one that bites.
-local PROJECT_MASK_IF_ABSENT = { ".cargo" }
+-- .git too: without one the agent ran `git init` and planted `core.fsmonitor = <cmd>` in
+-- .git/config, which the user's next unsandboxed `git status` executed. (A later `git init`
+-- needs `rmdir .git` first: the mask leaves an empty dir behind.)
+local PROJECT_MASK_IF_ABSENT = { ".cargo", ".git" }
 -- Project dir that is ALWAYS locked: read-only when present, otherwise masked
 -- with an empty read-only dir (leaves one empty dir behind), because a planted
 -- .claude/settings.local.json with hooks would run on the user's next claude.
@@ -104,6 +107,7 @@ local HIDDEN = {
   "/.config/Bitwarden", "/.config/1Password", "/.config/keepassxc", "/.config/pulse",
   "/.config/Slack", "/.config/discord", "/.config/Signal", "/.config/rustdesk",
   "/.config/winapps", "/.config/freerdp", "/.config/obs-studio", "/.config/JetBrains",
+  "/.config/spotify", "/.config/herdr", "/.anydesk", "/.neuralstark-live",
   -- browsers / mail
   "/.config/google-chrome", "/.config/google-chrome-headless", "/.config/Google",
   "/.config/chromium", "/.config/BraveSoftware", "/.config/microsoft-edge",
@@ -111,6 +115,7 @@ local HIDDEN = {
   -- ~/.local/share
   "/.local/share/keyrings", "/.local/share/password-store", "/.local/share/gnome-keyring",
   "/.local/share/kwalletd", "/.local/share/TelegramDesktop", "/.local/share/fish",
+  "/.local/share/winapps",
   -- remote-control keys of other claude sessions / the claude daemon
   "/.claude/daemon", "/.claude/sessions",
   -- every prompt typed in any project (readable, and it was writable too)
@@ -125,6 +130,8 @@ local HIDDEN_SYSTEM = {
   "/run/user/" .. uid,
   "/run/docker.sock", "/run/docker", "/run/containerd", "/run/podman", "/run/libvirt",
   "/run/dbus", "/run/snapd.socket", "/run/snapd-snap.socket",
+  -- tailscaled.sock is mode 0666: `tailscale status` listed the peers and RunSSH was on
+  "/run/tailscale", "/run/seatd.sock",
 }
 
 -- Environment scrub: any variable whose name contains one of these ...
@@ -289,7 +296,10 @@ function M.readonly_paths(project)
       ro[#ro + 1] = p
     end
   end
-  for _, rel in ipairs(PROJECT_READONLY) do
+  -- Started in $HOME (or /): the project-relative locks would hit ~/.claude and ~/.cargo, the
+  -- writable binds claude needs; $HOME is not writable here anyway.
+  local at_home = project == home or project == "/"
+  for _, rel in ipairs(at_home and {} or PROJECT_READONLY) do
     lock(project .. "/" .. rel)
   end
   local member_masks = {}
@@ -309,7 +319,9 @@ function M.readonly_paths(project)
       end
     end
   end
-  scan_members(project, 1)
+  if not at_home then
+    scan_members(project, 1)
+  end
   for _, p in ipairs(HOME_READONLY) do
     lock(p)
   end
@@ -331,12 +343,14 @@ function M.readonly_paths(project)
       end
     end
   end
-  for _, rel in ipairs(PROJECT_MASK_IF_ABSENT) do
+  for _, rel in ipairs(at_home and {} or PROJECT_MASK_IF_ABSENT) do
     if not exists(project .. "/" .. rel) then
       masks[#masks + 1] = project .. "/" .. rel
     end
   end
-  if not exists(project .. "/" .. PROJECT_MASKED) then
+  if at_home then
+    -- (~/.claude is writable here: HOME_READONLY locks what must not change)
+  elseif not exists(project .. "/" .. PROJECT_MASKED) then
     masks[#masks + 1] = project .. "/" .. PROJECT_MASKED
   else
     lock(project .. "/" .. PROJECT_MASKED)
@@ -387,10 +401,17 @@ function M.wrap(cmd, project, tmp_dir)
   end
 
   -- After the writable binds: hides inside ~/.claude must sit on top of it.
+  -- A hidden file reads as empty: /dev/null bound there gave EACCES (the bind is nodev),
+  -- an empty regular file does not.
+  local empty
   local function hide(p)
     local st = vim.uv.fs_stat(p)
     if st then
-      vim.list_extend(a, st.type == "directory" and { "--tmpfs", p } or { "--ro-bind", "/dev/null", p })
+      if st.type ~= "directory" and not empty then
+        empty = vim.fn.tempname() .. ".empty"
+        vim.fn.writefile({}, empty)
+      end
+      vim.list_extend(a, st.type == "directory" and { "--tmpfs", p } or { "--ro-bind", empty, p })
     end
   end
   for _, p in ipairs(HIDDEN_SYSTEM) do

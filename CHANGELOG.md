@@ -33,6 +33,18 @@ All notable changes to this config are documented here.
 - Verified: the full suite headless as the user: 1029 passed, 0 failed, 24 skipped (1053 tests in 24 files, 352 s); 15 new tests, each failing without its fix where that was cheap to check (the undo block in a tmux nvim, the 8-nvim `rust-context.json` race). Not verified: the quit-during-start race itself (needs a loaded machine), the which-key popup and the picker layout in a TUI, the `kill -9` restart in a TUI, the `.claude` hardening against a real claude, 100k-file local history timing.
 - Spec fixes: the `:RustContext` bacon-ls test picks the client of its own root (a supervision restart of an earlier test's buffer may start another one); the layout/health/bootstrap counts follow the new entries.
 
+### Fixed (final loop round 3: confirmed field test bugs)
+- `<A-j>` / `<A-k>`: own `experimental/moveItem` request applied as plain text (the snippet expansion of `:RustLsp moveItem` emptied `$e` in `macro_rules!` items and auto-save wrote it). `<leader>cR` refuses an existing destination (also bound through LazyVim's LSP keys, which re-applied Snacks' overwriting rename on every capability registration). Global `<leader>r` catch-all: an unbound `<leader>r<key>` notifies "Rust buffers only" instead of replacing a character. `ri` asks before "Inline into all callers".
+- Auto-save: `can_save` is false for buffers with a `buftype` and readonly ones (99's select windows raised a blocking confirm); a Rust autosave triggers neotest's own rediscovery (`<leader>tr` on a new test ran another one).
+- Trouble call hierarchies `auto_refresh=false`; dap-ui Console re-scrolled when its topline is stale; breakpoint signs use the theme's `DapBreakpoint*` groups; `<leader>gV` outside a repository says so.
+- Local history: `/target/` anchored (plus members'), the old `target/` line migrated (`src/target/mod.rs` was hidden from snapshots).
+- bacon-ls: no client for virtual buffers or non-absolute roots (a second `root=.` client after Diffview); `--keep-going` in the args; FocusGained starts it again when the manifest is back after a sweep.
+- which-key: the extras' no-op `keys` stubs for `<leader>t`, `<leader>a`, `<leader>R` are switched off (they shadowed which-key's trigger); groups come from the which-key spec, plus a global `<leader>r` group.
+- 99 sandbox: absent `project/.git` masked, `/run/tailscale`, `/run/seatd.sock` and five more unlisted secret paths hidden, hidden files are empty regular files (no EACCES), project = `$HOME` gets no project-relative locks.
+- `rust-context.json` directory creation tolerates a concurrent `mkdir` (E739 seen once in the full suite).
+- README: round 3 section. Tests: new or changed tests in `keymaps-rust`, `keymaps-global`, `auto-save-disk-guard`, `local-history`, `bacon-ls-config`, `server-supervision-statusline`, `agent-sandbox`, `dap-neotest-coverage`, `git-lint-supply-chain`, `rust-context`.
+- Not verified: the changed UI in a TUI (which-key popup, `ri` confirm, dap-ui console in a real session), a real claude in the sandbox, `<A-j>` through the key in a TUI (the function was run against a real rust-analyzer headless).
+
 ### Removed
 - All Omarchy support. Deleted `lua/plugins/omarchy-theme-hotreload.lua`, the
   `lua/plugins/theme.lua` symlink, `lua/plugins/all-themes.lua` (17 colourscheme

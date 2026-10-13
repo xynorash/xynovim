@@ -234,6 +234,9 @@ describe("buffer-local maps on a Rust buffer", function()
     stub(Snacks.rename, "rename_file", function()
       called = called + 1
     end)
+    stub(vim.ui, "input", function(_, cb)
+      cb("a_free_name.rs") -- the prompt is ours (it refuses an existing destination), then Snacks renames
+    end)
     m.callback()
     H.eq(1, called)
     local ca = mp("<leader>ca")
@@ -399,8 +402,20 @@ describe("buffer-local maps on a Rust buffer", function()
     local f = filter_for("<leader>ri", "n")
     H.ok(f("Inline variable"))
     H.ok(f("Inline function"))
-    H.ok(f("Inline into all callers"))
     H.not_ok(f("Inline macro"))
+    -- the destructive variant asks first (it deleted the fn and broke `as` casts silently)
+    local asked = {}
+    stub(vim.fn, "confirm", function(msg)
+      asked[#asked + 1] = msg
+      return #asked == 1 and 2 or 1
+    end)
+    H.not_ok(f("Inline into all callers"), "answer No")
+    H.ok(f("Inline into all callers"), "answer Yes")
+    H.eq(2, #asked)
+    H.match(asked[1], "Inline into all callers", true)
+    H.eq(2, #asked, "other variants do not ask")
+    H.ok(f("Inline function"))
+    H.eq(2, #asked)
   end)
 
   it("8. M.ssr prompts, ignores an empty/nil answer, runs :RustLsp ssr <query>", function()
@@ -493,8 +508,6 @@ describe("buffer-local maps on a Rust buffer", function()
       H.eq(spec[1], calls[1], lhs)
     end
     local tabled = {
-      ["<A-j>"] = { { "moveItem", "down" }, "Move item down" },
-      ["<A-k>"] = { { "moveItem", "up" }, "Move item up" },
       ["<leader>rh"] = { { "view", "hir" }, "View HIR" },
       ["<leader>rH"] = { { "view", "mir" }, "View MIR" },
     }
@@ -505,6 +518,60 @@ describe("buffer-local maps on a Rust buffer", function()
       m.callback()
       H.eq(spec[1], calls[1], lhs)
     end
+  end)
+
+  it("<A-j>/<A-k> send experimental/moveItem and apply the edits as plain text (`$e` is kept)", function()
+    session()
+    remember()
+    local ra = require("rustaceanvim.rust_analyzer")
+    local sent = {}
+    stub(ra, "buf_request", function(_, method, params, handler)
+      sent[#sent + 1] = { method, params.direction }
+      -- unescaped snippet edit like rust-analyzer's: `$e` and the `$0` marker
+      handler(nil, {
+        { range = { start = { line = 0, character = 0 }, ["end"] = { line = 0, character = 3 } },
+          newText = "($e:expr) => { $e + $e$0 };", insertTextFormat = 2 },
+      }, { bufnr = S.buf, client_id = S.client.id })
+    end)
+    vim.api.nvim_buf_set_lines(S.buf, 0, -1, false, { "aaa", "bbb" })
+    mp("<A-j>").callback()
+    H.eq("($e:expr) => { $e + $e };", lines()[1])
+    H.eq("bbb", lines()[2])
+    mp("<A-k>").callback()
+    H.eq({ { "experimental/moveItem", "Down" }, { "experimental/moveItem", "Up" } }, sent)
+    reset_buffer()
+  end)
+
+  it("<leader>cR refuses an existing destination (was overwritten) and renames to a free name", function()
+    session()
+    local from = vim.api.nvim_buf_get_name(S.buf)
+    local other = vim.fs.dirname(from) .. "/other_existing.txt"
+    vim.fn.writefile({ "keep me" }, other)
+    local answer
+    local renamed = {}
+    local prompts = {}
+    stub(vim.ui, "input", function(o, cb)
+      prompts[#prompts + 1] = o.default
+      local dir = o.default:match("^(.*)/[^/]*$")
+      cb((dir and dir .. "/" or "") .. answer)
+    end)
+    stub(Snacks.rename, "rename_file", function(o)
+      renamed[#renamed + 1] = o
+    end)
+    local n = notifications()
+    answer = "other_existing.txt"
+    mp("<leader>cR").callback()
+    H.eq(1, #prompts, "prompted; notes: " .. vim.inspect(n))
+    H.eq(0, #renamed, "nothing is renamed over an existing file")
+    H.eq({ "keep me" }, vim.fn.readfile(other))
+    H.eq(vim.log.levels.ERROR, n[#n].level)
+    H.match(n[#n].msg, "already exists", true)
+    answer = "fresh_name.rs"
+    mp("<leader>cR").callback()
+    H.eq(1, #renamed)
+    H.eq(from, renamed[1].from)
+    H.match(renamed[1].to, "/fresh_name.rs", true)
+    os.remove(other)
   end)
 
   it("9. <leader>rj in visual mode is the :RustLsp joinLines<CR> command", function()

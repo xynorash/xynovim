@@ -613,7 +613,7 @@ end)
 -- ------------------------------------------------------ 7. excludes
 
 describe("excludes", function()
-  it("keeps target/ out via one .git/info/exclude line (also from git status); .gitignore and the global ignore are honoured", function()
+  it("keeps /target/ (root and members) out via anchored .git/info/exclude lines; src/target/mod.rs stays; .gitignore and the global ignore are honoured", function()
     local root = mkrepo({ ["keep.txt"] = "k\n", [".gitignore"] = "*.gitignored\n" })
     write(root .. "/.git/info/exclude", "# mine\n*.bak\n")
     write(root .. "/.git/lochist-exclude", "old\n")
@@ -624,21 +624,37 @@ describe("excludes", function()
       ["target/debug/a"] = "4",
       ["sub/target/b"] = "5",
       ["pkg/target-notes.txt"] = "6",
+      ["crates/m/Cargo.toml"] = "[package]\n",
+      ["crates/m/target/c"] = "7",
     }) do
       write(root .. "/" .. rel, text)
     end
     local c = snap(root)
     H.ok(c)
-    H.eq({ ".gitignore", "keep.txt", "pkg/target-notes.txt" }, names(root, c))
+    H.eq(
+      { ".gitignore", "crates/m/Cargo.toml", "keep.txt", "pkg/target-notes.txt", "sub/target/b" },
+      names(root, c)
+    )
     local ex = vim.fn.readfile(root .. "/.git/info/exclude")
-    H.eq({ "# mine", "*.bak", "target/" }, ex)
+    H.eq({ "# mine", "*.bak", "/target/", "/crates/m/target/" }, ex)
     H.is_nil(uv.fs_stat(root .. "/.git/lochist-exclude"), "old lochist-exclude removed")
     H.no_match(G(root, "status", "--porcelain"), "target", true)
     -- a second session (prepare runs again): still a single line
     state("prepared")[root] = nil
     write(root .. "/keep.txt", "k2\n")
     H.ok(snap(root))
-    H.eq({ "# mine", "*.bak", "target/" }, vim.fn.readfile(root .. "/.git/info/exclude"))
+    H.eq({ "# mine", "*.bak", "/target/", "/crates/m/target/" }, vim.fn.readfile(root .. "/.git/info/exclude"))
+  end)
+
+  it("migrates the unanchored `target/` line of an older version", function()
+    local root = mkrepo()
+    write(root .. "/.git/info/exclude", "*.bak\ntarget/\n")
+    write(root .. "/src/target/mod.rs", "x")
+    local c = snap(root)
+    H.ok(c)
+    H.eq({ "*.bak", "/target/" }, vim.fn.readfile(root .. "/.git/info/exclude"))
+    H.has(names(root, c), "src/target/mod.rs")
+    H.match(G(root, "status", "--porcelain", "-uall"), "src/target/mod.rs", true)
   end)
 
   it("does not add a second line when the user already excludes /target", function()
@@ -782,8 +798,8 @@ describe("linked worktree", function()
     H.ok(uv.fs_stat(gitdir .. "/lochist-index." .. uv.os_getpid()), "index in the worktree gitdir")
     H.eq({}, vim.fn.glob(root .. "/.git/lochist-index*", true, true), "none in the main gitdir")
     local ex = vim.fn.readfile(root .. "/.git/info/exclude")
-    H.eq("target/", ex[#ex])
-    H.eq(1, #vim.tbl_filter(function(l) return l == "target/" end, ex))
+    H.eq("/target/", ex[#ex])
+    H.eq(1, #vim.tbl_filter(function(l) return l == "/target/" end, ex))
     -- the main worktree keeps its own ref
     write(root .. "/a.txt", "main side\n")
     H.ok(snap(root))

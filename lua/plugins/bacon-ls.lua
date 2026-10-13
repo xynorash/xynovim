@@ -18,8 +18,9 @@ local bacon_ls_settings = {
     command = "clippy",
     -- no --all-targets: it doubles every run's scope (bin + test targets);
     -- clippy-on-tests can run manually/CI instead. --no-deps: don't re-lint
-    -- dependency crates after their recompilation.
-    extraArgs = { "--workspace", "--all-features", "--no-deps" },
+    -- dependency crates after their recompilation. --keep-going: a crate that fails to
+    -- build no longer hides the diagnostics of the independent ones.
+    extraArgs = { "--workspace", "--all-features", "--no-deps", "--keep-going" },
     updateOnInsert = true,
     -- Measured (multi-crate ws, warm): edit-to-clippy-diagnostic is
     -- debounce + ~60ms, and any debounce >= the typing cadence coalesces a
@@ -64,7 +65,9 @@ return {
         -- unaffected.
         root_dir = function(bufnr, on_dir)
           local name = vim.api.nvim_buf_get_name(bufnr)
-          if name == "" then
+          -- no client for virtual buffers (diffview://, fugitive://, 99-prompt ...): the root of
+          -- diffview:// came out as "." and started a second client that outlived Diffview
+          if name == "" or name:match("^%w[%w+.-]*://") or vim.bo[bufnr].buftype ~= "" then
             return
           end
           -- bacon-ls shells out to cargo: without it the client died with a
@@ -82,7 +85,7 @@ return {
             end
           end
           local root = require("config.rust_context").root(name)
-          if root then
+          if root and root:sub(1, 1) == "/" then
             on_dir(root)
           end
         end,

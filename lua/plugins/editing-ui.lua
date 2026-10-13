@@ -138,16 +138,46 @@ return {
   },
 
   -- <leader>9 is the 99 agent (ninety-nine.lua); it had no group name.
-  -- <leader>t (neotest) and <leader>a (claudecode) are groups only through
-  -- lazy.nvim key stubs: typed fast (`Space t` in one send-keys, also with 0.1 to
-  -- 0.2s gaps) no popup appeared in the field test, although the mappings fired.
+  -- LazyVim's extras declare empty-rhs `keys` stubs for the group prefixes (neotest
+  -- <leader>t, claudecode <leader>a, kulala <leader>R). lazy.nvim turns each into a real
+  -- no-op mapping that shadowed which-key's trigger: typed fast (`Space t` in one send-keys)
+  -- no popup appeared (deleting the mapping brought it back). The stubs are switched off
+  -- here, the groups are named through which-key's spec below.
+  -- LazyVim's LSP keymaps bind <leader>cR to Snacks' rename (an fs rename that overwrote an
+  -- existing destination) and re-apply it on every (dynamic) capability registration; the same
+  -- key here replaces it (keys merge by lhs). keymaps.lua sets it on rust-analyzer attach too.
+  {
+    "neovim/nvim-lspconfig",
+    opts = {
+      servers = {
+        ["*"] = {
+          keys = {
+            {
+              "<leader>cR",
+              function()
+                require("config.rust_assist").rename_file()
+              end,
+              desc = "Rename File",
+              mode = { "n" },
+              has = { "workspace/didRenameFiles", "workspace/willRenameFiles" },
+            },
+          },
+        },
+      },
+    },
+  },
+  { "nvim-neotest/neotest", keys = { { "<leader>t", false } } },
+  { "coder/claudecode.nvim", keys = { { "<leader>a", false, mode = { "n", "v" } } } },
+  { "mistweaverco/kulala.nvim", keys = { { "<leader>R", false } } },
   {
     "folke/which-key.nvim",
     opts = {
       spec = {
         { "<leader>9", group = "99 (agent)" },
         { "<leader>t", group = "test" },
-        { "<leader>a", group = "ai" },
+        { "<leader>a", group = "ai", mode = { "n", "v" } },
+        { "<leader>R", group = "rest" },
+        { "<leader>r", group = "rust", mode = { "n", "x" } },
       },
     },
   },

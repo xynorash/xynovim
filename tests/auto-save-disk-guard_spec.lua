@@ -460,6 +460,30 @@ describe("auto-save and disk guard", function()
       H.eq(0, n())
     end)
 
+    it("6 an autosaved Rust buffer reaches neotest's own rediscovery (group neotest.Client) and no other BufWritePost handler", function()
+      local _, buf = open_file("one\n")
+      vim.bo[buf].filetype = "rust"
+      local n = count_bufwritepost(buf)
+      local seen = {}
+      local g = vim.api.nvim_create_augroup("neotest.Client", { clear = true })
+      vim.api.nvim_create_autocmd("BufWritePost", {
+        group = g,
+        callback = function(ev)
+          seen[#seen + 1] = ev.buf
+        end,
+      })
+      local had = package.loaded["neotest.client"]
+      package.loaded["neotest.client"] = {}
+      autosave_once(buf)
+      H.eq({ buf }, seen, "rediscovery requested (the tree kept the old tests: <leader>tr ran another one)")
+      H.eq(0, n(), "the global BufWritePost event is not re-emitted")
+      vim.bo[buf].filetype = "text"
+      autosave_once(buf)
+      H.eq(1, #seen, "not for other filetypes")
+      package.loaded["neotest.client"] = had
+      pcall(vim.api.nvim_del_augroup_by_name, "neotest.Client")
+    end)
+
     it("23 an autosave sends didSave although noautocmd suppresses BufWritePost", function()
       local _, buf = open_file("one\n")
       local log = fake_lsp(buf, "fake-save", { includeText = false })
@@ -528,16 +552,28 @@ describe("auto-save and disk guard", function()
 
   -- ------------------------------------------------------ 9, 10, 11, 12: stamps
   describe("can_save", function()
-    it("9 is true for non-file buffers (buftype set, or no name)", function()
+    it("9 is false for buffers with a buftype and true for a no-name one (the plugin handles that)", function()
       local scratch = vim.api.nvim_create_buf(false, true)
-      H.eq(true, dg.can_save(scratch))
+      H.eq(false, dg.can_save(scratch))
       local noname = vim.api.nvim_create_buf(true, false)
       H.eq(true, dg.can_save(noname))
       local named_nofile = vim.api.nvim_create_buf(true, true)
       vim.api.nvim_buf_set_name(named_nofile, H.tmpdir() .. "/virt")
       vim.bo[named_nofile].buftype = "nofile"
-      H.eq(true, dg.can_save(named_nofile))
+      H.eq(false, dg.can_save(named_nofile))
       H.is_nil(vim.b[named_nofile].xynovim_disk_stamp)
+    end)
+
+    it("9 is false for an acwrite + readonly buffer like 99's prompt (a :write raised a blocking confirm)", function()
+      local b = vim.api.nvim_create_buf(true, false)
+      vim.api.nvim_buf_set_name(b, "99-prompt")
+      vim.bo[b].buftype = "acwrite"
+      vim.api.nvim_buf_set_lines(b, 0, -1, false, { "x" })
+      H.eq(false, dg.can_save(b))
+      vim.bo[b].buftype = ""
+      vim.bo[b].readonly = true
+      H.eq(false, dg.can_save(b), "a readonly file buffer")
+      vim.api.nvim_buf_delete(b, { force = true })
     end)
 
     it("9 records the mtime as sec.nsec on BufReadPost", function()

@@ -309,6 +309,32 @@ return {
               local l = require("dap").listeners.before
               l.event_terminated["dapui_config"] = nil
               l.event_exited["dapui_config"] = nil
+              -- the Console (a terminal window) kept a stale topline after the layout resized:
+              -- the output was in the buffer, the window showed blank lines
+              local la = require("dap").listeners.after
+              local function rescroll()
+                vim.defer_fn(function()
+                  for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+                    local b = vim.api.nvim_win_get_buf(w)
+                    if vim.bo[b].filetype == "dapui_console" and vim.fn.getwininfo(w)[1].topline >= vim.api.nvim_buf_line_count(b) then
+                      vim.api.nvim_win_call(w, function()
+                        vim.cmd("normal! gg")
+                      end)
+                    end
+                  end
+                end, 50)
+              end
+              for _, ev in ipairs({ "event_stopped", "event_terminated", "event_exited" }) do
+                la[ev]["xynovim_console"] = rescroll
+              end
+              -- LazyVim gives the breakpoint signs DiagnosticInfo (blue) unless the icon carries a group;
+              -- the theme's red / yellow / grey groups exist
+              for name, hl in pairs({ DapBreakpoint = "DapBreakpoint", DapBreakpointCondition = "DapBreakpointCondition", DapBreakpointRejected = "DapBreakpointRejected" }) do
+                local def = vim.fn.sign_getdefined(name)[1]
+                if def then
+                  vim.fn.sign_define(name, { text = def.text, texthl = hl, linehl = def.linehl, numhl = def.numhl })
+                end
+              end
             end)
           end
         end,

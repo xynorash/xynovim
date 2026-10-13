@@ -15,11 +15,12 @@ return {
   },
 
   -- Persistent call hierarchy (RustRover Ctrl+Alt+H): gai/gao are flat lists.
+  -- auto_refresh=false: the lsp_* sources refresh on CursorHold/BufEnter, which blanked the tree.
   {
     "folke/trouble.nvim",
     keys = {
-      { "<leader>cI", "<cmd>Trouble lsp_incoming_calls toggle focus=true<cr>", desc = "Incoming calls (tree)" },
-      { "<leader>cO", "<cmd>Trouble lsp_outgoing_calls toggle focus=true<cr>", desc = "Outgoing calls (tree)" },
+      { "<leader>cI", "<cmd>Trouble lsp_incoming_calls toggle focus=true auto_refresh=false<cr>", desc = "Incoming calls (tree)" },
+      { "<leader>cO", "<cmd>Trouble lsp_outgoing_calls toggle focus=true auto_refresh=false<cr>", desc = "Outgoing calls (tree)" },
     },
   },
 

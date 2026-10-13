@@ -192,4 +192,72 @@ function M.syntax_tree()
   end)
 end
 
+--- <leader>cR: Snacks' rename (fs rename) overwrote an existing destination: ask for the
+--- name here (same prompt and default), refuse when it exists, then let Snacks do the rest.
+function M.rename_file()
+  local from = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":p")
+  local root = vim.fs.normalize(vim.fn.getcwd(0))
+  if from:find(root, 1, true) ~= 1 then
+    root = vim.fs.dirname(from)
+  end
+  local extra = from:sub(#root + 2)
+  vim.ui.input({ prompt = "New File Name: ", default = extra, completion = "file" }, function(value)
+    if not value or value == "" or value == extra then
+      return
+    end
+    local to = vim.fs.normalize(root .. "/" .. value)
+    if vim.uv.fs_stat(to) then
+      return vim.notify("Rename: " .. to .. " already exists", vim.log.levels.ERROR)
+    end
+    Snacks.rename.rename_file({ from = from, to = to })
+  end)
+end
+
+--- <A-j>/<A-k>: `experimental/moveItem` answers snippet edits whose text is NOT
+--- escaped (only the `$0` cursor marker is meant), and rustaceanvim expanded them as
+--- snippets: `$e` in a macro_rules item became empty and auto-save wrote it. The edits
+--- are applied as plain text here, only the first `$0` marker is dropped (it places
+--- the cursor, same arithmetic as rustaceanvim's move_item.lua).
+--- @param direction "Up"|"Down"
+function M.move_item(direction)
+  local ok, ra = pcall(require, "rustaceanvim.rust_analyzer")
+  if not ok or #ra.get_active_rustaceanvim_clients(0) == 0 then
+    return
+  end
+  local client = ra.get_active_rustaceanvim_clients(0)[1]
+  local params = vim.lsp.util.make_range_params(0, client.offset_encoding or "utf-8")
+  params.direction = direction
+  ra.buf_request(0, "experimental/moveItem", params, function(_, edits, ctx)
+    if not edits or #edits == 0 or not vim.api.nvim_buf_is_valid(ctx.bufnr) then
+      return
+    end
+    local cursor = { edits[1].range.start.line }
+    local prev
+    for _, e in ipairs(edits) do
+      if e.insertTextFormat == 2 and e.newText then
+        local at = e.newText:find("$0", 1, true)
+        if not cursor[2] then
+          if prev then
+            cursor[1] = cursor[1]
+              + math.max(0, e.range.start.line - prev.range["end"].line - 1)
+              - (prev.range.start.line == e.range.start.line and 1 or 0)
+          end
+          local lines = vim.split(e.newText:sub(1, at or #e.newText), "\n")
+          cursor[1] = cursor[1] + #lines
+          if at then
+            cursor[2] = (#lines == 1 and e.range.start.character or 0) + #lines[#lines] - 1
+          end
+        end
+        if at then
+          e.newText = e.newText:sub(1, at - 1) .. e.newText:sub(at + 2)
+        end
+      end
+      e.insertTextFormat = nil
+      prev = e
+    end
+    vim.lsp.util.apply_text_edits(edits, ctx.bufnr, client.offset_encoding or "utf-8")
+    pcall(vim.api.nvim_win_set_cursor, 0, { math.max(1, cursor[1]), cursor[2] or 0 })
+  end)
+end
+
 return M
