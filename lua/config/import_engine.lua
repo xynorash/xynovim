@@ -742,8 +742,10 @@ local function walk_uses(root)
   for name, t in
     vim.fs.dir(root, {
       depth = 8,
+      -- vim.fs.dir: false = do not descend (the opposite of what "skip" suggests)
       skip = function(d)
-        return d == "target" or d:sub(1, 1) == "."
+        local base = vim.fs.basename(d)
+        return not (base == "target" or base:sub(1, 1) == ".")
       end,
     })
   do

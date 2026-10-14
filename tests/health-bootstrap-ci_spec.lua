@@ -680,7 +680,7 @@ describe("ci.yml", function()
     H.has(ci, "\non:\n  push:\n    branches: [main]\n  pull_request:\n")
   end)
 
-  it("has read-only contents permission and one job 'smoke' on ubuntu-latest, 15 minute timeout", function()
+  it("has read-only contents permission and one job 'smoke' on ubuntu-latest, 40 minute timeout", function()
     H.has(ci, "\npermissions:\n  contents: read\n")
     local jobs = "\n" .. ci:match("\njobs:\n(.*)$")
     local names = {}
@@ -689,7 +689,7 @@ describe("ci.yml", function()
     end
     H.eq({ "smoke" }, names)
     H.has(ci, "    runs-on: ubuntu-latest\n")
-    H.has(ci, "    timeout-minutes: 15\n")
+    H.has(ci, "    timeout-minutes: 40\n")
   end)
 
   it("pins actions/checkout to the commit hash with persist-credentials false", function()

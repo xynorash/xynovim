@@ -16,6 +16,7 @@ All notable changes to this config are documented here.
 - Specs: `crate-meta`, `deps-freshness`, `crate-add`, `crate-features`, `import-engine`, `crate-import`, `macro-attrs`, `macro-tools`, `macros-deps-flows` (four cross-module flows on temp copies of the fixtures, real `cargo`, crates.io and rust-analyzer; skip with a message without them), fixture `tests/fixtures/no-deps-lab`. README section "Macros and dependencies".
 
 ### Changed (macros and dependencies)
+- CI job timeout 15 to 40 minutes: the suite now has 33 spec files (about 12 minutes on a runner after a 3 minute bootstrap) and the first run of this work was cancelled at 15. The import engine's Lua fallback for the `use` index (no ripgrep, as on the runner) never descended into directories (`vim.fs.dir`'s `skip` returns false to stop, the predicate was inverted); fixed, found by the CI run.
 - `.gitignore` ships `data/macro_attrs/` (it ignored `data/`). The README layout block lists `data/` (17 entries).
 - `<leader>rA rG rI rO rx rq` are buffer-local (Rust buffers, `rA` also `Cargo.toml`): the global `<leader>r` keys are hidden stubs. `crate_add` and `macro_tools` start from `User VeryLazy` autocmds, not virtual lazy specs (the plugin count stays 61).
 - Derive acceptance in `macro_attrs` resolves through the import engine (`derive = true, sources = false`): the remembered or only candidate, otherwise the one from the derive's own crate.
