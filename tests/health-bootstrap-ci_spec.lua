@@ -360,6 +360,7 @@ local function mkcheckout(opts)
   vim.fn.mkdir(root .. "/tmp", "p")
   vim.fn.mkdir(root .. "/home", "p")
   sh({ "cp", repo .. "/scripts/bootstrap.sh", ck .. "/scripts/bootstrap.sh" })
+  sh({ "cp", repo .. "/scripts/provision.lua", ck .. "/scripts/provision.lua" })
   vim.fn.writefile(vim.split(LOCK_ORIG:sub(1, -2), "\n"), ck .. "/lazy-lock.json")
   if not opts.nolink then
     vim.uv.fs_symlink(ck, root .. "/cfg/nvim")
@@ -548,7 +549,7 @@ describe("bootstrap.sh: prerequisites", function()
     local r = c:run({ BOOTSTRAP_SKIP_PREREQS = "1" })
     H.eq(0, r.code, r.stderr)
     H.no_match(r.stderr, "missing prerequisites", true)
-    H.eq(2, #vim.tbl_filter(function(l) return l:find("^nvim ") end, log_lines(c)))
+    H.eq(3, #vim.tbl_filter(function(l) return l:find("^nvim ") end, log_lines(c)))
   end)
 end)
 
@@ -557,14 +558,16 @@ describe("bootstrap.sh: two-step restore", function()
     local c = mkcheckout()
     local r = c:run({ BOOTSTRAP_SKIP_PREREQS = "1", FAKE_INSTALL = "1" })
     H.eq(0, r.code, r.stderr)
-    H.has(r.stdout, "bootstrap: step 1/2, Lazy! install\n")
-    H.has(r.stdout, "bootstrap: step 2/2, Lazy! restore\n")
+    H.has(r.stdout, "bootstrap: step 1/3, Lazy! install\n")
+    H.has(r.stdout, "bootstrap: step 2/3, Lazy! restore\n")
     H.has(r.stdout, "bootstrap: done, lazy-lock.json unchanged.\n")
     local log = log_lines(c)
     H.eq("nvim --headless +Lazy! install +qa", log[1])
     -- install clobbered the lockfile; step 2 must see the original again
     H.eq("nvim --headless +Lazy! restore +qa", log[2])
     H.eq("restore sees: " .. vim.trim(LOCK_ORIG), log[3])
+    -- step 3: parsers and Mason tools, via scripts/provision.lua of the checkout
+    H.has(log[4], "provision.lua")
     H.eq(LOCK_ORIG, table.concat(vim.fn.readfile(c.lock), "\n") .. "\n")
   end)
 
@@ -748,7 +751,7 @@ describe("ci.yml", function()
       end
       local script = dir .. "/smoke.sh"
       vim.fn.writefile(vim.split(run_block(ci_steps()[7]), "\n"), script)
-      local r = sh({ "/usr/bin/bash", "-e", script }, { env = { PATH = bin }, clear_env = true, cwd = dir })
+      local r = sh({ "/usr/bin/bash", "-e", script }, { env = { PATH = bin, RUNNER_TEMP = dir }, clear_env = true, cwd = dir })
       return r, dir
     end
 

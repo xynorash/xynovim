@@ -406,7 +406,7 @@ describe("<leader>rN", function()
   it("maps to :RustRoutes buffer-locally when rust-analyzer attaches", function()
     -- the real LspAttach handler (keymaps.lua) needs a rust-analyzer client;
     -- hand it a fake one so the test stays independent of the server
-    vim.cmd("doautocmd User VeryLazy")
+    H.very_lazy()
     local dir = H.tmpdir()
     write(dir .. "/a.rs", "fn main() {}\n")
     vim.cmd.edit(vim.fn.fnameescape(dir .. "/a.rs"))

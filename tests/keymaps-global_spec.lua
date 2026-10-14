@@ -408,6 +408,9 @@ describe("LazyVim keys of the enabled extras", function()
   }
   for name, g in pairs(groups) do
     it(name .. " keys are mapped: <leader>" .. table.concat(g[2], " "), function()
+      if name == "lazygit" and vim.fn.executable("lazygit") ~= 1 then
+        skip("lazygit is not installed (LazyVim only maps the keys when it is on PATH)")
+      end
       local missing = {}
       for _, k in ipairs(g[2]) do
         if not next(md("<leader>" .. k, g[1])) then

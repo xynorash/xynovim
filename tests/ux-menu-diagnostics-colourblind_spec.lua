@@ -85,7 +85,7 @@ local function rust_buf()
 end
 
 -- LazyVim's keymaps (<leader>cd) and keymaps.lua's toggle load on VeryLazy
-vim.cmd("doautocmd User VeryLazy")
+H.very_lazy()
 
 local created_ns_bufs = {}
 local function track(buf)

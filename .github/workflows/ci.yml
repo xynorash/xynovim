@@ -30,7 +30,7 @@ jobs:
           ln -s "$GITHUB_WORKSPACE" "$HOME/.config/nvim"
 
       - name: Add rust-analyzer (a prerequisite the bootstrap script checks)
-        run: rustup component add rust-analyzer
+        run: rustup component add rust-analyzer clippy
 
       - name: Restore plugins from the lockfile
         run: scripts/bootstrap.sh
@@ -45,11 +45,11 @@ jobs:
           # loop. Any message on stderr (a failed plugin spec, a Lua error)
           # fails the job.
           start=$(date +%s%N)
-          nvim --headless +qa 2> startup.log
+          nvim --headless +qa 2> "$RUNNER_TEMP/startup.log"
           end=$(date +%s%N)
           ms=$(( (end - start) / 1000000 ))
           echo "headless startup: ${ms} ms"
-          if [ -s startup.log ]; then cat startup.log; exit 1; fi
+          if [ -s "$RUNNER_TEMP/startup.log" ]; then cat "$RUNNER_TEMP/startup.log"; exit 1; fi
           if [ "$ms" -gt 3000 ]; then echo "startup slower than 3000 ms"; exit 1; fi
 
       - name: Spec suite

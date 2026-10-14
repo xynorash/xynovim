@@ -36,10 +36,16 @@ describe("rust-analyzer on the fixtures", function()
   it("reports the type error of the broken crate", function()
     local _, buf = H.open_fixture("broken", "src/main.rs")
     H.wait_lsp("rust-analyzer", buf)
-    local d = H.wait_for(function()
-      return H.diagnostics(nil, buf)[1]
-    end, 60000, "a diagnostic in the broken crate")
-    H.match(d.message, "mismatched types", true)
+    -- Either tier may answer first, and the wording differs per rust-analyzer
+    -- version ("mismatched types", "expected i32, found &'static str") and per
+    -- tier (bacon-ls has no code): accept any rendering of E0308.
+    H.wait_for(function()
+      for _, d in ipairs(H.diagnostics(nil, buf)) do
+        if tostring(d.code) == "E0308" or d.message:find("mismatched types", 1, true) or d.message:find("expected .*, found") then
+          return d
+        end
+      end
+    end, 60000, "an E0308 type error diagnostic in the broken crate")
   end)
 
   it("attaches to a standalone file", function()

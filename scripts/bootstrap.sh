@@ -53,12 +53,15 @@ orig=$(mktemp)
 trap 'rm -f "$orig"' EXIT
 cp "$lock" "$orig"
 
-echo "bootstrap: step 1/2, Lazy! install"
+echo "bootstrap: step 1/3, Lazy! install"
 nvim --headless '+Lazy! install' +qa
 cp "$orig" "$lock"
 
-echo "bootstrap: step 2/2, Lazy! restore"
+echo "bootstrap: step 2/3, Lazy! restore"
 nvim --headless '+Lazy! restore' +qa
+
+echo "bootstrap: step 3/3, treesitter parsers and Mason tools (LazyVim downloads them lazily on a first start)"
+nvim --headless "+luafile $repo/scripts/provision.lua" +qa
 
 if cmp -s "$orig" "$lock"; then
   echo "bootstrap: done, lazy-lock.json unchanged."
