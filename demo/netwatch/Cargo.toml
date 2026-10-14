@@ -1,0 +1,21 @@
+[package]
+name = "netwatch"
+version = "0.1.0"
+edition = "2024"
+description = "Demo crate for the xynovim README: a tiny TCP port watcher"
+
+[dependencies]
+clap = { version = "4.6.7", features = ["derive"] }
+
+[dev-dependencies]
+assert_cmd = "2.2.2"
+predicates = "3.1.4"
+
+[features]
+default = []
+# `json`: machine readable output. `ssr` / `csr` are placeholders; the
+# docs/media/tapes/07-context.tape recording makes them mutually exclusive on
+# the fly to show what the :RustContext feature switcher is for.
+json = []
+ssr = []
+csr = []

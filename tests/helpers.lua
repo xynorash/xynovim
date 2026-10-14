@@ -167,6 +167,20 @@ function H.very_lazy()
   end
 end
 
+--- README.md followed by the pages under docs/ (the claims the specs verify
+--- live in whichever of them states them).
+function H.docs_text()
+  local parts = {}
+  for _, f in ipairs({ "README.md", "docs/DETAILS.md", "docs/TESTING.md", "docs/KNOWN_ISSUES.md", "docs/HISTORY.md" }) do
+    local fh = io.open(H.repo .. "/" .. f)
+    if fh then
+      parts[#parts + 1] = fh:read("*a")
+      fh:close()
+    end
+  end
+  return table.concat(parts, "\n")
+end
+
 --- Text of :messages.
 function H.messages()
   return vim.api.nvim_exec2("messages", { output = true }).output

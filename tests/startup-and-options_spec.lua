@@ -500,7 +500,7 @@ describe("lazyvim.json", function()
   end)
 
   it("matches the README 'LazyVim extras enabled' list", function()
-    local line = read(repo .. "/README.md"):match("LazyVim extras enabled[^\n]*")
+    local line = H.docs_text():match("LazyVim extras enabled[^\n]*")
     H.ok(line, "README line not found")
     local readme = {}
     for name in line:gmatch("`([%w%.%-]+)`") do

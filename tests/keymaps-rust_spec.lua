@@ -478,14 +478,27 @@ describe("buffer-local maps on a Rust buffer", function()
     local ra = require("config.rust_assist")
     local n = notifications()
     answer_input("Some(98765) ==>> None")
-    ra.ssr()
-    local ssr = H.wait_for(function()
+    -- rust-analyzer answers "content modified" while the workspace is still
+    -- loading (slow machines, CI): ask again until it has settled
+    local ssr
+    H.wait_for(function()
+      if not ssr then
+        ra.ssr()
+      end
       for _, x in ipairs(n) do
-        if x.msg:find("^SSR") then
-          return x
+        if x.msg == "SSR: no matches" then
+          ssr = x
+          return true
         end
       end
-    end, 30000, "a notice for the empty SSR result")
+      vim.wait(1500)
+      for i = #n, 1, -1 do
+        if n[i].msg == "SSR: content modified" then
+          table.remove(n, i)
+        end
+      end
+      return false
+    end, 60000, "SSR: no matches")
     H.eq({ msg = "SSR: no matches", level = vim.log.levels.INFO }, ssr)
   end)
 

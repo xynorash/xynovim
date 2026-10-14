@@ -77,7 +77,7 @@ export XYNO_TMUX_PREFIX=xynotest-$$
 lock_before=$work/lazy-lock.before
 cp "$repo/lazy-lock.json" "$lock_before"
 
-# shellcheck disable=SC2317  # only called through the EXIT trap
+# shellcheck disable=SC2317,SC2329  # only called through the EXIT trap
 cleanup() {
   # leftover tmux servers of the specs
   if command -v tmux >/dev/null 2>&1; then
@@ -98,7 +98,8 @@ export XDG_CONFIG_HOME=$work/config XDG_STATE_HOME=$work/state XDG_CACHE_HOME=$w
 export XDG_DATA_HOME=$data
 export XYNO_TEST_TMP=$work/tmp
 export TMPDIR=$work/tmp
-export XYNO_COV_ROOTS="$work/config/nvim:$(readlink -f "$repo")"
+repo_real=$(readlink -f "$repo")
+export XYNO_COV_ROOTS="$work/config/nvim:$repo_real"
 
 echo "xynovim tests: ${#specs[@]} spec file(s), timeout ${timeout_s}s each"
 if [ "${XYNO_TEST_SKIP_RUST:-}" = 1 ]; then

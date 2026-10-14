@@ -1129,9 +1129,7 @@ end)
 
 describe("README residual-risk claims", function()
   it("documents the residual risks that cannot be tested mechanically", function()
-    local f = assert(io.open(H.repo .. "/README.md"))
-    local text = f:read("a")
-    f:close()
+    local text = H.docs_text()
     for _, claim in ipairs({
       "`~/.claude/.credentials.json` must stay readable",
       "everything unlisted under `$HOME` is readable",

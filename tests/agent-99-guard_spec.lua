@@ -728,7 +728,7 @@ end)
 describe("README claims", function()
   local readme
   before_each(function()
-    readme = table.concat(vim.fn.readfile(H.repo .. "/README.md"), "\n")
+    readme = H.docs_text()
   end)
 
   it("logger path ~/.local/state/nvim/99.log at INFO", function()

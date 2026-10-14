@@ -1255,7 +1255,8 @@ describe("existing specs", function()
     local r = run_real({ TEST_TIMEOUT = "300" }, { "/smoke_spec", "/harness_spec", "/routes_spec", "/rust_spec" })
     local rs = r.rows
     H.eq({ "PASS", 6, 0 }, { rs["smoke_spec.lua"].status, rs["smoke_spec.lua"].passed, rs["smoke_spec.lua"].failed })
-    H.eq({ "PASS", 8, 0 }, { rs["harness_spec.lua"].status, rs["harness_spec.lua"].passed, rs["harness_spec.lua"].failed })
+    -- a test that needs tmux skips (not passes) on a machine without it
+    H.eq({ "PASS", 8, 0 }, { rs["harness_spec.lua"].status, rs["harness_spec.lua"].passed + rs["harness_spec.lua"].skipped, rs["harness_spec.lua"].failed })
     H.eq({ "PASS", 1, 0 }, { rs["routes_spec.lua"].status, rs["routes_spec.lua"].passed, rs["routes_spec.lua"].failed })
     local ra = rs["rust_spec.lua"]
     if ra.status == "FAIL" or ra.status == "TIMEOUT" then
@@ -1274,7 +1275,7 @@ end)
 
 -- =========================================================== Makefile + README
 
-local readme = read(repo .. "/README.md")
+local readme = H.docs_text()
 local changelog = read(repo .. "/CHANGELOG.md")
 
 --- text of a "## <title>" section up to the next "## "
@@ -1300,7 +1301,7 @@ describe("Makefile", function()
 end)
 
 describe("README 'Tests' section", function()
-  local sec = section(readme, "Tests")
+  local sec = section(read(repo .. "/docs/TESTING.md"), "Tests")
 
   it("documents every flag test.sh implements, and test.sh implements each documented flag", function()
     local script = read(repo .. "/scripts/test.sh")

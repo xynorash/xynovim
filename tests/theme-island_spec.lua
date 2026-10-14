@@ -765,7 +765,7 @@ describe("startup cost and legibility claims", function()
     near(7.2, modified, 0.1, "git modified (README: 7.2:1)")
     -- lua/island/init.lua's comment says the same colour is 6.0:1; the README says 7.2:1.
     -- 6.0 is neither the modified colour nor the hint colour here: documentation inconsistency.
-    local readme = read(H.repo .. "/README.md")
+    local readme = H.docs_text()
     H.match(readme, "7.2:1", true)
     local init = read(H.repo .. "/lua/island/init.lua")
     local says_6 = init:find("(6.0:1)", 1, true) ~= nil
