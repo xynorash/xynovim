@@ -1,0 +1,12 @@
+[package]
+name = "deps-lab-nofeature"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+serde = "1"
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
