@@ -5,6 +5,7 @@ All notable changes to this config are documented here.
 ## [Unreleased]
 
 ### Added
+- Assessment and plan for the next phase, "macros and dependencies": measured what rust-analyzer and this config do with derive and attribute macros, new dependencies, missing crate features and ambiguous imports (seven gaps), and a four-phase plan with acceptance criteria. README section "Next phase", `docs/PLAN_MACROS_DEPS.md`, the probe scripts in `docs/assessment/`. Nothing implemented yet.
 - README rewritten as a showcase: screenshots and videos of every major feature (`docs/media/`, 25 screenshots, 10 GIFs, 10 MP4s), a keys and commands cheat sheet, the test suite up front. The previous long README is split into `docs/DETAILS.md` (engineering notes), `docs/TESTING.md` (the suite), `docs/KNOWN_ISSUES.md` (decided limitations) and `docs/HISTORY.md` (the old roadmap, archived).
 - `demo/netwatch`, a small realistic crate (trait, CLI, unit and integration tests, features) as the target of the recordings. `docs/media/record.sh` regenerates every screenshot and video from the vhs tapes in `docs/media/tapes/` on a fresh copy of the crate.
 - `scripts/provision.lua`, step 3 of `scripts/bootstrap.sh`: downloads the treesitter parsers and the Mason packages (bacon-ls, taplo, codelldb, marksman, ...) that LazyVim would otherwise fetch lazily, so a fresh clone is ready to run the suite.

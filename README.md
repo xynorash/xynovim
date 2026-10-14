@@ -164,6 +164,29 @@ Why a script and not just `nvim --headless '+Lazy! restore' +qa`: on an empty pl
 
 `:RustContext` (features and target for both tiers), `:RustTargets`, `:RustTools`, `:RustNew`, `:RustRoutes` (axum / actix / rocket routes), `:RustRestart`, `:ActJob` (run the GitHub Actions job under the cursor with `act`), `:LocalHistory`, `:LocalHistoryRestore`, `:LocalHistoryPrune`, `:ColorblindDiagnostics`, `:checkhealth xynovim`. Plugin management is stock LazyVim: `:Lazy sync` updates (the update checker is off), `:LazyExtras` toggles extras, `:Mason` manages language servers.
 
+## Next phase: macros and dependencies
+
+**The problem**: add a crate and its macros and features are not fully used. Measured on a crate with `serde`, `clap`, `thiserror`, `anyhow` and `tokio` (rust-analyzer 1.99.0, this config; probes in [docs/assessment/](docs/assessment/)):
+
+| What works | What does not |
+| --- | --- |
+| derive and attribute macros expand (hover on a clap-derived `Cli::parse` resolves; no `proc macro not expanded` errors) | **no completion inside helper attributes**: `#[serde(`, `#[arg(`, `#[command(`, `#[error(`, `#[tokio::main(` give 0 items |
+| completion items carry their `use` edit (`HashMap` -> `use std::collections::HashMap;`) | `#[derive(` completion returned **nothing** in three contexts, so derive names are typed from memory |
+| import code actions work for names that are in a dependency, even inside `#[derive(Serialize)]` | a crate that is **not yet a dependency** cannot be imported: no action, no instant-tier diagnostic; you leave the editor for `cargo add` |
+| rust-analyzer sees a new dependency within 10 s of saving `Cargo.toml` | with a **feature missing** (`serde = "1"`, no `derive`) rustc says `cannot find derive macro Serialize` and nothing offers to enable the feature |
+| an ambiguous name (`Error`) lists every candidate | the list is a manual pick every time: **not ranked**, never remembered |
+| | after adding a dependency the **clippy tier shows a stale `cannot find crate` error** for as long as it was watched (61 s), until a focus event restarts it |
+
+**The plan** (details, measurements and acceptance criteria in [docs/PLAN_MACROS_DEPS.md](docs/PLAN_MACROS_DEPS.md)):
+
+0. **Stop the false errors**: restart the clippy tier when `Cargo.toml` / `Cargo.lock` is saved from nvim, and show a "resolving dependencies" status while rust-analyzer reloads.
+1. **Dependencies from inside the editor**: flag a crate that is used but not declared, with the action *Add crate*; `:CrateAdd` (crates.io search with version and **features with their descriptions**, target member or `--dev`, then `cargo add` and the import that triggered it); *Enable feature `derive` of `serde`* for a missing-feature error, with the name-to-feature map computed from the crate's own source; a feature explorer.
+2. **Macro depth**: completion inside helper-attribute arguments (`rename_all = "camelCase"`, `short`, `flavor`, ...) from small per-crate schemas for serde, clap, thiserror, tokio, strum, derive_more, sqlx and more, with a learn-from-usage fallback for crates without one; derive names from the dependencies' proc-macro declarations; signature help for `macro_rules!` calls (including macros of external crates), format-string aware argument completion and `sqlx::query!` bind hints; a macro lens that expands whatever macro is under the cursor; `:ProcMacroStatus`.
+3. **The import engine**: apply the import automatically when there is exactly one candidate (opt-in), rank ambiguous ones by what the file, module and crate already use and by the derive or return-type context, remember the choice per project, and import from crates that are not dependencies yet (add, then import).
+4. **Prove it**: a spec per item (the probes become regression tests), a field-test round, and demo recordings of adding a crate and its feature, completing `#[serde(`, and resolving an ambiguous `Error`.
+
+Order of work: the stale-error fix, missing-feature fix, auto-import and ranking first (the reported pain, all small), then dependency add and import, then the attribute-argument completion, then the rest. Nothing here is implemented yet.
+
 ## Tests: run them yourself
 
 The config ships with an automated suite: **24 spec files, 1069 checks passing, 23 skipped with a stated reason, 0 failing**, in about six minutes. Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
