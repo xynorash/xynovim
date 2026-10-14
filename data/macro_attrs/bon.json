@@ -1,0 +1,462 @@
+{
+  "crate": "bon",
+  "versions": ">=2.0.0, <4.0.0",
+  "docs_url": "https://bon-rs.com/reference/builder",
+  "attributes": [
+    {
+      "name": "builder",
+      "derives": [
+        "Builder"
+      ],
+      "applies_to": [
+        "container",
+        "field"
+      ],
+      "docs_url": "https://bon-rs.com/reference/builder",
+      "args": [
+        {
+          "key": "builder_type",
+          "kind": "expr",
+          "doc": "Name (and visibility, docs) of the builder type.",
+          "snippet": "builder_type = ${1:Name}",
+          "applies_to": [
+            "container"
+          ]
+        },
+        {
+          "key": "state_mod",
+          "kind": "expr",
+          "doc": "Name (and visibility) of the generated type-state module.",
+          "snippet": "state_mod = ${1:name}",
+          "applies_to": [
+            "container"
+          ]
+        },
+        {
+          "key": "start_fn",
+          "kind": "expr",
+          "doc": "Name and visibility of the function starting the builder.",
+          "snippet": "start_fn = ${1:name}",
+          "applies_to": [
+            "container"
+          ]
+        },
+        {
+          "key": "finish_fn",
+          "kind": "expr",
+          "doc": "Name and visibility of the function finishing the builder.",
+          "snippet": "finish_fn = ${1:name}",
+          "applies_to": [
+            "container"
+          ]
+        },
+        {
+          "key": "derive",
+          "kind": "expr",
+          "doc": "Derive traits on the builder: derive(Clone, Debug).",
+          "snippet": "derive(${1:Clone, Debug})",
+          "applies_to": [
+            "container"
+          ]
+        },
+        {
+          "key": "on",
+          "kind": "expr",
+          "doc": "Apply options to all members whose type matches a pattern: on(String, into).",
+          "snippet": "on(${1:String}, ${2:into})",
+          "applies_to": [
+            "container"
+          ]
+        },
+        {
+          "key": "crate",
+          "kind": "path",
+          "doc": "Path to the bon crate.",
+          "snippet": "crate = ${1:::bon}",
+          "applies_to": [
+            "container"
+          ]
+        },
+        {
+          "key": "const",
+          "kind": "flag",
+          "doc": "Make the builder functions const.",
+          "since": "3.3.0",
+          "applies_to": [
+            "container"
+          ]
+        },
+        {
+          "key": "default",
+          "kind": "flag",
+          "doc": "Make the member optional with Default (or `default = expr`).",
+          "applies_to": [
+            "field"
+          ],
+          "conflicts": [
+            "required",
+            "skip"
+          ],
+          "alt": [
+            {
+              "label": "default = expr",
+              "snippet": "default = ${1:expr}",
+              "doc": "Use this expression as the default."
+            }
+          ]
+        },
+        {
+          "key": "into",
+          "kind": "flag",
+          "doc": "The setter accepts `impl Into<T>`.",
+          "applies_to": [
+            "field"
+          ]
+        },
+        {
+          "key": "name",
+          "kind": "expr",
+          "doc": "Name of the setter (and of the member in the builder).",
+          "applies_to": [
+            "field"
+          ],
+          "snippet": "name = ${1:name}"
+        },
+        {
+          "key": "skip",
+          "kind": "flag",
+          "doc": "Do not make a setter; the member gets its default.",
+          "applies_to": [
+            "field"
+          ],
+          "conflicts": [
+            "default",
+            "required",
+            "into",
+            "name",
+            "start_fn",
+            "finish_fn"
+          ],
+          "alt": [
+            {
+              "label": "skip = expr",
+              "snippet": "skip = ${1:expr}",
+              "doc": "Use this expression as the value."
+            }
+          ]
+        },
+        {
+          "key": "start_fn",
+          "kind": "flag",
+          "doc": "This member is a positional parameter of the starting function.",
+          "applies_to": [
+            "field"
+          ],
+          "conflicts": [
+            "finish_fn",
+            "skip"
+          ]
+        },
+        {
+          "key": "finish_fn",
+          "kind": "flag",
+          "doc": "This member is a positional parameter of the finishing function.",
+          "applies_to": [
+            "field"
+          ],
+          "conflicts": [
+            "start_fn",
+            "skip"
+          ]
+        },
+        {
+          "key": "required",
+          "kind": "flag",
+          "doc": "An Option member that must be set explicitly.",
+          "applies_to": [
+            "field"
+          ],
+          "conflicts": [
+            "default",
+            "skip"
+          ]
+        },
+        {
+          "key": "overwritable",
+          "kind": "flag",
+          "doc": "The setter may be called more than once.",
+          "applies_to": [
+            "field"
+          ]
+        },
+        {
+          "key": "transparent",
+          "kind": "flag",
+          "doc": "An Option member whose setter takes Option's inner type directly.",
+          "applies_to": [
+            "field"
+          ]
+        },
+        {
+          "key": "with",
+          "kind": "expr",
+          "doc": "Custom setter signature: with = |value: T| expr.",
+          "applies_to": [
+            "field"
+          ],
+          "snippet": "with = |${1:value}: ${2:Type}| ${3:expr}"
+        },
+        {
+          "key": "setters",
+          "kind": "expr",
+          "doc": "Customise the setter names and docs: setters(name = ..., doc { ... }).",
+          "applies_to": [
+            "field"
+          ],
+          "snippet": "setters(${1:name = foo})"
+        },
+        {
+          "key": "getter",
+          "kind": "expr",
+          "doc": "Generate a getter on the builder for this member.",
+          "applies_to": [
+            "field"
+          ],
+          "snippet": "getter"
+        }
+      ]
+    },
+    {
+      "name": "bon::builder",
+      "applies_to": [
+        "fn"
+      ],
+      "docs_url": "https://bon-rs.com/reference/builder",
+      "args": [
+        {
+          "key": "builder_type",
+          "kind": "expr",
+          "doc": "Name (and visibility, docs) of the builder type.",
+          "snippet": "builder_type = ${1:Name}",
+          "applies_to": [
+            "fn"
+          ]
+        },
+        {
+          "key": "state_mod",
+          "kind": "expr",
+          "doc": "Name (and visibility) of the generated type-state module.",
+          "snippet": "state_mod = ${1:name}",
+          "applies_to": [
+            "fn"
+          ]
+        },
+        {
+          "key": "start_fn",
+          "kind": "expr",
+          "doc": "Name and visibility of the function starting the builder.",
+          "snippet": "start_fn = ${1:name}",
+          "applies_to": [
+            "fn"
+          ]
+        },
+        {
+          "key": "finish_fn",
+          "kind": "expr",
+          "doc": "Name and visibility of the function finishing the builder.",
+          "snippet": "finish_fn = ${1:name}",
+          "applies_to": [
+            "fn"
+          ]
+        },
+        {
+          "key": "derive",
+          "kind": "expr",
+          "doc": "Derive traits on the builder: derive(Clone, Debug).",
+          "snippet": "derive(${1:Clone, Debug})",
+          "applies_to": [
+            "fn"
+          ]
+        },
+        {
+          "key": "on",
+          "kind": "expr",
+          "doc": "Apply options to all members whose type matches a pattern: on(String, into).",
+          "snippet": "on(${1:String}, ${2:into})",
+          "applies_to": [
+            "fn"
+          ]
+        },
+        {
+          "key": "crate",
+          "kind": "path",
+          "doc": "Path to the bon crate.",
+          "snippet": "crate = ${1:::bon}",
+          "applies_to": [
+            "fn"
+          ]
+        },
+        {
+          "key": "const",
+          "kind": "flag",
+          "doc": "Make the builder functions const.",
+          "since": "3.3.0",
+          "applies_to": [
+            "fn"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "builder",
+      "applies_to": [
+        "param"
+      ],
+      "needs_attr": [
+        "bon::builder",
+        "builder"
+      ],
+      "docs_url": "https://bon-rs.com/reference/builder",
+      "args": [
+        {
+          "key": "default",
+          "kind": "flag",
+          "doc": "Make the member optional with Default (or `default = expr`).",
+          "applies_to": [
+            "param"
+          ],
+          "conflicts": [
+            "required",
+            "skip"
+          ],
+          "alt": [
+            {
+              "label": "default = expr",
+              "snippet": "default = ${1:expr}",
+              "doc": "Use this expression as the default."
+            }
+          ]
+        },
+        {
+          "key": "into",
+          "kind": "flag",
+          "doc": "The setter accepts `impl Into<T>`.",
+          "applies_to": [
+            "param"
+          ]
+        },
+        {
+          "key": "name",
+          "kind": "expr",
+          "doc": "Name of the setter (and of the member in the builder).",
+          "applies_to": [
+            "param"
+          ],
+          "snippet": "name = ${1:name}"
+        },
+        {
+          "key": "skip",
+          "kind": "flag",
+          "doc": "Do not make a setter; the member gets its default.",
+          "applies_to": [
+            "param"
+          ],
+          "conflicts": [
+            "default",
+            "required",
+            "into",
+            "name",
+            "start_fn",
+            "finish_fn"
+          ],
+          "alt": [
+            {
+              "label": "skip = expr",
+              "snippet": "skip = ${1:expr}",
+              "doc": "Use this expression as the value."
+            }
+          ]
+        },
+        {
+          "key": "start_fn",
+          "kind": "flag",
+          "doc": "This member is a positional parameter of the starting function.",
+          "applies_to": [
+            "param"
+          ],
+          "conflicts": [
+            "finish_fn",
+            "skip"
+          ]
+        },
+        {
+          "key": "finish_fn",
+          "kind": "flag",
+          "doc": "This member is a positional parameter of the finishing function.",
+          "applies_to": [
+            "param"
+          ],
+          "conflicts": [
+            "start_fn",
+            "skip"
+          ]
+        },
+        {
+          "key": "required",
+          "kind": "flag",
+          "doc": "An Option member that must be set explicitly.",
+          "applies_to": [
+            "param"
+          ],
+          "conflicts": [
+            "default",
+            "skip"
+          ]
+        },
+        {
+          "key": "overwritable",
+          "kind": "flag",
+          "doc": "The setter may be called more than once.",
+          "applies_to": [
+            "param"
+          ]
+        },
+        {
+          "key": "transparent",
+          "kind": "flag",
+          "doc": "An Option member whose setter takes Option's inner type directly.",
+          "applies_to": [
+            "param"
+          ]
+        },
+        {
+          "key": "with",
+          "kind": "expr",
+          "doc": "Custom setter signature: with = |value: T| expr.",
+          "applies_to": [
+            "param"
+          ],
+          "snippet": "with = |${1:value}: ${2:Type}| ${3:expr}"
+        },
+        {
+          "key": "setters",
+          "kind": "expr",
+          "doc": "Customise the setter names and docs: setters(name = ..., doc { ... }).",
+          "applies_to": [
+            "param"
+          ],
+          "snippet": "setters(${1:name = foo})"
+        },
+        {
+          "key": "getter",
+          "kind": "expr",
+          "doc": "Generate a getter on the builder for this member.",
+          "applies_to": [
+            "param"
+          ],
+          "snippet": "getter"
+        }
+      ]
+    }
+  ]
+}

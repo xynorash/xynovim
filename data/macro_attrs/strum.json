@@ -1,0 +1,283 @@
+{
+  "crate": "strum",
+  "versions": ">=0.24.0, <1.0.0",
+  "docs_url": "https://docs.rs/strum/latest/strum/additional_attributes/index.html",
+  "attributes": [
+    {
+      "name": "strum",
+      "derives": [
+        "EnumString",
+        "Display",
+        "EnumIter",
+        "EnumCount",
+        "EnumMessage",
+        "EnumProperty",
+        "EnumDiscriminants",
+        "AsRefStr",
+        "IntoStaticStr",
+        "FromRepr",
+        "VariantNames",
+        "VariantArray",
+        "EnumIs",
+        "EnumTryAs",
+        "EnumTable"
+      ],
+      "applies_to": [
+        "container",
+        "variant"
+      ],
+      "docs_url": "https://docs.rs/strum/latest/strum/additional_attributes/index.html",
+      "args": [
+        {
+          "key": "serialize_all",
+          "kind": "enum",
+          "doc": "Convert all variant names with this case style.",
+          "applies_to": [
+            "container"
+          ],
+          "values": [
+            "camelCase",
+            "PascalCase",
+            "kebab-case",
+            "snake_case",
+            "SCREAMING_SNAKE_CASE",
+            "SCREAMING-KEBAB-CASE",
+            "lowercase",
+            "UPPERCASE",
+            "title_case",
+            "mixed_case",
+            "Train-Case"
+          ],
+          "quoted": true
+        },
+        {
+          "key": "ascii_case_insensitive",
+          "kind": "flag",
+          "doc": "Match variant names ASCII-case-insensitively (EnumString).",
+          "applies_to": [
+            "container",
+            "variant"
+          ]
+        },
+        {
+          "key": "crate",
+          "kind": "path",
+          "doc": "Path to the strum crate when it is renamed or re-exported.",
+          "applies_to": [
+            "container"
+          ],
+          "snippet": "crate = ${1:strum}"
+        },
+        {
+          "key": "use_phf",
+          "kind": "flag",
+          "doc": "Use a perfect hash function for FromStr (needs the `phf` feature).",
+          "applies_to": [
+            "container"
+          ]
+        },
+        {
+          "key": "const_into_str",
+          "kind": "flag",
+          "doc": "Make IntoStaticStr's conversion const.",
+          "applies_to": [
+            "container"
+          ],
+          "since": "0.26.0"
+        },
+        {
+          "key": "prefix",
+          "kind": "string",
+          "doc": "Prefix added to all variants' serialized names.",
+          "applies_to": [
+            "container"
+          ],
+          "since": "0.25.0",
+          "snippet": "prefix = \"${1:prefix}\""
+        },
+        {
+          "key": "suffix",
+          "kind": "string",
+          "doc": "Suffix added to all variants' serialized names.",
+          "applies_to": [
+            "container"
+          ],
+          "since": "0.27.0",
+          "snippet": "suffix = \"${1:suffix}\""
+        },
+        {
+          "key": "parse_err_ty",
+          "kind": "path",
+          "doc": "Error type of FromStr (with parse_err_fn).",
+          "applies_to": [
+            "container"
+          ],
+          "snippet": "parse_err_ty = ${1:MyError}"
+        },
+        {
+          "key": "parse_err_fn",
+          "kind": "path",
+          "doc": "Function building the FromStr error (with parse_err_ty).",
+          "applies_to": [
+            "container"
+          ],
+          "snippet": "parse_err_fn = ${1:make_error}"
+        },
+        {
+          "key": "serialize",
+          "kind": "string",
+          "doc": "Name this variant is (de)serialized as; may be repeated (the longest wins for Display).",
+          "applies_to": [
+            "variant"
+          ],
+          "repeatable": true,
+          "snippet": "serialize = \"${1:name}\""
+        },
+        {
+          "key": "to_string",
+          "kind": "string",
+          "doc": "The Display output of this variant.",
+          "applies_to": [
+            "variant"
+          ],
+          "snippet": "to_string = \"${1:text}\""
+        },
+        {
+          "key": "default",
+          "kind": "flag",
+          "doc": "FromStr falls back to this variant (a single String field).",
+          "applies_to": [
+            "variant"
+          ]
+        },
+        {
+          "key": "default_with",
+          "kind": "path",
+          "doc": "Function producing the fields of this variant for iteration.",
+          "applies_to": [
+            "variant"
+          ],
+          "snippet": "default_with = \"${1:path::to::fn}\""
+        },
+        {
+          "key": "disabled",
+          "kind": "flag",
+          "doc": "Skip this variant in EnumString, EnumIter ...",
+          "applies_to": [
+            "variant"
+          ]
+        },
+        {
+          "key": "transparent",
+          "kind": "flag",
+          "doc": "Display, AsRef... delegate to the variant's single field.",
+          "applies_to": [
+            "variant"
+          ],
+          "since": "0.26.0"
+        },
+        {
+          "key": "message",
+          "kind": "string",
+          "doc": "Short message (EnumMessage).",
+          "applies_to": [
+            "variant"
+          ],
+          "snippet": "message = \"${1:text}\""
+        },
+        {
+          "key": "detailed_message",
+          "kind": "string",
+          "doc": "Detailed message (EnumMessage).",
+          "applies_to": [
+            "variant"
+          ],
+          "snippet": "detailed_message = \"${1:text}\""
+        },
+        {
+          "key": "props",
+          "kind": "expr",
+          "doc": "Key-value properties (EnumProperty): props(key = \"value\").",
+          "applies_to": [
+            "variant"
+          ],
+          "snippet": "props(${1:key} = \"${2:value}\")"
+        }
+      ]
+    },
+    {
+      "name": "strum_discriminants",
+      "derives": [
+        "EnumDiscriminants"
+      ],
+      "applies_to": [
+        "container",
+        "variant"
+      ],
+      "args": [
+        {
+          "key": "derive",
+          "kind": "expr",
+          "doc": "Traits to derive on the generated discriminant enum.",
+          "applies_to": [
+            "container"
+          ],
+          "snippet": "derive(${1:Hash})"
+        },
+        {
+          "key": "name",
+          "kind": "expr",
+          "doc": "Name of the generated discriminant enum.",
+          "applies_to": [
+            "container"
+          ],
+          "snippet": "name(${1:Kind})"
+        },
+        {
+          "key": "vis",
+          "kind": "expr",
+          "doc": "Visibility of the generated discriminant enum.",
+          "applies_to": [
+            "container"
+          ],
+          "snippet": "vis(${1:pub})"
+        },
+        {
+          "key": "doc",
+          "kind": "string",
+          "doc": "Doc comment of the generated enum.",
+          "applies_to": [
+            "container"
+          ],
+          "snippet": "doc = \"${1:text}\""
+        },
+        {
+          "key": "strum",
+          "kind": "expr",
+          "doc": "Apply strum attributes to the generated enum.",
+          "applies_to": [
+            "container"
+          ],
+          "snippet": "strum(${1})"
+        },
+        {
+          "key": "repr",
+          "kind": "expr",
+          "doc": "Representation of the generated enum.",
+          "applies_to": [
+            "container"
+          ],
+          "snippet": "repr(${1:u8})"
+        },
+        {
+          "key": "skip",
+          "kind": "flag",
+          "doc": "Do not generate a discriminant for this variant.",
+          "applies_to": [
+            "variant"
+          ]
+        }
+      ]
+    }
+  ]
+}

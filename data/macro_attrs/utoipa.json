@@ -1,0 +1,496 @@
+{
+  "crate": "utoipa",
+  "versions": ">=4.0.0, <6.0.0",
+  "docs_url": "https://docs.rs/utoipa/latest/utoipa/",
+  "attributes": [
+    {
+      "name": "schema",
+      "derives": [
+        "ToSchema"
+      ],
+      "applies_to": [
+        "container",
+        "field",
+        "variant"
+      ],
+      "docs_url": "https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html",
+      "args": [
+        {
+          "key": "description",
+          "kind": "string",
+          "doc": "Description (default: the doc comment).",
+          "snippet": "description = \"${1:text}\""
+        },
+        {
+          "key": "title",
+          "kind": "string",
+          "doc": "Title of the schema.",
+          "snippet": "title = \"${1:title}\""
+        },
+        {
+          "key": "example",
+          "kind": "expr",
+          "doc": "Example value.",
+          "snippet": "example = ${1:json!(\"value\")}"
+        },
+        {
+          "key": "examples",
+          "kind": "expr",
+          "doc": "Example values.",
+          "snippet": "examples(${1:json!(\"value\")})"
+        },
+        {
+          "key": "rename",
+          "kind": "string",
+          "doc": "Rename this field, variant or schema.",
+          "snippet": "rename = \"${1:name}\""
+        },
+        {
+          "key": "rename_all",
+          "kind": "enum",
+          "doc": "Rename all fields or variants with this serde-like case.",
+          "applies_to": [
+            "container"
+          ],
+          "values": [
+            "lowercase",
+            "UPPERCASE",
+            "PascalCase",
+            "camelCase",
+            "snake_case",
+            "SCREAMING_SNAKE_CASE",
+            "kebab-case",
+            "SCREAMING-KEBAB-CASE"
+          ],
+          "quoted": true
+        },
+        {
+          "key": "format",
+          "kind": "expr",
+          "doc": "Schema format, e.g. Int64, DateTime, Uuid or Binary.",
+          "applies_to": [
+            "field"
+          ],
+          "snippet": "format = ${1:Int64}"
+        },
+        {
+          "key": "value_type",
+          "kind": "expr",
+          "doc": "Override the type in the generated schema.",
+          "applies_to": [
+            "field"
+          ],
+          "snippet": "value_type = ${1:String}"
+        },
+        {
+          "key": "inline",
+          "kind": "flag",
+          "doc": "Inline the schema of this field instead of a $ref.",
+          "applies_to": [
+            "field"
+          ]
+        },
+        {
+          "key": "nullable",
+          "kind": "flag",
+          "doc": "The value may be null.",
+          "applies_to": [
+            "field"
+          ]
+        },
+        {
+          "key": "read_only",
+          "kind": "flag",
+          "doc": "Only present in responses.",
+          "applies_to": [
+            "field"
+          ],
+          "conflicts": [
+            "write_only"
+          ]
+        },
+        {
+          "key": "write_only",
+          "kind": "flag",
+          "doc": "Only present in requests.",
+          "applies_to": [
+            "field"
+          ],
+          "conflicts": [
+            "read_only"
+          ]
+        },
+        {
+          "key": "deprecated",
+          "kind": "flag",
+          "doc": "Mark as deprecated.",
+          "applies_to": [
+            "container",
+            "field",
+            "variant"
+          ]
+        },
+        {
+          "key": "default",
+          "kind": "flag",
+          "doc": "Default value (uses Default, or give an expression).",
+          "applies_to": [
+            "container",
+            "field"
+          ],
+          "alt": [
+            {
+              "label": "default = expr",
+              "snippet": "default = ${1:expr}",
+              "doc": "Use this expression as the default."
+            }
+          ]
+        },
+        {
+          "key": "skip",
+          "kind": "flag",
+          "doc": "Leave this field or variant out of the schema.",
+          "applies_to": [
+            "field",
+            "variant"
+          ]
+        },
+        {
+          "key": "as",
+          "kind": "path",
+          "doc": "Name (and module path) of the schema in the OpenAPI document.",
+          "applies_to": [
+            "container"
+          ],
+          "snippet": "as = ${1:path::Name}"
+        },
+        {
+          "key": "minimum",
+          "kind": "expr",
+          "doc": "Minimum value.",
+          "applies_to": [
+            "field"
+          ],
+          "snippet": "minimum = ${1:0}"
+        },
+        {
+          "key": "maximum",
+          "kind": "expr",
+          "doc": "Maximum value.",
+          "applies_to": [
+            "field"
+          ],
+          "snippet": "maximum = ${1:100}"
+        },
+        {
+          "key": "exclusive_minimum",
+          "kind": "expr",
+          "doc": "Exclusive minimum value.",
+          "applies_to": [
+            "field"
+          ],
+          "snippet": "exclusive_minimum = ${1:0}"
+        },
+        {
+          "key": "exclusive_maximum",
+          "kind": "expr",
+          "doc": "Exclusive maximum value.",
+          "applies_to": [
+            "field"
+          ],
+          "snippet": "exclusive_maximum = ${1:100}"
+        },
+        {
+          "key": "multiple_of",
+          "kind": "expr",
+          "doc": "The value must be a multiple of this.",
+          "applies_to": [
+            "field"
+          ],
+          "snippet": "multiple_of = ${1:2}"
+        },
+        {
+          "key": "min_length",
+          "kind": "int",
+          "doc": "Minimum string length.",
+          "applies_to": [
+            "field"
+          ],
+          "snippet": "min_length = ${1:1}"
+        },
+        {
+          "key": "max_length",
+          "kind": "int",
+          "doc": "Maximum string length.",
+          "applies_to": [
+            "field"
+          ],
+          "snippet": "max_length = ${1:255}"
+        },
+        {
+          "key": "pattern",
+          "kind": "string",
+          "doc": "Regular expression of the string.",
+          "applies_to": [
+            "field"
+          ],
+          "snippet": "pattern = r\"${1:^[a-z]+$}\""
+        },
+        {
+          "key": "min_items",
+          "kind": "int",
+          "doc": "Minimum array length.",
+          "applies_to": [
+            "field"
+          ],
+          "snippet": "min_items = ${1:1}"
+        },
+        {
+          "key": "max_items",
+          "kind": "int",
+          "doc": "Maximum array length.",
+          "applies_to": [
+            "field"
+          ],
+          "snippet": "max_items = ${1:10}"
+        },
+        {
+          "key": "additional_properties",
+          "kind": "expr",
+          "doc": "Whether a map allows additional properties.",
+          "applies_to": [
+            "field"
+          ],
+          "snippet": "additional_properties = ${1:false}"
+        },
+        {
+          "key": "no_recursion",
+          "kind": "flag",
+          "doc": "Break a recursive schema here.",
+          "applies_to": [
+            "field"
+          ]
+        },
+        {
+          "key": "bound",
+          "kind": "string",
+          "doc": "Bounds of the generated impl.",
+          "applies_to": [
+            "container"
+          ],
+          "snippet": "bound = \"${1:T: ToSchema}\""
+        },
+        {
+          "key": "xml",
+          "kind": "expr",
+          "doc": "XML representation.",
+          "snippet": "xml(name = \"${1:name}\")"
+        }
+      ]
+    },
+    {
+      "name": "into_params",
+      "derives": [
+        "IntoParams"
+      ],
+      "applies_to": [
+        "container"
+      ],
+      "args": [
+        {
+          "key": "parameter_in",
+          "kind": "enum",
+          "doc": "Where the parameters are: Query, Path, Header or Cookie.",
+          "values": [
+            "Query",
+            "Path",
+            "Header",
+            "Cookie"
+          ],
+          "snippet": "parameter_in = ${1:Query}"
+        },
+        {
+          "key": "names",
+          "kind": "expr",
+          "doc": "Names of the parameters of a tuple struct.",
+          "snippet": "names(${1:\"id\"})"
+        },
+        {
+          "key": "style",
+          "kind": "enum",
+          "doc": "Serialization style.",
+          "values": [
+            "Form",
+            "Simple",
+            "Matrix",
+            "Label",
+            "SpaceDelimited",
+            "PipeDelimited",
+            "DeepObject"
+          ],
+          "snippet": "style = ${1:Form}"
+        },
+        {
+          "key": "rename_all",
+          "kind": "enum",
+          "doc": "Rename all parameters with this case.",
+          "values": [
+            "lowercase",
+            "UPPERCASE",
+            "PascalCase",
+            "camelCase",
+            "snake_case",
+            "SCREAMING_SNAKE_CASE",
+            "kebab-case",
+            "SCREAMING-KEBAB-CASE"
+          ],
+          "quoted": true
+        }
+      ]
+    },
+    {
+      "name": "param",
+      "derives": [
+        "IntoParams"
+      ],
+      "applies_to": [
+        "field"
+      ],
+      "args": [
+        {
+          "key": "style",
+          "kind": "enum",
+          "doc": "Serialization style.",
+          "values": [
+            "Form",
+            "Simple",
+            "Matrix",
+            "Label",
+            "SpaceDelimited",
+            "PipeDelimited",
+            "DeepObject"
+          ],
+          "snippet": "style = ${1:Form}"
+        },
+        {
+          "key": "explode",
+          "kind": "bool",
+          "doc": "Explode array and object values into separate parameters."
+        },
+        {
+          "key": "allow_reserved",
+          "kind": "bool",
+          "doc": "Allow reserved characters unescaped."
+        },
+        {
+          "key": "example",
+          "kind": "expr",
+          "doc": "Example value.",
+          "snippet": "example = ${1:json!(\"value\")}"
+        },
+        {
+          "key": "value_type",
+          "kind": "expr",
+          "doc": "Override the type in the generated schema.",
+          "snippet": "value_type = ${1:String}"
+        },
+        {
+          "key": "inline",
+          "kind": "flag",
+          "doc": "Inline the schema of this parameter."
+        },
+        {
+          "key": "default",
+          "kind": "expr",
+          "doc": "Default value.",
+          "snippet": "default = ${1:expr}"
+        },
+        {
+          "key": "format",
+          "kind": "expr",
+          "doc": "Schema format.",
+          "snippet": "format = ${1:Int64}"
+        },
+        {
+          "key": "rename",
+          "kind": "string",
+          "doc": "Rename this parameter.",
+          "snippet": "rename = \"${1:name}\""
+        },
+        {
+          "key": "nullable",
+          "kind": "flag",
+          "doc": "The value may be null."
+        },
+        {
+          "key": "required",
+          "kind": "bool",
+          "doc": "The parameter is required."
+        },
+        {
+          "key": "deprecated",
+          "kind": "bool",
+          "doc": "Mark as deprecated."
+        },
+        {
+          "key": "description",
+          "kind": "string",
+          "doc": "Description of the parameter.",
+          "snippet": "description = \"${1:text}\""
+        }
+      ]
+    },
+    {
+      "name": "response",
+      "derives": [
+        "ToResponse",
+        "IntoResponses"
+      ],
+      "applies_to": [
+        "container",
+        "variant"
+      ],
+      "args": [
+        {
+          "key": "status",
+          "kind": "expr",
+          "doc": "HTTP status code or range (IntoResponses).",
+          "derives": [
+            "IntoResponses"
+          ],
+          "snippet": "status = ${1:200}"
+        },
+        {
+          "key": "description",
+          "kind": "string",
+          "doc": "Description of the response.",
+          "snippet": "description = \"${1:text}\""
+        },
+        {
+          "key": "content_type",
+          "kind": "expr",
+          "doc": "Content type(s) of the body.",
+          "snippet": "content_type = \"${1:application/json}\""
+        },
+        {
+          "key": "example",
+          "kind": "expr",
+          "doc": "Example body.",
+          "snippet": "example = ${1:json!({})}"
+        },
+        {
+          "key": "examples",
+          "kind": "expr",
+          "doc": "Named examples.",
+          "snippet": "examples((\"${1:name}\" = (value = ${2:json!({}))))"
+        },
+        {
+          "key": "headers",
+          "kind": "expr",
+          "doc": "Response headers.",
+          "snippet": "headers((\"${1:X-Header}\" = ${2:String}))"
+        }
+      ]
+    }
+  ]
+}

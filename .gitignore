@@ -9,3 +9,7 @@ data
 spell/*.spl
 tests/fixtures/**/target/
 tests/fixtures/**/.rustc_info.json
+# the macro attribute schemas are data this config ships; any other data/ stays ignored
+!/data/
+/data/*
+!/data/macro_attrs/

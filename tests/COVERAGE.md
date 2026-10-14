@@ -2,7 +2,7 @@
 
 Which spec exercises which feature of the config, and what is not tested (with the reason).
 Line coverage is a different measure (`scripts/test.sh --coverage`); this table is about features.
-Counts are from the last full run: 1068 passed, 0 failed, 24 skipped (24 spec files). Skips are
+Counts are from the last full run: 1496 passed, 0 failed, 23 skipped (33 spec files). Skips are
 `pending` entries or tests that need something this machine lacks (not testable here). A bug a spec
 finds is written as an assertion of the correct behaviour (skipped while it reproduces); the ones
 found so far are fixed (listed at the end).
@@ -31,6 +31,15 @@ found so far are fixed (listed at the end).
 | UX menu, diagnostics text, colourblind palette, Neovide, noice, dashboard (`ux.lua`, `editing-ui.lua`) | `ux-menu-diagnostics-colourblind` | |
 | `:checkhealth xynovim`, `bootstrap.sh`, CI, Makefile, stylua, `.gitignore`, LICENSE, README prerequisites | `health-bootstrap-ci` | |
 | `scripts/test.sh`, `scripts/coverage.lua`, runner/harness/helpers/coverage hook, README/CHANGELOG claims | `test-infra-readme-claims` | |
+| Dependency freshness: `deps resolving` status, bacon-ls restart on a saved `Cargo.toml` / `Cargo.lock` (`rust_restart.lua`, `lsp_status.lua`) | `deps-freshness`, `server-supervision-statusline` | real rust-analyzer; the 120 s ceiling is a shimmed timer |
+| Crate metadata, crates.io client, registry sources (`crate_meta.lua`, `code_actions.lua`) | `crate-meta` | network parts skip offline |
+| Unknown-crate hint, "Add crate" action, `:CrateAdd`, `<leader>rA` (`crate_add.lua`) | `crate-add` | real `cargo add` on temp crates; picker stubbed |
+| Missing-feature fix, `:CrateFeatures`, `<leader>rG` (`crate_features.lua`) | `crate-features` | real `cargo check --offline`; diagnostic is hand-made |
+| Import engine: auto-import modes, ranking, per-project memory, organize, paste, `:ImportName/:ImportForget/:ImportOrganize`, `<leader>rI/rO` (`import_engine.lua`) | `import-engine` | real rust-analyzer; picker stubbed |
+| Import from crates that are not dependencies, add-and-import (`crate_import.lua`) | `crate-import` | one real `Uuid` run (needs crates.io, skips offline) |
+| Attribute and derive completion, schemas, project overrides, `:MacroAttrs` (`macro_attrs.lua`, `data/macro_attrs/`) | `macro-attrs` | pure core driven table-wise; blink menu not on screen |
+| Macro signature / format / sqlx hints, `:MacroExpand` lens, `:ProcMacroStatus`, `<leader>rx/rq` (`macro_tools.lua`) | `macro-tools` | lens and status windows asserted, not looked at in a terminal |
+| Cross-module flows: no-deps crate to import, missing feature fix, `#[serde(` after the fix, ambiguous `Error` remembered | `macros-deps-flows` | on temp fixture copies; skips without network, cargo or rust-analyzer |
 
 ## Features without a test, or only partly tested
 
@@ -40,8 +49,11 @@ found so far are fixed (listed at the end).
 | lazy.nvim bootstrap clone when missing | needs network and an empty data dir (the script text is checked) |
 | Fresh install through `bootstrap.sh` | only with `XYNO_TEST_NETWORK=1` (passed once there, not in the default suite) |
 | A real GitHub Actions run | needs a push; the workflow is checked by text, actionlint and zizmor |
-| `shellcheck` on the scripts, `stylua --check` | shellcheck not installed; stylua reports drift in 16 files (informational) |
+| `shellcheck` on the scripts, `stylua --check` | shellcheck passes on `scripts/*.sh` and `docs/media/*.sh`; stylua reports drift in 61 files since the macros and dependencies work, 16 before (informational) |
 | Global git config (mergiraf, delta, zdiff3, rerere, `dft`/`dlog`), lazygit, README per-repo opt-ins | live in `~/.gitconfig` or are documentation only |
+| Snacks pickers and key presses of the macro and dependency features in a real TUI, the `ask` prompt, `<leader>rI` / `<leader>rG` interactively | pickers and `vim.ui.select` are stubbed; no pty driving |
+| Crate guesses that do not match by name (`Rng` does not find `rand`) | crates.io is searched by crate name; documented limit, the import step times out after 60 s with a message |
+| `#[serde(` keys while serde's `derive` feature is off | known: schemas are chosen by dependency and derive, not by features |
 | `[profile.profiling]`, real samply/flamegraph/act runs | `~/.cargo/config.toml` is outside the repo, tools not run |
 | Interactive pickers (Snacks/telescope UI), mouse clicks on codelens, narrow terminals, threads that panic, lldb-dap, multi-bin debug launches | need a pty/mouse session or are untested in the README |
 | `:RustTargets` / `:RustTools` real terminal behaviour, `<leader>rF/rX/rZ/rN` execution | pickers and terminals are stubbed |

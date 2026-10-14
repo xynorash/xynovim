@@ -1,6 +1,31 @@
 # Next phase: macros and dependencies
 
-The question: when a crate is added, its macros and features are not fully exploited. What is missing, and what do we build? This page holds the measurements and the plan; the README has the summary.
+The question (answered by the implementation below, see Status): when a crate is added, its macros and features are not fully exploited. What is missing, and what do we build? This page holds the measurements and the plan; the README has the summary.
+
+## Status (2026-10-14, after the implementation round)
+
+Legend: **done** = implemented, covered by a spec that was run; **partial** = implemented with the stated gap; **not done**. Acceptance results are what was run, nothing more. The user-facing description is the README section "Macros and dependencies", the engineering notes are in [DETAILS.md](DETAILS.md#macros-and-dependencies).
+
+| Item | Status | Where | Acceptance and what is missing |
+| --- | --- | --- | --- |
+| 0.1 Refresh the clippy tier on a saved manifest (G5) | done | `rust_restart.lua` | bacon-ls restarts 500 ms after the last save of a burst; `deps-freshness` runs it with a real rust-analyzer. The 61 s timeline probe was not re-run end to end. |
+| 0.2 `deps resolving` status | done | `lsp_status.lua` | shown from the manifest save until rust-analyzer's quiescence (6 s / 120 s bounds); the 120 s ceiling is checked with a shimmed timer, not waited out live. |
+| 1.1 Unknown-crate check (G3) | done | `crate_add.lua` | conservative treesitter scan against `cargo metadata`, std, local modules and imports, hint diagnostic plus action "Add crate". Misses are accepted, false hints are not. |
+| 1.2 `:CrateAdd` | partial | `crate_add.lua`, `crate_meta.lua` | search, version, downloads, features with descriptions, target (package, `--dev`, `--build`, existing `workspace.dependencies`), `cargo add`, then the import. Offline falls back to cached searches only, not to the local registry; creating a new `workspace.dependencies` entry is not offered. |
+| 1.3 Missing-feature fix (G4) | done | `crate_features.lua` | serde without `derive`: action edits `Cargo.toml`, `cargo check --offline` passes (`macros-deps-flows` b). The diagnostic in the spec is hand-made, the real rustc wording was checked in the assessment. |
+| 1.4 Feature explorer | done | `crate_features.lua` | `:CrateFeatures`: on / off, what each unlocks, defaults, "unused?" hint, toggle. |
+| 2.1 Attribute-argument completion (G1) | partial | `macro_attrs.lua`, `data/macro_attrs/` | schemas for serde, clap, thiserror, tokio, strum, derive_more, sqlx, utoipa, schemars, bon, project overrides, learn-from-usage; `rename_all` then `camelCase` verified (flow c). `leptos` has no schema; keys are offered while the feature that provides the derive is off; the menu was not looked at in a real terminal. |
+| 2.2 Derive and attribute names (G2) | done | `macro_attrs.lua`, `import_engine.lua` | builtin derives plus the dependencies' `proc_macro_derive` names; acceptance imports through the import engine. |
+| 2.3 Macro call help (G7) | partial | `macro_tools.lua` | `macro_rules!` matcher arms (also of external crates), format-string and `sqlx::query!` bind hints, `:MacroFormatFix`, snippets for `select!`, `matches!`, `vec![x; n]`. Not verified on screen; `tracing` macros get the format treatment only as far as the spec covers. |
+| 2.4 Macro lens | done | `macro_tools.lua` | `:MacroExpand` split with stepping and generated items, `cargo expand` fallback when installed (the fallback needs `cargo-expand`; not run here). |
+| 2.5 Proc-macro health | done | `macro_tools.lua` | `:ProcMacroStatus`, rebuild, ignore a crate via `procMacro.ignored`. |
+| 3.1 Auto-import when unambiguous | done | `import_engine.lua` | `vim.g.xynovim_auto_import` ask (default) / single / off; one undo step. `macros-deps-flows` d: an ambiguous `Error` is left alone. |
+| 3.2 Ranked disambiguation (G6) | done | `import_engine.lua` | ranked with reasons, remembered per project; after remembering `std::io::Error` it is imported and `cargo check --offline` passes. Known limit: `Import X` and `Import X as Y` count as one candidate. |
+| 3.3 Import from crates that are not dependencies | partial | `crate_import.lua` | `Uuid` in a crate with no dependencies: picker, real `cargo add`, import applied, `cargo check` passes (flow a, needs crates.io). Guesses only match by crate name (`Rng` does not find `rand`), labelled so. |
+| 3.4 Organize imports | done | `import_engine.lua` | `:ImportOrganize` / `<leader>rO`, import on paste. |
+| 4 Prove it | partial | `tests/*_spec.lua` | a spec per item and four cross-module flows (see [TESTING.md](TESTING.md)). Not done: the probes of `docs/assessment/` are not turned into regression specs one to one, no field-test round, none of the three demo tapes. |
+
+Measured cost: headless startup median 26.03 ms (25.15 to 28.37, 20 runs) against 24.5 ms before; 4 of 61 plugins loaded at the end of startup, unchanged.
 
 ## Assessment (measured 2026-10-14)
 

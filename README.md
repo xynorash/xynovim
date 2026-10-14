@@ -7,7 +7,7 @@
 [![ci](https://github.com/xynorash/xynovim/actions/workflows/ci.yml/badge.svg)](https://github.com/xynorash/xynovim/actions/workflows/ci.yml)
 ![neovim 0.12](https://img.shields.io/badge/neovim-0.12-57a143?logo=neovim&logoColor=white)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
-![tests](https://img.shields.io/badge/tests-1069%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-1496%20passing-brightgreen)
 
 ![xynovim editing the netwatch demo crate: Island Dark theme, inlay hints, sticky scope from treesitter-context, statusline with git branch, server state and clippy state](docs/media/01-hero.png)
 
@@ -23,7 +23,7 @@ Built on [LazyVim](https://github.com/LazyVim/LazyVim), for Linux (Arch is what 
 - **A debugger and a test runner that look like the ones in an IDE**: breakpoints with Rust-aware variable views, a test summary tree, coverage in the gutter.
 - **A safety net**: every save is snapshotted as a git ref (a "Local History"), and the AI agent runs inside a sandbox.
 - **Treesitter everywhere**: sticky scope, text objects, SQL injected into `sqlx` strings, a live syntax-tree view.
-- **Tested**: 1069 passing checks across 24 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
+- **Tested**: 1496 passing checks across 33 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
 
 ## Tour
 
@@ -151,7 +151,7 @@ Why a script and not just `nvim --headless '+Lazy! restore' +qa`: on an empty pl
 
 | Keys | What |
 | --- | --- |
-| `<leader>r…` | rust-analyzer: `rv` extract variable, `rf` function, `rc` constant, `ri` inline, `rs` structural search / replace, `rj` join lines, `rm` expand macro, `rh` / `rH` HIR / MIR, `re` explain error code, `rl` usages in file (read / write), `ru` go to super method, `rw` / `rW` workspace symbol (+ dependencies), `rF` features / target, `rX` targets, `rZ` cargo tools, `rN` HTTP routes, `rR` reload workspace; `<A-j>` / `<A-k>` move item |
+| `<leader>r…` | rust-analyzer: `rv` extract variable, `rf` function, `rc` constant, `ri` inline, `rs` structural search / replace, `rj` join lines, `rm` expand macro, `rh` / `rH` HIR / MIR, `re` explain error code, `rl` usages in file (read / write), `ru` go to super method, `rw` / `rW` workspace symbol (+ dependencies), `rF` features / target, `rX` targets, `rZ` cargo tools, `rN` HTTP routes, `rR` reload workspace; dependencies and macros: `rA` add crate, `rG` enable the missing feature, `rI` import name (ranked), `rO` organize imports, `rx` expand macro (lens), `rq` proc-macro status; `<A-j>` / `<A-k>` move item |
 | `<leader>d…` | debugger: `db` breakpoint, `dc` continue, `dr` / `dR` debuggables (file / workspace), `du` dap-ui |
 | `<leader>t…` | tests: `tt` file, `tr` nearest, `tT` all, `ts` summary, `to` output, `tw` watch, `tD` doc-tests, `tc` run coverage, `tg` toggle coverage signs |
 | `<leader>g…` | git: `gg` lazygit, `gv` diffview, `gV` branch vs origin, `gF` file history, `gH` local history |
@@ -162,34 +162,38 @@ Why a script and not just `nvim --headless '+Lazy! restore' +qa`: on an empty pl
 
 ## Commands
 
-`:RustContext` (features and target for both tiers), `:RustTargets`, `:RustTools`, `:RustNew`, `:RustRoutes` (axum / actix / rocket routes), `:RustRestart`, `:ActJob` (run the GitHub Actions job under the cursor with `act`), `:LocalHistory`, `:LocalHistoryRestore`, `:LocalHistoryPrune`, `:ColorblindDiagnostics`, `:checkhealth xynovim`. Plugin management is stock LazyVim: `:Lazy sync` updates (the update checker is off), `:LazyExtras` toggles extras, `:Mason` manages language servers.
+`:RustContext` (features and target for both tiers), `:RustTargets`, `:RustTools`, `:RustNew`, `:RustRoutes` (axum / actix / rocket routes), `:RustRestart`, `:CrateAdd`, `:CrateFeatures`, `:ImportName`, `:ImportForget`, `:ImportOrganize`, `:MacroAttrs`, `:MacroExpand`, `:MacroSignature`, `:MacroFormatFix`, `:ProcMacroStatus`, `:ActJob` (run the GitHub Actions job under the cursor with `act`), `:LocalHistory`, `:LocalHistoryRestore`, `:LocalHistoryPrune`, `:ColorblindDiagnostics`, `:checkhealth xynovim`. Plugin management is stock LazyVim: `:Lazy sync` updates (the update checker is off), `:LazyExtras` toggles extras, `:Mason` manages language servers.
 
-## Next phase: macros and dependencies
+## Macros and dependencies
 
-**The problem**: add a crate and its macros and features are not fully used. Measured on a crate with `serde`, `clap`, `thiserror`, `anyhow` and `tokio` (rust-analyzer 1.99.0, this config; probes in [docs/assessment/](docs/assessment/)):
+Adding a crate used to leave its macros and features half used: no completion inside `#[serde(`, no `use` for a crate that is not a dependency yet, a missing `derive` feature that nothing pointed at, a stale `cannot find crate` error after `cargo add`. The assessment (measured on a crate with serde, clap, thiserror, anyhow and tokio; probes in [docs/assessment/](docs/assessment/)) and the seven gaps it found are in [docs/PLAN_MACROS_DEPS.md](docs/PLAN_MACROS_DEPS.md), together with what of the plan is done. Everything runs in nvim on top of rust-analyzer, `cargo` and treesitter; no extra language server.
 
-| What works | What does not |
+| Keys / command | What it does |
 | --- | --- |
-| derive and attribute macros expand (hover on a clap-derived `Cli::parse` resolves; no `proc macro not expanded` errors) | **no completion inside helper attributes**: `#[serde(`, `#[arg(`, `#[command(`, `#[error(`, `#[tokio::main(` give 0 items |
-| completion items carry their `use` edit (`HashMap` -> `use std::collections::HashMap;`) | `#[derive(` completion returned **nothing** in three contexts, so derive names are typed from memory |
-| import code actions work for names that are in a dependency, even inside `#[derive(Serialize)]` | a crate that is **not yet a dependency** cannot be imported: no action, no instant-tier diagnostic; you leave the editor for `cargo add` |
-| rust-analyzer sees a new dependency within 10 s of saving `Cargo.toml` | with a **feature missing** (`serde = "1"`, no `derive`) rustc says `cannot find derive macro Serialize` and nothing offers to enable the feature |
-| an ambiguous name (`Error`) lists every candidate | the list is a manual pick every time: **not ranked**, never remembered |
-| | after adding a dependency the **clippy tier shows a stale `cannot find crate` error** for as long as it was watched (61 s), until a focus event restarts it |
+| `<leader>rA`, `:CrateAdd [query]` | search crates.io (version, downloads, **features with their descriptions**), pick features and target (package of the file, `--dev`, `--build`; `workspace.dependencies` entries are used), then `cargo add` |
+| code action "Add crate `x`" (hint on the first segment of a path that is no dependency) | the same add, then the import that triggered it |
+| `<leader>rG`, code action "Enable feature `derive` of `serde`" | the fix for `cannot find derive macro / attribute / macro / function X`: the feature is found in the crate's own source and `Cargo.toml` is edited |
+| `:CrateFeatures [crate]` | feature explorer: features on / off, what each unlocks, the default set, an "unused?" hint, toggling in `Cargo.toml` |
+| `<leader>rI`, `:ImportName [name]` | import a name: the candidates ranked, best first, with the reasons; the choice is remembered per project (`:ImportForget [name]` clears it). Also lists crates that are not dependencies yet (below) |
+| `<leader>rO`, `:ImportOrganize` | merge, normalize and remove unused imports, one undo step |
+| completion inside `#[serde(`, `#[arg(`, `#[command(`, `#[error(`, `#[tokio::main(`, `#[derive(` | keys, enumerated values (`rename_all = "` gives `camelCase`, ...), derive names; `:MacroAttrs` shows what the source sees at the cursor |
+| `<C-k>` (insert), `:MacroSignature` | matcher arms of the `macro_rules!` call under the cursor, format-string and `sqlx::query!` bind hints, `:MacroFormatFix` adds the missing format arguments |
+| `<leader>rx`, `:MacroExpand` | the macro under the cursor in a read-only split with treesitter highlighting: `<CR>` steps into a nested call, `<BS>` back, `gi` lists the generated items, `q` closes; `cargo expand` is the fallback when installed |
+| `<leader>rq`, `:ProcMacroStatus` | which proc-macro crates loaded, macros that were not expanded and where; `r` rebuilds, `i` / `<CR>` writes a slow crate's macros to `procMacro.ignored` in the workspace's `rust-analyzer.toml`, `R` refreshes |
 
-**The plan** (details, measurements and acceptance criteria in [docs/PLAN_MACROS_DEPS.md](docs/PLAN_MACROS_DEPS.md)):
+**Dependency resolution** (phase 0). Saving `Cargo.toml` or `Cargo.lock` from nvim restarts bacon-ls 500 ms after the last save (it used to keep a stale `cannot find crate` error for a minute or more) and the statusline shows `deps resolving` until rust-analyzer finishes reloading (6 s after the write when it never went busy, 120 s at most), so a red error in that window is understood as transient. A `cargo add` in a terminal gets the same treatment on the next focus event.
 
-0. **Stop the false errors**: restart the clippy tier when `Cargo.toml` / `Cargo.lock` is saved from nvim, and show a "resolving dependencies" status while rust-analyzer reloads.
-1. **Dependencies from inside the editor**: flag a crate that is used but not declared, with the action *Add crate*; `:CrateAdd` (crates.io search with version and **features with their descriptions**, target member or `--dev`, then `cargo add` and the import that triggered it); *Enable feature `derive` of `serde`* for a missing-feature error, with the name-to-feature map computed from the crate's own source; a feature explorer.
-2. **Macro depth**: completion inside helper-attribute arguments (`rename_all = "camelCase"`, `short`, `flavor`, ...) from small per-crate schemas for serde, clap, thiserror, tokio, strum, derive_more, sqlx and more, with a learn-from-usage fallback for crates without one; derive names from the dependencies' proc-macro declarations; signature help for `macro_rules!` calls (including macros of external crates), format-string aware argument completion and `sqlx::query!` bind hints; a macro lens that expands whatever macro is under the cursor; `:ProcMacroStatus`.
-3. **The import engine**: apply the import automatically when there is exactly one candidate (opt-in), rank ambiguous ones by what the file, module and crate already use and by the derive or return-type context, remember the choice per project, and import from crates that are not dependencies yet (add, then import).
-4. **Prove it**: a spec per item (the probes become regression tests), a field-test round, and demo recordings of adding a crate and its feature, completing `#[serde(`, and resolving an ambiguous `Error`.
+**Auto-import**. `vim.g.xynovim_auto_import` (set before the first Rust buffer): `"ask"` (default) asks for one key when exactly one `Import X` exists for an unresolved name after `InsertLeave`, a save or a paste; `"single"` applies it as one undo step with a one-line note; `"off"` never. Several candidates are never guessed at: `:ImportName` ranks them (used in this file, then in the module, then in the crate, the derive or attribute context, the return type, dependency order, the prelude) and remembers your choice in `stdpath("state")/xynovim/imports.json`.
 
-Order of work: the stale-error fix, missing-feature fix, auto-import and ranking first (the reported pain, all small), then dependency add and import, then the attribute-argument completion, then the rest. Nothing here is implemented yet.
+**Import from crates that are not dependencies yet.** When rust-analyzer offers no import for a name, `:ImportName` also lists crates.io candidates, marked "(adds the crate)". A lowercase name gets the crate of exactly that name. Other names (`Uuid`, `Utc`) get crates whose name equals or contains it, top 3 by downloads, labelled "(guess)", because crates.io is searched by crate name, not by exported items. Choosing one runs `cargo add` (newest release, default features, into the file's package; dev-dependencies for tests, benches and examples), then waits up to 60 s for rust-analyzer to load the crate and applies the import it offers from that crate. A crate that is already a dependency is never suggested, nothing is added or imported automatically, and a chosen guess is not remembered. Offline there are no candidates. The same add path serves the "Add crate" action. In Lua: `require("config.import_engine").register_source(fn, {async = true})`, with `fn(name, ctx, cb)`. Accepting a derive from `#[derive(` completion imports it through the same engine: the remembered or only candidate, otherwise the one from the derive's own crate.
+
+**Attribute schemas.** The completion is data driven: one JSON file per crate in [`data/macro_attrs/`](data/macro_attrs) (serde, clap, thiserror, tokio, strum, derive_more, sqlx, utoipa, schemars, bon), used only when the package depends on the crate within the file's version range and the attribute is in scope (a derive that provides it is on the item). A project adds or overrides schemas with `.xynovim/macro_attrs/<anything>.json` in the workspace root (same format, see [data/macro_attrs/README.md](data/macro_attrs/README.md); an attribute of the same name replaces the shipped one, a broken file is skipped and listed by `:MacroAttrs`). A dependency attribute without a schema offers the keys the workspace and the crate's own sources already write inside it, most frequent first.
+
+**Limits.** The unknown-crate hint is deliberately conservative (a miss is better than a false hint). `#[serde(` keys are offered while serde's `derive` feature is off, because the schema is chosen by dependency and derive, not by features. A "(guess)" can miss: if the crate has no item of that name, the import step gives up after 60 s with a message, the crate stays added. Plain `Import X` and `Import X as Y` count as one candidate, whichever rust-analyzer lists first. Network access is optional: crates.io answers are cached and everything degrades to the local registry and a message. Tested in the headless suite with real `cargo` and rust-analyzer (no field-test round yet); the pickers and key presses were not driven in a real terminal (see [docs/DETAILS.md](docs/DETAILS.md#macros-and-dependencies)).
 
 ## Tests: run them yourself
 
-The config ships with an automated suite: **24 spec files, 1069 checks passing, 23 skipped with a stated reason, 0 failing**, in about six minutes. Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
+The config ships with an automated suite: **33 spec files, 1496 checks passing, 23 skipped with a stated reason, 0 failing**, in about twelve minutes. Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
 
 ```sh
 scripts/test.sh                  # everything (or: make test)
@@ -204,7 +208,7 @@ Video: [10-test-suite.mp4](docs/media/10-test-suite.mp4)
 
 - **Nothing of yours is touched**: the specs run against a temp config / state / cache; only the installed plugins are reused. Missing tools (rust-analyzer, tmux, bubblewrap, lazygit, ...) make their specs **skip with a message**, never fail.
 - **One spec per feature area**: startup and options, the Island theme, every `<leader>r` command, `:RustContext`, `:RustTargets`, Local History, auto-save guards, the agent sandbox and the 99 guard, the two diagnostic tiers' configuration, server supervision, debugger and test integration, git and lint tooling, snippets and treesitter injections, the UI helpers, health / bootstrap / CI, and the claims this documentation makes. [tests/COVERAGE.md](tests/COVERAGE.md) maps every feature to the spec that tests it and lists what has no test and why.
-- **Line coverage** of the repo's own Lua is about 86 % (`--coverage`; the denominator is estimated, treat it as a guide).
+- **Line coverage** of the repo's own Lua was about 86 % before the macros and dependencies modules (`--coverage`, not re-run since; the denominator is estimated, treat it as a guide).
 - **CI**: the [ci workflow](.github/workflows/ci.yml) runs `scripts/bootstrap.sh` (clone plugins on their locked commits, download parsers and Mason tools), a startup smoke test, then `scripts/test.sh`, on a clean Ubuntu machine for every push.
 - How the harness works, how to write a spec and what the helpers offer: [docs/TESTING.md](docs/TESTING.md).
 
@@ -230,9 +234,10 @@ docs/media/record.sh 05-tests   # one tape
 ## Layout
 
 ```
-lua/config/    options, keymaps, autocmds, remote clipboard, statusline/UX helpers, local_history, disk_guard, rust_context/nav/tasks/routes/assist/restart, lsp_status, lazy, agent_sandbox
+lua/config/    options, keymaps, autocmds, remote clipboard, statusline/UX helpers, local_history, disk_guard, rust_context/nav/tasks/routes/assist/restart, lsp_status, lazy, agent_sandbox, crate_meta/crate_add/crate_features/crate_import, import_engine, macro_attrs, macro_tools, code_actions
 lua/xynovim/   :checkhealth xynovim
 snippets/       rust.json (registered with blink)
+data/          macro_attrs/*.json: attribute schemas (serde, clap, thiserror, tokio, ...) for the completion inside `#[...(`
 lua/plugins/   one spec per concern (bacon-ls, rustaceanvim, ninety-nine, auto-save, dap, gitsigns, telescope, island-theme, …)
 colors/        island-dark colourscheme entry point
 lua/island/    Island Dark: init.lua (mapping), palette.lua (generated)

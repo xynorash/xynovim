@@ -1,0 +1,195 @@
+{
+  "crate": "sqlx",
+  "versions": ">=0.6.0, <1.0.0",
+  "docs_url": "https://docs.rs/sqlx/latest/sqlx/",
+  "attributes": [
+    {
+      "name": "sqlx",
+      "derives": [
+        "FromRow",
+        "Type",
+        "Encode",
+        "Decode"
+      ],
+      "applies_to": [
+        "container",
+        "field",
+        "variant"
+      ],
+      "docs_url": "https://docs.rs/sqlx/latest/sqlx/derive.FromRow.html",
+      "args": [
+        {
+          "key": "rename_all",
+          "kind": "enum",
+          "doc": "Rename all columns (FromRow) or variants (Type) with this case convention.",
+          "applies_to": [
+            "container"
+          ],
+          "values": [
+            "lowercase",
+            "UPPERCASE",
+            "camelCase",
+            "PascalCase",
+            "snake_case",
+            "SCREAMING_SNAKE_CASE",
+            "kebab-case"
+          ],
+          "quoted": true,
+          "derives": [
+            "FromRow",
+            "Type"
+          ]
+        },
+        {
+          "key": "rename",
+          "kind": "string",
+          "doc": "Column name of this field (FromRow), or database name of this variant (Type).",
+          "applies_to": [
+            "field",
+            "variant"
+          ],
+          "snippet": "rename = \"${1:name}\"",
+          "derives": [
+            "FromRow",
+            "Type"
+          ]
+        },
+        {
+          "key": "default",
+          "kind": "flag",
+          "doc": "Use Default for a missing column (on the struct: for every missing column).",
+          "applies_to": [
+            "container",
+            "field"
+          ],
+          "derives": [
+            "FromRow"
+          ]
+        },
+        {
+          "key": "flatten",
+          "kind": "flag",
+          "doc": "Fill this field from the same row with its own FromRow impl.",
+          "applies_to": [
+            "field"
+          ],
+          "conflicts": [
+            "skip",
+            "json",
+            "try_from",
+            "rename"
+          ],
+          "derives": [
+            "FromRow"
+          ]
+        },
+        {
+          "key": "skip",
+          "kind": "flag",
+          "doc": "Do not read this field from the row (needs Default).",
+          "applies_to": [
+            "field"
+          ],
+          "conflicts": [
+            "flatten",
+            "json",
+            "try_from",
+            "rename"
+          ],
+          "derives": [
+            "FromRow"
+          ]
+        },
+        {
+          "key": "try_from",
+          "kind": "string",
+          "doc": "Read this column as the given type and convert with TryFrom.",
+          "applies_to": [
+            "container",
+            "field"
+          ],
+          "conflicts": [
+            "flatten",
+            "skip",
+            "json"
+          ],
+          "snippet": "try_from = \"${1:i32}\"",
+          "derives": [
+            "FromRow"
+          ]
+        },
+        {
+          "key": "json",
+          "kind": "flag",
+          "doc": "Decode this column as JSON (needs serde); json(nullable) for NULL as None.",
+          "applies_to": [
+            "field"
+          ],
+          "conflicts": [
+            "flatten",
+            "skip",
+            "try_from"
+          ],
+          "alt": [
+            {
+              "label": "json(nullable)",
+              "snippet": "json(nullable)",
+              "doc": "A NULL column decodes to None."
+            }
+          ],
+          "derives": [
+            "FromRow"
+          ]
+        },
+        {
+          "key": "transparent",
+          "kind": "flag",
+          "doc": "Encode and decode as the single field (newtype).",
+          "applies_to": [
+            "container"
+          ],
+          "derives": [
+            "Type",
+            "Encode",
+            "Decode"
+          ]
+        },
+        {
+          "key": "type_name",
+          "kind": "string",
+          "doc": "Name of the database type (Postgres enum or composite).",
+          "applies_to": [
+            "container"
+          ],
+          "snippet": "type_name = \"${1:name}\"",
+          "derives": [
+            "Type"
+          ]
+        },
+        {
+          "key": "no_pg_array",
+          "kind": "flag",
+          "doc": "Do not generate the Postgres array type impl.",
+          "applies_to": [
+            "container"
+          ],
+          "derives": [
+            "Type"
+          ]
+        },
+        {
+          "key": "repr",
+          "kind": "path",
+          "doc": "Encode the enum as this integer type.",
+          "applies_to": [
+            "container"
+          ],
+          "snippet": "repr(${1:i32})",
+          "derives": [
+            "Type"
+          ]
+        }
+      ]
+    }
+  ]
+}

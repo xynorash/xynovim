@@ -1086,13 +1086,16 @@ describe("lsp_status (fake clients)", function()
     local src = table.concat(vim.fn.readfile(H.repo .. "/lua/config/lsp_status.lua"), "\n")
     H.no_match(src, "new_timer", true)
     H.no_match(src, "timer_start", true)
-    H.no_match(src, "defer_fn", true)
+    -- the one exception: "deps resolving" arms a 6 s grace and a 120 s ceiling timer
+    -- (deps_begin), only while a manifest is being resolved
+    local _, defers = src:gsub("defer_fn", "")
+    H.eq(2, defers, "defer_fn only in deps_begin")
     H.no_match(src, "setInterval", true)
     local events = {}
     for _, a in ipairs(vim.api.nvim_get_autocmds({ group = LS_GROUP })) do
       events[a.event] = true
     end
-    H.eq({ LspAttach = true, LspProgress = true, TextChanged = true, TextChangedI = true }, events)
+    H.eq({ LspAttach = true, LspProgress = true, TextChanged = true, TextChangedI = true, BufWipeout = true }, events)
     local before = #vim.fn.timer_info()
     local b = scratch_buf()
     local c = ra_client(b, function() end)

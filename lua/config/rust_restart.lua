@@ -10,6 +10,15 @@
 --     the old content. On FocusGained, bacon-ls is restarted when a Rust or
 --     Cargo file open in nvim was reloaded from disk, or the git HEAD of its
 --     workspace moved, or its Cargo.toml changed on disk.
+--   * A Cargo.toml or Cargo.lock SAVED from nvim (BufWritePost or auto-save's
+--     AutoSaveWritePost) restarts bacon-ls 500 ms after the last save of a burst: it keeps
+--     reporting "cannot find crate" for a dependency just added until restarted (measured
+--     minutes), and its shadow workspace holds the old manifest. The statusline shows
+--     "deps resolving" meanwhile (lsp_status.deps_begin). A `cargo add` in a terminal
+--     reaches the same restart through the FocusGained path above (manifest mtime).
+--     Loop guard: the restart records the new manifest mtime, so the next FocusGained does
+--     not restart again; bacon-ls writes buffer text only into its shadow, never to the
+--     workspace, so the restart cannot trigger another save.
 --   * bacon-ls clients whose workspace directory no longer exists are stopped.
 local M = {}
 
@@ -215,6 +224,58 @@ local function orphan_rust_buffer()
   return false
 end
 
+--- The root of the server workspace (bacon-ls or rust-analyzer) that contains `file`.
+local function server_root(file)
+  for _, name in ipairs({ "bacon_ls", "rust-analyzer" }) do
+    for _, c in ipairs(vim.lsp.get_clients({ name = name })) do
+      local root = c.config.root_dir
+      if root and root:sub(1, 1) == "/" and file:sub(1, #root + 1) == root .. "/" then
+        return root
+      end
+    end
+  end
+end
+
+local manifest_timer
+
+--- A Cargo.toml / Cargo.lock was saved from nvim: show "deps resolving" and restart bacon-ls
+--- once per burst of saves (500 ms debounce). Returns whether `file` was such a manifest.
+function M.manifest_saved(file, buf)
+  local base = file and vim.fs.basename(file)
+  if base ~= "Cargo.toml" and base ~= "Cargo.lock" then
+    return false
+  end
+  local root = server_root(file)
+  if not root then
+    return false
+  end
+  require("config.lsp_status").deps_begin(root, buf)
+  if manifest_timer then
+    manifest_timer:stop()
+  else
+    manifest_timer = assert(vim.uv.new_timer())
+  end
+  manifest_timer:start(
+    500,
+    0,
+    vim.schedule_wrap(function()
+      if #bacon_clients() == 0 then
+        return
+      end
+      -- what we are about to restart for is already seen: FocusGained must not restart again
+      for _, c in ipairs(bacon_clients()) do
+        local r = c.config.root_dir
+        if r then
+          manifests[r] = manifest_sig(r)
+        end
+      end
+      lives, locks = {}, {}
+      vim.cmd("lsp restart bacon_ls")
+    end)
+  )
+  return true
+end
+
 local function refresh()
   M.sweep()
   -- the manifest was away (deleted, a checkout without it) and is back: the sweep had stopped
@@ -237,6 +298,7 @@ local function refresh()
       -- (a vanished manifest is sweep()'s business, not a reason to restart every client)
       if sig ~= "-" and manifests[root] and manifests[root] ~= sig then
         moved = true
+        require("config.lsp_status").deps_begin(root) -- cargo add in a terminal: same transient as a save
       end
       manifests[root] = sig
     end
@@ -310,6 +372,7 @@ function M.resume_servers()
 end
 
 function M.restart()
+  require("config.lsp_status").deps_clear()
   M.sweep()
   M.kill_survivors(M.server_pids())
   local buf = vim.api.nvim_get_current_buf()
@@ -369,6 +432,10 @@ function M.setup()
       if #bacon_clients() > 0 then
         M.sweep()
         M.check_shadow()
+      end
+      local buf = ev.event == "User" and ev.data and ev.data.saved_buffer or ev.buf
+      if buf and vim.api.nvim_buf_is_valid(buf) then
+        M.manifest_saved(vim.api.nvim_buf_get_name(buf), buf)
       end
     end,
   })

@@ -1,0 +1,111 @@
+{
+  "crate": "tokio",
+  "versions": ">=1.0.0, <2.0.0",
+  "docs_url": "https://docs.rs/tokio/latest/tokio/",
+  "attributes": [
+    {
+      "name": "tokio::main",
+      "applies_to": [
+        "fn"
+      ],
+      "docs_url": "https://docs.rs/tokio/latest/tokio/attr.main.html",
+      "args": [
+        {
+          "key": "flavor",
+          "kind": "enum",
+          "doc": "Which runtime to build: multi_thread (default) or current_thread.",
+          "values": [
+            {
+              "value": "multi_thread",
+              "doc": "Work-stealing runtime with several worker threads."
+            },
+            {
+              "value": "current_thread",
+              "doc": "Single-threaded runtime; futures need not be Send."
+            }
+          ],
+          "quoted": true,
+          "snippet": "flavor = \"$1\""
+        },
+        {
+          "key": "worker_threads",
+          "kind": "int",
+          "doc": "Number of worker threads (multi_thread flavor only).",
+          "snippet": "worker_threads = ${1:2}"
+        },
+        {
+          "key": "crate",
+          "kind": "string",
+          "doc": "Path to the tokio crate when it is renamed or re-exported.",
+          "snippet": "crate = \"${1:tokio}\""
+        },
+        {
+          "key": "unhandled_panic",
+          "kind": "enum",
+          "doc": "What to do when a spawned task panics (requires --cfg tokio_unstable).",
+          "values": [
+            "ignore",
+            "shutdown_runtime"
+          ],
+          "quoted": true,
+          "since": "1.30.0"
+        }
+      ]
+    },
+    {
+      "name": "tokio::test",
+      "applies_to": [
+        "fn"
+      ],
+      "docs_url": "https://docs.rs/tokio/latest/tokio/attr.test.html",
+      "args": [
+        {
+          "key": "flavor",
+          "kind": "enum",
+          "doc": "Which runtime to build: multi_thread (default) or current_thread.",
+          "values": [
+            {
+              "value": "multi_thread",
+              "doc": "Work-stealing runtime with several worker threads."
+            },
+            {
+              "value": "current_thread",
+              "doc": "Single-threaded runtime; futures need not be Send."
+            }
+          ],
+          "quoted": true,
+          "snippet": "flavor = \"$1\""
+        },
+        {
+          "key": "worker_threads",
+          "kind": "int",
+          "doc": "Number of worker threads (multi_thread flavor only).",
+          "snippet": "worker_threads = ${1:2}"
+        },
+        {
+          "key": "crate",
+          "kind": "string",
+          "doc": "Path to the tokio crate when it is renamed or re-exported.",
+          "snippet": "crate = \"${1:tokio}\""
+        },
+        {
+          "key": "unhandled_panic",
+          "kind": "enum",
+          "doc": "What to do when a spawned task panics (requires --cfg tokio_unstable).",
+          "values": [
+            "ignore",
+            "shutdown_runtime"
+          ],
+          "quoted": true,
+          "since": "1.30.0"
+        },
+        {
+          "key": "start_paused",
+          "kind": "bool",
+          "doc": "Start with the clock paused (auto-advances when idle); needs tokio's `test-util` feature and the current_thread flavor.",
+          "since": "1.17.0"
+        }
+      ]
+    }
+  ]
+}

@@ -873,6 +873,11 @@ describe("rust_assist", function()
     local function capture_win()
       local got
       stub(Snacks, "win", function(o)
+        -- snacks' notifier opens its own windows (style "notification") for earlier
+        -- tests' still-pending notifications; only the explain float counts here
+        if o and o.style == "notification" then
+          return
+        end
         got = o
       end)
       return function()

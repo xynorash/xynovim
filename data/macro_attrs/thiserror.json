@@ -1,0 +1,77 @@
+{
+  "crate": "thiserror",
+  "versions": ">=1.0.0, <3.0.0",
+  "docs_url": "https://docs.rs/thiserror/latest/thiserror/",
+  "attributes": [
+    {
+      "name": "error",
+      "derives": [
+        "Error"
+      ],
+      "applies_to": [
+        "container",
+        "variant"
+      ],
+      "args": [
+        {
+          "key": "\"...\"",
+          "kind": "string",
+          "doc": "The Display message; `{0}`, `{field}`, `{field:?}` and `{.0}`/`{var}` interpolations refer to fields.",
+          "positional": true,
+          "snippet": "\"${1:message}\""
+        },
+        {
+          "key": "transparent",
+          "kind": "flag",
+          "doc": "Forward Display and source() to the single field of this variant.",
+          "conflicts": [
+            "fmt"
+          ]
+        },
+        {
+          "key": "fmt",
+          "kind": "path",
+          "doc": "Display with a custom function `fn(&Self, &mut Formatter) -> fmt::Result`.",
+          "since": "1.0.60",
+          "conflicts": [
+            "transparent"
+          ],
+          "snippet": "fmt = ${1:path::to::fn}"
+        }
+      ]
+    },
+    {
+      "name": "from",
+      "derives": [
+        "Error"
+      ],
+      "applies_to": [
+        "field"
+      ],
+      "args": [],
+      "doc": "Generate `From<FieldType>` for the error and use the field as source()."
+    },
+    {
+      "name": "source",
+      "derives": [
+        "Error"
+      ],
+      "applies_to": [
+        "field"
+      ],
+      "args": [],
+      "doc": "Use this field as the error's source() (implied by a field named `source`)."
+    },
+    {
+      "name": "backtrace",
+      "derives": [
+        "Error"
+      ],
+      "applies_to": [
+        "field"
+      ],
+      "args": [],
+      "doc": "Use this field as the error's backtrace (nightly or Rust 1.65+ std::backtrace)."
+    }
+  ]
+}
