@@ -1547,6 +1547,14 @@ local function make_server(dispatchers)
   local closing = false
   local next_id = 0
   local srv = {}
+  -- on_exit exactly once, from exit and from terminate: a client that never
+  -- reports it stays in vim.lsp.get_clients() as a stopped entry
+  local function close()
+    if not closing then
+      closing = true
+      dispatchers.on_exit(0, 0)
+    end
+  end
   function srv.request(method, params, callback)
     next_id = next_id + 1
     local id = next_id
@@ -1579,7 +1587,7 @@ local function make_server(dispatchers)
   end
   function srv.notify(method)
     if method == "exit" then
-      dispatchers.on_exit(0, 0)
+      close()
     end
     return true
   end
@@ -1587,7 +1595,7 @@ local function make_server(dispatchers)
     return closing
   end
   function srv.terminate()
-    closing = true
+    close()
   end
   return srv
 end

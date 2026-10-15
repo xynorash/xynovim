@@ -12,11 +12,11 @@ local function manifest_dir(file)
   return vim.fs.dirname(file)
 end
 
---- Line of `name = ...` / `[dependencies.name]` in a Cargo.toml buffer (0-based), else 0.
+--- Line of `name = ...` / `name.workspace = true` / `[dependencies.name]` in a Cargo.toml buffer (0-based), else 0.
 local function dep_line(bufnr, name)
   local esc = vim.pesc(name)
   for i, l in ipairs(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)) do
-    if l:match("^%s*" .. esc .. "%s*=") or l:match("^%s*%[.*dependencies%." .. esc .. "%]") then
+    if l:match("^%s*" .. esc .. "%s*[.=]") or l:match('^%s*"' .. esc .. '"%s*[.=]') or l:match("^%s*%[.*dependencies%." .. esc .. "%]") then
       return i - 1
     end
   end

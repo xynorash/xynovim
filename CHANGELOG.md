@@ -21,6 +21,13 @@ All notable changes to this config are documented here.
 - `:MacroExpand` on a literal or name inside a call's arguments expands that call; `:ProcMacroStatus` no longer says 0 crates above a non-empty list; `rust-analyzer.toml` edits accept a commented header, replace multi-line arrays whole, and are written atomically.
 - Cargo.toml feature edits skip comments, keep single-quoted features and write through a symlinked manifest; file reads of dependency sources and schemas are bounded (regular files, 2 MB / 1 MB / 400 KB); the `:CrateFeatures` dependency picker has no broken preview; `[cached, offline?]` only for stale results.
 
+### Fixed (macros and dependencies, field test)
+- The unknown-crate hint no longer fires in a file with a glob import from a dependency (`use predicates::prelude::*` brings the `predicate` module: a false "crate 'predicate' is not a dependency" on every open of `tests/cli.rs`). `crate_add.scan` and the import engine's `scan_syntax` skip buffers above 20000 lines (`config.max_lines`): both read or walk the whole buffer per edit, 0.4 s each in a 45000-line file.
+- The in-process LSP clients (`xynovim-crates`, the feature fixer) report `on_exit` once from `terminate` / `exit`; they stayed in `vim.lsp.get_clients()` as stopped entries, two more per restart.
+- cargo-machete and cargo-deny findings on dotted or quoted dependency keys (`itoa.workspace = true`, `"time".workspace = true`) land on their own line, not line 1.
+- Media: the recordings commit added screenshots, GIFs and MP4s beyond the counts of the showcase entry below (now 55 PNG, 13 GIF, 13 MP4 in `docs/media/`).
+- Test counts in README and `docs/TESTING.md` agree with the suite.
+
 ### Changed (macros and dependencies)
 - CI job timeout 15 to 40 minutes: the suite now has 33 spec files (about 12 minutes on a runner after a 3 minute bootstrap) and the first run of this work was cancelled at 15. The import engine's Lua fallback for the `use` index (no ripgrep, as on the runner) never descended into directories (`vim.fs.dir`'s `skip` returns false to stop, the predicate was inverted); fixed, found by the CI run.
 - `.gitignore` ships `data/macro_attrs/` (it ignored `data/`). The README layout block lists `data/` (17 entries).

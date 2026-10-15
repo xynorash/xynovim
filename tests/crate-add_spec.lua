@@ -172,10 +172,36 @@ describe("crate_add.scan: what is never flagged", function()
     H.eq({}, scan(root, "use super::*;\nfn t() { rand::random::<u8>(); }\n"), "super:: at file level reaches another file")
   end)
 
-  it("keeps flagging when the glob is std, a dependency, an enum or super inside an inline mod", function()
+  it("keeps flagging when the glob is std, an enum or super inside an inline mod", function()
     local root = make_ws()
-    H.eq({ "rand@3" }, scan(root, "use std::collections::*;\nuse localdep::*;\nfn main() { rand::random::<u8>(); }\n"))
+    H.eq({ "rand@3" }, scan(root, "use std::collections::*;\nuse Color::*;\nfn main() { rand::random::<u8>(); }\n"))
     H.eq({ "rand@3" }, scan(root, "mod t {\n    use super::*;\n    fn f() { rand::random::<u8>(); }\n}\n"))
+  end)
+
+  it("keeps quiet when the glob is a dependency (field test: use predicates::prelude::* brings `predicate`)", function()
+    local root = make_ws()
+    H.eq({}, scan(root, "use localdep::prelude::*;\nfn main() { predicate::eq(1); rand::random::<u8>(); }\n"))
+  end)
+
+  it("skips buffers above max_lines (the scan walks the whole tree)", function()
+    local root = make_ws()
+    local old = ca.config.max_lines
+    stub(ca.config, "max_lines", 2)
+    H.eq(nil, scan(root, "fn a() {}\nfn b() {}\nfn main() { rand::random::<u8>(); }\n"))
+    ca.config.max_lines = old
+    H.eq({ "rand@3" }, scan(root, "fn a() {}\nfn b() {}\nfn main() { rand::random::<u8>(); }\n"))
+  end)
+
+  it("the in-process server reports on_exit once, from terminate and from exit (no stopped client entry)", function()
+    local exits = 0
+    local srv = ca.server({ on_exit = function()
+      exits = exits + 1
+    end })
+    srv.terminate()
+    srv.notify("exit")
+    srv.terminate()
+    H.eq(1, exits)
+    H.eq(true, srv.is_closing())
   end)
 
   it("skips edition 2015 packages, non-rust and dependency-source files", function()

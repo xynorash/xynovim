@@ -268,6 +268,17 @@ describe("syntax scan", function()
     H.eq(#"fn f<T: Clone>(x: T, h: ", found[1].col)
   end)
 
+  it("skips buffers above max_lines (whole-buffer reads per edit freeze huge files)", function()
+    need_ts()
+    local buf = rust_buffer({ "fn f() { Instant::now(); }", "", "" })
+    local old = E.config.max_lines
+    E.config.max_lines = 2
+    local big = E.scan_syntax(buf, 0, 2)
+    E.config.max_lines = old
+    H.eq({}, big)
+    H.eq({ "Instant" }, names(E.scan_syntax(buf, 0, 2)))
+  end)
+
   it("finds the names inside #[derive(...)], not prelude derives or qualified ones", function()
     need_ts()
     local buf = rust_buffer({ "#[derive(Debug, Clone, Serialize, serde::Deserialize)]", "struct S;" })

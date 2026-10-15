@@ -845,3 +845,25 @@ describe("crate_features review fixes", function()
     H.eq({ dir .. "/Cargo.toml" }, saved)
   end)
 end)
+
+describe("crate_features client lifecycle", function()
+  it("a stopped in-process client leaves vim.lsp.get_clients (on_exit is reported)", function()
+    local dir = H.tmpdir()
+    vim.fn.mkdir(dir .. "/src", "p")
+    vim.fn.writefile({ '[package]', 'name = "x"', 'version = "0.1.0"', 'edition = "2021"' }, dir .. "/Cargo.toml")
+    vim.fn.writefile({ "fn main() {}" }, dir .. "/src/main.rs")
+    vim.cmd.edit(vim.fn.fnameescape(dir .. "/src/main.rs"))
+    local buf = vim.api.nvim_get_current_buf()
+    cf.attach(buf)
+    local clients = vim.lsp.get_clients({ bufnr = buf, name = cf.client_name })
+    H.eq(1, #clients, "attached")
+    local id = clients[1].id
+    clients[1]:stop(true)
+    H.wait_for(function()
+      return vim.lsp.get_client_by_id(id) == nil
+    end, 5000, "stopped client still listed")
+    for _, c in ipairs(vim.lsp.get_clients({ name = cf.client_name })) do
+      H.ok(c.id ~= id, "stopped client still in get_clients")
+    end
+  end)
+end)

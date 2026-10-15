@@ -32,6 +32,7 @@ M.config = {
   retries = 5, -- "content modified" retries of a code action request
   retry_ms = 400,
   organize_rounds = 30,
+  max_lines = 20000, -- the syntax scan reads the whole buffer per edit: skipped above this
   source_wait_ms = 4000, -- how long resolve() waits for the async sources (crates.io)
 }
 M.state_file = nil -- default stdpath("state")/xynovim/imports.json
@@ -622,6 +623,9 @@ local known_memo = {} -- buf -> { tick, known }
 --- Returns { { name, row, col, end_col, src = "ts" } } (rows 0-based).
 function M.scan_syntax(buf, from, to, opts)
   opts = opts or {}
+  if vim.api.nvim_buf_line_count(buf) > M.config.max_lines then
+    return {}
+  end
   local root = ts_root(buf)
   if not root then
     return {}

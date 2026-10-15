@@ -636,6 +636,13 @@ describe("cargo_machete", function()
       H.eq({ 5, 4 }, { r[1].lnum, r[2].lnum }, "dep_line of each dependency")
     end)
 
+    it("dotted and quoted dependency keys (`serde.workspace = true`) get their own line, not line 1", function()
+      local b = named_buf(d .. "/Cargo.toml", { "[package]", 'name = "p"', "", "[dependencies]", "serde.workspace = true", '"time".workspace = true' })
+      local out = table.concat({ "p -- ./Cargo.toml:", "\tserde", "\ttime", "" }, "\n")
+      local r = linter("cargo_machete").parser(out, b)
+      H.eq({ 4, 5 }, { r[1].lnum, r[2].lnum })
+    end)
+
     it("absolute paths: matches own manifest, ignores a sibling's", function()
       local out = table.concat({
         "p -- " .. d .. "/Cargo.toml:",

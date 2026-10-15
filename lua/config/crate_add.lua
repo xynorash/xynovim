@@ -28,6 +28,7 @@ M.config = {
   debounce_ms = 300,
   max_diagnostics = 50, -- per buffer
   cargo_timeout_ms = 180000,
+  max_lines = 20000, -- the scan walks the whole tree: larger buffers (generated code) are skipped
 }
 
 M.ns = vim.api.nvim_create_namespace("xynovim-crates")
@@ -171,10 +172,15 @@ end
 ---     another file (`use crate::prelude::*`, `use super::*` of a file module):
 ---     the glob may bring modules into scope. `use super::*` inside an inline
 ---     `mod tests {}` is fine: its names are in this file.
+---   * the whole file when it has a glob import from a dependency
+---     (`use predicates::prelude::*` brings the `predicate` module)
 ---   * edition 2015 packages (paths are relative to the crate root there)
 function M.scan(bufnr, meta)
   local file = vim.api.nvim_buf_get_name(bufnr)
   if not M.applicable_file(file) or not meta then
+    return nil
+  end
+  if vim.api.nvim_buf_line_count(bufnr) > M.config.max_lines then
     return nil
   end
   local member = cm.member_of(meta, file)
@@ -265,10 +271,6 @@ function M.scan(bufnr, meta)
     local harmless = h == "std" or h == "core" or h == "alloc" or h:match("^%u") ~= nil
     if not harmless and (h == "super" or h == "self") and has_ancestor_mod(g.node) then
       harmless = true
-    end
-    if not harmless and h ~= "" and h ~= "crate" and h ~= "super" and h ~= "self" then
-      local kind = cm.is_known_path_head(rootdir, h, { file = file, meta = meta })
-      harmless = kind == "dependency"
     end
     if not harmless then
       return {}
@@ -820,6 +822,13 @@ function M.server(dispatchers)
   local closing = false
   local id = 0
   local srv = {}
+  -- without on_exit the client stays in vim.lsp.get_clients() as a stopped entry
+  local function close()
+    if not closing then
+      closing = true
+      dispatchers.on_exit(0, 0)
+    end
+  end
   local function reply(cb, err, result)
     vim.schedule(function()
       cb(err, result)
@@ -858,7 +867,7 @@ function M.server(dispatchers)
   end
   function srv.notify(method)
     if method == "exit" then
-      closing = true
+      close()
     end
     return true
   end
@@ -866,7 +875,7 @@ function M.server(dispatchers)
     return closing
   end
   function srv.terminate()
-    closing = true
+    close()
   end
   return srv
 end

@@ -7,7 +7,7 @@
 [![ci](https://github.com/xynorash/xynovim/actions/workflows/ci.yml/badge.svg)](https://github.com/xynorash/xynovim/actions/workflows/ci.yml)
 ![neovim 0.12](https://img.shields.io/badge/neovim-0.12-57a143?logo=neovim&logoColor=white)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
-![tests](https://img.shields.io/badge/tests-1496%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-1515%20passing-brightgreen)
 
 ![xynovim editing the netwatch demo crate: Island Dark theme, inlay hints, sticky scope from treesitter-context, statusline with git branch, server state and clippy state](docs/media/01-hero.png)
 
@@ -23,7 +23,7 @@ Built on [LazyVim](https://github.com/LazyVim/LazyVim), for Linux (Arch is what 
 - **A debugger and a test runner that look like the ones in an IDE**: breakpoints with Rust-aware variable views, a test summary tree, coverage in the gutter.
 - **A safety net**: every save is snapshotted as a git ref (a "Local History"), and the AI agent runs inside a sandbox.
 - **Treesitter everywhere**: sticky scope, text objects, SQL injected into `sqlx` strings, a live syntax-tree view.
-- **Tested**: 1496 passing checks across 33 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
+- **Tested**: 1515 passing checks across 33 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
 
 ## Tour
 
@@ -189,7 +189,7 @@ Adding a crate used to leave its macros and features half used: no completion in
 
 **Attribute schemas.** The completion is data driven: one JSON file per crate in [`data/macro_attrs/`](data/macro_attrs) (serde, clap, thiserror, tokio, strum, derive_more, sqlx, utoipa, schemars, bon), used only when the package depends on the crate within the file's version range and the attribute is in scope (a derive that provides it is on the item). A project adds or overrides schemas with `.xynovim/macro_attrs/<anything>.json` in the workspace root (same format, see [data/macro_attrs/README.md](data/macro_attrs/README.md); an attribute of the same name replaces the shipped one, a broken file is skipped and listed by `:MacroAttrs`). A dependency attribute without a schema offers the keys the workspace and the crate's own sources already write inside it, most frequent first.
 
-**Limits.** The unknown-crate hint is deliberately conservative (a miss is better than a false hint). `#[serde(` keys are offered while serde's `derive` feature is off, because the schema is chosen by dependency and derive, not by features. A "(guess)" can miss: if the crate has no item of that name, the import step gives up after 60 s with a message, the crate stays added. Plain `Import X` and `Import X as Y` count as one candidate, whichever rust-analyzer lists first. Network access is optional: crates.io answers are cached and everything degrades to the local registry and a message. Tested in the headless suite with real `cargo` and rust-analyzer (no field-test round yet); the pickers and key presses were not driven in a real terminal (see [docs/DETAILS.md](docs/DETAILS.md#macros-and-dependencies)).
+**Limits.** The unknown-crate hint is deliberately conservative (a miss is better than a false hint): a file with a glob import from a dependency (`use predicates::prelude::*`, which brings modules such as `predicate`) gets no hint, nor does one over 20000 lines (`require('config.crate_add').config.max_lines`; the import engine's syntax scan has the same cap). `#[serde(` keys are offered while serde's `derive` feature is off, because the schema is chosen by dependency and derive, not by features. A "(guess)" can miss: if the crate has no item of that name, the import step gives up after 60 s with a message, the crate stays added. Plain `Import X` and `Import X as Y` count as one candidate, whichever rust-analyzer lists first. Network access is optional: crates.io answers are cached and everything degrades to the local registry and a message. Tested in the headless suite with real `cargo` and rust-analyzer (no field-test round yet); the pickers and key presses were not driven in a real terminal (see [docs/DETAILS.md](docs/DETAILS.md#macros-and-dependencies)).
 
 **In action.** Three recordings on the demo crate (regenerate with `docs/media/record.sh 11-add-crate 12-attributes 13-imports`).
 
@@ -228,7 +228,7 @@ Video: [13-imports.mp4](docs/media/13-imports.mp4)
 
 ## Tests: run them yourself
 
-The config ships with an automated suite: **33 spec files, 1509 checks passing, 23 skipped with a stated reason, 0 failing**, in about twelve minutes. Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
+The config ships with an automated suite: **33 spec files, 1515 checks passing, 23 skipped with a stated reason, 0 failing**, in about twelve minutes. Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
 
 ```sh
 scripts/test.sh                  # everything (or: make test)
