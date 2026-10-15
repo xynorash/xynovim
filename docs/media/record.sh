@@ -5,7 +5,7 @@
 #   docs/media/record.sh              all tapes
 #   docs/media/record.sh 02-diag ...  only the named tapes (file names without .tape)
 #
-# Needs: vhs, ttyd, chromium, ffmpeg, the JetBrainsMono Nerd Font and this
+# Needs: vhs, ttyd, chromium, ffmpeg, curl (14-egui-new fetches the eframe_template ZIP), the JetBrainsMono Nerd Font and this
 # config installed as ~/.config/nvim (after scripts/bootstrap.sh).
 # Every tape runs on a fresh copy of demo/netwatch in a temp dir (git repo with
 # one commit), so recording never touches the checkout.
@@ -22,6 +22,14 @@ command -v chromium >/dev/null || command -v chromium-browser >/dev/null || comm
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 cp -r "$repo/docs/media/tapes/support" "$work/support" # helper scripts the tapes call as ../support/<name>.sh
+
+stage_egui_template() { # the template ZIP, fetched once from the real repo, served to nvim as a file:// base_url
+  local d=$work/support/egui-stage/emilk/eframe_template/archive
+  mkdir -p "$d"
+  curl --silent --show-error --fail --location --max-time 60 -o "$d/main.zip" \
+    https://github.com/emilk/eframe_template/archive/main.zip ||
+    { echo "record.sh: cannot fetch the eframe_template ZIP" >&2; exit 1; }
+}
 
 prepare() { # fresh demo copy with a warm build so rust-analyzer/clippy answer quickly
   rm -rf "$work/netwatch"
@@ -42,6 +50,7 @@ if [ ${#tapes[@]} -eq 0 ]; then
 fi
 
 for name in "${tapes[@]}"; do
+  [ "$name" = 14-egui-new ] && [ ! -d "$work/support/egui-stage" ] && stage_egui_template
   src=$repo/docs/media/tapes/$name.tape
   [ -f "$src" ] || { echo "record.sh: no tape $src" >&2; exit 1; }
   echo "== $name"

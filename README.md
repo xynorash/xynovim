@@ -7,7 +7,7 @@
 [![ci](https://github.com/xynorash/xynovim/actions/workflows/ci.yml/badge.svg)](https://github.com/xynorash/xynovim/actions/workflows/ci.yml)
 ![neovim 0.12](https://img.shields.io/badge/neovim-0.12-57a143?logo=neovim&logoColor=white)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
-![tests](https://img.shields.io/badge/tests-1611%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-1613%20passing-brightgreen)
 
 ![xynovim editing the netwatch demo crate: Island Dark theme, inlay hints, sticky scope from treesitter-context, statusline with git branch, server state and clippy state](docs/media/01-hero.png)
 
@@ -23,7 +23,7 @@ Built on [LazyVim](https://github.com/LazyVim/LazyVim), for Linux (Arch is what 
 - **A debugger and a test runner that look like the ones in an IDE**: breakpoints with Rust-aware variable views, a test summary tree, coverage in the gutter.
 - **A safety net**: every save is snapshotted as a git ref (a "Local History"), and the AI agent runs inside a sandbox.
 - **Treesitter everywhere**: sticky scope, text objects, SQL injected into `sqlx` strings, a live syntax-tree view.
-- **Tested**: 1611 passing checks across 34 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
+- **Tested**: 1613 passing checks across 34 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
 
 ## Tour
 
@@ -236,9 +236,21 @@ The dashboard has a **New egui Project** entry (`e`) and there is the command `:
 - **The toolchain pin**: the template ships `rust-toolchain` (channel `1.95.0` today, with the `wasm32` target), so the first `cargo` or rust-analyzer run in the project makes rustup download that toolchain; a notification says so. `vim.g.xynovim_egui_keep_toolchain_pin = false` deletes the file (default: `true`, faithful to the template).
 - **Options**: `vim.g.xynovim_projects_dir`, `vim.g.xynovim_egui_template` (`{ repo = "emilk/eframe_template", ref = "main", base_url = "https://github.com" }`; another repo or ref, or a mirror), `vim.g.xynovim_egui_keep_toolchain_pin`, `vim.g.xynovim_egui_build_after_new = true` (starts `cargo build` in a terminal afterwards).
 
+**In action.** Recorded with `docs/media/record.sh 14-egui-new`: the dashboard entry, the project name `weather-panel` (shown as `crate name: weather_panel`), the author name and e-mail prompts prefilled from `git config` (a demo identity in the recording), the parent directory (a temp directory), then the created project: `Cargo.toml` with the name and authors, the `<title>` in `index.html`, and `src/main.rs` using `weather_panel::TemplateApp`. To keep the recording fast and repeatable, `record.sh` downloads the template ZIP once from the real repository and the tape points `base_url` at that file (`file://`); the feature itself downloads the current template from GitHub. The recording sets `vim.g.xynovim_egui_keep_toolchain_pin = false` because the pinned toolchain on the recording machine has no rust-analyzer component.
+
+| | | |
+| --- | --- | --- |
+| ![the dashboard with the New egui Project entry](docs/media/14-egui-new-dashboard.png) | ![project name weather-panel](docs/media/14-egui-new-name.png) | ![author name prefilled, crate name: weather_panel](docs/media/14-egui-new-author.png) |
+| ![author e-mail prefilled](docs/media/14-egui-new-email.png) | ![parent directory](docs/media/14-egui-new-directory.png) | ![the creation notification and src/main.rs](docs/media/14-egui-new-created.png) |
+| ![Cargo.toml with name and authors](docs/media/14-egui-new-cargo-toml.png) | ![index.html with the title](docs/media/14-egui-new-index-html.png) | ![src/main.rs using weather_panel::TemplateApp](docs/media/14-egui-new-main-rs.png) |
+
+![New egui Project recording](docs/media/14-egui-new.gif)
+
+Video: [14-egui-new.mp4](docs/media/14-egui-new.mp4)
+
 ## Tests: run them yourself
 
-The config ships with an automated suite: **34 spec files, 1611 checks passing, 23 skipped with a stated reason, 0 failing**, in about twelve minutes. Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
+The config ships with an automated suite: **34 spec files, 1613 checks passing, 23 skipped with a stated reason, 0 failing**, in about twelve minutes. Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
 
 ```sh
 scripts/test.sh                  # everything (or: make test)
