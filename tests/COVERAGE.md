@@ -40,7 +40,7 @@ found so far are fixed (listed at the end).
 | Attribute and derive completion, schemas, project overrides, `:MacroAttrs` (`macro_attrs.lua`, `data/macro_attrs/`) | `macro-attrs` | pure core driven table-wise; blink menu not on screen |
 | Macro signature / format / sqlx hints, `:MacroExpand` lens, `:ProcMacroStatus`, `<leader>rx/rq` (`macro_tools.lua`) | `macro-tools` | lens and status windows asserted, not looked at in a terminal |
 | Cross-module flows: no-deps crate to import, missing feature fix, `#[serde(` after the fix, ambiguous `Error` remembered | `macros-deps-flows` | on temp fixture copies; skips without network, cargo or rust-analyzer |
-| New egui project: `:EguiNew`, the dashboard entry, name / author rules, replacement rules, ETag cache, archive checks (`egui_new.lua`, `plugins/egui.lua`) | `egui-new` | fake template over `file://` and a local HTTP server; one real-network test (skips offline); no `cargo` build in the suite (checked once by hand) |
+| New egui project: `:EguiNew`, the dashboard entry, name / author rules, replacement rules, ETag cache, archive checks, pin parser and toolchain preparation (`egui_new.lua`, `plugins/egui.lua`) | `egui-new` | fake template over `file://` and a local HTTP server; one real-network test (skips offline); no `cargo` build and no real toolchain install in the suite (rustup is stubbed through `M.runner`; the end-to-end flow was checked once by hand with a stub `rustup` on PATH) |
 
 ## Features without a test, or only partly tested
 

@@ -8,6 +8,9 @@
 --   vim.g.xynovim_projects_dir              parent directory (default ~/projects if it exists, else the cwd)
 --   vim.g.xynovim_egui_template             { repo = "emilk/eframe_template", ref = "main", base_url = "https://github.com" }
 --   vim.g.xynovim_egui_keep_toolchain_pin   true (default): keep the template's rust-toolchain file
+--   vim.g.xynovim_egui_prepare_toolchain    true (default): after creating a project that keeps the pin, install the
+--                                           pinned toolchain WITH rust-analyzer / clippy / rustfmt in the background
+--                                           (about 200 MB, once); false: only print the command to run
 --   vim.g.xynovim_egui_build_after_new      true: run `cargo build` in a terminal afterwards
 --
 -- The text edits (M.validate_name .. M.readme) are pure functions; every
@@ -665,6 +668,241 @@ local function unpack(zip, tmp)
   return ex .. "/" .. entries[1].name
 end
 
+-- ------------------------------------------------------------- the pinned toolchain
+
+-- rustup installs a pinned channel on first use WITHOUT rust-analyzer, so the proxy fails and the new
+-- project has no LSP. These functions read the pin and install what the editor needs (argv only).
+
+local NAME_PAT = "^[A-Za-z0-9._-]+$"
+local EDITOR_COMPONENTS = { "rust-analyzer", "clippy", "rustfmt" }
+
+local function valid_name(n)
+  return type(n) == "string" and n:match(NAME_PAT) ~= nil and n:sub(1, 1) ~= "-"
+end
+
+local function toml_strings(body)
+  local out = {}
+  for q, v in body:gmatch("([\"'])(.-)%1") do
+    out[#out + 1] = v
+  end
+  return out
+end
+
+--- Parse rust-toolchain / rust-toolchain.toml text (legacy one-line form or [toolchain] table).
+--- Returns { channel = string|nil, components = {..}, targets = {..} } or nil when nothing is found.
+function M.parse_pin(text)
+  if type(text) ~= "string" then
+    return nil
+  end
+  local lines = {}
+  for line in (text .. "\n"):gmatch("(.-)\r?\n") do
+    -- drop comments outside quotes (a "#" inside a quoted string stays)
+    local out, quote = {}, nil
+    for ch in line:gmatch(".") do
+      if quote then
+        if ch == quote then
+          quote = nil
+        end
+      elseif ch == '"' or ch == "'" then
+        quote = ch
+      elseif ch == "#" then
+        break
+      end
+      out[#out + 1] = ch
+    end
+    local l = vim.trim(table.concat(out))
+    if l ~= "" then
+      lines[#lines + 1] = l
+    end
+  end
+  if #lines == 0 then
+    return nil
+  end
+  local pin = { components = {}, targets = {} }
+  if #lines == 1 and not lines[1]:find("[=%[]") then
+    pin.channel = lines[1]
+    return pin
+  end
+  local body = table.concat(lines, "\n")
+  pin.channel = body:match("channel%s*=%s*[\"']([^\"'\n]*)[\"']") or body:match("channel%s*=%s*([^%s\"',%]]+)")
+  local comps = body:match("components%s*=%s*%[(.-)%]")
+  if comps then
+    pin.components = toml_strings(comps)
+  end
+  local targs = body:match("targets%s*=%s*%[(.-)%]")
+  if targs then
+    pin.targets = toml_strings(targs)
+  end
+  if not pin.channel then
+    return nil
+  end
+  return pin
+end
+
+--- The install plan for a parsed pin: { channel, components, targets, skipped = {notes} } or nil, note.
+function M.toolchain_plan(pin)
+  if not pin or not pin.channel then
+    return nil, "no channel found in the toolchain file"
+  end
+  if not valid_name(pin.channel) then
+    return nil, ("the pinned channel '%s' is not a plain toolchain name (a path or odd characters): not touched"):format(
+      pin.channel
+    )
+  end
+  local plan = { channel = pin.channel, components = {}, targets = {}, skipped = {} }
+  local seen = {}
+  local function add_component(c)
+    if valid_name(c) and not seen[c] then
+      seen[c] = true
+      plan.components[#plan.components + 1] = c
+    end
+  end
+  for _, c in ipairs(EDITOR_COMPONENTS) do
+    add_component(c)
+  end
+  for _, c in ipairs(pin.components or {}) do
+    if valid_name(c) then
+      add_component(c)
+    else
+      plan.skipped[#plan.skipped + 1] = c
+    end
+  end
+  local tseen = {}
+  for _, t in ipairs(pin.targets or {}) do
+    if valid_name(t) then
+      if not tseen[t] then
+        tseen[t] = true
+        plan.targets[#plan.targets + 1] = t
+      end
+    else
+      plan.skipped[#plan.skipped + 1] = t
+    end
+  end
+  return plan
+end
+
+function M.install_argv(plan)
+  local a = { "rustup", "toolchain", "install", plan.channel, "--profile", "minimal" }
+  for _, c in ipairs(plan.components) do
+    vim.list_extend(a, { "--component", c })
+  end
+  for _, t in ipairs(plan.targets) do
+    vim.list_extend(a, { "--target", t })
+  end
+  return a
+end
+
+M.list_argv = { "rustup", "toolchain", "list" }
+
+function M.components_argv(channel)
+  return { "rustup", "component", "list", "--installed", "--toolchain", channel }
+end
+
+--- True when `rustup toolchain list` output names `channel` (e.g. "1.95.0-x86_64-unknown-linux-gnu (default)").
+function M.toolchain_listed(out, channel)
+  for line in (out or ""):gmatch("[^\n]+") do
+    local name = line:match("^(%S+)")
+    if name and (name == channel or name:sub(1, #channel + 1) == channel .. "-") then
+      return true
+    end
+  end
+  return false
+end
+
+--- True when `rustup component list --installed` output contains rust-analyzer.
+function M.has_rust_analyzer(out)
+  for line in (out or ""):gmatch("[^\n]+") do
+    if line:match("^rust%-analyzer") then
+      return true
+    end
+  end
+  return false
+end
+
+--- Injectable for the specs: runs argv, calls cb({ code, stdout, stderr }) on the main loop.
+function M.runner(argv, cb)
+  local ok, err = pcall(vim.system, argv, { text = true }, function(o)
+    vim.schedule(function()
+      cb(o)
+    end)
+  end)
+  if not ok then
+    vim.schedule(function()
+      cb({ code = 127, stdout = "", stderr = tostring(err) })
+    end)
+  end
+end
+
+function M.have_rustup()
+  return vim.fn.executable("rustup") == 1
+end
+
+--- Injectable for the specs.
+function M.restart_lsp()
+  require("config.rust_restart").restart()
+end
+
+local TC_ID = "xynovim_egui_toolchain"
+
+local function tc_notify(msg, level)
+  vim.notify("EguiNew: " .. msg, level or vim.log.levels.INFO, { id = TC_ID, title = "EguiNew" })
+end
+
+--- Make sure the toolchain pinned in `dir` has what the editor needs, in the background.
+--- done(state) is optional (specs): "skipped" | "installed" | "failed" | "refused" | "no-rustup" | "off" | "nopin".
+function M.prepare_toolchain(dir, done)
+  done = done or function() end
+  local text
+  for _, f in ipairs({ "rust-toolchain", "rust-toolchain.toml" }) do
+    text = text or read_file(dir .. "/" .. f)
+  end
+  if not text then
+    return done("nopin")
+  end
+  local plan, note = M.toolchain_plan(M.parse_pin(text))
+  if not plan then
+    tc_notify(note, vim.log.levels.WARN)
+    return done("refused")
+  end
+  local cmd = table.concat(M.install_argv(plan), " ")
+  if vim.g.xynovim_egui_prepare_toolchain == false then
+    tc_notify("the toolchain is not prepared (vim.g.xynovim_egui_prepare_toolchain = false); to get rust-analyzer run:\n" .. cmd)
+    return done("off")
+  end
+  if not M.have_rustup() then
+    tc_notify("rustup not found: no rust-analyzer for the pinned toolchain. Install rustup, then run:\n" .. cmd, vim.log.levels.WARN)
+    return done("no-rustup")
+  end
+  local function install()
+    tc_notify(("preparing toolchain %s (download of about 200 MB, once) ..."):format(plan.channel))
+    M.runner(M.install_argv(plan), function(o)
+      if o.code ~= 0 then
+        local why = vim.trim((o.stderr or ""):match("[^\n]+") or ("exit " .. tostring(o.code)))
+        tc_notify(("could not prepare toolchain %s (%s). The project is fine; later, online, run:\n%s"):format(plan.channel, why, cmd), vim.log.levels.WARN)
+        return done("failed")
+      end
+      local ok, err = pcall(M.restart_lsp)
+      tc_notify(
+        ("toolchain %s is ready (rust-analyzer, clippy, rustfmt)%s"):format(
+          plan.channel, ok and "; restarting the Rust language servers" or ("; :RustRestart failed: " .. tostring(err))
+        )
+      )
+      done("installed")
+    end)
+  end
+  M.runner(M.list_argv, function(l)
+    if l.code ~= 0 or not M.toolchain_listed(l.stdout, plan.channel) then
+      return install()
+    end
+    M.runner(M.components_argv(plan.channel), function(c)
+      if c.code == 0 and M.has_rust_analyzer(c.stdout) then
+        return done("skipped")
+      end
+      install()
+    end)
+  end)
+end
+
 -- ------------------------------------------------------------- the flow
 
 local running = false
@@ -769,13 +1007,16 @@ function M.finish(info)
     "next: `cargo run --release` | <leader>rX lists the cargo targets | `trunk serve` for the web",
   }
   if info.pin then
-    lines[#lines + 1] = ("rust-toolchain pins Rust %s: the first cargo / rust-analyzer run makes rustup download it "
-      .. "(vim.g.xynovim_egui_keep_toolchain_pin = false drops the file)"):format(info.pin)
+    lines[#lines + 1] = ("rust-toolchain pins Rust %s: it is prepared in the background (with rust-analyzer) "
+      .. "(vim.g.xynovim_egui_prepare_toolchain = false skips that, vim.g.xynovim_egui_keep_toolchain_pin = false drops the file)"):format(info.pin)
   end
   if info.git_note then
     lines[#lines + 1] = info.git_note
   end
   vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO, { id = NOTIFY_ID, title = "EguiNew" })
+  if info.pin then
+    M.prepare_toolchain(dir)
+  end
   if vim.g.xynovim_egui_build_after_new == true and _G.Snacks and Snacks.terminal then
     Snacks.terminal.open({ "cargo", "build" }, { cwd = dir, auto_close = false, win = { position = "bottom" } })
   end
