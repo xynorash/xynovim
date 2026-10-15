@@ -787,3 +787,61 @@ describe("crate_features :CrateFeatures", function()
     H.match(seen.list[1].msg, "no dependency", true)
   end)
 end)
+
+describe("crate_features review fixes", function()
+  local function dep(dir)
+    return {
+      name = "serde", alias = "serde", kind = "normal", features = {}, uses_default_features = true,
+      source = "path+file:///x", member = "app", member_manifest = dir .. "/Cargo.toml",
+    }
+  end
+  local function run(d, features, on)
+    local done, ok, how
+    cf.set_features(d, features, on, function(a, b)
+      done, ok, how = true, a, b
+    end)
+    H.wait_for(function()
+      return done
+    end, 5000, "set_features did not finish")
+    return ok, how
+  end
+
+  it("a comment with brackets inside the features array does not end it early", function()
+    local out = cf.edit_manifest(
+      '[dependencies]\nserde = { version = "1", features = [ # see [docs]\n "derive" ] }\n',
+      { key = "serde", kind = "normal" }, "add", { "std" }
+    )
+    H.eq('[dependencies]\nserde = { version = "1", features = [ # see [docs]\n "derive",\n "std" ] }\n', out)
+  end)
+
+  it("single-quoted features are items and are kept", function()
+    local out = cf.edit_manifest(
+      "[dependencies]\nserde = { version = \"1\", features = ['derive','alloc'] }\n",
+      { key = "serde", kind = "normal" }, "add", { "std" }
+    )
+    H.eq("[dependencies]\nserde = { version = \"1\", features = ['derive','alloc', \"std\"] }\n", out)
+  end)
+
+  it("writes through a symlinked Cargo.toml onto the real file", function()
+    local dir = H.tmpdir()
+    write(dir .. "/real/Cargo.toml", '[package]\nname = "app"\nversion = "0.1.0"\n\n[dependencies]\nserde = "1"\n')
+    vim.fn.mkdir(dir .. "/m", "p")
+    vim.uv.fs_symlink(dir .. "/real/Cargo.toml", dir .. "/m/Cargo.toml")
+    stub(require("config.rust_restart"), "manifest_saved", function() end)
+    local ok = run(dep(dir .. "/m"), { "derive" }, true)
+    H.eq(true, ok)
+    H.eq("link", vim.uv.fs_lstat(dir .. "/m/Cargo.toml").type)
+    H.match(read(dir .. "/real/Cargo.toml"), 'features = ["derive"]', true)
+  end)
+
+  it("a feature edit restarts bacon-ls like a manifest save", function()
+    local dir = H.tmpdir()
+    write(dir .. "/Cargo.toml", '[package]\nname = "app"\nversion = "0.1.0"\n\n[dependencies]\nserde = "1"\n')
+    local saved = {}
+    stub(require("config.rust_restart"), "manifest_saved", function(file)
+      saved[#saved + 1] = file
+    end)
+    H.eq(true, (run(dep(dir), { "derive" }, true)))
+    H.eq({ dir .. "/Cargo.toml" }, saved)
+  end)
+end)

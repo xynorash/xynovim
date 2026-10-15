@@ -612,6 +612,8 @@ local function under(node, types)
   return false
 end
 
+local known_memo = {} -- buf -> { tick, known }
+
 --- Names in rows [from, to] that look unresolved by syntax alone: type names
 --- and path heads that nothing in the file declares, imports or binds as a
 --- generic, derives of the prelude excluded. A superset on purpose: the
@@ -624,16 +626,26 @@ function M.scan_syntax(buf, from, to, opts)
   if not root then
     return {}
   end
-  local text = table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), "\n")
-  local known = declared_names(text)
-  for _, p in ipairs(M.use_paths(text)) do
-    known[p:match("([%w_]+)$") or p] = true
-    -- a glob import may bring anything: nothing is "unresolved" by syntax then
-  end
-  for _, gq in ipairs(generic_queries()) do
-    for _, node in gq:iter_captures(root, buf, 0, -1) do
-      known[node_text(node, buf)] = true
+  -- the whole-buffer part (declarations, uses, generics) is the same for every row range of
+  -- one buffer state: computed once per changedtick
+  local tick = vim.api.nvim_buf_get_changedtick(buf)
+  local memo = known_memo[buf]
+  local known
+  if memo and memo.tick == tick then
+    known = memo.known
+  else
+    local text = table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), "\n")
+    known = declared_names(text)
+    for _, p in ipairs(M.use_paths(text)) do
+      known[p:match("([%w_]+)$") or p] = true
+      -- a glob import may bring anything: nothing is "unresolved" by syntax then
     end
+    for _, gq in ipairs(generic_queries()) do
+      for _, node in gq:iter_captures(root, buf, 0, -1) do
+        known[node_text(node, buf)] = true
+      end
+    end
+    known_memo[buf] = { tick = tick, known = known }
   end
   local file = vim.api.nvim_buf_get_name(buf)
   local croot = file ~= "" and cm.root(file) or nil
@@ -711,8 +723,8 @@ function M.unresolved(buf, from, to, opts)
   local function add(list)
     for _, p in ipairs(list) do
       local key = p.row .. ":" .. p.col
-      local ctx = M.context_at(buf, p.row, p.col)
-      if not seen[key] and not ctx.in_macro_def then
+      -- context_at (a treesitter walk) only for hits that survive the dedup
+      if not seen[key] and not M.context_at(buf, p.row, p.col).in_macro_def then
         seen[key] = true
         out[#out + 1] = p
       end
@@ -1157,13 +1169,16 @@ local function undo_seq(buf)
   return ok and t.seq_cur or 0
 end
 
---- Replace in specs; default: one key from the user. true = accept.
+--- Replace in specs; default: a confirm dialog. Not echo + getcharstr: a notification UI hides
+--- that prompt after a few seconds while nvim still waits, and the next key typed (":w") was
+--- taken as the answer. confirm() stays until y/n/<CR>/<Esc> and ignores other keys. Without a
+--- UI (headless) nothing can answer: no.
 function M.ask_key(cand, name)
-  vim.api.nvim_echo({ { ("Import %s? [<CR>/y yes, n no] "):format(cand.path), "Question" } }, false, {})
-  vim.cmd.redraw()
-  local ok, ch = pcall(vim.fn.getcharstr)
-  vim.cmd("echo ''")
-  return ok and (ch == "\r" or ch == "\n" or ch == "y" or ch == "Y")
+  if #vim.api.nvim_list_uis() == 0 then
+    return false
+  end
+  local ok, n = pcall(vim.fn.confirm, ("Import %s?"):format(cand.path), "&Yes\n&No", 1)
+  return ok and n == 1
 end
 
 local ns = vim.api.nvim_create_namespace("xynovim_import_engine")
@@ -1253,7 +1268,14 @@ function M.run(buf, from, to, opts)
           if vim.api.nvim_get_current_buf() ~= buf or vim.fn.mode() ~= "n" then
             return nextp()
           end
-          if M.ask_key(d.cand, p.name) then
+          if p.answered or M.ask_key(d.cand, p.name) then
+            if not p.answered and vim.api.nvim_buf_get_changedtick(buf) ~= tick then
+              -- typed while the question was open: the candidate's edit is stale; look again
+              -- at the extmark instead of dropping the yes
+              p.answered = true
+              i = i - 1
+              return nextp()
+            end
             apply()
           else
             dismissed[dkey(root, p.name, d.cand.path)] = true
@@ -1328,12 +1350,12 @@ function M.import_name(name)
       -- the remembered choice leads the list (the "preselected" entry)
       local items = vim.deepcopy(res.candidates)
       if res.remembered then
-        table.sort(items, function(a, b)
-          if (a.remembered or false) ~= (b.remembered or false) then
-            return a.remembered or false
-          end
-          return false
-        end)
+        -- no table.sort: LuaJIT's is not stable and would scramble the ranked order
+        local first, rest = {}, {}
+        for _, c in ipairs(items) do
+          table.insert(c.remembered and first or rest, c)
+        end
+        items = vim.list_extend(first, rest)
       end
       local by_path = {}
       for _, cand in ipairs(res.candidates) do

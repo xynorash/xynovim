@@ -513,6 +513,9 @@ function M.run_add(root, spec, cb)
     local where = ("[%s]%s"):format(HEADERS[spec.kind or "normal"], spec.package and (" of " .. spec.package) or "")
     local msg = line and ("added %s  (%s)"):format(line, where) or ("added %s to %s"):format(spec.name, where)
     notify(msg)
+    -- no BufWritePost ran for this edit: restart bacon-ls (and show "deps resolving") like a
+    -- save would, or its stale E0433 / "cannot find derive macro" errors stay for minutes
+    pcall(require("config.rust_restart").manifest_saved, spec.manifest or (root .. "/Cargo.toml"))
     refresh_all()
     if cb then
       cb(true, msg, line)
@@ -701,7 +704,7 @@ function M.add(query, cb)
       end
       local stale = list.stale or list.from_cache
       M.ui.pick({
-        title = ("crates.io: %s%s  (name, version, downloads)"):format(q, stale and "  [cached, offline?]" or ""),
+        title = ("crates.io: %s%s  (name, version, downloads)"):format(q, list.stale and "  [cached, offline?]" or ""),
         items = items,
       }, function(sel)
         local name = sel[1].crate.name

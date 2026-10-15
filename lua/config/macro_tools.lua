@@ -1803,6 +1803,24 @@ function M.expand(opts)
     lens.origin = { bufnr = bufnr, row = row }
     lens.stack = {}
   end
+  -- on a literal or identifier inside the arguments rust-analyzer finds no call at the cursor
+  -- token's own macro-name position: ask at the start of the enclosing call (nearest ancestor)
+  local ask_row, ask_col = row, col
+  do
+    local okp, parser = pcall(vim.treesitter.get_parser, bufnr, "rust")
+    if okp and parser then
+      pcall(function()
+        parser:parse()
+        local n = vim.treesitter.get_node({ bufnr = bufnr, pos = { row, col } })
+        while n and n:type() ~= "macro_invocation" do
+          n = n:parent()
+        end
+        if n then
+          ask_row, ask_col = n:start()
+        end
+      end)
+    end
+  end
   local function show(name, text, note)
     local lines = vim.split((text:gsub("\n+$", "")), "\n", { plain = true })
     local level = { label = name:find("!$") and name or name .. "!", lines = lines, note = note }
@@ -1810,7 +1828,22 @@ function M.expand(opts)
     level.cursor_row = sym and sym.row or nil
     lens_push(level)
   end
-  request_expand(bufnr, row, col, function(name, text)
+  -- the cursor's own position first (a nested call inside println!'s arguments is no
+  -- macro_invocation node: the ancestor would be the outer call), then the enclosing call
+  local function request(cb)
+    request_expand(bufnr, row, col, function(name, text)
+      if name or (ask_row == row and ask_col == col) or opts.step then
+        return cb(name, text)
+      end
+      request_expand(bufnr, ask_row, ask_col, function(n2, t2)
+        if n2 then
+          return cb(n2, t2)
+        end
+        cb(name, text or t2)
+      end, 2)
+    end, 2)
+  end
+  request(function(name, text)
     if name then
       return show(name, text)
     end
@@ -1852,7 +1885,7 @@ function M.expand(opts)
         end
       end)
     end
-  end, 2)
+  end)
 end
 
 -- ============================================================ proc-macro status
@@ -2040,9 +2073,9 @@ function M.toml_ignore(text, crate, names)
   end
   local entry = ('"%s" = [%s]'):format(crate, table.concat(items, ", "))
   local lines = vim.split(text, "\n", { plain = true })
-  local header, header_i, key_i, last_i
+  local header, header_i, key_i, key_j, last_i
   for i, l in ipairs(lines) do
-    local h = l:match("^%s*%[%s*([%w_.%s\"-]-)%s*%]%s*$")
+    local h = l:match("^%s*%[%s*([%w_.%s\"-]-)%s*%]%s*$") or l:match("^%s*%[%s*([%w_.%s\"-]-)%s*%]%s*#.*$")
     if h then
       header = h:gsub("%s", "")
       if header == "procMacro.ignored" then
@@ -2052,6 +2085,21 @@ function M.toml_ignore(text, crate, names)
     elseif header == "procMacro.ignored" then
       if l:match("^%s*[\"']?" .. vim.pesc(crate) .. "[\"']?%s*=") then
         key_i = i
+        key_j = i
+        -- a multi-line array: the entry replaces every line up to the closing bracket
+        local v = l:gsub("#.*$", "")
+        if v:find("[", 1, true) and not v:find("]", 1, true) then
+          key_j = nil
+          for j = i + 1, #lines do
+            if (lines[j]:gsub("#.*$", "")):find("]", 1, true) then
+              key_j = j
+              break
+            end
+          end
+          if not key_j then
+            return nil, "rust-analyzer.toml has an array for this crate that is not closed: fix it by hand"
+          end
+        end
       end
       if l:match("%S") then
         last_i = i
@@ -2062,6 +2110,9 @@ function M.toml_ignore(text, crate, names)
   end
   if key_i then
     lines[key_i] = entry
+    for _ = key_i + 1, key_j do
+      table.remove(lines, key_i + 1)
+    end
   elseif header_i then
     table.insert(lines, last_i + 1, entry)
   else
@@ -2075,6 +2126,17 @@ function M.toml_ignore(text, crate, names)
     lines[#lines + 1] = entry
   end
   local out = table.concat(lines, "\n")
+  -- cheap sanity check in place of a TOML parser: the table must still be declared once
+  local heads = 0
+  for _, l in ipairs(lines) do
+    local h = l:match("^%s*%[%s*([%w_.%s\"-]-)%s*%]")
+    if h and h:gsub("%s", "") == "procMacro.ignored" then
+      heads = heads + 1
+    end
+  end
+  if heads ~= 1 then
+    return nil, "rust-analyzer.toml has an unusual [procMacro.ignored] layout: add the crate by hand"
+  end
   return out:sub(-1) == "\n" and out or (out .. "\n")
 end
 
@@ -2099,12 +2161,24 @@ function M.ignore_proc_macro(root, crate, names)
   if not new then
     return nil, why
   end
-  local out, err = io.open(path, "w")
+  -- atomic (tmp + rename) onto the real file, so a symlinked settings file stays one
+  local real = uv.fs_realpath(path) or path
+  local tmp = ("%s.%d.tmp"):format(real, uv.os_getpid())
+  local out, err = io.open(tmp, "w")
   if not out then
     return nil, err
   end
   out:write(new)
   out:close()
+  local st = uv.fs_stat(real)
+  if st then
+    pcall(uv.fs_chmod, tmp, st.mode % 4096)
+  end
+  local okr, rerr = uv.fs_rename(tmp, real)
+  if not okr then
+    uv.fs_unlink(tmp)
+    return nil, rerr
+  end
   return path
 end
 
@@ -2116,7 +2190,7 @@ local function ignored_of(root)
     if fh then
       local header
       for l in fh:lines() do
-        local h = l:match("^%s*%[%s*([%w_.%s\"-]-)%s*%]%s*$")
+        local h = l:match("^%s*%[%s*([%w_.%s\"-]-)%s*%]%s*$") or l:match("^%s*%[%s*([%w_.%s\"-]-)%s*%]%s*#.*$")
         if h then
           header = h:gsub("%s", "")
         elseif header == "procMacro.ignored" then
@@ -2264,11 +2338,9 @@ function M.proc_macro_status(opts)
         local pmc = vim.tbl_filter(function(c)
           return c.proc_macro
         end, data.status.crates)
-        data.server = ("rust-analyzer %s; %d proc-macro crate%s in this file's crates"):format(
-          client.name,
-          #pmc,
-          #pmc == 1 and "" or "s"
-        )
+        -- a count of 0 would contradict the list below when the status text has no crate graph
+        data.server = #pmc == 0 and ("rust-analyzer " .. client.name)
+          or ("rust-analyzer %s; %d proc-macro crate%s in this file's crates"):format(client.name, #pmc, #pmc == 1 and "" or "s")
       else
         data.server = "analyzerStatus failed: " .. tostring(e and e.message)
       end

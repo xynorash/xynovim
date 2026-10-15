@@ -759,3 +759,46 @@ describe("real rust-analyzer on deps-lab", function()
     end, 60000, "import after the paste")
   end)
 end)
+
+describe("import engine review fixes", function()
+  it("the default ask_key never blocks without a UI", function()
+    H.eq(0, #vim.api.nvim_list_uis())
+    H.eq(false, E.ask_key({ path = "serde::Serialize" }, "Serialize"))
+  end)
+
+  it("ImportName with a remembered choice keeps the others in ranked order", function()
+    need_ts()
+    local buf, dir = rust_buffer({ "fn f() {", "    let _r: Error = z();", "}" })
+    local names = { "a::Error", "b::Error", "c::Error", "d::Error", "e::Error", "f::Error" }
+    fake_server(buf, { Error = names })
+    vim.api.nvim_win_set_cursor(0, { 2, 14 })
+    local root = cm.root(dir .. "/src/main.rs")
+    H.ok(E.remember(root, "Error", "e::Error"))
+    local shown
+    stub(E, "select", function(items)
+      shown = items
+    end)
+    E.import_name()
+    H.wait_for(function()
+      return shown
+    end, 20000, "picker")
+    H.eq("e::Error", shown[1].path)
+    local rest = {}
+    for i = 2, #shown do
+      rest[#rest + 1] = shown[i].path
+    end
+    local plain
+    E.resolve("Error", { bufnr = buf, pos = { 1, 12 }, cb = function(res)
+      plain = {}
+      for _, c in ipairs(res.candidates) do
+        if c.path ~= "e::Error" then
+          plain[#plain + 1] = c.path
+        end
+      end
+    end })
+    H.wait_for(function()
+      return plain
+    end, 20000, "resolve")
+    H.eq(plain, rest)
+  end)
+end)

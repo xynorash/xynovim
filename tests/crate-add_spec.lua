@@ -250,7 +250,7 @@ local function fake_registry(opts)
       if opts.search_err then
         return cb(nil, opts.search_err)
       end
-      local list = { stale = opts.stale, from_cache = opts.stale }
+      local list = { stale = opts.stale, from_cache = opts.stale or opts.from_cache }
       list[1] = { name = "itoa", version = "1.0.15", downloads = 123456789, description = "Fast integer to string conversion" }
       list[2] = { name = "itoap", version = "1.0.0", downloads = 5, description = "other" }
       cb(list)
@@ -774,5 +774,38 @@ describe("crate_add: the real flow (crates.io + cargo add)", function()
     H.match(read(dir .. "/Cargo.toml"), "\nitoa = ", true)
     local b = vim.system({ "cargo", "check", "--quiet" }, { cwd = dir, text = true }):wait(110000)
     H.eq(0, b.code, b.stderr)
+  end)
+end)
+
+describe("crate_add review fixes", function()
+  it("a fresh cached answer is not labelled offline", function()
+    make_flow_ws()
+    fake_registry({ from_cache = true })
+    fake_cargo()
+    local seen = script_ui({})
+    H.ok(run_add("itoa"))
+    H.not_ok(seen[1].title:find("cached", 1, true), seen[1].title)
+    stub(cm, "search_async", function(q, cb)
+      vim.schedule(function()
+        cb({ stale = true, { name = "itoa", version = "1", downloads = 1 } })
+      end)
+    end)
+    seen = script_ui({})
+    run_add("itoa")
+    H.match(seen[1].title, "cached, offline?", true)
+  end)
+
+  it("restarts bacon-ls like a manifest save after cargo add (the buffer-less edit)", function()
+    local root = make_flow_ws()
+    fake_registry()
+    fake_cargo()
+    script_ui({})
+    local saved = {}
+    stub(require("config.rust_restart"), "manifest_saved", function(file)
+      saved[#saved + 1] = file
+    end)
+    H.ok(run_add("itoa"))
+    H.eq(1, #saved)
+    H.match(saved[1], "Cargo.toml$")
   end)
 end)

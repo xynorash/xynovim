@@ -49,7 +49,13 @@ local function norm(name)
   return (tostring(name):gsub("%-", "_"))
 end
 
-local function read_file(path)
+-- Regular files up to `max` bytes only (default 2 MB): the files read here are the project's or
+-- a dependency's and a huge one, a FIFO or a link to /dev/zero must not block the editor.
+local function read_file(path, max)
+  local st = vim.uv.fs_stat(path)
+  if not st or st.type ~= "file" or st.size > (max or 2 * 1024 * 1024) then
+    return nil
+  end
   local f = io.open(path, "rb")
   if not f then
     return nil
@@ -201,9 +207,9 @@ local function check_schema(file, source)
 end
 
 local function load_json(path)
-  local text = read_file(path)
+  local text = read_file(path, 1024 * 1024)
   if not text then
-    return nil, path .. ": cannot read"
+    return nil, path .. ": cannot read (missing or over 1 MB)"
   end
   local ok, data = pcall(vim.json.decode, text, { luanil = { object = true, array = true } })
   if not ok then
@@ -862,7 +868,7 @@ local function proc_macro_derives(dir)
     local files, bytes = 0, 0
     for name, kind in vim.fs.dir(dir .. "/src", { depth = 3 }) do
       if kind == "file" and name:sub(-3) == ".rs" and files < M.config.derive_max_files and bytes < M.config.derive_max_bytes then
-        local text = read_file(dir .. "/src/" .. name)
+        local text = read_file(dir .. "/src/" .. name, 400 * 1024)
         if text then
           files, bytes = files + 1, bytes + #text
           local from = 1

@@ -1366,3 +1366,16 @@ describe(":MacroAttrs", function()
     H.match(text, "dependencies: scan", true)
   end)
 end)
+
+describe("macro_attrs bounded reads", function()
+  it("skips a project schema file over 1 MB and reports it", function()
+    local dir = H.tmpdir() .. "/big"
+    write(dir .. "/Cargo.toml", '[package]\nname = "big"\nversion = "0.1.0"\nedition = "2024"\n')
+    write(dir .. "/src/main.rs", "fn main() {}\n")
+    write(dir .. "/.xynovim/macro_attrs/big.json", '{"crate":"big","attributes":[]}' .. string.rep(" ", 1100 * 1024))
+    local before = #ma.load_errors
+    ma.schemas(dir)
+    H.ok(#ma.load_errors >= before + 1, vim.inspect(ma.load_errors))
+    H.match(table.concat(ma.load_errors, "\n"), "big.json", true)
+  end)
+end)

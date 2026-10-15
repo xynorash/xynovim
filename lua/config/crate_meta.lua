@@ -106,7 +106,15 @@ end
 
 -- ---------------------------------------------------------------- files
 
+local MAX_READ = 2 * 1024 * 1024 -- source and manifest files; bigger is not a real one
+
+-- Regular files only: a symlink to /dev/zero exhausts memory and a FIFO blocks the main thread
+-- (dependency sources, git and path ones included, are untrusted).
 local function read_file(path)
+  local st = vim.uv.fs_stat(path)
+  if not st or st.type ~= "file" or st.size > MAX_READ then
+    return nil
+  end
   local f = io.open(path, "rb")
   if not f then
     return nil

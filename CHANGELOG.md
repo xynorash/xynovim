@@ -15,6 +15,12 @@ All notable changes to this config are documented here.
 - `config/macro_tools.lua`: macro call help (`<C-k>`, `:MacroSignature`, format-string and `sqlx::query!` hints, `:MacroFormatFix`), `:MacroExpand` / `<leader>rx` lens, `:ProcMacroStatus` / `<leader>rq`.
 - Specs: `crate-meta`, `deps-freshness`, `crate-add`, `crate-features`, `import-engine`, `crate-import`, `macro-attrs`, `macro-tools`, `macros-deps-flows` (four cross-module flows on temp copies of the fixtures, real `cargo`, crates.io and rust-analyzer; skip with a message without them), fixture `tests/fixtures/no-deps-lab`. README section "Macros and dependencies".
 
+### Fixed (macros and dependencies, review)
+- `cargo add` / feature edits done from nvim (`:CrateAdd`, the add-crate and missing-feature code actions, `:CrateFeatures`) now restart bacon-ls and show `deps resolving` like a saved `Cargo.toml` (stale E0433 / `cannot find derive macro` errors stayed).
+- Auto-import 'ask' is a yes/no dialog that stays until answered (the echo prompt vanished after 3 s while keys were swallowed), keeps a yes given while typing, and never blocks a headless nvim (it hung `macro-attrs_spec`). `:ImportName` keeps the ranked order behind a remembered choice.
+- `:MacroExpand` on a literal or name inside a call's arguments expands that call; `:ProcMacroStatus` no longer says 0 crates above a non-empty list; `rust-analyzer.toml` edits accept a commented header, replace multi-line arrays whole, and are written atomically.
+- Cargo.toml feature edits skip comments, keep single-quoted features and write through a symlinked manifest; file reads of dependency sources and schemas are bounded (regular files, 2 MB / 1 MB / 400 KB); the `:CrateFeatures` dependency picker has no broken preview; `[cached, offline?]` only for stale results.
+
 ### Changed (macros and dependencies)
 - CI job timeout 15 to 40 minutes: the suite now has 33 spec files (about 12 minutes on a runner after a 3 minute bootstrap) and the first run of this work was cancelled at 15. The import engine's Lua fallback for the `use` index (no ripgrep, as on the runner) never descended into directories (`vim.fs.dir`'s `skip` returns false to stop, the predicate was inverted); fixed, found by the CI run.
 - `.gitignore` ships `data/macro_attrs/` (it ignored `data/`). The README layout block lists `data/` (17 entries).

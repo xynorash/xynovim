@@ -601,6 +601,18 @@ pub fn select(input: TokenStream) -> TokenStream { input }
       { "z" },
       '[procMacro.ignored]\n"a" = ["z"]\n',
     },
+    {
+      '[procMacro.ignored] # slow ones\n"foo" = ["a"]\n',
+      "serde_derive",
+      { "Serialize" },
+      '[procMacro.ignored] # slow ones\n"foo" = ["a"]\n"serde_derive" = ["Serialize"]\n',
+    },
+    {
+      '[procMacro.ignored]\n"serde_derive" = [\n  "Serialize",\n  "Deserialize",\n]\n"x" = ["y"]\n',
+      "serde_derive",
+      { "Serialize" },
+      '[procMacro.ignored]\n"serde_derive" = ["Serialize"]\n"x" = ["y"]\n',
+    },
     { 'procMacro.ignored.a = ["x"]\n', "b", nil, nil, "by hand" },
     { '[procMacro]\nignored = { a = ["x"] }\n', "b", nil, nil, "by hand" },
   }
@@ -932,6 +944,19 @@ describe("live rust-analyzer", function()
       end
     end, 20000, "the no-macro message")
     H.not_ok(vim.bo.buftype == "nofile")
+  end)
+
+  it(":MacroExpand on a literal inside the arguments expands that call, not the crate", function()
+    local _, buf = open_lab()
+    local row, col = find(buf, "pair!(1, 2)")
+    expand_when_ready(buf, row, col + 1)
+    vim.api.nvim_win_set_cursor(0, { row + 1, col + 6 }) -- the `1`
+    vim.cmd("MacroExpand")
+    H.wait_for(function()
+      return vim.bo.buftype == "nofile" and vim.bo.filetype == "rust"
+    end, 20000, "the expansion window")
+    H.eq({ "(1, 2)" }, vim.api.nvim_buf_get_lines(0, 0, -1, false))
+    H.match(vim.wo.winbar, "pair!", true)
   end)
 
   it("<C-k> and the other keys are buffer-local on a rust-analyzer buffer", function()

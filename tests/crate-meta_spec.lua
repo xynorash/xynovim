@@ -920,3 +920,23 @@ describe("code_actions (real rust-analyzer)", function()
     H.match(table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), "\n"), "use std::collections::HashMap;", true)
   end)
 end)
+
+describe("crate_meta bounded reads", function()
+  it("does not read a symlink to /dev/zero, a FIFO or an oversized source file", function()
+    local dir = H.tmpdir() .. "/evil"
+    write(dir .. "/Cargo.toml", '[package]\nname = "evil"\nversion = "0.1.0"\n')
+    vim.fn.mkdir(dir .. "/src", "p")
+    vim.uv.fs_symlink("/dev/zero", dir .. "/src/lib.rs")
+    H.is_nil((cm.read_lib(dir)))
+    os.remove(dir .. "/src/lib.rs")
+    if vim.fn.executable("mkfifo") == 1 then
+      vim.system({ "mkfifo", dir .. "/src/lib.rs" }):wait()
+      H.is_nil((cm.read_lib(dir))) -- would block forever on an open for reading
+    end
+    os.remove(dir .. "/src/lib.rs")
+    write(dir .. "/src/lib.rs", string.rep("a", 3 * 1024 * 1024))
+    H.is_nil((cm.read_lib(dir)))
+    write(dir .. "/src/lib.rs", "pub fn x() {}\n")
+    H.match((cm.read_lib(dir)), "pub fn x", true)
+  end)
+end)

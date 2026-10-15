@@ -1123,12 +1123,19 @@ end
 --- Add (op = "add") or remove a feature in the array whose `[` is at `lb`.
 --- Returns the new text, or nil when nothing changes.
 local function array_edit(text, lb, op, feature)
+  -- one walk over the array: `#` comments (which may hold `[` or `]`) are skipped, both
+  -- "basic" and 'literal' strings are items
   local rb
+  local items = {}
   local i = lb + 1
   while i <= #text do
     local c = text:sub(i, i)
-    if c == '"' then
-      i = (text:find('"', i + 1, true) or #text) + 1
+    if c == '"' or c == "'" then
+      local e = text:find(c, i + 1, true) or #text
+      items[#items + 1] = { s = i, e = e, v = text:sub(i + 1, e - 1) }
+      i = e + 1
+    elseif c == "#" then
+      i = (text:find("\n", i, true) or #text) + 1
     elseif c == "]" then
       rb = i
       break
@@ -1140,16 +1147,6 @@ local function array_edit(text, lb, op, feature)
     return nil
   end
   local inner = text:sub(lb + 1, rb - 1)
-  local items = {}
-  local pos = 1
-  while true do
-    local s, e, v = inner:find('"([^"]*)"', pos)
-    if not s then
-      break
-    end
-    items[#items + 1] = { s = lb + s, e = lb + e, v = v }
-    pos = e + 1
-  end
   if op == "add" then
     for _, it in ipairs(items) do
       if it.v == feature then
@@ -1343,6 +1340,8 @@ local function read_all(path)
 end
 
 local function write_all(path, text)
+  -- a symlinked Cargo.toml: rename onto the real file, or the link is replaced by a copy
+  path = vim.uv.fs_realpath(path) or path
   local tmp = ("%s.%d.tmp"):format(path, vim.uv.os_getpid())
   local f = io.open(tmp, "wb")
   if not f then
@@ -1374,8 +1373,10 @@ local function valid_features(list)
   return true
 end
 
-local function after_edit()
+local function after_edit(manifest)
   cm.invalidate()
+  -- the edit did not go through a buffer save: restart bacon-ls like a save of Cargo.toml would
+  pcall(require("config.rust_restart").manifest_saved, manifest)
   -- an open, unmodified Cargo.toml buffer picks the new text up
   pcall(vim.cmd, "silent! checktime")
 end
@@ -1412,7 +1413,7 @@ function M.set_features(d, features, on, cb)
     if not write_all(manifest, new) then
       return cb(false, "cannot write " .. manifest)
     end
-    after_edit()
+    after_edit(manifest)
     cb(true, "text edit")
   end
 
@@ -1443,7 +1444,7 @@ function M.set_features(d, features, on, cb)
       all = all and now:find('"' .. f .. '"', 1, true) ~= nil
     end
     if all then
-      after_edit()
+      after_edit(manifest)
       return cb(true, "cargo add")
     end
     text_edit()
@@ -1838,7 +1839,7 @@ function M.pick(items, opts)
         ctx.preview:reset()
         ctx.preview:set_lines(opts.preview(ctx.item))
         ctx.preview:highlight({ ft = "markdown" })
-      end or nil,
+      end or "none", -- the default previews item.file: an error plus a table dump for these
       confirm = function(picker, item)
         if not item then
           return
