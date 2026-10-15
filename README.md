@@ -7,7 +7,7 @@
 [![ci](https://github.com/xynorash/xynovim/actions/workflows/ci.yml/badge.svg)](https://github.com/xynorash/xynovim/actions/workflows/ci.yml)
 ![neovim 0.12](https://img.shields.io/badge/neovim-0.12-57a143?logo=neovim&logoColor=white)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
-![tests](https://img.shields.io/badge/tests-1515%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-1611%20passing-brightgreen)
 
 ![xynovim editing the netwatch demo crate: Island Dark theme, inlay hints, sticky scope from treesitter-context, statusline with git branch, server state and clippy state](docs/media/01-hero.png)
 
@@ -23,7 +23,7 @@ Built on [LazyVim](https://github.com/LazyVim/LazyVim), for Linux (Arch is what 
 - **A debugger and a test runner that look like the ones in an IDE**: breakpoints with Rust-aware variable views, a test summary tree, coverage in the gutter.
 - **A safety net**: every save is snapshotted as a git ref (a "Local History"), and the AI agent runs inside a sandbox.
 - **Treesitter everywhere**: sticky scope, text objects, SQL injected into `sqlx` strings, a live syntax-tree view.
-- **Tested**: 1515 passing checks across 33 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
+- **Tested**: 1611 passing checks across 34 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
 
 ## Tour
 
@@ -162,7 +162,7 @@ Why a script and not just `nvim --headless '+Lazy! restore' +qa`: on an empty pl
 
 ## Commands
 
-`:RustContext` (features and target for both tiers), `:RustTargets`, `:RustTools`, `:RustNew`, `:RustRoutes` (axum / actix / rocket routes), `:RustRestart`, `:CrateAdd`, `:CrateFeatures`, `:ImportName`, `:ImportForget`, `:ImportOrganize`, `:MacroAttrs`, `:MacroExpand`, `:MacroSignature`, `:MacroFormatFix`, `:ProcMacroStatus`, `:ActJob` (run the GitHub Actions job under the cursor with `act`), `:LocalHistory`, `:LocalHistoryRestore`, `:LocalHistoryPrune`, `:ColorblindDiagnostics`, `:checkhealth xynovim`. Plugin management is stock LazyVim: `:Lazy sync` updates (the update checker is off), `:LazyExtras` toggles extras, `:Mason` manages language servers.
+`:RustContext` (features and target for both tiers), `:RustTargets`, `:RustTools`, `:RustNew`, `:EguiNew` (new egui project from the current eframe_template, also on the dashboard), `:RustRoutes` (axum / actix / rocket routes), `:RustRestart`, `:CrateAdd`, `:CrateFeatures`, `:ImportName`, `:ImportForget`, `:ImportOrganize`, `:MacroAttrs`, `:MacroExpand`, `:MacroSignature`, `:MacroFormatFix`, `:ProcMacroStatus`, `:ActJob` (run the GitHub Actions job under the cursor with `act`), `:LocalHistory`, `:LocalHistoryRestore`, `:LocalHistoryPrune`, `:ColorblindDiagnostics`, `:checkhealth xynovim`. Plugin management is stock LazyVim: `:Lazy sync` updates (the update checker is off), `:LazyExtras` toggles extras, `:Mason` manages language servers.
 
 ## Macros and dependencies
 
@@ -226,9 +226,19 @@ Video: [12-attributes.mp4](docs/media/12-attributes.mp4)
 
 Video: [13-imports.mp4](docs/media/13-imports.mp4)
 
+## New egui project
+
+The dashboard has a **New egui Project** entry (`e`) and there is the command `:EguiNew [name]`. Both follow the steps of [emilk/eframe_template](https://github.com/emilk/eframe_template) against the **current** template: the ZIP of its `main` branch is downloaded every time (never a copy kept in this config) and personalised, so a new egui or eframe release of the template is picked up without touching the config.
+
+- **Prompts**: project name, author name (prefilled from `git config user.name`), author e-mail (`user.email`), parent directory (`vim.g.xynovim_projects_dir`, else `~/projects` if it exists, else the current directory; a missing one is created only after a yes). Cancelling any prompt aborts without leaving anything behind. The name is both the package name and the crate identifier the template uses everywhere, so `-` becomes `_` (`crate name: my_app` is shown) and cargo's rules apply (a letter or `_` first, at most 64 characters, no Rust keyword, nothing cargo reserves such as `test` or `core`, not a dependency name such as `egui` or `log`); a bad name is asked again with the reason, an existing target directory is refused.
+- **What it personalises** (the edits of the template's README and `fill_template.sh`, applied to every text file, not to a fixed list): `eframe_template` becomes the crate name (`Cargo.toml` `package.name`, `src/main.rs`, `assets/sw.js`, the `Cargo.lock` entry, ...) except in links to the template; `eframe template` becomes a title derived from the name (`<title>`, the window title, the heading); the `authors` line is rewritten (`Name <e-mail>`, `Name`, or removed); `README.md` is replaced by a short generated one (run and web commands taken from the template's README), `fill_template.sh` / `.ps1` are deleted, the licenses stay, and `git init -b main` is run (no commit). Then the project becomes the working directory, `src/main.rs` opens and the next steps are shown: `cargo run --release`, `<leader>rX` lists the cargo targets, `trunk serve` for the web.
+- **Offline**: the ZIP is cached in `stdpath("cache")/xynovim/` with its ETag; the next run sends `If-None-Match` and downloads again only when the template changed. Without network the cached copy is used with a warning, and without a cache the error says so.
+- **The toolchain pin**: the template ships `rust-toolchain` (channel `1.95.0` today, with the `wasm32` target), so the first `cargo` or rust-analyzer run in the project makes rustup download that toolchain; a notification says so. `vim.g.xynovim_egui_keep_toolchain_pin = false` deletes the file (default: `true`, faithful to the template).
+- **Options**: `vim.g.xynovim_projects_dir`, `vim.g.xynovim_egui_template` (`{ repo = "emilk/eframe_template", ref = "main", base_url = "https://github.com" }`; another repo or ref, or a mirror), `vim.g.xynovim_egui_keep_toolchain_pin`, `vim.g.xynovim_egui_build_after_new = true` (starts `cargo build` in a terminal afterwards).
+
 ## Tests: run them yourself
 
-The config ships with an automated suite: **33 spec files, 1515 checks passing, 23 skipped with a stated reason, 0 failing**, in about twelve minutes. Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
+The config ships with an automated suite: **34 spec files, 1611 checks passing, 23 skipped with a stated reason, 0 failing**, in about twelve minutes. Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
 
 ```sh
 scripts/test.sh                  # everything (or: make test)
@@ -269,7 +279,7 @@ docs/media/record.sh 05-tests   # one tape
 ## Layout
 
 ```
-lua/config/    options, keymaps, autocmds, remote clipboard, statusline/UX helpers, local_history, disk_guard, rust_context/nav/tasks/routes/assist/restart, lsp_status, lazy, agent_sandbox, crate_meta/crate_add/crate_features/crate_import, import_engine, macro_attrs, macro_tools, code_actions
+lua/config/    options, keymaps, autocmds, remote clipboard, statusline/UX helpers, local_history, disk_guard, rust_context/nav/tasks/routes/assist/restart, egui_new, lsp_status, lazy, agent_sandbox, crate_meta/crate_add/crate_features/crate_import, import_engine, macro_attrs, macro_tools, code_actions
 lua/xynovim/   :checkhealth xynovim
 snippets/       rust.json (registered with blink)
 data/          macro_attrs/*.json: attribute schemas (serde, clap, thiserror, tokio, ...) for the completion inside `#[...(`

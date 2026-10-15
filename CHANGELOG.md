@@ -4,6 +4,9 @@ All notable changes to this config are documented here.
 
 ## [Unreleased]
 
+### Added (egui projects)
+- `config/egui_new.lua`, `plugins/egui.lua`: a "New egui Project" entry (`e`) on the dashboard and `:EguiNew [name]`. It downloads the current `emilk/eframe_template` ZIP (never a stored copy; ETag cache, cached copy with a warning offline), asks for the project name, author name and e-mail (prefilled from git) and the parent directory (`vim.g.xynovim_projects_dir`), and personalises the template like its README and `fill_template.sh` do: crate name in `Cargo.toml`, `Cargo.lock`, `src/main.rs`, `assets/sw.js` (links to the template are kept), page / window title, authors, a generated README, `git init -b main`. Options `vim.g.xynovim_egui_template`, `xynovim_egui_keep_toolchain_pin`, `xynovim_egui_build_after_new`. Spec `egui-new`. README section "New egui project".
+
 ### Added (macros and dependencies)
 - Dependency freshness: saving `Cargo.toml` / `Cargo.lock` from nvim restarts bacon-ls 500 ms after the last save (it kept a stale `cannot find crate` error for minutes) and the statusline shows `deps resolving` until rust-analyzer has reloaded (6 s when it never went busy, 120 s ceiling). `config/rust_restart.lua`, `config/lsp_status.lua`.
 - `config/crate_meta.lua` (cached `cargo metadata`, registry sources, a small crates.io client with sparse index and search, all argv lists, names validated) and `config/code_actions.lua` (find and apply one rust-analyzer code action without a menu).

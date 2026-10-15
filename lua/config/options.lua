@@ -55,6 +55,7 @@ require("config.disk_guard").setup()
 require("config.rust_context").setup()
 require("config.rust_tasks").setup()
 require("config.rust_routes").setup()
+require("config.egui_new").setup()
 
 -- Rust server readiness in the statusline, right-click menu, Neovide,
 -- opt-in colourblind palette.
