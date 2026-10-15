@@ -4,6 +4,8 @@ All notable changes to this config are documented here.
 
 ## [Unreleased]
 
+- egui: toolchain preparation review fixes: one prepare per channel at a time, timeouts on the rustup calls, running rustup terminated on VimLeavePre.
+
 ### Added (egui projects)
 - `config/egui_new.lua`, `plugins/egui.lua`: a "New egui Project" entry (`e`) on the dashboard and `:EguiNew [name]`. It downloads the current `emilk/eframe_template` ZIP (never a stored copy; ETag cache, cached copy with a warning offline), asks for the project name, author name and e-mail (prefilled from git) and the parent directory (`vim.g.xynovim_projects_dir`), and personalises the template like its README and `fill_template.sh` do: crate name in `Cargo.toml`, `Cargo.lock`, `src/main.rs`, `assets/sw.js` (links to the template are kept), page / window title, authors, a generated README, `git init -b main`. Options `vim.g.xynovim_egui_template`, `xynovim_egui_keep_toolchain_pin`, `xynovim_egui_build_after_new`. Spec `egui-new`. README section "New egui project".
 - `:EguiNew` prepares the pinned toolchain: the template's `rust-toolchain` made rustup install 1.95.0 without the `rust-analyzer` component, so the new project had no LSP. After creating it, in the background and after a notification (about 200 MB, once), it runs `rustup toolchain install <channel> --profile minimal --component rust-analyzer --component clippy --component rustfmt` plus the file's targets, then restarts the Rust servers; offline or without rustup it warns once with the command. Option `vim.g.xynovim_egui_prepare_toolchain` (default `true`); `xynovim_egui_keep_toolchain_pin = false` still drops the pin. Specs in `egui-new` (pin parser, argv, failure paths).

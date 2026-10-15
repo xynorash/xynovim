@@ -819,13 +819,35 @@ function M.has_rust_analyzer(out)
   return false
 end
 
+local jobs = {}
+
+--- Terminate the rustup processes this editor started (VimLeavePre): no orphan keeps writing into ~/.rustup.
+function M.kill_jobs()
+  for job in pairs(jobs) do
+    pcall(job.kill, job, 15)
+  end
+end
+
+vim.api.nvim_create_autocmd("VimLeavePre", {
+  group = vim.api.nvim_create_augroup("XynovimEguiToolchain", { clear = true }),
+  callback = M.kill_jobs,
+})
+
 --- Injectable for the specs: runs argv, calls cb({ code, stdout, stderr }) on the main loop.
-function M.runner(argv, cb)
-  local ok, err = pcall(vim.system, argv, { text = true }, function(o)
-    vim.schedule(function()
-      cb(o)
+--- timeout (ms, optional): the process is terminated then (code 124).
+function M.runner(argv, cb, timeout)
+  local job
+  local ok, err = pcall(function()
+    job = vim.system(argv, { text = true, timeout = timeout }, function(o)
+      vim.schedule(function()
+        jobs[job] = nil
+        cb(o)
+      end)
     end)
   end)
+  if ok and job then
+    jobs[job] = true
+  end
   if not ok then
     vim.schedule(function()
       cb({ code = 127, stdout = "", stderr = tostring(err) })
@@ -849,7 +871,10 @@ local function tc_notify(msg, level)
 end
 
 --- Make sure the toolchain pinned in `dir` has what the editor needs, in the background.
---- done(state) is optional (specs): "skipped" | "installed" | "failed" | "refused" | "no-rustup" | "off" | "nopin".
+--- done(state) is optional (specs): "skipped" | "installed" | "failed" | "refused" | "no-rustup" | "off" | "nopin" | "busy".
+local inflight = {}
+local LIST_TIMEOUT, INSTALL_TIMEOUT = 30 * 1000, 15 * 60 * 1000
+
 function M.prepare_toolchain(dir, done)
   done = done or function() end
   local text
@@ -873,6 +898,16 @@ function M.prepare_toolchain(dir, done)
     tc_notify("rustup not found: no rust-analyzer for the pinned toolchain. Install rustup, then run:\n" .. cmd, vim.log.levels.WARN)
     return done("no-rustup")
   end
+  if inflight[plan.channel] then
+    tc_notify(("already preparing toolchain %s"):format(plan.channel))
+    return done("busy")
+  end
+  inflight[plan.channel] = true
+  local fin = done
+  done = function(state)
+    inflight[plan.channel] = nil
+    fin(state)
+  end
   local function install()
     tc_notify(("preparing toolchain %s (download of about 200 MB, once) ..."):format(plan.channel))
     M.runner(M.install_argv(plan), function(o)
@@ -888,7 +923,7 @@ function M.prepare_toolchain(dir, done)
         )
       )
       done("installed")
-    end)
+    end, INSTALL_TIMEOUT)
   end
   M.runner(M.list_argv, function(l)
     if l.code ~= 0 or not M.toolchain_listed(l.stdout, plan.channel) then
@@ -899,8 +934,8 @@ function M.prepare_toolchain(dir, done)
         return done("skipped")
       end
       install()
-    end)
-  end)
+    end, LIST_TIMEOUT)
+  end, LIST_TIMEOUT)
 end
 
 -- ------------------------------------------------------------- the flow

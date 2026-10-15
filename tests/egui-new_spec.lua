@@ -1409,6 +1409,43 @@ describe("egui_new.prepare_toolchain (stubbed rustup)", function()
     return state
   end
 
+  it("a second prepare of the same channel while one runs only says so; it may run again afterwards", function()
+    local pending
+    local st = setup(PIN, function(argv)
+      return { 0, argv[3] == "list" and "stable-x86_64-unknown-linux-gnu (default)\n" or "" }
+    end)
+    local r = E.runner
+    stub(E, "runner", function(argv, cb)
+      if argv[3] == "install" then
+        st.argv[#st.argv + 1] = argv
+        pending = cb
+      else
+        r(argv, cb)
+      end
+    end)
+    local s1
+    E.prepare_toolchain(st.dir, function(s)
+      s1 = s
+    end)
+    H.wait_for(function()
+      return pending
+    end, 5000, "install started")
+    local dir2 = H.tmpdir()
+    write(dir2 .. "/rust-toolchain", PIN)
+    local s2
+    E.prepare_toolchain(dir2, function(s)
+      s2 = s
+    end)
+    H.eq("busy", s2)
+    H.ok(find_msg(st.cap, "already preparing toolchain 1%.95%.0"))
+    pending({ code = 0, stdout = "", stderr = "" })
+    H.wait_for(function()
+      return s1
+    end, 5000, "first finished")
+    H.eq("installed", s1)
+    H.eq(2, #st.argv, "only one list and one install ran")
+  end)
+
   it("installs when the toolchain is missing: notice first, exact argv, then restart and notify", function()
     local st = setup(PIN, function(argv)
       return { 0, argv[3] == "list" and "stable-x86_64-unknown-linux-gnu (default)\n" or "" }
@@ -1599,5 +1636,31 @@ describe("egui_new finish prepares the toolchain without blocking", function()
     E.finish(info)
     vim.wait(200)
     H.not_ok(called)
+  end)
+end)
+
+describe("egui_new.runner (real processes)", function()
+  it("a timeout ends the process with code 124", function()
+    local o
+    E.runner({ "sleep", "30" }, function(r)
+      o = r
+    end, 200)
+    H.wait_for(function()
+      return o
+    end, 5000, "timed out")
+    H.eq(124, o.code)
+  end)
+
+  it("kill_jobs (VimLeavePre) terminates a running process", function()
+    local o
+    E.runner({ "sleep", "30" }, function(r)
+      o = r
+    end)
+    E.kill_jobs()
+    H.wait_for(function()
+      return o
+    end, 5000, "killed")
+    H.eq(15, o.signal)
+    H.eq(true, #vim.api.nvim_get_autocmds({ group = "XynovimEguiToolchain", event = "VimLeavePre" }) == 1)
   end)
 end)
