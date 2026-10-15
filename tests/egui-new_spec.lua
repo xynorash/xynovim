@@ -379,6 +379,14 @@ end
 -- ============================================================ pure functions
 
 describe("egui_new.validate_name", function()
+  it("names the whole non-ASCII character that is refused", function()
+    for _, ch in ipairs({ "é", "日", "😀" }) do
+      local crate, why = E.validate_name("ab" .. ch .. "cd")
+      H.is_nil(crate)
+      H.ok(why:find("'" .. ch .. "' is not allowed", 1, true), why)
+    end
+  end)
+
   local cases = {
     { "my_app", "my_app" },
     { "my-app", "my_app", true },
@@ -883,6 +891,27 @@ describe("egui_new fetch: ETag, conditional request, offline cache (http://127.0
     H.match(err, "no cached copy")
     H.is_nil(vim.uv.fs_stat(parent .. "/six"))
     H.eq({}, leftovers(parent))
+  end)
+
+  it("a 200 answer that is not a ZIP never replaces the cached template", function()
+    local z1 = H.tmpdir() .. "/v1.zip"
+    fake_zip(z1)
+    local good = read(z1)
+    local srv = serve(good, '"v1"')
+    vim.g.xynovim_egui_template = { base_url = "http://127.0.0.1:" .. srv.port }
+    local parent = H.tmpdir()
+    local cap = H.capture_notify()
+    H.is_nil(create({ crate = "one", author_name = "", author_email = "", parent = parent }))
+    srv.body, srv.etag = "<html>captive portal</html>", '"portal"'
+    H.is_nil(create({ crate = "two", author_name = "", author_email = "", parent = parent }))
+    H.ok(vim.uv.fs_stat(parent .. "/two/Cargo.toml"), "built from the cached ZIP")
+    H.ok(find_msg(cap, "cached template", vim.log.levels.WARN), "warns about the cached copy")
+    H.eq(good, read(cache_dir() .. "/egui-template.zip"))
+    H.match(read(cache_dir() .. "/egui-template.json"), "v1", true)
+    -- no cache: the error names the problem
+    vim.fn.delete(cache_dir(), "rf")
+    local err = create({ crate = "three", author_name = "", author_email = "", parent = parent })
+    H.match(err, "not a valid ZIP")
   end)
 
   it("a cache of another template is never used", function()

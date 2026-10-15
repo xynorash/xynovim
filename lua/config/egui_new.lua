@@ -51,7 +51,7 @@ function M.validate_name(raw)
   if name == "" then
     return nil, "the name is empty"
   end
-  local bad = name:match("[^%w_%-]")
+  local bad = name:match("[^%w_%-][\128-\191]*") -- the whole UTF-8 character
   if bad then
     return nil, ("'%s' is not allowed: use letters, digits, '_' and '-'"):format(bad)
   end
@@ -580,6 +580,13 @@ local function fetch(tmp)
     return have
   end
   local st = r.code == 0 and vim.uv.fs_stat(out) or nil
+  if st and st.size > 0 and vim.fn.executable("unzip") == 1 and have then
+    -- a captive portal or proxy can answer 200 with HTML: never replace the cache with that
+    if sys({ "unzip", "-Z1", out }).code ~= 0 then
+      st = nil
+      r.stderr = "the download is not a ZIP file"
+    end
+  end
   if st and st.size > 0 then
     -- the ETag of the last response (the redirect target's, not the redirect's)
     local new_etag
