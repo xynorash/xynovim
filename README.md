@@ -191,9 +191,44 @@ Adding a crate used to leave its macros and features half used: no completion in
 
 **Limits.** The unknown-crate hint is deliberately conservative (a miss is better than a false hint). `#[serde(` keys are offered while serde's `derive` feature is off, because the schema is chosen by dependency and derive, not by features. A "(guess)" can miss: if the crate has no item of that name, the import step gives up after 60 s with a message, the crate stays added. Plain `Import X` and `Import X as Y` count as one candidate, whichever rust-analyzer lists first. Network access is optional: crates.io answers are cached and everything degrades to the local registry and a message. Tested in the headless suite with real `cargo` and rust-analyzer (no field-test round yet); the pickers and key presses were not driven in a real terminal (see [docs/DETAILS.md](docs/DETAILS.md#macros-and-dependencies)).
 
+**In action.** Three recordings on the demo crate (regenerate with `docs/media/record.sh 11-add-crate 12-attributes 13-imports`).
+
+*Adding a crate that is no dependency yet.* `uuid::Uuid::new_v4()` without `uuid` in `Cargo.toml`: the code action offers "Add crate `uuid`", the picker lists the crates.io results and the features of the chosen release (here `v4` toggled on), the target package is asked, then `cargo add` runs and the error goes away without waiting. Typing `Uuid` afterwards asks to import it.
+
+| | | |
+| --- | --- | --- |
+| ![the unknown crate uuid in a path, with the error](docs/media/11-add-crate-hint.png) | ![code actions: Add crate uuid](docs/media/11-add-crate-action.png) | ![crates.io search results](docs/media/11-add-crate-search.png) |
+| ![feature picker of uuid with v4 toggled](docs/media/11-add-crate-features.png) | ![Cargo.toml with the new dependency](docs/media/11-add-crate-cargo-toml.png) | ![Import uuid::Uuid? dialog](docs/media/11-add-crate-import.png) |
+
+![add crate recording](docs/media/11-add-crate.gif)
+
+Video: [11-add-crate.mp4](docs/media/11-add-crate.mp4)
+
+*Attributes and derives.* `serde` without its `derive` feature gives `cannot find derive macro Serialize`; `<leader>rG` enables the feature in `Cargo.toml`. `#[derive(Des` completes derive names with docs and adds the `use` on accept; `#[serde(` and `#[arg(` offer keys with their docs, and `rename_all = "` offers its values.
+
+| | | |
+| --- | --- | --- |
+| ![derive macro not found](docs/media/12-attributes-missing-feature.png) | ![derive name completion with docs](docs/media/12-attributes-derive-menu.png) | ![use serde::{Deserialize, Serialize} added](docs/media/12-attributes-derive-import.png) |
+| ![serde keys with docs](docs/media/12-attributes-serde-keys.png) | ![rename_all values](docs/media/12-attributes-serde-values.png) | ![clap arg keys with docs](docs/media/12-attributes-arg-keys.png) |
+
+![attributes recording](docs/media/12-attributes.gif)
+
+Video: [12-attributes.mp4](docs/media/12-attributes.mp4)
+
+*Ambiguous imports and macros.* `Error` exists in std, `std::io`, `std::fmt` and clap: `<leader>rI` ranks them with the reasons; the pick is remembered, so the next file offers it as the single import. `<leader>rx` shows the expansion of a derive, `gi` lists what it generated, and `<C-k>` shows the matcher arms of a `macro_rules!` call (the arm that fits the arguments typed so far is highlighted).
+
+| | | |
+| --- | --- | --- |
+| ![ranked Error candidates](docs/media/13-imports-picker.png) | ![the remembered choice offered in another file](docs/media/13-imports-remembered.png) | ![signature help on a macro_rules call](docs/media/13-imports-signature-arm.png) |
+| ![macro expansion of derive(Parser)](docs/media/13-imports-expand.png) | ![generated items of the expansion](docs/media/13-imports-expand-items.png) | |
+
+![imports and macros recording](docs/media/13-imports.gif)
+
+Video: [13-imports.mp4](docs/media/13-imports.mp4)
+
 ## Tests: run them yourself
 
-The config ships with an automated suite: **33 spec files, 1496 checks passing, 23 skipped with a stated reason, 0 failing**, in about twelve minutes. Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
+The config ships with an automated suite: **33 spec files, 1509 checks passing, 23 skipped with a stated reason, 0 failing**, in about twelve minutes. Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
 
 ```sh
 scripts/test.sh                  # everything (or: make test)
