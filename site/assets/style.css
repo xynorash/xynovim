@@ -173,7 +173,6 @@ li { margin-bottom: 0.4em; }
   border-radius: 10px;
   color: var(--strong);
   cursor: pointer;
-  order: 3;
 }
 .nav-toggle:focus-visible + .nav-burger { outline: 3px solid var(--yellow); outline-offset: 2px; }
 .nav-toggle:checked + .nav-burger { background: var(--panel); }
@@ -222,11 +221,10 @@ li { margin-bottom: 0.4em; }
 .btn:hover { background: var(--panel); }
 .btn-primary { background: var(--blue); border-color: var(--blue); color: var(--on-accent); }
 .btn-primary:hover { background: var(--blue); filter: brightness(1.1); }
-.bar > .btn { order: 2; }
 
 @media (min-width: 980px) {
   .nav-burger { display: none; }
-  #site-nav { display: block; position: static; background: none; border: 0; box-shadow: none; padding: 0; order: 1; }
+  #site-nav { display: block; position: static; background: none; border: 0; box-shadow: none; padding: 0; }
   #site-nav ul { display: flex; gap: 2px; }
   #site-nav a { padding: 8px 10px; font-size: 0.85rem; }
   .brand { margin-right: 0; }

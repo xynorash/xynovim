@@ -69,7 +69,7 @@ Every rust-analyzer command rustaceanvim offers has a key under `<leader>r`, dis
 
 ![which-key popup listing the <leader>r group](docs/media/03-refactor-menu.png)
 
-![extract variable applied to a selection](docs/media/03-refactor-extract.png)
+![visual selection and a "No code actions available" notification](docs/media/03-refactor-extract.png)
 
 Video: [03-refactor.mp4](docs/media/03-refactor.mp4)
 
@@ -124,8 +124,6 @@ The colour scheme is generated from the author's own RustRover export ([`tools/D
 | completion with documentation | picker |
 | --- | --- |
 | ![blink.cmp menu next to a documentation window](docs/media/09-theme-completion.png) | ![snacks file picker](docs/media/09-theme-picker.png) |
-
-![hover documentation float](docs/media/09-theme-hover.png)
 
 Video: [09-theme.mp4](docs/media/09-theme.mp4)
 

@@ -53,7 +53,11 @@ def media_refs(html):
     for ref in p.refs:
         ref = ref.split("#")[0].split("?")[0]
         if ref.startswith("media/"):
-            found.append(ref[len("media/"):])
+            name = ref[len("media/"):]
+            norm = os.path.normpath(name)
+            if os.path.isabs(norm) or norm == ".." or norm.startswith(".." + os.sep):
+                sys.exit("build-site: media reference leaves docs/media: " + ref)
+            found.append(name)
     return sorted(set(found))
 
 
