@@ -276,6 +276,17 @@ describe("Guarded._build_command", function()
 
   local ctx = { model = "claude-sonnet-5" }
 
+  -- these two look at the arguments wrap() gets, not at bwrap: without bwrap
+  -- (a CI runner) wrap refuses, so they run with the explicit opt-out
+  local saved_sandbox
+  before_each(function()
+    saved_sandbox = vim.g.xynovim_99_sandbox
+    vim.g.xynovim_99_sandbox = false
+  end)
+  after_each(function()
+    vim.g.xynovim_99_sandbox = saved_sandbox
+  end)
+
   it("wraps the Claude command with the git root of the buffer and the tmp_dir", function()
     local dir = H.open_fixture("basic", "src/main.rs", { git = true })
     local seen, restore = with_wrap_spy()

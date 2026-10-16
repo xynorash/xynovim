@@ -1699,6 +1699,13 @@ describe("integrations", function()
     H._restore[#H._restore + 1] = function()
       Claude.make_request = orig
     end
+    -- (this test is about the checkpoint, not the sandbox: without bwrap, e.g. on
+    -- a CI runner, the guarded provider would refuse to start at all)
+    local old_sandbox = vim.g.xynovim_99_sandbox
+    vim.g.xynovim_99_sandbox = false
+    H._restore[#H._restore + 1] = function()
+      vim.g.xynovim_99_sandbox = old_sandbox
+    end
     local root = mkrepo()
     open_file(root, "a.txt")
     H.ok(snap(root, { force = false }), "normal autosave first: the throttle window is open")

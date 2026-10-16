@@ -84,7 +84,7 @@ describe("the 99 provider", function()
     end
     local lazy = require("lazy")
     lazy.load({ plugins = { "99" } })
-    local Guarded = _99.__get_state().provider
+    local Guarded = _99.__get_state().provider_override
     neutral(function()
       local notes, done = {}, {}
       local orig_notify = vim.notify
