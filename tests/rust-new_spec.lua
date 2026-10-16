@@ -354,6 +354,45 @@ describe("rust_new.workspace_info / add_member_path", function()
     H.is_nil(i)
     H.ok(why)
   end)
+
+  it("adds the comma after the LAST entry of a line holding several", function()
+    H.eq(
+      '[workspace]\nmembers = [\n  "a", "b",\n  "crates/x",\n]\n',
+      R.add_member_path('[workspace]\nmembers = [\n  "a", "b"\n]\n', "crates/x")
+    )
+    H.eq(
+      '[workspace]\nmembers = [\n  "b", "c", # "d"\n  "crates/x",\n]\n',
+      R.add_member_path('[workspace]\nmembers = [\n  "b", "c" # "d"\n]\n', "crates/x")
+    )
+  end)
+
+  it("keeps the comment of an empty list and the CRLF line endings", function()
+    H.eq(
+      '[workspace]\nmembers = [ # hi\n  "crates/x",\n]\n',
+      R.add_member_path("[workspace]\nmembers = [ # hi\n]\n", "crates/x")
+    )
+    H.eq(
+      '[workspace]\r\nmembers = [\r\n  "a",\r\n  "crates/x",\r\n]\r\n',
+      R.add_member_path('[workspace]\r\nmembers = [\r\n  "a"\r\n]\r\n', "crates/x")
+    )
+    H.eq(
+      '[workspace]\r\nmembers = [\r\n  "crates/x",\r\n]\r\n',
+      R.add_member_path("[workspace]\r\nmembers = [\r\n]\r\n", "crates/x")
+    )
+  end)
+
+  it("warns when a new workspace would nest in a workspace's members or a git work tree", function()
+    local base = vim.fn.tempname()
+    vim.fn.mkdir(base .. "/outer/crates", "p")
+    vim.fn.mkdir(base .. "/plain/sub", "p")
+    vim.fn.mkdir(base .. "/repo/sub", "p")
+    vim.fn.mkdir(base .. "/repo/.git", "p")
+    vim.fn.writefile({ "[workspace]", 'members = ["crates/*"]' }, base .. "/outer/Cargo.toml")
+    H.ok(R.nesting_warning(base .. "/outer/crates", "inner"):find("members cover"))
+    H.ok(R.nesting_warning(base .. "/repo/sub", "w"):find("git repository"))
+    H.is_nil(R.nesting_warning(base .. "/outer", "other"))
+    vim.fn.delete(base, "rf")
+  end)
 end)
 
 -- ================================================ flows with the real cargo

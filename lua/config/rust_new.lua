@@ -249,6 +249,7 @@ function M.add_member_path(text, path)
   end
   -- one entry per line: after the last line that holds an entry, same indent
   local lines = vim.split(body, "\n", { plain = true })
+  local cr = text:find("\r\n", 1, true) and "\r" or "" -- a CRLF manifest keeps its line endings
   local last
   for i, l in ipairs(lines) do
     if l:gsub("#.*$", ""):find("[\"']") then
@@ -258,20 +259,41 @@ function M.add_member_path(text, path)
   if not last then
     -- empty multi-line list: put the entry on its own line before the closing bracket
     local close = lines[#lines]
-    return text:sub(1, range.first) .. "\n" .. close .. "  " .. quoted .. ",\n" .. close .. text:sub(range.last)
+    local first = lines[1]:find("#", 1, true) and lines[1] or cr -- keep a comment after the `[`
+    return text:sub(1, range.first)
+      .. first
+      .. "\n"
+      .. close
+      .. "  "
+      .. quoted
+      .. ","
+      .. cr
+      .. "\n"
+      .. close
+      .. text:sub(range.last)
   end
   local indent = lines[last]:match("^%s*")
-  -- the last entry needs a comma before the new one: after its closing quote
+  -- the last entry needs a comma before the new one: after the closing quote of the LAST entry
+  -- on the line (a line can hold several; a comment can hold quotes)
   local code = lines[last]
-  local ql, qr = code:find("[\"'][^\"']*[\"']%s*,?")
-  local after_quote = code:sub(ql, qr)
-  local tail = code:sub(qr + 1)
-  if not after_quote:find(",") then
-    local ent = after_quote:gsub("%s+$", "")
-    code = code:sub(1, ql - 1) .. ent .. "," .. after_quote:sub(#ent + 1) .. tail
+  local quote, last_close = nil, nil
+  for i = 1, #code do
+    local c = code:sub(i, i)
+    if quote then
+      if c == quote then
+        quote, last_close = nil, i
+      end
+    elseif c == '"' or c == "'" then
+      quote = c
+    elseif c == "#" then
+      break
+    end
+  end
+  if last_close and not code:sub(last_close + 1):gsub("#.*$", ""):find(",", 1, true) then
+    code = code:sub(1, last_close) .. "," .. code:sub(last_close + 1)
   end
   lines[last] = code
-  table.insert(lines, last + 1, indent .. quoted .. ",")
+  table.insert(lines, last + 1, indent .. quoted .. "," .. cr)
   return text:sub(1, range.first) .. table.concat(lines, "\n") .. text:sub(range.last)
 end
 
@@ -638,6 +660,32 @@ function M.finish_member(info)
   notify(table.concat(lines, "\n"))
 end
 
+--- Why a workspace `name` in `parent` would nest badly, or nil: an enclosing workspace whose
+--- members cover it (cargo then finds two workspace roots) or an enclosing git work tree.
+function M.nesting_warning(parent, name)
+  local dir = parent:gsub("/+$", "")
+  while dir ~= "" do
+    local rel = (parent:sub(#dir + 1) .. "/" .. name):gsub("^/", "")
+    local text = read_file(dir .. "/Cargo.toml")
+    local ws = text and M.workspace_info(text)
+    if ws then
+      for _, m in ipairs(ws.members) do
+        if member_matches(m, rel) then
+          return ("%s is a workspace whose members cover %s: it would stop working"):format(dir, rel)
+        end
+      end
+    end
+    if vim.uv.fs_stat(dir .. "/.git") then
+      return ("%s is inside the git repository %s: the new one would be nested"):format(parent, dir)
+    end
+    local up = dir:match("^(.*)/[^/]*$")
+    if not up or up == dir then
+      break
+    end
+    dir = up
+  end
+end
+
 -- ------------------------------------------------------------- the prompts
 
 local running = false
@@ -756,6 +804,10 @@ function M.new_workspace(name_arg)
   end
   ask_name("Workspace name: ", name_arg, nil, function(name)
     ask("Parent directory: ", E.default_parent(), parent_check(name), function(parent)
+      local warning = M.nesting_warning(parent, name)
+      if warning and vim.fn.confirm(warning .. ". Create it anyway?", "&Yes\n&No", 2) ~= 1 then
+        return
+      end
       ask_kind(function(kind)
         local default = name .. (kind == "library" and "-core" or "-app")
         ask_name("First member name: ", nil, default, function(member)
