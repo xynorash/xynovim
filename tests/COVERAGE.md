@@ -2,7 +2,7 @@
 
 Which spec exercises which feature of the config, and what is not tested (with the reason).
 Line coverage is a different measure (`scripts/test.sh --coverage`); this table is about features.
-Counts are from the last full run: 1708 passed, 0 failed, 23 skipped (35 spec files). Skips are
+Counts are from the last full run: 1744 passed, 0 failed, 23 skipped (36 spec files). Skips are
 `pending` entries or tests that need something this machine lacks (not testable here). A bug a spec
 finds is written as an assertion of the correct behaviour (skipped while it reproduces); the ones
 found so far are fixed (listed at the end).
@@ -30,6 +30,7 @@ found so far are fixed (listed at the end).
 | Snippets, completion guard, SQL injections, ghost text off (`snippets/`, `ux.lua`, `after/queries`) | `snippets-completion-injections` | |
 | UX menu, diagnostics text, colourblind palette, Neovide, noice, dashboard (`ux.lua`, `editing-ui.lua`) | `ux-menu-diagnostics-colourblind` | |
 | `:checkhealth xynovim`, `bootstrap.sh`, CI, Makefile, stylua, `.gitignore`, LICENSE, README prerequisites | `health-bootstrap-ci` | |
+| Website: `site/`, `scripts/build-site.py`, `.github/workflows/pages.yml` (built into a temp dir: head tags, links, anchors, CSP, alt texts, README numbers, budgets, contrast, workflow pins and permissions) | `site` | no browser: the screenshots were checked by hand; the deployment itself is only observable on GitHub |
 | `scripts/test.sh`, `scripts/coverage.lua`, runner/harness/helpers/coverage hook, README/CHANGELOG claims | `test-infra-readme-claims` | |
 | Dependency freshness: `deps resolving` status, bacon-ls restart on a saved `Cargo.toml` / `Cargo.lock` (`rust_restart.lua`, `lsp_status.lua`) | `deps-freshness`, `server-supervision-statusline` | real rust-analyzer; the 120 s ceiling is a shimmed timer |
 | Crate metadata, crates.io client, registry sources (`crate_meta.lua`, `code_actions.lua`) | `crate-meta` | network parts skip offline |

@@ -13,3 +13,4 @@ tests/fixtures/**/.rustc_info.json
 !/data/
 /data/*
 !/data/macro_attrs/
+_site/

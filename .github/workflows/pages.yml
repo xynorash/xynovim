@@ -1,0 +1,84 @@
+# The website (https://xynorash.github.io/xynovim/) is served by GitHub Pages
+# from the dedicated branch `gh-pages` (root), not through the Actions
+# deploy-pages mechanism.
+#
+# Branch model: `main` holds the source (site/, scripts/build-site.py,
+# docs/media/); `gh-pages` holds ONLY the built site (the branch root is the
+# site root, with .nojekyll), as a single orphan commit that every deployment
+# replaces with a force push. That is deliberate: the media is about 20 MB and
+# a history of deployments would bloat the repository.
+#
+# To (re)point Pages at the branch: Settings > Pages > Build and deployment >
+# Source "Deploy from a branch" > Branch gh-pages, folder / (root).
+name: pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "docs/media/**"
+      - "README.md"
+      - "scripts/build-site.py"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # forks have no Pages branch to feed; only main is ever published
+    if: github.repository == 'xynorash/xynovim' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write # pushes the gh-pages branch, nothing else
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build the site and check its links and assets
+        run: python3 scripts/build-site.py --out _site --check
+
+      - name: Publish _site to the gh-pages branch
+        # zizmor and a reviewer will notice the force push: it is the design
+        # (one orphan commit, see the top of the file). The token is passed to
+        # one `git push` through an env var and a one-shot http.extraheader; it
+        # is never written to a git config, and the checkout did not persist it.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          branch=gh-pages
+          remote="https://github.com/${GITHUB_REPOSITORY}.git"
+          short=${GITHUB_SHA::7}
+
+          before=$(git ls-remote --heads "$remote" "refs/heads/$branch" | cut -f1)
+          echo "remote $branch before: ${before:-<absent>}"
+
+          cd _site
+          git init -q -b "$branch"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Deploy ${short} from main"
+          local_sha=$(git rev-parse HEAD)
+
+          auth=$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)
+          echo "::add-mask::$auth"
+          # the only refspec of the job: it cannot touch another branch
+          git -c "http.extraheader=Authorization: Basic ${auth}" push --force "$remote" "HEAD:refs/heads/${branch}"
+
+          after=$(git ls-remote --heads "$remote" "refs/heads/$branch" | cut -f1)
+          echo "remote $branch after:  ${after}"
+          if [ "$after" != "$local_sha" ]; then
+            echo "gh-pages is not at the commit just pushed" >&2
+            exit 1
+          fi
+          git ls-remote --heads "$remote" | cut -f2 | sort

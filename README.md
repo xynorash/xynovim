@@ -7,7 +7,9 @@
 [![ci](https://github.com/xynorash/xynovim/actions/workflows/ci.yml/badge.svg)](https://github.com/xynorash/xynovim/actions/workflows/ci.yml)
 ![neovim 0.12](https://img.shields.io/badge/neovim-0.12-57a143?logo=neovim&logoColor=white)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
-![tests](https://img.shields.io/badge/tests-1708%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-1744%20passing-brightgreen)
+
+Website: https://xynorash.github.io/xynovim/
 
 ![xynovim editing the netwatch demo crate: Island Dark theme, inlay hints, sticky scope from treesitter-context, statusline with git branch, server state and clippy state](docs/media/01-hero.png)
 
@@ -17,13 +19,15 @@ Built on [LazyVim](https://github.com/LazyVim/LazyVim), for Linux (Arch is what 
 
 > The previous from-scratch Windows config lives on the [`windows-legacy`](../../tree/windows-legacy) branch. Every notable change is in [CHANGELOG.md](CHANGELOG.md).
 
+The website, <https://xynorash.github.io/xynovim/>, is published from the dedicated `gh-pages` branch by the [pages workflow](.github/workflows/pages.yml) (see [Website](#website) below).
+
 ## What you get
 
 - **Two diagnostic tiers**: rust-analyzer answers while you type, clippy follows about half a second later, on every keystroke and before any save.
 - **A debugger and a test runner that look like the ones in an IDE**: breakpoints with Rust-aware variable views, a test summary tree, coverage in the gutter.
 - **A safety net**: every save is snapshotted as a git ref (a "Local History"), and the AI agent runs inside a sandbox.
 - **Treesitter everywhere**: sticky scope, text objects, SQL injected into `sqlx` strings, a live syntax-tree view.
-- **Tested**: 1708 passing checks across 35 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
+- **Tested**: 1744 passing checks across 36 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
 
 ## Tour
 
@@ -299,7 +303,7 @@ Video: [14-egui-new.mp4](docs/media/14-egui-new.mp4)
 
 ## Tests: run them yourself
 
-The config ships with an automated suite: **35 spec files, 1708 checks passing, 23 skipped with a stated reason, 0 failing**, in about twelve minutes. Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
+The config ships with an automated suite: **36 spec files, 1744 checks passing, 23 skipped with a stated reason, 0 failing**, in about twelve minutes. Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
 
 ```sh
 scripts/test.sh                  # everything (or: make test)
@@ -313,7 +317,7 @@ scripts/test.sh --coverage       # also a per-file line-coverage report
 Video: [10-test-suite.mp4](docs/media/10-test-suite.mp4)
 
 - **Nothing of yours is touched**: the specs run against a temp config / state / cache; only the installed plugins are reused. Missing tools (rust-analyzer, tmux, bubblewrap, lazygit, ...) make their specs **skip with a message**, never fail.
-- **One spec per feature area**: startup and options, the Island theme, every `<leader>r` command, `:RustContext`, `:RustTargets`, Local History, auto-save guards, the agent sandbox and the 99 guard, the two diagnostic tiers' configuration, server supervision, debugger and test integration, git and lint tooling, snippets and treesitter injections, the UI helpers, health / bootstrap / CI, and the claims this documentation makes. [tests/COVERAGE.md](tests/COVERAGE.md) maps every feature to the spec that tests it and lists what has no test and why.
+- **One spec per feature area**: startup and options, the Island theme, every `<leader>r` command, `:RustContext`, `:RustTargets`, Local History, auto-save guards, the agent sandbox and the 99 guard, the two diagnostic tiers' configuration, server supervision, debugger and test integration, git and lint tooling, snippets and treesitter injections, the UI helpers, health / bootstrap / CI, and the claims this documentation makes, and the website. [tests/COVERAGE.md](tests/COVERAGE.md) maps every feature to the spec that tests it and lists what has no test and why.
 - **Line coverage** of the repo's own Lua was about 86 % before the macros and dependencies modules (`--coverage`, not re-run since; the denominator is estimated, treat it as a guide).
 - **CI**: the [ci workflow](.github/workflows/ci.yml) runs `scripts/bootstrap.sh` (clone plugins on their locked commits, download parsers and Mason tools), a startup smoke test, then `scripts/test.sh`, on a clean Ubuntu machine for every push.
 - How the harness works, how to write a spec and what the helpers offer: [docs/TESTING.md](docs/TESTING.md).
@@ -336,6 +340,10 @@ docs/media/record.sh 05-tests   # one tape
 - [docs/TESTING.md](docs/TESTING.md) and [tests/COVERAGE.md](tests/COVERAGE.md): the test suite.
 - [CHANGELOG.md](CHANGELOG.md): every notable change.
 
+### Website
+
+The official site (https://xynorash.github.io/xynovim/) is one static page in [`site/`](site) with no external requests (system fonts, no CDN, no analytics) that presents the config with the recordings above. `python3 scripts/build-site.py` assembles it into `_site/` (the site plus only the media files the page references from `docs/media/`, with the numbers filled in from this README, so they cannot drift). [`.github/workflows/pages.yml`](.github/workflows/pages.yml) builds it on every push to `main` that touches the site, the media, this README or the build script, and publishes it as a single orphan commit to the branch `gh-pages`, which holds nothing but the built site; GitHub Pages serves that branch (Settings > Pages > Deploy from a branch > `gh-pages` / root). Preview locally under the same `/xynovim/` prefix: see [site/README.md](site/README.md).
+
 
 ## Layout
 
@@ -349,14 +357,15 @@ colors/        island-dark colourscheme entry point
 lua/island/    Island Dark: init.lua (mapping), palette.lua (generated)
 lua/lualine/   island-dark lualine theme
 tools/         icls2nvim.py + Dark.icls (the scheme it converts)
-scripts/       bootstrap.sh (fresh-install two-step restore, prerequisite check), test.sh (spec runner), coverage.lua (coverage report)
+scripts/       bootstrap.sh (fresh-install two-step restore, prerequisite check), test.sh (spec runner), coverage.lua (coverage report), build-site.py (builds the website)
 tests/         *_spec.lua, harness.lua, helpers.lua, runner.lua, coverage_hook.lua, fixtures/ (see Tests)
 Makefile       make test / make coverage
 plugin/after/  transparency, unsafe highlight
 after/ftplugin/ Rust buffer settings (plain `'`, comment spelling)
 queries/       base rust injections (copy of nvim-treesitter's minus the sqlx macros)
 after/queries/ treesitter query extensions (sqlx SQL injection)
-.github/       CI: bootstrap, lockfile check, startup smoke test, spec suite
+.github/       CI: bootstrap, lockfile check, startup smoke test, spec suite; the pages workflow publishes the website to gh-pages
+site/          the website's source (index.html, assets/, 404.html, ...), see site/README.md
 ```
 
 LazyVim extras enabled (`lazyvim.json`): `ai.claudecode`, `editor.neo-tree`, `editor.overseer`, `lang.rust`, `lang.toml`, `lang.yaml`, `lang.json`, `lang.markdown`, `lang.git`, `dap.core`, `test.core`, `ui.treesitter-context`, `editor.navic`, `coding.mini-surround`, `coding.neogen`, `editor.inc-rename`, `util.rest`.

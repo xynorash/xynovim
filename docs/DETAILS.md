@@ -138,3 +138,12 @@ after/queries/ treesitter query extensions (sqlx SQL injection)
 
 LazyVim extras enabled (`lazyvim.json`): `ai.claudecode`, `editor.neo-tree`, `editor.overseer`, `lang.rust`, `lang.toml`, `lang.yaml`, `lang.json`, `lang.markdown`, `lang.git`, `dap.core`, `test.core`, `ui.treesitter-context`, `editor.navic`, `coding.mini-surround`, `coding.neogen`, `editor.inc-rename`, `util.rest`.
 
+## Website
+
+The site (`site/`, published at https://xynorash.github.io/xynovim/) is hand-written HTML and CSS plus a small progressive-enhancement script; there is no generator and no dependency. Decisions worth knowing:
+
+- **Single-sourced numbers**: the test counts on the page are placeholders (`{{TESTS}}`, `{{SPECS}}`, `{{SKIPPED}}`, `{{FAILED}}`) filled by `scripts/build-site.py` from the README's tests badge and summary line and from the number of `tests/*_spec.lua` files; the `site` spec fails when the README itself disagrees with the directory.
+- **Media is not duplicated**: the build copies only the files `site/index.html` references from `docs/media/` (about 20 MB, mostly the MP4 recordings; GIFs are never used on the page). The video poster frames in `site/assets/posters/` are JPEGs made from screenshots of the same recordings.
+- **Strict CSP and no external requests** (`default-src 'self'`, no inline script or style): a CDN, web font or tracker would fail the spec. Fonts are system stacks with JetBrains Mono first.
+- **Branch deployment**: `pages.yml` force-pushes one orphan commit to `gh-pages` on every deployment instead of using the Actions Pages deployment, as the project asked for a dedicated branch. The history of that branch is deliberately empty of past deployments (the media would bloat the repository). The 404 page is the one file with absolute `/xynovim/` paths, because Pages serves it at the URL of the missing page.
+- **Not verified**: the page was looked at in headless Chromium (dark and light, 320 to 1440 px wide); no other browser, no screen reader, and the recordings' autoplay on scroll was not watched in a live browser.
