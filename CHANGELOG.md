@@ -4,6 +4,7 @@ All notable changes to this config are documented here.
 
 ## [Unreleased]
 
+- README: recording of the new Rust project flows (`docs/media/record.sh 15-rust-new`: the dashboard, the workspace flow with the generated tree and manifests, a binary), 13 screenshots, a GIF (1.6 MB) and an MP4; the tape uses a temp parent directory (`support/rustnew.sh`), which `record.sh` removes.
 - New Rust projects: three dashboard entries, **New Rust Binary** (`b`), **New Rust Library** (`i`) and **New Rust Workspace** (`w`), and the commands `:RustNewBin [name]`, `:RustNewLib [name]`, `:RustNewWorkspace [name]` and `:RustNewMember [name]` (`config/rust_new.lua`, `plugins/rust-new.lua`). A binary or library is `cargo new --vcs git` in a chosen parent directory (prompts as in the egui flow: name, parent with confirm-to-create; existing target refused; cancel is silent). The workspace is built here: a root `Cargo.toml` with `members = ["crates/*"]`, `[workspace.package]` (version and the edition the installed cargo uses, read from a throwaway `cargo new`) and an empty `[workspace.dependencies]`, resolver 3 for edition 2024 and newer else 2, `.gitignore`, a first member whose version and edition inherit, `git init -b main`. `:RustNewMember` adds a member to the workspace of the current buffer (glob or explicit list, layout kept). Failures show cargo's first stderr line and leave nothing behind. Spec `rust-new`.
 - Dashboard: with 14 entries the layouts were too short. The thresholds now follow the number of entries (tall `2n + 11` rows, header `n + 12`, no header below), so every entry and key is visible at 80x24, 100x30 and 190x50 (and down to 80x18). `config/egui_new.lua` exports `cargo_name`, `ask`, `default_parent`, `run_async` and `sys` for the new flows; the egui flow itself is unchanged.
 
@@ -35,7 +36,7 @@ All notable changes to this config are documented here.
 - The unknown-crate hint no longer fires in a file with a glob import from a dependency (`use predicates::prelude::*` brings the `predicate` module: a false "crate 'predicate' is not a dependency" on every open of `tests/cli.rs`). `crate_add.scan` and the import engine's `scan_syntax` skip buffers above 20000 lines (`config.max_lines`): both read or walk the whole buffer per edit, 0.4 s each in a 45000-line file.
 - The in-process LSP clients (`xynovim-crates`, the feature fixer) report `on_exit` once from `terminate` / `exit`; they stayed in `vim.lsp.get_clients()` as stopped entries, two more per restart.
 - cargo-machete and cargo-deny findings on dotted or quoted dependency keys (`itoa.workspace = true`, `"time".workspace = true`) land on their own line, not line 1.
-- Media: the recordings commit added screenshots, GIFs and MP4s beyond the counts of the showcase entry below (now 55 PNG, 13 GIF, 13 MP4 in `docs/media/`).
+- Media: the recordings commit added screenshots, GIFs and MP4s beyond the counts of the showcase entry below (now 77 PNG, 15 GIF, 15 MP4 in `docs/media/`, with the recording of the new Rust project flows, tape `15-rust-new`).
 - Test counts in README and `docs/TESTING.md` agree with the suite.
 
 ### Changed (macros and dependencies)

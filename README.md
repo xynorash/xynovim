@@ -261,7 +261,19 @@ my-ws/
 - **Options**: `vim.g.xynovim_projects_dir`.
 - **Dashboard sizes**: the list has 14 entries now. The tall layout (blank line between the entries) needs `2n + 11` rows (39), consecutive lines with the header need `n + 12` (26), and below that the header is hidden, so every entry and its key stay visible from 80x18 up (80x24, 100x30 and 190x50 are tested in a real terminal).
 
-<!-- screenshot: docs/media/15-rust-new-dashboard.png (the dashboard with the three entries; filled by the media step) -->
+**In action.** Recorded with `docs/media/record.sh 15-rust-new`: the dashboard with all entries, then the workspace flow (key `w`, the workspace name `inventory`, the parent directory, the kind `library`, the member name prefilled as `inventory-core`), the creation notification with the layout, the tree (`crates/inventory-core`, `Cargo.toml`, `.gitignore`), the root `Cargo.toml` (`[workspace]`, resolver, `[workspace.package]`) and the member `Cargo.toml` with `version.workspace` and `edition.workspace`; last a binary (`:RustNewBin`, name `hello-bin`) ending in `src/main.rs`. The parent directory is a temp directory (`/tmp/xyno-rust-demo`, removed by `record.sh`), never `~/projects`.
+
+| | | |
+| --- | --- | --- |
+| ![the dashboard with the three Rust entries and New egui Project](docs/media/15-rust-new-dashboard.png) | ![workspace name inventory](docs/media/15-rust-new-workspace-name.png) | ![parent directory](docs/media/15-rust-new-workspace-directory.png) |
+| ![kind of the first member: binary or library](docs/media/15-rust-new-workspace-kind-library.png) | ![member name prefilled inventory-core](docs/media/15-rust-new-workspace-member.png) | ![the creation notification with the layout](docs/media/15-rust-new-workspace-created.png) |
+| ![the tree with crates/inventory-core, Cargo.toml and .gitignore](docs/media/15-rust-new-workspace-tree.png) | ![root Cargo.toml: workspace, resolver, workspace.package](docs/media/15-rust-new-workspace-cargo-toml.png) | ![member Cargo.toml with the inherited fields](docs/media/15-rust-new-member-cargo-toml.png) |
+| ![binary name hello-bin](docs/media/15-rust-new-bin-name.png) | ![parent directory for the binary](docs/media/15-rust-new-bin-directory.png) | ![the creation notification of the binary](docs/media/15-rust-new-bin-created.png) |
+| ![the binary opened in src/main.rs](docs/media/15-rust-new-bin-main-rs.png) | | |
+
+![New Rust projects recording](docs/media/15-rust-new.gif)
+
+Video: [15-rust-new.mp4](docs/media/15-rust-new.mp4)
 
 ## New egui project
 

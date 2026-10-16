@@ -20,7 +20,7 @@ command -v chromium >/dev/null || command -v chromium-browser >/dev/null || comm
   { echo "record.sh: chromium not found" >&2; exit 1; }
 
 work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+trap 'rm -rf "$work" "${TMPDIR:-/tmp}/xyno-rust-demo"' EXIT # the second is the parent directory of 15-rust-new
 cp -r "$repo/docs/media/tapes/support" "$work/support" # helper scripts the tapes call as ../support/<name>.sh
 
 stage_egui_template() { # the template ZIP, fetched once from the real repo, served to nvim as a file:// base_url
