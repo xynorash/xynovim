@@ -7,7 +7,7 @@
 [![ci](https://github.com/xynorash/xynovim/actions/workflows/ci.yml/badge.svg)](https://github.com/xynorash/xynovim/actions/workflows/ci.yml)
 ![neovim 0.12](https://img.shields.io/badge/neovim-0.12-57a143?logo=neovim&logoColor=white)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
-![tests](https://img.shields.io/badge/tests-1649%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-1708%20passing-brightgreen)
 
 ![xynovim editing the netwatch demo crate: Island Dark theme, inlay hints, sticky scope from treesitter-context, statusline with git branch, server state and clippy state](docs/media/01-hero.png)
 
@@ -23,7 +23,7 @@ Built on [LazyVim](https://github.com/LazyVim/LazyVim), for Linux (Arch is what 
 - **A debugger and a test runner that look like the ones in an IDE**: breakpoints with Rust-aware variable views, a test summary tree, coverage in the gutter.
 - **A safety net**: every save is snapshotted as a git ref (a "Local History"), and the AI agent runs inside a sandbox.
 - **Treesitter everywhere**: sticky scope, text objects, SQL injected into `sqlx` strings, a live syntax-tree view.
-- **Tested**: 1649 passing checks across 34 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
+- **Tested**: 1708 passing checks across 35 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
 
 ## Tour
 
@@ -159,10 +159,11 @@ Why a script and not just `nvim --headless '+Lazy! restore' +qa`: on an empty pl
 | `<leader>9…` | the 99 agent: `9v` vibe, `9s` search, `9o` last interaction, `9x` stop |
 | `<leader>H`, `<C-e>`, `<M-1..4>` | harpoon: add file, menu, jump |
 | `<leader>uO`, `uB`, `uu` | toggle editor transparency, colour-blind diagnostics, undotree |
+| dashboard `b`, `i`, `w`, `e` | new Rust binary, library, workspace, egui project |
 
 ## Commands
 
-`:RustContext` (features and target for both tiers), `:RustTargets`, `:RustTools`, `:RustNew`, `:EguiNew` (new egui project from the current eframe_template, also on the dashboard), `:RustRoutes` (axum / actix / rocket routes), `:RustRestart`, `:CrateAdd`, `:CrateFeatures`, `:ImportName`, `:ImportForget`, `:ImportOrganize`, `:MacroAttrs`, `:MacroExpand`, `:MacroSignature`, `:MacroFormatFix`, `:ProcMacroStatus`, `:ActJob` (run the GitHub Actions job under the cursor with `act`), `:LocalHistory`, `:LocalHistoryRestore`, `:LocalHistoryPrune`, `:ColorblindDiagnostics`, `:checkhealth xynovim`. Plugin management is stock LazyVim: `:Lazy sync` updates (the update checker is off), `:LazyExtras` toggles extras, `:Mason` manages language servers.
+`:RustContext` (features and target for both tiers), `:RustTargets`, `:RustTools`, `:RustNew`, `:RustNewBin`, `:RustNewLib`, `:RustNewWorkspace`, `:RustNewMember` (new binary, library or workspace, also on the dashboard), `:EguiNew` (new egui project from the current eframe_template, also on the dashboard), `:RustRoutes` (axum / actix / rocket routes), `:RustRestart`, `:CrateAdd`, `:CrateFeatures`, `:ImportName`, `:ImportForget`, `:ImportOrganize`, `:MacroAttrs`, `:MacroExpand`, `:MacroSignature`, `:MacroFormatFix`, `:ProcMacroStatus`, `:ActJob` (run the GitHub Actions job under the cursor with `act`), `:LocalHistory`, `:LocalHistoryRestore`, `:LocalHistoryPrune`, `:ColorblindDiagnostics`, `:checkhealth xynovim`. Plugin management is stock LazyVim: `:Lazy sync` updates (the update checker is off), `:LazyExtras` toggles extras, `:Mason` manages language servers.
 
 ## Macros and dependencies
 
@@ -226,6 +227,42 @@ Video: [12-attributes.mp4](docs/media/12-attributes.mp4)
 
 Video: [13-imports.mp4](docs/media/13-imports.mp4)
 
+## New Rust projects
+
+Three entries on the dashboard and four commands (the older `:RustNew` picker for a crate in the current directory stays):
+
+| Dashboard | Command | What it creates |
+| --- | --- | --- |
+| **New Rust Binary** (`b`) | `:RustNewBin [name]` | `cargo new --bin --vcs git <name>`: `Cargo.toml` (the edition your cargo uses today), `src/main.rs`, `.gitignore`, a git repository |
+| **New Rust Library** (`i`) | `:RustNewLib [name]` | `cargo new --lib --vcs git <name>`: the same with `src/lib.rs`; a name with hyphens shows the crate identifier it will have (`my-lib` becomes `my_lib` in Rust code) |
+| **New Rust Workspace** (`w`) | `:RustNewWorkspace [name]` | a workspace with a first member (below) |
+| | `:RustNewMember [name]` | adds a binary or library member to the workspace of the current buffer |
+
+`b`, `i` and `w` were free (taken: `f n p g r c s x l q e`; `i` stands for the library, `l` is Lazy). The entries sit before **New egui Project**.
+
+- **Prompts** (a binary / library): project name, parent directory (`vim.g.xynovim_projects_dir`, else `~/projects` if it exists, else the current directory; a missing one is created only after a yes). An existing target is refused and cancelling any prompt ends the command silently. The same cargo name rules as the egui flow (not empty, at most 64 characters, starts with a letter or `_`, ASCII letters, digits, `_` and `-`, no Rust keyword, nothing cargo reserves such as `test`, `core`, `std`, `alloc`, `proc_macro`); hyphens stay (cargo accepts them). Then the command does `cd` into the project, opens `src/main.rs` (`src/lib.rs`) and says what to do next (`cargo run`).
+- **Workspace**: cargo has no one-step command for it, so it is built here. Prompts: workspace name, parent directory, the kind of the first member (`binary` / `library`, asked first) and the member's name (prefilled `<workspace>-app` or `<workspace>-core`). Layout:
+
+```
+my-ws/
+  Cargo.toml        [workspace] resolver = "3", members = ["crates/*"]
+                    [workspace.package] version = "0.1.0", edition = "2024"
+                    [workspace.dependencies] (empty)
+  .gitignore        /target
+  crates/
+    my-ws-app/
+      Cargo.toml    version.workspace = true, edition.workspace = true
+      src/main.rs   (src/lib.rs for a library)
+```
+
+  The edition is whatever the installed cargo writes into a new project (read once per session from a throwaway `cargo new`, never hard-coded), the resolver is `3` for edition 2024 and newer, else `2`. The `crates/*` glob picks up later members without editing the manifest. `git init -b main` runs without a commit (skipped with a note when git is missing). Afterwards the command does `cd` to the workspace root, opens the member's source file and notifies the layout and the next steps (`cargo run -p <member>`, `<leader>rX` lists the cargo targets).
+- **`:RustNewMember`**: finds the workspace through `config.rust_context.root` (the current buffer, else the cwd), asks the kind and the name and creates `crates/<name>` (or the directory of the manifest's `dir/*` glob) with the same inheritance rewrite. It refuses outside a workspace that has a `members = [...]` list, and a name that collides with an existing member (`my-core` and `my_core` count as the same). An explicit list gets the new path added with its layout kept; keys the workspace's `[workspace.package]` lacks stay in the member.
+- **Failures**: everything is async with a progress notification. When cargo fails its first stderr line is shown and whatever the run created (the project, the whole workspace directory, parent directories it made) is removed again; a restored manifest for `:RustNewMember`. cargo missing is one clear message.
+- **Options**: `vim.g.xynovim_projects_dir`.
+- **Dashboard sizes**: the list has 14 entries now. The tall layout (blank line between the entries) needs `2n + 11` rows (39), consecutive lines with the header need `n + 12` (26), and below that the header is hidden, so every entry and its key stay visible from 80x18 up (80x24, 100x30 and 190x50 are tested in a real terminal).
+
+<!-- screenshot: docs/media/15-rust-new-dashboard.png (the dashboard with the three entries; filled by the media step) -->
+
 ## New egui project
 
 The dashboard has a **New egui Project** entry (`e`) and there is the command `:EguiNew [name]`. Both follow the steps of [emilk/eframe_template](https://github.com/emilk/eframe_template) against the **current** template: the ZIP of its `main` branch is downloaded every time (never a copy kept in this config) and personalised, so a new egui or eframe release of the template is picked up without touching the config.
@@ -250,7 +287,7 @@ Video: [14-egui-new.mp4](docs/media/14-egui-new.mp4)
 
 ## Tests: run them yourself
 
-The config ships with an automated suite: **34 spec files, 1649 checks passing, 23 skipped with a stated reason, 0 failing**, in about twelve minutes. Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
+The config ships with an automated suite: **35 spec files, 1708 checks passing, 23 skipped with a stated reason, 0 failing**, in about twelve minutes. Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
 
 ```sh
 scripts/test.sh                  # everything (or: make test)
@@ -291,7 +328,7 @@ docs/media/record.sh 05-tests   # one tape
 ## Layout
 
 ```
-lua/config/    options, keymaps, autocmds, remote clipboard, statusline/UX helpers, local_history, disk_guard, rust_context/nav/tasks/routes/assist/restart, egui_new, lsp_status, lazy, agent_sandbox, crate_meta/crate_add/crate_features/crate_import, import_engine, macro_attrs, macro_tools, code_actions
+lua/config/    options, keymaps, autocmds, remote clipboard, statusline/UX helpers, local_history, disk_guard, rust_context/nav/tasks/routes/assist/restart, egui_new, rust_new, lsp_status, lazy, agent_sandbox, crate_meta/crate_add/crate_features/crate_import, import_engine, macro_attrs, macro_tools, code_actions
 lua/xynovim/   :checkhealth xynovim
 snippets/       rust.json (registered with blink)
 data/          macro_attrs/*.json: attribute schemas (serde, clap, thiserror, tokio, ...) for the completion inside `#[...(`

@@ -681,13 +681,15 @@ describe("snacks dashboard sections", function()
     H.eq("startup", s[4].section)
   end)
 
-  it("enable the right keys section at 36 rows and above/below", function()
-    local s = opts_of("snacks.nvim").dashboard.sections
+  it("enable the right keys section from 2n + 11 rows (n entries: 39 with today's 14) and above/below", function()
+    local o = opts_of("snacks.nvim")
+    local s = o.dashboard.sections
+    local need = 2 * #o.dashboard.preset.keys + 11
     local lines = vim.o.lines
     local ok, err = pcall(function()
-      for _, n in ipairs({ 24, 35, 36, 50 }) do
+      for _, n in ipairs({ 24, need - 1, need, 50 }) do
         vim.o.lines = n
-        local tall = n >= 36
+        local tall = n >= need
         H.eq(tall, s[2].enabled(), "tall section at " .. n)
         H.eq(not tall, s[3].enabled(), "short section at " .. n)
       end

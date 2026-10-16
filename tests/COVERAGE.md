@@ -2,7 +2,7 @@
 
 Which spec exercises which feature of the config, and what is not tested (with the reason).
 Line coverage is a different measure (`scripts/test.sh --coverage`); this table is about features.
-Counts are from the last full run: 1611 passed, 0 failed, 23 skipped (34 spec files). Skips are
+Counts are from the last full run: 1708 passed, 0 failed, 23 skipped (35 spec files). Skips are
 `pending` entries or tests that need something this machine lacks (not testable here). A bug a spec
 finds is written as an assertion of the correct behaviour (skipped while it reproduces); the ones
 found so far are fixed (listed at the end).
@@ -40,6 +40,7 @@ found so far are fixed (listed at the end).
 | Attribute and derive completion, schemas, project overrides, `:MacroAttrs` (`macro_attrs.lua`, `data/macro_attrs/`) | `macro-attrs` | pure core driven table-wise; blink menu not on screen |
 | Macro signature / format / sqlx hints, `:MacroExpand` lens, `:ProcMacroStatus`, `<leader>rx/rq` (`macro_tools.lua`) | `macro-tools` | lens and status windows asserted, not looked at in a terminal |
 | Cross-module flows: no-deps crate to import, missing feature fix, `#[serde(` after the fix, ambiguous `Error` remembered | `macros-deps-flows` | on temp fixture copies; skips without network, cargo or rust-analyzer |
+| New Rust projects: `:RustNewBin`, `:RustNewLib`, `:RustNewWorkspace`, `:RustNewMember`, the three dashboard entries and their layouts at 80x24 / 100x30 / 190x50 and more (`rust_new.lua`, `plugins/rust-new.lua`, the dashboard override in `plugins/editing-ui.lua`) | `rust-new` | pure functions table-wise; the flows run the real `cargo` offline in temp directories (`cargo metadata`, `cargo check`); failure paths with a stub `cargo`, an empty PATH and a read-only parent (skips as root); the dashboard rendered in tmux; the prompts are stubbed, the three flows were also driven by hand in tmux at 80x24 |
 | New egui project: `:EguiNew`, the dashboard entry, name / author rules, replacement rules, ETag cache, archive checks, toolchain pin removal and the minimum Rust version check (`egui_new.lua`, `plugins/egui.lua`) | `egui-new` | fake template over `file://` and a local HTTP server; one real-network test (skips offline); no `cargo` build in the suite; the version check runs against a stub `rustc` on PATH (older / equal / newer / missing / garbage), and a stub `rustup` proves it is never called; the real template was generated and checked once by hand |
 
 ## Features without a test, or only partly tested

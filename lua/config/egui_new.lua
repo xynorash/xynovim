@@ -46,9 +46,10 @@ for w in ("egui eframe log serde env_logger wasm_bindgen_futures wasm_bindgen we
   DEPENDENCIES[w] = true
 end
 
---- Validate a project name. Returns crate, nil, note on success (note: what was
---- converted, or nil) and nil, reason on failure.
-function M.validate_name(raw)
+--- The cargo rules for a package name, shared with config.rust_new. Returns
+--- crate, nil, note on success (crate: the identifier with '-' as '_'; note: what
+--- was converted, or nil) and nil, reason on failure.
+function M.cargo_name(raw)
   local name = vim.trim(raw or "")
   if name == "" then
     return nil, "the name is empty"
@@ -73,13 +74,23 @@ function M.validate_name(raw)
   if RESERVED[crate] then
     return nil, ("'%s' is reserved by cargo / the standard library"):format(crate)
   end
+  return crate, nil, crate ~= name and ("crate name: " .. crate) or nil
+end
+
+--- Validate a project name. Returns crate, nil, note on success (note: what was
+--- converted, or nil) and nil, reason on failure.
+function M.validate_name(raw)
+  local crate, why, note = M.cargo_name(raw)
+  if not crate then
+    return nil, why
+  end
   if crate == TOKEN then
     return nil, "'eframe_template' is the template's own name: pick another"
   end
   if DEPENDENCIES[crate] then
     return nil, ("'%s' is the name of a dependency of the template"):format(crate)
   end
-  return crate, nil, crate ~= name and ("crate name: " .. crate) or nil
+  return crate, nil, note
 end
 
 --- Human-readable title of a crate name: 'weather_panel' -> 'weather panel'.
@@ -533,6 +544,9 @@ local function run_async(fn, cb)
   step()
 end
 
+M.sys = sys
+M.run_async = run_async
+
 local function fail(msg)
   error(msg, 0)
 end
@@ -899,27 +913,31 @@ local function expand_dir(s)
 end
 M.expand_dir = expand_dir
 
+M.default_parent = default_parent
+
 local MAX_RETRIES = 10
 
 --- Ask in sequence; a cancelled prompt (nil) ends everything silently.
-local function ask(prompt, default, check, cb, tries)
+local function ask(prompt, default, check, cb, tries, label)
   tries = tries or 0
+  label = label or "EguiNew"
   vim.ui.input({ prompt = prompt, default = default }, function(v)
     if v == nil then
       return
     end
     local value, why = check(v)
     if why then
-      vim.notify("EguiNew: " .. why, vim.log.levels.WARN, { title = "EguiNew" })
+      vim.notify(label .. ": " .. why, vim.log.levels.WARN, { title = label })
       if tries >= MAX_RETRIES then
         return
       end
       local base = prompt:gsub(" %(.-%):", ":"):gsub(":%s*$", "")
-      return ask(base .. " (" .. why .. "): ", v, check, cb, tries + 1)
+      return ask(base .. " (" .. why .. "): ", v, check, cb, tries + 1, label)
     end
     cb(value)
   end)
 end
+M.ask = ask
 
 --- :EguiNew [name]: prompt for the details, then create the project.
 function M.new(name_arg)

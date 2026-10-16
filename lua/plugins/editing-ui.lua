@@ -98,18 +98,28 @@ return {
     end,
   },
 
-  -- Dashboard: the stock layout (6 header lines, a blank line between the 10
-  -- entries) needs 36 rows; at 80x24 the last entries and the footer were
-  -- cut off. On a short window the entries sit on consecutive lines.
+  -- Dashboard: the stock layout (6 header lines, a blank line between the entries) needs 2n + 11
+  -- rows for n entries (39 for today's 14: measured, the footer is the last line to disappear;
+  -- 36 for the stock 10 entries); at 80x24 the last entries and the footer were cut off. On a
+  -- shorter window the entries sit on consecutive lines (n + 12 rows with the header: 26), and
+  -- below that the header goes, so every entry and its key stay on screen down to about 18 rows.
   {
     "folke/snacks.nvim",
     opts = function(_, opts)
+      local function entries()
+        return #((opts.dashboard.preset or {}).keys or {})
+      end
       local function tall()
-        return vim.o.lines >= 36
+        return vim.o.lines >= 2 * entries() + 11
       end
       opts.dashboard = opts.dashboard or {}
       opts.dashboard.sections = {
-        { section = "header" },
+        {
+          section = "header",
+          enabled = function()
+            return vim.o.lines >= entries() + 12
+          end,
+        },
         { section = "keys", gap = 1, padding = 1, enabled = tall },
         {
           section = "keys",
