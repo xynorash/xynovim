@@ -10,5 +10,5 @@ export GIT_CONFIG_GLOBAL="$here/egui-gitconfig"
 export XYNO_EGUI_BASE="file://$here/egui-stage" XYNO_EGUI_PARENT="$here/egui-projects"
 nvim() {
   XDG_CACHE_HOME="$here/egui-cache" command nvim \
-    --cmd "lua vim.g.xynovim_egui_template = { base_url = os.getenv('XYNO_EGUI_BASE') }; vim.g.xynovim_projects_dir = os.getenv('XYNO_EGUI_PARENT'); vim.g.xynovim_egui_keep_toolchain_pin = false" "$@"
+    --cmd "lua vim.g.xynovim_egui_template = { base_url = os.getenv('XYNO_EGUI_BASE') }; vim.g.xynovim_projects_dir = os.getenv('XYNO_EGUI_PARENT')" "$@"
 }

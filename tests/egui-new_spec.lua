@@ -37,18 +37,12 @@ before_each(function()
   vim.fn.delete(cache_dir(), "rf")
   for _, k in ipairs({
     "xynovim_egui_template",
-    "xynovim_egui_keep_toolchain_pin",
-    "xynovim_egui_prepare_toolchain",
     "xynovim_egui_build_after_new",
     "xynovim_projects_dir",
   }) do
     saved_g[k] = vim.g[k]
     vim.g[k] = nil
   end
-  -- never touch the real rustup from the flow specs
-  stub(E, "have_rustup", function()
-    return false
-  end)
 end)
 
 after_each(function()
@@ -634,19 +628,19 @@ describe("egui_new.md_section / readme", function()
   end)
 
   it("builds the README from the template's sections", function()
-    local r = E.readme({ title = "my gui app", crate = "my_gui_app", template_readme = TEMPLATE_README, pin = "1.95.0" })
+    local r = E.readme({ title = "my gui app", crate = "my_gui_app", template_readme = TEMPLATE_README })
     H.match(r, "^# my gui app\n")
     H.has(r, "cargo run --release")
     H.has(r, "libxkbcommon-dev")
     H.has(r, "trunk serve")
     H.has(r, "https://github.com/emilk/eframe_template")
     H.has(r, "xynovim")
-    H.has(r, "pins Rust 1.95.0")
+    H.no_match(r, "## Toolchain", true)
     H.has(r, "MIT OR Apache-2.0")
     H.no_match(r, "Web Deploy", true)
   end)
 
-  it("falls back to generic text without the sections or a pin", function()
+  it("falls back to generic text without the sections", function()
     local r = E.readme({ title = "t", crate = "t" })
     H.has(r, "cargo run --release")
     H.has(r, "trunk serve")
@@ -667,7 +661,6 @@ describe("egui_new.create with a fake template (file://)", function()
     H.is_nil(err, err)
     local dir = parent .. "/my_gui_app"
     H.eq(dir, info.dir)
-    H.eq("1.95.0", info.pin)
     H.eq({}, leftovers(parent))
     H.eq({ "my_gui_app" }, vim.tbl_map(vim.fs.basename, vim.fn.glob(parent .. "/*", true, true)))
 
@@ -690,10 +683,11 @@ describe("egui_new.create with a fake template (file://)", function()
     H.match(read(dir .. "/README.md"), "^# my gui app\n")
     H.is_nil(vim.uv.fs_stat(dir .. "/fill_template.sh"))
     H.is_nil(vim.uv.fs_stat(dir .. "/fill_template.ps1"))
-    -- licenses untouched, binary files untouched (NUL sniff), toolchain pin kept
+    -- licenses untouched, binary files untouched (NUL sniff), the toolchain pin removed
     H.eq("Apache License eframe_template\n", read(dir .. "/LICENSE-APACHE"))
     H.eq("eframe_template\0\1\2", read(dir .. "/assets/blob.bin"))
-    H.eq(TOOLCHAIN, read(dir .. "/rust-toolchain"))
+    H.is_nil(vim.uv.fs_lstat(dir .. "/rust-toolchain"), "the template's toolchain pin is not copied")
+    H.has(toml, 'rust-version = "1.95"\n')
     -- git init, no commit
     H.ok(vim.uv.fs_stat(dir .. "/.git"))
     local head = vim.system({ "git", "-C", dir, "symbolic-ref", "--short", "HEAD" }, { text = true }):wait()
@@ -720,15 +714,24 @@ describe("egui_new.create with a fake template (file://)", function()
     H.has(read(parent .. "/a_two/Cargo.toml"), 'authors = ["Solo"]')
   end)
 
-  it("vim.g.xynovim_egui_keep_toolchain_pin = false deletes the pin", function()
-    file_template()
-    vim.g.xynovim_egui_keep_toolchain_pin = false
-    local parent = H.tmpdir()
-    local err, info = create({ crate = "np", author_name = "", author_email = "", parent = parent })
-    H.is_nil(err, err)
-    H.is_nil(info.pin)
-    H.is_nil(vim.uv.fs_stat(parent .. "/np/rust-toolchain"))
-    H.not_ok(read(parent .. "/np/README.md"):find("## Toolchain", 1, true))
+  it("removes the toolchain pin in every form (legacy one-line, rust-toolchain.toml) and keeps rust-version byte for byte", function()
+    local forms = {
+      { { name = "rust-toolchain", text = "1.95.0\n" } },
+      { { name = "rust-toolchain", text = TOOLCHAIN }, { name = "rust-toolchain.toml", text = TOOLCHAIN } },
+      { { name = "rust-toolchain.toml", text = TOOLCHAIN }, { name = "rust-toolchain", text = "" } },
+    }
+    for i, extra in ipairs(forms) do
+      file_template(extra)
+      local parent = H.tmpdir()
+      local err = create({ crate = "np" .. i, author_name = "", author_email = "", parent = parent })
+      H.is_nil(err, err)
+      local dir = parent .. "/np" .. i
+      H.is_nil(vim.uv.fs_lstat(dir .. "/rust-toolchain"), "form " .. i)
+      H.is_nil(vim.uv.fs_lstat(dir .. "/rust-toolchain.toml"), "form " .. i)
+      H.eq(E.parse_rust_version(CARGO_TOML), E.parse_rust_version(read(dir .. "/Cargo.toml")))
+      H.has(read(dir .. "/Cargo.toml"), '\nrust-version = "1.95"\n')
+      H.no_match(read(dir .. "/README.md"), "toolchain", true)
+    end
   end)
 
   it("does not depend on today's file list: new files with the token are handled too", function()
@@ -989,7 +992,6 @@ describe(":EguiNew prompts", function()
     H.has(done.msg, "cargo run --release")
     H.has(done.msg, "<leader>rX")
     H.has(done.msg, "trunk serve")
-    H.has(done.msg, "1.95.0")
     H.has(read(dir .. "/Cargo.toml"), 'authors = ["Pre Filled <pre@filled.org>"]')
   end)
 
@@ -1265,8 +1267,17 @@ describe("the real template (network)", function()
     H.has(read(dir .. "/index.html"), "<title>my gui app</title>")
     H.has(read(dir .. "/Cargo.toml"), 'authors = ["Jane Doe <jane@example.com>"]')
     H.is_nil(vim.uv.fs_stat(dir .. "/fill_template.sh"))
+    -- no toolchain pin; the template's rust-version stays as it is
+    H.is_nil(vim.uv.fs_lstat(dir .. "/rust-toolchain"))
+    H.is_nil(vim.uv.fs_lstat(dir .. "/rust-toolchain.toml"))
+    local tpl = vim.system({ "unzip", "-p", cache_dir() .. "/egui-template.zip", "*/Cargo.toml" }, { text = true }):wait(15000)
+    H.eq(0, tpl.code)
+    local want = E.parse_rust_version(tpl.stdout)
+    if want then
+      H.eq(want, E.parse_rust_version(read(dir .. "/Cargo.toml")))
+    end
     if vim.fn.executable("cargo") == 1 then
-      -- RUSTUP_TOOLCHAIN=stable: the project's rust-toolchain would make rustup download 1.95.0
+      -- RUSTUP_TOOLCHAIN=stable: never let rustup fetch another toolchain from inside the suite
       local m = vim.system({ "cargo", "read-manifest" }, { cwd = dir, text = true, env = { RUSTUP_TOOLCHAIN = "stable" } }):wait(60000)
       if m.code == 0 then
         local manifest = vim.json.decode(m.stdout)
@@ -1277,390 +1288,206 @@ describe("the real template (network)", function()
   end)
 end)
 
-describe("egui_new.parse_pin", function()
-  local cases = {
-    { "1.95.0\n", { channel = "1.95.0", components = {}, targets = {} } },
-    { "  stable  \n\n", { channel = "stable", components = {}, targets = {} } },
-    { "# note\nnightly-2026-01-01 # trailing\n", { channel = "nightly-2026-01-01", components = {}, targets = {} } },
-    { '[toolchain]\nchannel = "1.95.0"\n', { channel = "1.95.0", components = {}, targets = {} } },
-    {
-      '[toolchain]\nchannel = "1.95.0"\ncomponents = ["rustfmt", "clippy"]\ntargets = ["wasm32-unknown-unknown"]\n',
-      { channel = "1.95.0", components = { "rustfmt", "clippy" }, targets = { "wasm32-unknown-unknown" } },
-    },
-    {
-      "[toolchain]\nchannel = '1.95.0'\ncomponents = [\n  \"rustfmt\", # fmt\n  \"clippy\",\n]\n",
-      { channel = "1.95.0", components = { "rustfmt", "clippy" }, targets = {} },
-    },
-    { '[toolchain]\r\nchannel = "stable"\r\ntargets = ["wasm32-unknown-unknown"]\r\n', { channel = "stable", components = {}, targets = { "wasm32-unknown-unknown" } } },
-    { '# comment\n[toolchain]\nprofile = "minimal"\nchannel="beta"\n', { channel = "beta", components = {}, targets = {} } },
-    { "[toolchain]\nchannel = 1.95.0\n", { channel = "1.95.0", components = {}, targets = {} } },
-    { '[toolchain]\nchannel = "/opt/tc"\n', { channel = "/opt/tc", components = {}, targets = {} } },
-    { '[toolchain]\npath = "/opt/tc"\n', nil },
+describe("egui_new minimum Rust version: pure functions", function()
+  local versions = {
+    { "1.95", { 1, 95, 0 } },
+    { "1.95.0", { 1, 95, 0 } },
+    { "1.95.3", { 1, 95, 3 } },
+    { "1", { 1, 0, 0 } },
+    { "1.95.0-nightly", { 1, 95, 0 } },
+    { "1.96.0-beta.2", { 1, 96, 0 } },
+    { " 1.95 ", { 1, 95, 0 } },
+    { "1.95.", nil },
+    { "1..2", nil },
+    { "1.2.3.4", nil },
+    { "x.y", nil },
     { "", nil },
-    { "# only a comment\n", nil },
+    { "stable", nil },
+    { "1.95junk", nil },
   }
-  for i, c in ipairs(cases) do
-    it("form " .. i, function()
-      H.eq(c[2], E.parse_pin(c[1]))
+  for i, c in ipairs(versions) do
+    it(("parse_version %q"):format(c[1]), function()
+      H.eq(c[2], E.parse_version(c[1]), "case " .. i)
     end)
   end
-  it("a non-string is nil", function()
-    H.is_nil(E.parse_pin(nil))
-  end)
-end)
 
-describe("egui_new toolchain plan and detection", function()
-  it("builds the install argv: editor components first, then the file's, then targets", function()
-    local plan = E.toolchain_plan(E.parse_pin(
-      '[toolchain]\nchannel = "1.95.0"\ncomponents = ["rustfmt", "clippy", "rust-src"]\ntargets = ["wasm32-unknown-unknown"]\n'
-    ))
-    H.eq({
-      "rustup", "toolchain", "install", "1.95.0", "--profile", "minimal",
-      "--component", "rust-analyzer", "--component", "clippy", "--component", "rustfmt", "--component", "rust-src",
-      "--target", "wasm32-unknown-unknown",
-    }, E.install_argv(plan))
-  end)
-
-  it("refuses paths, odd characters and a leading dash; skips odd components and targets", function()
-    for _, ch in ipairs({ "/opt/tc", "../x", "a b", "1.95;rm", "-x", "a$b", "" }) do
-      local plan, note = E.toolchain_plan({ channel = ch, components = {}, targets = {} })
-      H.is_nil(plan, ch)
-      H.ok(note, ch)
-    end
-    local plan = E.toolchain_plan({ channel = "stable", components = { "rust-src", "bad name", "--evil" }, targets = { "x;y", "wasm32-unknown-unknown" } })
-    H.eq({ "rust-analyzer", "clippy", "rustfmt", "rust-src" }, plan.components)
-    H.eq({ "wasm32-unknown-unknown" }, plan.targets)
-    H.eq({ "bad name", "--evil", "x;y" }, plan.skipped)
-    H.is_nil(E.toolchain_plan(nil))
-  end)
-
-  it("builds the detection argv", function()
-    H.eq({ "rustup", "toolchain", "list" }, E.list_argv)
-    H.eq({ "rustup", "component", "list", "--installed", "--toolchain", "1.95.0" }, E.components_argv("1.95.0"))
-  end)
-
-  it("reads `rustup toolchain list` and `component list --installed` output", function()
-    local l = "stable-x86_64-unknown-linux-gnu (default)\n1.95.0-x86_64-unknown-linux-gnu\nnightly-2026-01-01-x86_64-unknown-linux-gnu\n"
-    H.ok(E.toolchain_listed(l, "stable"))
-    H.ok(E.toolchain_listed(l, "1.95.0"))
-    H.ok(E.toolchain_listed(l, "nightly-2026-01-01"))
-    H.not_ok(E.toolchain_listed(l, "1.95"))
-    H.not_ok(E.toolchain_listed(l, "beta"))
-    H.not_ok(E.toolchain_listed("no installed toolchains\n", "stable"))
-    H.ok(E.has_rust_analyzer("cargo-x86_64-unknown-linux-gnu\nrust-analyzer-x86_64-unknown-linux-gnu\n"))
-    H.ok(E.has_rust_analyzer("rust-analyzer\n"))
-    H.not_ok(E.has_rust_analyzer("cargo-x86_64-unknown-linux-gnu\nrustfmt-x86_64-unknown-linux-gnu\n"))
-  end)
-
-  it("parses the real installed-components output of the local stable toolchain", function()
-    if vim.fn.executable("rustup") ~= 1 then
-      return skip("rustup not found")
-    end
-    local o = vim.system({ "rustup", "component", "list", "--installed", "--toolchain", "stable" }, { text = true }):wait(20000)
-    if o.code ~= 0 then
-      return skip("stable toolchain not installed")
-    end
-    H.ok(o.stdout:find("cargo", 1, true), o.stdout)
-    H.eq(o.stdout:find("rust%-analyzer") ~= nil, E.has_rust_analyzer(o.stdout))
-  end)
-end)
-
-describe("egui_new.prepare_toolchain (stubbed rustup)", function()
-  local PIN = '[toolchain]\nchannel = "1.95.0"\ncomponents = ["rustfmt", "clippy"]\ntargets = ["wasm32-unknown-unknown"]\n'
-  local INSTALL = {
-    "rustup", "toolchain", "install", "1.95.0", "--profile", "minimal",
-    "--component", "rust-analyzer", "--component", "clippy", "--component", "rustfmt",
-    "--target", "wasm32-unknown-unknown",
+  local rustc = {
+    { "rustc 1.99.0 (abcdef123 2026-09-01)\n", { 1, 99, 0 } },
+    { "rustc 1.95.0-nightly (abcdef123 2026-01-01)\n", { 1, 95, 0 } },
+    { "rustc 1.94.1\n", { 1, 94, 1 } },
+    { "error: no default toolchain configured\n", nil },
+    { "", nil },
+    { "rustc\n", nil },
+    { "cargo 1.99.0\n", nil },
   }
+  for _, c in ipairs(rustc) do
+    it(("parse_rustc %q"):format(c[1]:sub(1, 30)), function()
+      H.eq(c[2], E.parse_rustc(c[1]))
+    end)
+  end
 
-  --- replies: function(argv) -> {code, stdout, stderr}; returns the log of argv lists and restart count
-  local function setup(pin, replies, file)
+  it("parse_rust_version reads the [package] field only", function()
+    H.eq("1.95", E.parse_rust_version(CARGO_TOML))
+    H.eq("1.80.1", E.parse_rust_version("[package]\nname = 'x'\nrust-version = '1.80.1' # c\n"))
+    H.eq("1.70", E.parse_rust_version("[package]\r\nrust-version=\"1.70\"\r\n"))
+    H.is_nil(E.parse_rust_version('[package]\nname = "x"\n'))
+    H.is_nil(E.parse_rust_version('[package]\nrust-version.workspace = true\n'))
+    H.is_nil(E.parse_rust_version('[package]\nname = "x"\n[workspace.package]\nrust-version = "1.70"\n'))
+    H.is_nil(E.parse_rust_version(nil))
+  end)
+
+  local cmp = {
+    { { 1, 94, 1 }, { 1, 95, 0 }, true },
+    { { 1, 95, 0 }, { 1, 95, 0 }, false },
+    { { 1, 99, 0 }, { 1, 95, 0 }, false },
+    { { 1, 95, 0 }, { 1, 95, 1 }, true },
+    { { 0, 99, 9 }, { 1, 0, 0 }, true },
+    { { 2, 0, 0 }, { 1, 99, 9 }, false },
+  }
+  for i, c in ipairs(cmp) do
+    it("older case " .. i, function()
+      H.eq(c[3], E.older(c[1], c[2]))
+    end)
+  end
+
+  it("a missing patch component in the requirement counts as .0, a nightly suffix is ignored", function()
+    H.eq(false, E.older(E.parse_rustc("rustc 1.95.0-nightly (x 2026-01-01)"), E.parse_version("1.95")))
+    H.eq(true, E.older(E.parse_rustc("rustc 1.94.9 (x 2026-01-01)"), E.parse_version("1.95")))
+  end)
+end)
+
+describe("egui_new.check_rust_version (stub rustc on PATH)", function()
+  local function with_path(dir)
+    local orig = vim.env.PATH
+    vim.env.PATH = dir .. ":" .. orig
+    restores[#restores + 1] = function()
+      vim.env.PATH = orig
+    end
+  end
+
+  local function stub_bin(dir, name, body)
+    write(dir .. "/" .. name, "#!/bin/sh\n" .. body)
+    vim.uv.fs_chmod(dir .. "/" .. name, tonumber("755", 8))
+  end
+
+  local function project(cargo)
     local dir = H.tmpdir()
-    if pin then
-      write(dir .. "/" .. (file or "rust-toolchain"), pin)
-    end
-    local st = { argv = {}, restarts = 0 }
-    stub(E, "have_rustup", function()
-      return true
-    end)
-    stub(E, "runner", function(argv, cb)
-      st.argv[#st.argv + 1] = argv
-      local r = replies(argv)
-      vim.schedule(function()
-        cb({ code = r[1], stdout = r[2] or "", stderr = r[3] or "" })
-      end)
-    end)
-    stub(E, "restart_lsp", function()
-      st.restarts = st.restarts + 1
-    end)
-    st.cap = H.capture_notify()
-    st.dir = dir
-    return st
+    write(dir .. "/Cargo.toml", cargo or CARGO_TOML)
+    return dir
   end
 
-  local function run(st)
+  local function check(dir)
     local state
-    E.prepare_toolchain(st.dir, function(s)
-      state = s
+    local cap = H.capture_notify()
+    E.check_rust_version(dir, function(st)
+      state = st
     end)
     H.wait_for(function()
       return state
-    end, 5000, "prepare_toolchain finished")
-    return state
+    end, 10000, "the check finished")
+    return state, cap
   end
 
-  it("a second prepare of the same channel while one runs only says so; it may run again afterwards", function()
-    local pending
-    local st = setup(PIN, function(argv)
-      return { 0, argv[3] == "list" and "stable-x86_64-unknown-linux-gnu (default)\n" or "" }
-    end)
-    local r = E.runner
-    stub(E, "runner", function(argv, cb)
-      if argv[3] == "install" then
-        st.argv[#st.argv + 1] = argv
-        pending = cb
-      else
-        r(argv, cb)
-      end
-    end)
-    local s1
-    E.prepare_toolchain(st.dir, function(s)
-      s1 = s
-    end)
-    H.wait_for(function()
-      return pending
-    end, 5000, "install started")
-    local dir2 = H.tmpdir()
-    write(dir2 .. "/rust-toolchain", PIN)
-    local s2
-    E.prepare_toolchain(dir2, function(s)
-      s2 = s
-    end)
-    H.eq("busy", s2)
-    H.ok(find_msg(st.cap, "already preparing toolchain 1%.95%.0"))
-    pending({ code = 0, stdout = "", stderr = "" })
-    H.wait_for(function()
-      return s1
-    end, 5000, "first finished")
-    H.eq("installed", s1)
-    H.eq(2, #st.argv, "only one list and one install ran")
+  it("older rustc: one warning with both versions and the update command", function()
+    local bin = H.tmpdir()
+    stub_bin(bin, "rustc", "echo 'rustc 1.94.1 (abc 2026-01-01)'\n")
+    with_path(bin)
+    local state, cap = check(project())
+    H.eq("old", state)
+    H.eq(1, #cap.list)
+    H.eq(vim.log.levels.WARN, cap.list[1].level)
+    H.has(cap.list[1].msg, "this project needs Rust >= 1.95 (you have 1.94.1): run rustup update stable")
   end)
 
-  it("installs when the toolchain is missing: notice first, exact argv, then restart and notify", function()
-    local st = setup(PIN, function(argv)
-      return { 0, argv[3] == "list" and "stable-x86_64-unknown-linux-gnu (default)\n" or "" }
-    end)
-    H.eq("installed", run(st))
-    H.eq({ "rustup", "toolchain", "list" }, st.argv[1])
-    H.eq(INSTALL, st.argv[2])
-    H.eq(2, #st.argv)
-    H.eq(1, st.restarts)
-    H.match(st.cap.list[1].msg, "preparing toolchain 1.95.0")
-    H.has(st.cap.list[1].msg, "200 MB")
-    H.has(st.cap.list[#st.cap.list].msg, "is ready")
-  end)
-
-  it("installs when the toolchain is there without rust-analyzer (the real failure)", function()
-    local st = setup(PIN, function(argv)
-      if argv[3] == "list" then
-        if argv[2] == "toolchain" then
-          return { 0, "1.95.0-x86_64-unknown-linux-gnu\n" }
-        end
-        return { 0, "cargo-x86_64-unknown-linux-gnu\nrustc-x86_64-unknown-linux-gnu\n" }
-      end
-      return { 0 }
-    end)
-    H.eq("installed", run(st))
-    H.eq({ "rustup", "component", "list", "--installed", "--toolchain", "1.95.0" }, st.argv[2])
-    H.eq(INSTALL, st.argv[3])
-    H.eq(1, st.restarts)
-  end)
-
-  it("skips silently when the toolchain has rust-analyzer already", function()
-    local st = setup(PIN, function(argv)
-      if argv[2] == "toolchain" then
-        return { 0, "1.95.0-x86_64-unknown-linux-gnu\n" }
-      end
-      return { 0, "cargo-x\nrust-analyzer-x86_64-unknown-linux-gnu\n" }
-    end)
-    H.eq("skipped", run(st))
-    H.eq(2, #st.argv)
-    H.eq(0, st.restarts)
-    H.eq(0, #st.cap.list)
-  end)
-
-  it("reads the legacy one-line file and rust-toolchain.toml", function()
-    local st = setup("stable\n", function()
-      return { 0 }
-    end)
-    run(st)
-    H.eq({
-      "rustup", "toolchain", "install", "stable", "--profile", "minimal",
-      "--component", "rust-analyzer", "--component", "clippy", "--component", "rustfmt",
-    }, st.argv[#st.argv])
-    local st2 = setup(PIN, function()
-      return { 0 }
-    end, "rust-toolchain.toml")
-    run(st2)
-    H.eq(INSTALL, st2.argv[#st2.argv])
-  end)
-
-  it("a failed install (offline) keeps everything: one warning with the exact command, no restart", function()
-    local st = setup(PIN, function(argv)
-      if argv[3] == "install" then
-        return { 1, "", "error: could not download file: network unreachable" }
-      end
-      return { 0, "" }
-    end)
-    H.eq("failed", run(st))
-    H.eq(0, st.restarts)
-    local warns = vim.tbl_filter(function(m)
-      return m.level == vim.log.levels.WARN
-    end, st.cap.list)
-    H.eq(1, #warns)
-    H.has(warns[1].msg, table.concat(INSTALL, " "))
-    H.has(warns[1].msg, "network unreachable")
-  end)
-
-  it("no rustup: one warning with the command, nothing is run", function()
-    local st = setup(PIN, function()
-      error("must not run")
-    end)
-    stub(E, "have_rustup", function()
-      return false
-    end)
-    H.eq("no-rustup", run(st))
-    H.eq(0, #st.argv)
-    H.eq(1, #st.cap.list)
-    H.eq(vim.log.levels.WARN, st.cap.list[1].level)
-    H.has(st.cap.list[1].msg, table.concat(INSTALL, " "))
-  end)
-
-  it("vim.g.xynovim_egui_prepare_toolchain = false only says what to run", function()
-    vim.g.xynovim_egui_prepare_toolchain = false
-    local st = setup(PIN, function()
-      error("must not run")
-    end)
-    H.eq("off", run(st))
-    H.eq(0, #st.argv)
-    H.has(st.cap.list[1].msg, table.concat(INSTALL, " "))
-  end)
-
-  it("no pin file: nothing happens", function()
-    local st = setup(nil, function()
-      error("must not run")
-    end)
-    H.eq("nopin", run(st))
-    H.eq(0, #st.argv)
-    H.eq(0, #st.cap.list)
-  end)
-
-  it("a path or odd channel is refused with a note and nothing is run", function()
-    for _, pin in ipairs({ '[toolchain]\nchannel = "/opt/my toolchain"\n', "../evil\n", '[toolchain]\nchannel = "a;b"\n' }) do
-      local st = setup(pin, function()
-        error("must not run")
-      end)
-      H.eq("refused", run(st))
-      H.eq(0, #st.argv)
-      H.has(st.cap.list[1].msg, "not a plain toolchain name")
+  it("equal and newer rustc: silent", function()
+    for _, v in ipairs({ "1.95.0", "1.99.0" }) do
+      local bin = H.tmpdir()
+      stub_bin(bin, "rustc", ("echo 'rustc %s (abc 2026-01-01)'\n"):format(v))
+      with_path(bin)
+      local state, cap = check(project())
+      H.eq("ok", state, v)
+      H.eq(0, #cap.list, v)
     end
   end)
 
-  it("a failing restart helper does not lose the success notice", function()
-    local st = setup(PIN, function()
-      return { 0 }
-    end)
-    stub(E, "restart_lsp", function()
-      error("boom")
-    end)
-    H.eq("installed", run(st))
-    H.has(st.cap.list[#st.cap.list].msg, ":RustRestart failed")
+  it("rustc is run inside the project (a project-local override is honoured)", function()
+    local bin, dir = H.tmpdir(), project()
+    stub_bin(bin, "rustc", ("[ \"$(pwd -P)\" = %q ] && echo 'rustc 1.99.0 (x 2026-01-01)' || echo 'rustc 1.1.0 (x 2026-01-01)'\n"):format(vim.uv.fs_realpath(dir)))
+    with_path(bin)
+    H.eq("ok", (check(dir)))
+  end)
+
+  it("no rustc: says so once, does not fail", function()
+    local empty = H.tmpdir()
+    local orig = vim.env.PATH
+    vim.env.PATH = empty
+    restores[#restores + 1] = function()
+      vim.env.PATH = orig
+    end
+    local state, cap = check(project())
+    H.eq("missing", state)
+    H.eq(1, #cap.list)
+    H.has(cap.list[1].msg, "rustc not found")
+    H.has(cap.list[1].msg, "1.95")
+  end)
+
+  it("a failing or garbage rustc: one note, no crash", function()
+    local bin = H.tmpdir()
+    stub_bin(bin, "rustc", "echo 'something else entirely'\n")
+    with_path(bin)
+    local state, cap = check(project())
+    H.eq("unparsable", state)
+    H.eq(1, #cap.list)
+    stub_bin(bin, "rustc", "echo 'error: no default toolchain' >&2\nexit 1\n")
+    state, cap = check(project())
+    H.eq("missing", state)
+    H.eq(1, #cap.list)
+  end)
+
+  it("no rust-version field (or none parsable): silent, rustc is not even run", function()
+    local bin = H.tmpdir()
+    local ran = H.tmpdir() .. "/ran"
+    stub_bin(bin, "rustc", ("touch %s\necho 'rustc 1.1.0 (x 2026-01-01)'\n"):format(ran))
+    with_path(bin)
+    local state, cap = check(project('[package]\nname = "x"\n'))
+    H.eq("nofield", state)
+    H.eq(0, #cap.list)
+    state, cap = check(project('[package]\nrust-version = "latest"\n'))
+    H.eq("badfield", state)
+    H.eq(0, #cap.list)
+    H.is_nil(vim.uv.fs_stat(ran))
   end)
 end)
 
-describe("egui_new finish prepares the toolchain without blocking", function()
+describe("egui_new finish: no rustup call, minimum-version check only", function()
   before_each(need_tools)
 
-  it("finish returns at once; the install runs in the background and then restarts the servers", function()
+  it("a project made from a template with a pin never runs rustup; an old rustc gets the warning", function()
     file_template()
+    local bin, log = H.tmpdir(), H.tmpdir() .. "/rustup.log"
+    write(bin .. "/rustup", ("#!/bin/sh\necho \"$*\" >> %s\n"):format(log))
+    write(bin .. "/rustc", "#!/bin/sh\necho 'rustc 1.90.0 (x 2026-01-01)'\n")
+    vim.uv.fs_chmod(bin .. "/rustup", tonumber("755", 8))
+    vim.uv.fs_chmod(bin .. "/rustc", tonumber("755", 8))
+    local orig = vim.env.PATH
+    vim.env.PATH = bin .. ":" .. orig
+    restores[#restores + 1] = function()
+      vim.env.PATH = orig
+    end
     local parent = H.tmpdir()
-    stub(E, "have_rustup", function()
-      return true
-    end)
-    local argv_log, pending, restarts = {}, nil, 0
-    stub(E, "runner", function(argv, cb)
-      argv_log[#argv_log + 1] = argv
-      if argv[3] == "install" then
-        pending = cb -- the install "takes a while"
-      else
-        vim.schedule(function()
-          cb({ code = 0, stdout = "", stderr = "" })
-        end)
-      end
-    end)
-    stub(E, "restart_lsp", function()
-      restarts = restarts + 1
-    end)
     local cap = H.capture_notify()
-    local err, info = create({ crate = "tc_app", author_name = "", author_email = "", parent = parent })
+    local err, info = create({ crate = "min_app", author_name = "", author_email = "", parent = parent })
     H.is_nil(err, err)
     E.finish(info)
     H.wait_for(function()
-      return pending
-    end, 5000, "the install started")
-    H.eq(0, restarts, "nothing restarted before the install ended")
-    H.ok(find_msg(cap, "preparing toolchain 1%.95%.0"))
-    H.eq("rustup", argv_log[#argv_log][1])
-    H.has(table.concat(argv_log[#argv_log], " "), "--component rust-analyzer")
-    -- the editor is usable meanwhile
-    H.eq(vim.uv.fs_realpath(parent .. "/tc_app/src/main.rs"), vim.uv.fs_realpath(vim.api.nvim_buf_get_name(0)))
-    vim.api.nvim_buf_set_lines(0, 0, 0, false, { "// typed while the toolchain installs" })
-    pending({ code = 0, stdout = "", stderr = "" })
-    H.wait_for(function()
-      return restarts == 1
-    end, 5000, "restart after the install")
-  end)
-
-  it("no pin kept (keep_toolchain_pin = false): no rustup call at all", function()
-    file_template()
-    vim.g.xynovim_egui_keep_toolchain_pin = false
-    stub(E, "have_rustup", function()
-      return true
-    end)
-    local called = false
-    stub(E, "runner", function()
-      called = true
-    end)
-    local err, info = create({ crate = "nopin_app", author_name = "", author_email = "", parent = H.tmpdir() })
-    H.is_nil(err, err)
-    E.finish(info)
-    vim.wait(200)
-    H.not_ok(called)
-  end)
-end)
-
-describe("egui_new.runner (real processes)", function()
-  it("a timeout ends the process with code 124", function()
-    local o
-    E.runner({ "sleep", "30" }, function(r)
-      o = r
-    end, 200)
-    H.wait_for(function()
-      return o
-    end, 5000, "timed out")
-    H.eq(124, o.code)
-  end)
-
-  it("kill_jobs (VimLeavePre) terminates a running process", function()
-    local o
-    E.runner({ "sleep", "30" }, function(r)
-      o = r
-    end)
-    E.kill_jobs()
-    H.wait_for(function()
-      return o
-    end, 5000, "killed")
-    H.eq(15, o.signal)
-    H.eq(true, #vim.api.nvim_get_autocmds({ group = "XynovimEguiToolchain", event = "VimLeavePre" }) == 1)
+      return find_msg(cap, "run rustup update stable", vim.log.levels.WARN)
+    end, 10000, "the minimum-version warning")
+    H.ok(find_msg(cap, "needs Rust >= 1%.95 %(you have 1%.90%.0%)"))
+    vim.wait(300)
+    H.is_nil(vim.uv.fs_stat(log), "rustup was never called")
+    H.eq(nil, E.prepare_toolchain)
+    H.eq(nil, E.runner)
+    H.eq(nil, E.kill_jobs)
+    H.not_ok((pcall(vim.api.nvim_get_autocmds, { group = "XynovimEguiToolchain" })), "no toolchain autocmd group")
   end)
 end)

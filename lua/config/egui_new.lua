@@ -7,11 +7,10 @@
 -- Options (all optional):
 --   vim.g.xynovim_projects_dir              parent directory (default ~/projects if it exists, else the cwd)
 --   vim.g.xynovim_egui_template             { repo = "emilk/eframe_template", ref = "main", base_url = "https://github.com" }
---   vim.g.xynovim_egui_keep_toolchain_pin   true (default): keep the template's rust-toolchain file
---   vim.g.xynovim_egui_prepare_toolchain    true (default): after creating a project that keeps the pin, install the
---                                           pinned toolchain WITH rust-analyzer / clippy / rustfmt in the background
---                                           (about 200 MB, once); false: only print the command to run
 --   vim.g.xynovim_egui_build_after_new      true: run `cargo build` in a terminal afterwards
+--
+-- The template's rust-toolchain file is never copied (it would make rustup install one exact
+-- toolchain); its Cargo.toml rust-version stays as the minimum, and a warning says when rustc is older.
 --
 -- The text edits (M.validate_name .. M.readme) are pure functions; every
 -- external command is an argv list, nothing from the template is executed.
@@ -319,8 +318,7 @@ function M.md_section(md, pat)
   return body ~= "" and body or nil
 end
 
---- The generated README. o: title, template_readme (text or nil), pin (toolchain
---- channel or nil).
+--- The generated README. o: title, crate, template_readme (text or nil).
 function M.readme(o)
   local run = M.md_section(o.template_readme, "testing locally")
     or "`cargo run --release`\n\nOn Linux the egui / eframe build needs the usual system packages (xcb, xkbcommon, openssl and pkg-config headers): see the template's README."
@@ -335,10 +333,6 @@ function M.readme(o)
     "## Run natively\n\n" .. run,
     "## Run on the web\n\n" .. web,
   }
-  if o.pin then
-    parts[#parts + 1] = ("## Toolchain\n\n`rust-toolchain` (from the template) pins Rust %s: the first `cargo` run "
-      .. "downloads it through rustup. Delete the file to use your default toolchain."):format(o.pin)
-  end
   parts[#parts + 1] = "## License\n\nThe template is dual licensed (MIT OR Apache-2.0), see `LICENSE-MIT` and `LICENSE-APACHE`; "
     .. "`Cargo.toml` keeps its `license` field."
   return M.replace_token(table.concat(parts, "\n\n") .. "\n", o.crate)
@@ -412,9 +406,9 @@ end
 local MAX_TEXT = 1024 * 1024
 
 --- Personalise the unpacked template in `dir`. o: crate, title, authors (string
---- or nil), keep_pin (default true). Returns { changed = {...}, pin = channel|nil }.
+--- or nil). Returns { changed = {...} }.
 function M.personalise(dir, o)
-  local res = { changed = {}, pin = nil }
+  local res = { changed = {} }
   local template_readme = read_file(dir .. "/README.md")
   for _, rel in ipairs(walk(dir)) do
     local base = vim.fs.basename(rel)
@@ -448,21 +442,14 @@ function M.personalise(dir, o)
       vim.uv.fs_unlink(dir .. "/" .. f)
     end
   end
-  -- toolchain pin
+  -- the toolchain pin is never copied (it forces rustup to install one exact toolchain); the
+  -- Cargo.toml rust-version, the minimum, stays
   for _, f in ipairs({ "rust-toolchain", "rust-toolchain.toml" }) do
-    local t = read_file(dir .. "/" .. f)
-    if t then
-      if o.keep_pin == false then
-        vim.uv.fs_unlink(dir .. "/" .. f)
-      else
-        res.pin = res.pin or t:match('channel%s*=%s*"([^"]+)"') or t:match("^%s*([%w%.%-_]+)%s*$") or "a specific toolchain"
-      end
+    if vim.uv.fs_lstat(dir .. "/" .. f) then
+      vim.uv.fs_unlink(dir .. "/" .. f)
     end
   end
-  write_file(
-    dir .. "/README.md",
-    M.readme({ title = o.title, crate = o.crate, template_readme = template_readme, pin = res.pin })
-  )
+  write_file(dir .. "/README.md", M.readme({ title = o.title, crate = o.crate, template_readme = template_readme }))
   return res
 end
 
@@ -668,274 +655,103 @@ local function unpack(zip, tmp)
   return ex .. "/" .. entries[1].name
 end
 
--- ------------------------------------------------------------- the pinned toolchain
+-- ------------------------------------------------------------- the minimum Rust version
 
--- rustup installs a pinned channel on first use WITHOUT rust-analyzer, so the proxy fails and the new
--- project has no LSP. These functions read the pin and install what the editor needs (argv only).
-
-local NAME_PAT = "^[A-Za-z0-9._-]+$"
-local EDITOR_COMPONENTS = { "rust-analyzer", "clippy", "rustfmt" }
-
-local function valid_name(n)
-  return type(n) == "string" and n:match(NAME_PAT) ~= nil and n:sub(1, 1) ~= "-"
-end
-
-local function toml_strings(body)
-  local out = {}
-  for q, v in body:gmatch("([\"'])(.-)%1") do
-    out[#out + 1] = v
-  end
-  return out
-end
-
---- Parse rust-toolchain / rust-toolchain.toml text (legacy one-line form or [toolchain] table).
---- Returns { channel = string|nil, components = {..}, targets = {..} } or nil when nothing is found.
-function M.parse_pin(text)
-  if type(text) ~= "string" then
+--- Parse a version ("1.95", "1.95.0", "1", "1.95.0-nightly") into { major, minor, patch }; missing
+--- components are 0, a pre-release suffix is ignored (as cargo does for rust-version). nil when unparsable.
+function M.parse_version(s)
+  if type(s) ~= "string" then
     return nil
   end
-  local lines = {}
-  for line in (text .. "\n"):gmatch("(.-)\r?\n") do
-    -- drop comments outside quotes (a "#" inside a quoted string stays)
-    local out, quote = {}, nil
-    for ch in line:gmatch(".") do
-      if quote then
-        if ch == quote then
-          quote = nil
-        end
-      elseif ch == '"' or ch == "'" then
-        quote = ch
-      elseif ch == "#" then
-        break
+  local core, rest = vim.trim(s):match("^(%d[%d%.]*)(.*)$")
+  if not core or core:find("%.%.") or core:sub(-1) == "." or (rest ~= "" and not rest:match("^[-+]")) then
+    return nil
+  end
+  local parts = {}
+  for n in core:gmatch("%d+") do
+    parts[#parts + 1] = tonumber(n)
+  end
+  if #parts > 3 then
+    return nil
+  end
+  return { parts[1], parts[2] or 0, parts[3] or 0 }
+end
+
+--- Parse `rustc --version` output ("rustc 1.99.0 (abc 2026-01-01)"). nil when unparsable.
+function M.parse_rustc(out)
+  local v = type(out) == "string" and out:match("^%s*rustc%s+(%S+)")
+  return v and M.parse_version(v) or nil
+end
+
+--- The [package] rust-version of Cargo.toml text as written (e.g. "1.95"), or nil.
+function M.parse_rust_version(text)
+  local in_package = false
+  for line in ((text or "") .. "\n"):gmatch("(.-)\r?\n") do
+    local sect = line:match("^%s*%[([^%]]+)%]%s*$")
+    if sect then
+      in_package = vim.trim(sect) == "package"
+    elseif in_package then
+      local v = line:match("^%s*rust%-version%s*=%s*\"([^\"]*)\"") or line:match("^%s*rust%-version%s*=%s*'([^']*)'")
+      if v then
+        return v
       end
-      out[#out + 1] = ch
-    end
-    local l = vim.trim(table.concat(out))
-    if l ~= "" then
-      lines[#lines + 1] = l
     end
   end
-  if #lines == 0 then
-    return nil
-  end
-  local pin = { components = {}, targets = {} }
-  if #lines == 1 and not lines[1]:find("[=%[]") then
-    pin.channel = lines[1]
-    return pin
-  end
-  local body = table.concat(lines, "\n")
-  pin.channel = body:match("channel%s*=%s*[\"']([^\"'\n]*)[\"']") or body:match("channel%s*=%s*([^%s\"',%]]+)")
-  local comps = body:match("components%s*=%s*%[(.-)%]")
-  if comps then
-    pin.components = toml_strings(comps)
-  end
-  local targs = body:match("targets%s*=%s*%[(.-)%]")
-  if targs then
-    pin.targets = toml_strings(targs)
-  end
-  if not pin.channel then
-    return nil
-  end
-  return pin
+  return nil
 end
 
---- The install plan for a parsed pin: { channel, components, targets, skipped = {notes} } or nil, note.
-function M.toolchain_plan(pin)
-  if not pin or not pin.channel then
-    return nil, "no channel found in the toolchain file"
-  end
-  if not valid_name(pin.channel) then
-    return nil, ("the pinned channel '%s' is not a plain toolchain name (a path or odd characters): not touched"):format(
-      pin.channel
-    )
-  end
-  local plan = { channel = pin.channel, components = {}, targets = {}, skipped = {} }
-  local seen = {}
-  local function add_component(c)
-    if valid_name(c) and not seen[c] then
-      seen[c] = true
-      plan.components[#plan.components + 1] = c
-    end
-  end
-  for _, c in ipairs(EDITOR_COMPONENTS) do
-    add_component(c)
-  end
-  for _, c in ipairs(pin.components or {}) do
-    if valid_name(c) then
-      add_component(c)
-    else
-      plan.skipped[#plan.skipped + 1] = c
-    end
-  end
-  local tseen = {}
-  for _, t in ipairs(pin.targets or {}) do
-    if valid_name(t) then
-      if not tseen[t] then
-        tseen[t] = true
-        plan.targets[#plan.targets + 1] = t
-      end
-    else
-      plan.skipped[#plan.skipped + 1] = t
-    end
-  end
-  return plan
-end
-
-function M.install_argv(plan)
-  local a = { "rustup", "toolchain", "install", plan.channel, "--profile", "minimal" }
-  for _, c in ipairs(plan.components) do
-    vim.list_extend(a, { "--component", c })
-  end
-  for _, t in ipairs(plan.targets) do
-    vim.list_extend(a, { "--target", t })
-  end
-  return a
-end
-
-M.list_argv = { "rustup", "toolchain", "list" }
-
-function M.components_argv(channel)
-  return { "rustup", "component", "list", "--installed", "--toolchain", channel }
-end
-
---- True when `rustup toolchain list` output names `channel` (e.g. "1.95.0-x86_64-unknown-linux-gnu (default)").
-function M.toolchain_listed(out, channel)
-  for line in (out or ""):gmatch("[^\n]+") do
-    local name = line:match("^(%S+)")
-    if name and (name == channel or name:sub(1, #channel + 1) == channel .. "-") then
-      return true
+--- True when version a is older than b (both from M.parse_version).
+function M.older(a, b)
+  for i = 1, 3 do
+    if a[i] ~= b[i] then
+      return a[i] < b[i]
     end
   end
   return false
 end
 
---- True when `rustup component list --installed` output contains rust-analyzer.
-function M.has_rust_analyzer(out)
-  for line in (out or ""):gmatch("[^\n]+") do
-    if line:match("^rust%-analyzer") then
-      return true
-    end
-  end
-  return false
+local function rv_notify(msg, level)
+  vim.notify("EguiNew: " .. msg, level or vim.log.levels.INFO, { title = "EguiNew" })
 end
 
-local jobs = {}
-
---- Terminate the rustup processes this editor started (VimLeavePre): no orphan keeps writing into ~/.rustup.
-function M.kill_jobs()
-  for job in pairs(jobs) do
-    pcall(job.kill, job, 15)
+--- Warn once when the installed rustc (run in `dir`, so a project-local override counts) is older than
+--- the project's rust-version. Nothing is installed or downloaded. done(state) is optional (specs):
+--- "nofield" | "badfield" | "ok" | "old" | "missing" | "unparsable".
+function M.check_rust_version(dir, done)
+  done = done or function() end
+  local need_s = M.parse_rust_version(read_file(dir .. "/Cargo.toml"))
+  if not need_s then
+    return done("nofield")
   end
-end
-
-vim.api.nvim_create_autocmd("VimLeavePre", {
-  group = vim.api.nvim_create_augroup("XynovimEguiToolchain", { clear = true }),
-  callback = M.kill_jobs,
-})
-
---- Injectable for the specs: runs argv, calls cb({ code, stdout, stderr }) on the main loop.
---- timeout (ms, optional): the process is terminated then (code 124).
-function M.runner(argv, cb, timeout)
-  local job
-  local ok, err = pcall(function()
-    job = vim.system(argv, { text = true, timeout = timeout }, function(o)
-      vim.schedule(function()
-        jobs[job] = nil
-        cb(o)
-      end)
+  local need = M.parse_version(need_s)
+  if not need then
+    return done("badfield")
+  end
+  local ok = pcall(vim.system, { "rustc", "--version" }, { text = true, cwd = dir, timeout = 20000 }, function(o)
+    vim.schedule(function()
+      local have = o.code == 0 and M.parse_rustc(o.stdout) or nil
+      if o.code ~= 0 then
+        rv_notify(("could not run rustc to check the minimum Rust version (%s) this project needs"):format(need_s), vim.log.levels.WARN)
+        return done("missing")
+      end
+      if not have then
+        rv_notify(("could not read the rustc version; this project needs Rust >= %s"):format(need_s), vim.log.levels.WARN)
+        return done("unparsable")
+      end
+      if M.older(have, need) then
+        rv_notify(
+          ("this project needs Rust >= %s (you have %d.%d.%d): run rustup update stable"):format(need_s, have[1], have[2], have[3]),
+          vim.log.levels.WARN
+        )
+        return done("old")
+      end
+      done("ok")
     end)
   end)
-  if ok and job then
-    jobs[job] = true
-  end
   if not ok then
-    vim.schedule(function()
-      cb({ code = 127, stdout = "", stderr = tostring(err) })
-    end)
+    rv_notify(("rustc not found; this project needs Rust >= %s"):format(need_s), vim.log.levels.WARN)
+    done("missing")
   end
-end
-
-function M.have_rustup()
-  return vim.fn.executable("rustup") == 1
-end
-
---- Injectable for the specs.
-function M.restart_lsp()
-  require("config.rust_restart").restart()
-end
-
-local TC_ID = "xynovim_egui_toolchain"
-
-local function tc_notify(msg, level)
-  vim.notify("EguiNew: " .. msg, level or vim.log.levels.INFO, { id = TC_ID, title = "EguiNew" })
-end
-
---- Make sure the toolchain pinned in `dir` has what the editor needs, in the background.
---- done(state) is optional (specs): "skipped" | "installed" | "failed" | "refused" | "no-rustup" | "off" | "nopin" | "busy".
-local inflight = {}
-local LIST_TIMEOUT, INSTALL_TIMEOUT = 30 * 1000, 15 * 60 * 1000
-
-function M.prepare_toolchain(dir, done)
-  done = done or function() end
-  local text
-  for _, f in ipairs({ "rust-toolchain", "rust-toolchain.toml" }) do
-    text = text or read_file(dir .. "/" .. f)
-  end
-  if not text then
-    return done("nopin")
-  end
-  local plan, note = M.toolchain_plan(M.parse_pin(text))
-  if not plan then
-    tc_notify(note, vim.log.levels.WARN)
-    return done("refused")
-  end
-  local cmd = table.concat(M.install_argv(plan), " ")
-  if vim.g.xynovim_egui_prepare_toolchain == false then
-    tc_notify("the toolchain is not prepared (vim.g.xynovim_egui_prepare_toolchain = false); to get rust-analyzer run:\n" .. cmd)
-    return done("off")
-  end
-  if not M.have_rustup() then
-    tc_notify("rustup not found: no rust-analyzer for the pinned toolchain. Install rustup, then run:\n" .. cmd, vim.log.levels.WARN)
-    return done("no-rustup")
-  end
-  if inflight[plan.channel] then
-    tc_notify(("already preparing toolchain %s"):format(plan.channel))
-    return done("busy")
-  end
-  inflight[plan.channel] = true
-  local fin = done
-  done = function(state)
-    inflight[plan.channel] = nil
-    fin(state)
-  end
-  local function install()
-    tc_notify(("preparing toolchain %s (download of about 200 MB, once) ..."):format(plan.channel))
-    M.runner(M.install_argv(plan), function(o)
-      if o.code ~= 0 then
-        local why = vim.trim((o.stderr or ""):match("[^\n]+") or ("exit " .. tostring(o.code)))
-        tc_notify(("could not prepare toolchain %s (%s). The project is fine; later, online, run:\n%s"):format(plan.channel, why, cmd), vim.log.levels.WARN)
-        return done("failed")
-      end
-      local ok, err = pcall(M.restart_lsp)
-      tc_notify(
-        ("toolchain %s is ready (rust-analyzer, clippy, rustfmt)%s"):format(
-          plan.channel, ok and "; restarting the Rust language servers" or ("; :RustRestart failed: " .. tostring(err))
-        )
-      )
-      done("installed")
-    end, INSTALL_TIMEOUT)
-  end
-  M.runner(M.list_argv, function(l)
-    if l.code ~= 0 or not M.toolchain_listed(l.stdout, plan.channel) then
-      return install()
-    end
-    M.runner(M.components_argv(plan.channel), function(c)
-      if c.code == 0 and M.has_rust_analyzer(c.stdout) then
-        return done("skipped")
-      end
-      install()
-    end, LIST_TIMEOUT)
-  end, LIST_TIMEOUT)
 end
 
 -- ------------------------------------------------------------- the flow
@@ -1001,7 +817,6 @@ function M.create(p, cb)
       crate = crate,
       title = M.title(crate),
       authors = M.format_author(p.author_name, p.author_email),
-      keep_pin = vim.g.xynovim_egui_keep_toolchain_pin ~= false,
     })
     local git_note
     if vim.fn.executable("git") == 1 then
@@ -1021,7 +836,7 @@ function M.create(p, cb)
     vim.fn.delete(tmp, "rf")
     tmp = nil
     created = {} -- the parents stay: the project lives in them
-    return { dir = target, pin = res.pin, git_note = git_note }
+    return { dir = target, git_note = git_note }
   end, function(err, info)
     cleanup()
     cb(err, info)
@@ -1041,17 +856,11 @@ function M.finish(info)
     "created " .. dir,
     "next: `cargo run --release` | <leader>rX lists the cargo targets | `trunk serve` for the web",
   }
-  if info.pin then
-    lines[#lines + 1] = ("rust-toolchain pins Rust %s: it is prepared in the background (with rust-analyzer) "
-      .. "(vim.g.xynovim_egui_prepare_toolchain = false skips that, vim.g.xynovim_egui_keep_toolchain_pin = false drops the file)"):format(info.pin)
-  end
   if info.git_note then
     lines[#lines + 1] = info.git_note
   end
   vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO, { id = NOTIFY_ID, title = "EguiNew" })
-  if info.pin then
-    M.prepare_toolchain(dir)
-  end
+  M.check_rust_version(dir)
   if vim.g.xynovim_egui_build_after_new == true and _G.Snacks and Snacks.terminal then
     Snacks.terminal.open({ "cargo", "build" }, { cwd = dir, auto_close = false, win = { position = "bottom" } })
   end
