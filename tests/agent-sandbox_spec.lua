@@ -158,11 +158,97 @@ describe("opt-out", function()
     H.ok(got == cmd, "the same table comes back")
   end)
 
-  it("returns the bare command when bwrap is not executable", function()
-    local cmd = { "claude", "--version" }
+  local function with_g(name, value, fn)
+    local old = vim.g[name]
+    vim.g[name] = value
+    local ok, err = pcall(fn)
+    vim.g[name] = old
+    assert(ok, err)
+  end
+
+  local function no_bwrap()
     setenv("PATH", "/nonexistent-xyno-path")
     H.eq(0, vim.fn.executable("bwrap"))
-    H.eq(cmd, real_mod.wrap(cmd, "/tmp", "/tmp"))
+  end
+
+  it("refuses (nil, reason) when bwrap is not executable and nothing is set", function()
+    no_bwrap()
+    with_g("xynovim_99_sandbox", nil, function()
+      with_g("xynovim_99_allow_unsandboxed", nil, function()
+        local cmd = { "claude", "--version" }
+        local got, reason = real_mod.wrap(cmd, "/tmp", "/tmp")
+        H.eq(nil, got)
+        H.ok(tostring(reason):find("bwrap", 1, true), "reason names bwrap: " .. tostring(reason))
+        H.eq("refused", real_mod.status().mode)
+      end)
+    end)
+  end)
+
+  it("allow_unsandboxed = true runs unsandboxed when there is no backend", function()
+    no_bwrap()
+    with_g("xynovim_99_sandbox", nil, function()
+      with_g("xynovim_99_allow_unsandboxed", true, function()
+        local cmd = { "claude", "--version" }
+        H.ok(real_mod.wrap(cmd, "/tmp", "/tmp") == cmd, "the same table comes back")
+        local st = real_mod.status()
+        H.eq("unsandboxed", st.mode)
+        H.eq("allow_unsandboxed", st.via)
+      end)
+    end)
+  end)
+
+  it("only the booleans count: 0, 'false', 1, 'true' do not opt out", function()
+    no_bwrap()
+    for _, v in ipairs({ 0, "false", 1, "true" }) do
+      with_g("xynovim_99_sandbox", v, function()
+        with_g("xynovim_99_allow_unsandboxed", v, function()
+          H.eq("refused", real_mod.status().mode, "value " .. vim.inspect(v))
+        end)
+      end)
+    end
+  end)
+
+  it("sandbox = false is the explicit opt-out and wins over a working bwrap", function()
+    with_g("xynovim_99_sandbox", false, function()
+      H.eq("unsandboxed", real_mod.status().mode)
+      H.eq("sandbox=false", real_mod.status().via)
+    end)
+  end)
+
+  it("allow_unsandboxed alone never disables a working bwrap", function()
+    if vim.fn.executable("bwrap") ~= 1 or vim.fn.has("linux") ~= 1 then
+      return harness.skip("bwrap not found")
+    end
+    with_g("xynovim_99_sandbox", nil, function()
+      with_g("xynovim_99_allow_unsandboxed", true, function()
+        H.eq("bwrap", real_mod.status().mode)
+        H.eq("bwrap", real_mod.wrap({ "true" }, H.tmpdir(), H.tmpdir())[1])
+      end)
+    end)
+  end)
+
+  it("a platform without bubblewrap (has('linux') == 0, e.g. Windows or macOS) refuses even with a bwrap on PATH", function()
+    local real_has = vim.fn.has
+    vim.fn.has = function(f)
+      if f == "linux" then
+        return 0
+      end
+      return real_has(f)
+    end
+    local ok, err = pcall(function()
+      with_g("xynovim_99_sandbox", nil, function()
+        with_g("xynovim_99_allow_unsandboxed", nil, function()
+          local st = real_mod.status()
+          H.eq("refused", st.mode)
+          H.ok(st.reason:find("Linux", 1, true), st.reason)
+          local got, reason = real_mod.wrap({ "claude" }, "/tmp", "/tmp")
+          H.eq(nil, got)
+          H.ok(reason, "a reason comes with the refusal")
+        end)
+      end)
+    end)
+    vim.fn.has = real_has
+    assert(ok, err)
   end)
 end)
 

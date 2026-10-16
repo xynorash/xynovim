@@ -6,12 +6,22 @@
 -- binary) is read-only even inside the writable binds. Credential dirs/files
 -- are hidden, credential env vars are stripped, pid/ipc/uts namespaces are
 -- unshared, capabilities dropped, nested user namespaces disabled.
--- Network stays open (the model needs it). Opt out with
--- `vim.g.xynovim_99_sandbox = false`.
+-- Network stays open (the model needs it).
+--
+-- Fails CLOSED. bubblewrap exists only on Linux, so without a working
+-- backend (Windows, macOS, Linux without bwrap) wrap() refuses (nil, reason)
+-- and 99 does not start a request. Two explicit booleans (0, "false", 1 do
+-- not count) lead to an unsandboxed run, which warns on every request:
+--   vim.g.xynovim_99_sandbox = false            deliberate OFF, even where bwrap works
+--   vim.g.xynovim_99_allow_unsandboxed = true   run anyway when NO backend exists
+--                                               (never disables a working sandbox)
+-- Linux+bwrap: sandboxed (only sandbox=false turns it off). No backend:
+-- refused (sandbox=false or allow_unsandboxed=true: unsandboxed).
 local M = {}
 
 local home = vim.uv.os_homedir()
-local uid = vim.uv.os_get_passwd().uid
+local pwd = vim.uv.os_get_passwd() -- uid is -1 or the call fails on Windows
+local uid = pwd and pwd.uid or -1
 
 -- Writable inside the sandbox (when they exist). Deliberately NOT here:
 -- ~/.local/share/claude (the claude binary), ~/.cargo/bin, ~/.cargo/config.toml.
@@ -363,13 +373,35 @@ function M.readonly_paths(project)
   return ro, masks
 end
 
+--- How the agent would run here: { mode = "bwrap" } | { mode = "unsandboxed",
+--- via = "sandbox=false" | "allow_unsandboxed", reason } | { mode = "refused", reason }.
+function M.status()
+  if vim.g.xynovim_99_sandbox == false then
+    return { mode = "unsandboxed", via = "sandbox=false", reason = "vim.g.xynovim_99_sandbox = false" }
+  end
+  local linux = vim.fn.has("linux") == 1
+  if linux and vim.fn.executable("bwrap") == 1 then
+    return { mode = "bwrap" }
+  end
+  local reason = linux and "bwrap not found (install bubblewrap)"
+    or ("no sandbox backend on " .. (vim.uv.os_uname().sysname or "this OS") .. ": bubblewrap exists only on Linux")
+  if vim.g.xynovim_99_allow_unsandboxed == true then
+    return { mode = "unsandboxed", via = "allow_unsandboxed", reason = reason }
+  end
+  return { mode = "refused", reason = reason }
+end
+
 --- @param cmd string[] command to wrap
 --- @param project string project root (writable)
 --- @param tmp_dir string 99's tmp dir (writable)
---- @return string[]
+--- @return string[]? wrapped command (the same table when explicitly unsandboxed); nil when refused
+--- @return string? reason
 function M.wrap(cmd, project, tmp_dir)
   assert(type(tmp_dir) == "string" and tmp_dir ~= "", "agent_sandbox.wrap: tmp_dir is required")
-  if vim.g.xynovim_99_sandbox == false or vim.fn.executable("bwrap") ~= 1 then
+  local st = M.status()
+  if st.mode == "refused" then
+    return nil, st.reason
+  elseif st.mode == "unsandboxed" then
     return cmd
   end
   -- The ~/.claude/<x> masks need the dir (bwrap cannot mkdir parents on the

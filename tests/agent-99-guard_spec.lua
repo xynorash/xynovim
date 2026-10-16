@@ -782,6 +782,105 @@ describe("README claims", function()
   end)
 end)
 
+-- ------------------------------------------ guarded: fails closed, warns open
+
+describe("Guarded.make_request without a sandbox backend", function()
+  local rec, restore_claude, notes, restore_notify, saved_path
+
+  before_each(function()
+    vim.g.xynovim_99_sandbox = nil
+    vim.g.xynovim_99_allow_unsandboxed = nil
+    saved_path = vim.env.PATH
+    vim.env.PATH = "/nonexistent-xyno-path" -- no bwrap (the same refusal as Windows / macOS)
+    rec, restore_claude = fake_claude()
+    autosave().on()
+    notes = {}
+    restore_notify = patch(vim, {
+      notify = function(msg, level)
+        notes[#notes + 1] = { msg = msg, level = level }
+      end,
+    })
+  end)
+
+  after_each(function()
+    vim.env.PATH = saved_path
+    restore_notify()
+    restore_claude()
+    for _, fn in ipairs(H._restore) do
+      pcall(fn)
+    end
+    H._restore = {}
+    vim.g.xynovim_99_sandbox = nil
+    vim.g.xynovim_99_allow_unsandboxed = nil
+    autosave().on()
+  end)
+
+  it("refuses: nothing is spawned, on_complete('failed') names the opt-in, auto-save is untouched", function()
+    local off_calls = 0
+    local as = autosave()
+    local orig_off = as.off
+    patch(as, {
+      off = function(...)
+        off_calls = off_calls + 1
+        return orig_off(...)
+      end,
+    })
+    local _, obs, res = start()
+    H.is_nil(res)
+    H.eq(0, rec.n)
+    H.eq(0, off_calls)
+    H.eq(true, as.enabled())
+    H.eq(1, #obs.completed)
+    H.eq("failed", obs.completed[1][1])
+    H.has(obs.completed[1][2], "xynovim_99_allow_unsandboxed")
+    H.eq(1, #notes)
+    H.eq(vim.log.levels.ERROR, notes[1].level)
+  end)
+
+  it("does not leak the in-flight token: a later request with the opt-in still toggles auto-save", function()
+    start()
+    vim.g.xynovim_99_allow_unsandboxed = true
+    local _, _, res = start()
+    H.eq("result1", res)
+    H.eq(false, autosave().enabled())
+    rec.observers[1].on_complete("success", "")
+    H.eq(true, autosave().enabled())
+  end)
+
+  it("allow_unsandboxed = true runs the request and warns on EVERY request", function()
+    vim.g.xynovim_99_allow_unsandboxed = true
+    for i = 1, 2 do
+      local _, _, res = start()
+      H.eq("result" .. i, res)
+      rec.observers[i].on_complete("success", "")
+    end
+    local warns = vim.tbl_filter(function(n)
+      return n.level == vim.log.levels.WARN and n.msg:find("WITHOUT a sandbox", 1, true)
+    end, notes)
+    H.eq(2, #warns)
+  end)
+
+  it("sandbox = false warns on every request too", function()
+    vim.g.xynovim_99_sandbox = false
+    for i = 1, 2 do
+      start()
+      rec.observers[i].on_complete("success", "")
+    end
+    local warns = vim.tbl_filter(function(n)
+      return n.msg:find("WITHOUT a sandbox", 1, true)
+    end, notes)
+    H.eq(2, #warns)
+  end)
+
+  it("_build_command raises instead of returning an unwrapped command", function()
+    local ok, err = pcall(function()
+      return guarded():_build_command("do it", { model = "claude-sonnet-5" })
+    end)
+    H.eq(false, ok)
+    H.has(err, "99 sandbox")
+  end)
+end)
+
 pending(
   "a real 99 request end to end (claude, sandbox, response applied)",
   "not verified in the README: needs a real claude session and network"

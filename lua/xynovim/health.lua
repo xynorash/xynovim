@@ -51,7 +51,7 @@ local TOOLS = {
   { "mold", "fast linker (~/.cargo/config.toml)", false, { "--version" }, "warn" },
   { "clang", "linker driver for mold (~/.cargo/config.toml)", false, { "--version" }, "warn" },
   { "npm", "Mason installs markdownlint-cli2, markdown-toc, yaml-language-server", false, { "--version" }, "warn" },
-  { "bwrap", "bubblewrap sandbox for the 99 agent (agent_sandbox.lua)", false, { "--version" }, "warn" },
+  { "bwrap", "bubblewrap sandbox for the 99 agent (Linux only; without it 99 refuses to run unless vim.g.xynovim_99_allow_unsandboxed = true)", false, { "--version" }, "warn" },
 }
 
 function M.check()

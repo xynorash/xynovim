@@ -102,10 +102,35 @@ return {
     function Guarded._build_command(self, query, context)
       local cmd = Claude._build_command(self, query, context)
       local project = vim.fs.root(0, ".git") or vim.uv.cwd()
-      return require("config.agent_sandbox").wrap(cmd, project, tmp_dir)
+      local wrapped, err = require("config.agent_sandbox").wrap(cmd, project, tmp_dir)
+      if not wrapped then
+        error("99 sandbox: " .. tostring(err), 0)
+      end
+      return wrapped
     end
 
     function Guarded.make_request(self, query, context, observer)
+      -- Fail closed before anything else happens (no snapshot, no auto-save
+      -- toggle, no process): claude runs with --dangerously-skip-permissions.
+      local st = require("config.agent_sandbox").status()
+      if st.mode == "refused" then
+        local msg = "99 refused to start: "
+          .. st.reason
+          .. ". The agent only runs sandboxed (Linux with bubblewrap, or WSL2 with bubblewrap). To run it anyway"
+          .. " set vim.g.xynovim_99_allow_unsandboxed = true: claude --dangerously-skip-permissions then runs"
+          .. " with your full privileges."
+        vim.notify(msg, vim.log.levels.ERROR)
+        pcall(observer.on_start)
+        pcall(observer.on_complete, "failed", msg)
+        return nil
+      elseif st.mode == "unsandboxed" then
+        vim.notify(
+          "99 runs claude --dangerously-skip-permissions WITHOUT a sandbox ("
+            .. st.reason
+            .. "): the whole filesystem, your credentials and the network are reachable.",
+          vim.log.levels.WARN
+        )
+      end
       local token = acquire()
       local guarded_observer = setmetatable({
         on_complete = function(...)

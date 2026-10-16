@@ -229,8 +229,11 @@ function H.sandbox_available()
   end
   local dir = H.tmpdir()
   local prev = vim.fn.chdir(dir)
-  local cmd = require("config.agent_sandbox").wrap({ "true" }, dir, dir)
+  local cmd, err = require("config.agent_sandbox").wrap({ "true" }, dir, dir)
   vim.fn.chdir(prev)
+  if not cmd then
+    return false, err
+  end
   local r = vim.system(cmd, { cwd = dir }):wait(10000)
   if r.code ~= 0 then
     return false, "bwrap cannot create a sandbox here: " .. vim.trim(r.stderr or "")
@@ -338,7 +341,7 @@ function H.sandbox_sh(script, project, opts)
   local tmp = H.tmpdir()
   -- wrap() runs the command in nvim's cwd, which 99 sets to the project
   local prev = vim.fn.chdir(project)
-  local cmd = require("config.agent_sandbox").wrap({ "bash", "-c", script }, project, tmp)
+  local cmd = assert(require("config.agent_sandbox").wrap({ "bash", "-c", script }, project, tmp))
   vim.fn.chdir(prev)
   return run(cmd, vim.tbl_extend("force", { cwd = project }, opts or {}))
 end
