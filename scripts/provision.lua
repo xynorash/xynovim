@@ -13,18 +13,42 @@ require("lazy").load({ plugins = { "nvim-treesitter", "mason.nvim", "nvim-lspcon
 -- 1. treesitter parsers (opts.ensure_installed of LazyVim, its extras and ours)
 local TS = require("nvim-treesitter")
 local want = LazyVim.opts("nvim-treesitter").ensure_installed or {}
-LazyVim.treesitter.get_installed(true)
-local missing = vim.tbl_filter(function(lang)
-  return not LazyVim.treesitter.have(lang)
-end, want)
-if #missing > 0 then
-  say("installing " .. #missing .. " treesitter parsers: " .. table.concat(missing, ", "))
-  TS.install(missing, { summary = true }):wait(900000)
+local function absent()
+  LazyVim.treesitter.get_installed(true)
+  return vim.tbl_filter(function(lang)
+    return not LazyVim.treesitter.have(lang)
+  end, want)
 end
-LazyVim.treesitter.get_installed(true)
-local still = vim.tbl_filter(function(lang)
-  return not LazyVim.treesitter.have(lang)
-end, want)
+-- Loading nvim-treesitter makes LazyVim start the same installs itself, in the
+-- background. A second, concurrent set makes two tree-sitter builds of one
+-- parser fight over its lock file ("appears stale", seen on macOS) and ends this
+-- script before the first set is done (seen on Windows): let the running
+-- installs finish (no progress for 15 s), then install what is still missing.
+local function settle(max_ms)
+  local last, since = -1, vim.uv.now()
+  vim.wait(max_ms, function()
+    local n = #absent()
+    if n == 0 then
+      return true
+    end
+    if n ~= last then
+      last, since = n, vim.uv.now()
+    end
+    return vim.uv.now() - since > 15000
+  end, 1000)
+end
+settle(900000)
+local missing
+for round = 1, 3 do
+  missing = absent()
+  if #missing == 0 then
+    break
+  end
+  say(("installing %d treesitter parsers (round %d): %s"):format(#missing, round, table.concat(missing, ", ")))
+  TS.install(missing, { summary = true }):wait(900000)
+  settle(300000)
+end
+local still = absent()
 
 -- 2. Mason packages (installed by LazyVim's own ensure_installed hooks once the
 --    registry is loaded: wait until nothing is installing any more)
@@ -64,6 +88,14 @@ vim.wait(900000, function()
   return vim.uv.now() - quiet_since > 5000 -- no new install started for 5 s
 end, 200)
 say("mason packages: " .. table.concat(reg.get_installed_package_names(), ", "))
+for _, name in ipairs(TOOLS) do
+  local ok, pkg = pcall(reg.get_package, name)
+  if not ok then
+    say("Mason has no package " .. name .. " (not provided for this platform)")
+  elseif not pkg:is_installed() then
+    say("Mason package NOT installed: " .. name .. " (see :MasonLog; a Mason failure only warns)")
+  end
+end
 
 if #still > 0 then
   say("FAILED, treesitter parsers still missing: " .. table.concat(still, ", "))
