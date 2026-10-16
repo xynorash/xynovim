@@ -28,7 +28,7 @@ local function write_all(data)
   local f = assert(io.open(tmp, "w"))
   f:write(vim.json.encode(data))
   f:close()
-  assert(vim.uv.fs_rename(tmp, state_file))
+  assert(require("config.fsutil").rename(tmp, state_file))
 end
 
 local function mtime(path)
@@ -60,8 +60,23 @@ local function cargo_workspace(dir, stamp)
   return root or nil
 end
 
+--- One spelling of a root per directory (the state file is keyed by it):
+--- cargo prints backslashes and sometimes a \\?\ prefix, LSP gives file URIs with
+--- a lowercase drive letter. Only on Windows; elsewhere the path is untouched.
+local function canon(p)
+  if p and vim.fn.has("win32") == 1 then
+    p = vim.fs.normalize((p:gsub("^\\\\%?\\", "")), { expand_env = false })
+    p = p:gsub("^(%a):", string.lower)
+  end
+  return p
+end
+
 --- Workspace root (dir holding the top Cargo.toml) for a path.
 function M.root(path)
+  return canon(M._root(path))
+end
+
+function M._root(path)
   path = path or vim.api.nvim_buf_get_name(0)
   local found = vim.fs.find("Cargo.toml", { upward = true, path = vim.fs.dirname(path) })
   local top

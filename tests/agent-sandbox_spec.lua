@@ -3,6 +3,7 @@
 -- reads os_homedir() once at load, so it is reloaded per fake home); the
 -- behavioural tests run real commands inside bwrap against that same fake
 -- home, never against the real one. No rust-analyzer needed.
+-- xyno-os: linux (bubblewrap exists only on Linux; the fail-closed refusal is tested in agent-failclosed on every platform)
 local H = require("xynotest.helpers")
 local harness = require("xynotest.harness")
 

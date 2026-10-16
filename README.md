@@ -7,7 +7,7 @@
 [![ci](https://github.com/xynorash/xynovim/actions/workflows/ci.yml/badge.svg)](https://github.com/xynorash/xynovim/actions/workflows/ci.yml)
 ![neovim 0.12](https://img.shields.io/badge/neovim-0.12-57a143?logo=neovim&logoColor=white)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
-![tests](https://img.shields.io/badge/tests-1744%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-1769%20passing-brightgreen)
 
 Website: https://xynorash.github.io/xynovim/
 
@@ -27,7 +27,7 @@ The website, <https://xynorash.github.io/xynovim/>, is published from the dedica
 - **A debugger and a test runner that look like the ones in an IDE**: breakpoints with Rust-aware variable views, a test summary tree, coverage in the gutter.
 - **A safety net**: every save is snapshotted as a git ref (a "Local History"), and the AI agent runs inside a sandbox.
 - **Treesitter everywhere**: sticky scope, text objects, SQL injected into `sqlx` strings, a live syntax-tree view.
-- **Tested**: 1744 passing checks across 36 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
+- **Tested**: 1769 passing checks across 38 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
 
 ## Tour
 
@@ -301,7 +301,7 @@ Video: [14-egui-new.mp4](docs/media/14-egui-new.mp4)
 
 ## Tests: run them yourself
 
-The config ships with an automated suite: **36 spec files, 1744 checks passing, 23 skipped with a stated reason, 0 failing**, in about twelve minutes. Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
+The config ships with an automated suite: **38 spec files, 1769 checks passing, 26 skipped with a stated reason, 0 failing**, in about twelve minutes. Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
 
 ```sh
 scripts/test.sh                  # everything (or: make test)
@@ -355,14 +355,14 @@ colors/        island-dark colourscheme entry point
 lua/island/    Island Dark: init.lua (mapping), palette.lua (generated)
 lua/lualine/   island-dark lualine theme
 tools/         icls2nvim.py + Dark.icls (the scheme it converts)
-scripts/       bootstrap.sh (fresh-install two-step restore, prerequisite check), test.sh (spec runner), coverage.lua (coverage report), build-site.py (builds the website)
+scripts/       bootstrap.sh and bootstrap.ps1 (fresh-install two-step restore, prerequisite check), test.sh (spec runner), test.lua and test.ps1 (the same runner without bash), coverage.lua (coverage report), build-site.py (builds the website)
 tests/         *_spec.lua, harness.lua, helpers.lua, runner.lua, coverage_hook.lua, fixtures/ (see Tests)
 Makefile       make test / make coverage
 plugin/after/  transparency, unsafe highlight
 after/ftplugin/ Rust buffer settings (plain `'`, comment spelling)
 queries/       base rust injections (copy of nvim-treesitter's minus the sqlx macros)
 after/queries/ treesitter query extensions (sqlx SQL injection)
-.github/       CI: bootstrap, lockfile check, startup smoke test, spec suite; the pages workflow publishes the website to gh-pages
+.github/       CI: bootstrap, lockfile check, startup smoke test, spec suite; the platforms workflow runs bootstrap, startup and the suite on Windows and macOS; the pages workflow publishes the website to gh-pages
 site/          the website's source (index.html, assets/, 404.html, ...), see site/README.md
 ```
 

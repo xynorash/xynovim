@@ -8,6 +8,7 @@
 -- real checkout) gets throwaway specs, and test.sh is run against it. Runs are
 -- memoised, each `it` asserts one claim of the output. The hanging spec is
 -- killed after --timeout 30.
+-- xyno-os: linux (runs scripts/test.sh, which needs GNU timeout and process groups)
 local H = require("xynotest.helpers")
 local harness = require("xynotest.harness")
 
@@ -1407,7 +1408,7 @@ describe("README layout and path claims", function()
     for line in layout:gmatch("[^\n]+") do
       local dir = line:match("^(%S+)"):gsub("/$", "")
       if vim.fn.isdirectory(repo .. "/" .. dir) == 1 then
-        for name in line:gmatch("[%w_%-]+%.%a+") do
+        for name in line:gmatch("[%w_%-]+%.%a%w*") do
           if name:sub(1, 1) ~= "_" then -- "*_spec.lua"
             H.ok(exists(repo .. "/" .. dir .. "/" .. name), ("%s/%s named in the README layout"):format(dir, name))
           end

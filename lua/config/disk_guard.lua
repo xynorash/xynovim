@@ -18,13 +18,25 @@ local M = {}
 
 local home = vim.uv.os_homedir()
 
+-- Windows and macOS file systems are case-insensitive by default, and nvim
+-- hands out backslash paths on Windows: compare normalized and lowercased.
+local fold = vim.fn.has("win32") == 1 or vim.fn.has("mac") == 1
+local function norm(p)
+  local slash = p:sub(-1) == "/" or p:sub(-1) == "\\" -- normalize() drops a trailing slash, a root needs it
+  p = vim.fs.normalize(p) .. (slash and "/" or "")
+  return fold and p:lower() or p
+end
+
 local function dep_roots()
   local roots = { home .. "/.cargo/registry/", home .. "/.cargo/git/", home .. "/.rustup/" }
   for _, v in ipairs({ { "CARGO_HOME", "/registry/" }, { "CARGO_HOME", "/git/" }, { "RUSTUP_HOME", "/" } }) do
     local base = vim.env[v[1]]
     if base and base ~= "" then
-      roots[#roots + 1] = base:gsub("/+$", "") .. v[2]
+      roots[#roots + 1] = vim.fs.normalize(base):gsub("/+$", "") .. v[2]
     end
+  end
+  for i, r in ipairs(roots) do
+    roots[i] = norm(r)
   end
   return roots
 end
@@ -32,6 +44,7 @@ end
 --- @param name string
 --- @return boolean
 function M.is_dependency(name)
+  name = norm(name)
   for _, r in ipairs(dep_roots()) do
     if name:sub(1, #r) == r then
       return true

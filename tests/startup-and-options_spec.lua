@@ -5,6 +5,7 @@
 -- Facts about a FRESH startup (what is loaded, which messages appeared) come
 -- from child nvim processes (`child()`), because the runner's own editor is
 -- changed by the earlier tests. Everything else runs in the runner's nvim.
+-- xyno-os: linux (reads /proc, uses sh stubs for wl-copy, wl-paste)
 local H = require("xynotest.helpers")
 
 local repo = H.repo

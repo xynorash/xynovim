@@ -3,9 +3,25 @@ require("config.remote_clipboard").setup()
 
 -- rustup's proxies (rust-analyzer, cargo) live in ~/.cargo/bin: a start from a desktop launcher or
 -- another non-login environment lacks it, and opening a .rs file raised a rustaceanvim error
-local cargo_bin = vim.uv.os_homedir() .. "/.cargo/bin"
-if vim.uv.fs_stat(cargo_bin) and not (":" .. (vim.env.PATH or "") .. ":"):find(":" .. cargo_bin .. ":", 1, true) then
-  vim.env.PATH = (vim.env.PATH or "") .. ":" .. cargo_bin
+local win = vim.fn.has("win32") == 1
+local sep = win and ";" or ":"
+local cargo_home = vim.env.CARGO_HOME
+local cargo_bin = vim.fs.joinpath(cargo_home and cargo_home ~= "" and cargo_home or vim.fs.joinpath(vim.uv.os_homedir(), ".cargo"), "bin")
+local function norm(p)
+  p = vim.fs.normalize(p):gsub("/+$", "")
+  return win and p:lower() or p
+end
+if vim.uv.fs_stat(cargo_bin) then
+  local present = false
+  for entry in vim.gsplit(vim.env.PATH or "", sep, { plain = true }) do
+    if entry ~= "" and norm(entry) == norm(cargo_bin) then
+      present = true
+      break
+    end
+  end
+  if not present then
+    vim.env.PATH = (vim.env.PATH or "") .. sep .. cargo_bin
+  end
 end
 
 vim.opt.relativenumber = false

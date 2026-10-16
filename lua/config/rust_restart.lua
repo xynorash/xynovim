@@ -316,8 +316,9 @@ function M.server_pids()
   local out = {}
   for _, pid in ipairs(vim.api.nvim_get_proc_children(vim.uv.os_getpid())) do
     local p = vim.api.nvim_get_proc(pid)
-    if p and SERVER_EXES[p.name] then
-      out[pid] = p.name
+    local name = p and p.name:gsub("%.exe$", "") -- Windows names carry the .exe
+    if p and SERVER_EXES[name] then
+      out[pid] = name
     end
   end
   return out
@@ -332,7 +333,7 @@ function M.kill_survivors(pids, ms)
   vim.defer_fn(function()
     for pid, name in pairs(pids) do
       local p = vim.api.nvim_get_proc(pid)
-      if p and p.name == name then
+      if p and p.name:gsub("%.exe$", "") == name then
         vim.uv.kill(pid, "sigkill")
       end
     end
@@ -366,6 +367,9 @@ end
 --- VimLeavePre: a SIGSTOPped server does not act on the SIGTERM/shutdown of nvim's exit and was
 --- orphaned (state T, PPID 1). SIGCONT lets it handle them (harmless for a running one).
 function M.resume_servers()
+  if vim.fn.has("win32") == 1 then -- no SIGSTOP / SIGCONT there
+    return
+  end
   for pid in pairs(M.server_pids()) do
     vim.uv.kill(pid, "sigcont")
   end

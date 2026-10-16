@@ -555,6 +555,15 @@ local function progress(msg)
   vim.notify("EguiNew: " .. msg, vim.log.levels.INFO, { id = NOTIFY_ID, title = "EguiNew" })
 end
 
+--- Windows has no unzip, but bsdtar (tar.exe, System32) reads ZIP files.
+local function zip_tool()
+  if vim.fn.executable("unzip") == 1 then
+    return "unzip"
+  elseif vim.fn.has("win32") == 1 and vim.fn.executable("tar") == 1 then
+    return "tar"
+  end
+end
+
 --- Download (conditionally) or reuse the cached ZIP; returns the path of a ZIP.
 local function fetch(tmp)
   local c, err = cfg()
@@ -584,9 +593,9 @@ local function fetch(tmp)
     return have
   end
   local st = r.code == 0 and vim.uv.fs_stat(out) or nil
-  if st and st.size > 0 and vim.fn.executable("unzip") == 1 and have then
+  if st and st.size > 0 and zip_tool() and have then
     -- a captive portal or proxy can answer 200 with HTML: never replace the cache with that
-    if sys({ "unzip", "-Z1", out }).code ~= 0 then
+    if (zip_tool() == "unzip" and sys({ "unzip", "-Z1", out }) or sys({ "tar", "-tf", out })).code ~= 0 then
       st = nil
       r.stderr = "the download is not a ZIP file"
     end
@@ -625,10 +634,11 @@ end
 
 --- Unpack `zip` into tmp/extract and return the one top-level directory.
 local function unpack(zip, tmp)
-  if vim.fn.executable("unzip") ~= 1 then
-    fail("unzip not found")
+  local tool = zip_tool()
+  if not tool then
+    fail(vim.fn.has("win32") == 1 and "neither unzip nor tar found" or "unzip not found")
   end
-  local l = sys({ "unzip", "-Z1", zip })
+  local l = tool == "unzip" and sys({ "unzip", "-Z1", zip }) or sys({ "tar", "-tf", zip })
   if l.code ~= 0 then
     fail("the template archive is not a valid ZIP file")
   end
@@ -639,16 +649,23 @@ local function unpack(zip, tmp)
       fail("the template archive has an unsafe entry: " .. name)
     end
   end
-  local sz = sys({ "unzip", "-Zt", zip })
-  local bytes = tonumber((sz.stdout or ""):match("([%d]+) bytes uncompressed"))
+  local bytes
+  if tool == "unzip" then
+    bytes = tonumber((sys({ "unzip", "-Zt", zip }).stdout or ""):match("([%d]+) bytes uncompressed"))
+  else -- bsdtar -tv: "-rw-r--r--  0 uid gid <size> <date> <name>"
+    bytes = 0
+    for line in (sys({ "tar", "-tvf", zip }).stdout or ""):gmatch("[^\r\n]+") do
+      bytes = bytes + (tonumber(line:match("^%S+%s+%S+%s+%S+%s+%S+%s+(%d+)")) or 0)
+    end
+  end
   if bytes and bytes > 300 * 1024 * 1024 then
     fail("the template archive unpacks to more than 300 MB")
   end
   local ex = tmp .. "/extract"
   vim.fn.mkdir(ex, "p")
-  local u = sys({ "unzip", "-q", "-d", ex, zip })
+  local u = tool == "unzip" and sys({ "unzip", "-q", "-d", ex, zip }) or sys({ "tar", "-xf", zip, "-C", ex })
   if u.code ~= 0 then
-    fail("unzip failed: " .. vim.trim((u.stderr or ""):match("[^\n]+") or tostring(u.code)))
+    fail(tool .. " failed: " .. vim.trim((u.stderr or ""):match("[^\n]+") or tostring(u.code)))
   end
   local ok, err = M.check_tree(ex)
   if not ok then

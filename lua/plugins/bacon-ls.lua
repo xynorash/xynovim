@@ -79,13 +79,14 @@ return {
             end
             return
           end
+          name = vim.fs.normalize(name)
           for _, skip in ipairs({ "/.cargo/registry/", "/.cargo/git/", "/.rustup/" }) do
             if name:find(skip, 1, true) then
               return
             end
           end
           local root = require("config.rust_context").root(name)
-          if root and root:sub(1, 1) == "/" then
+          if root and (root:sub(1, 1) == "/" or root:match("^%a:[/\\]")) then
             on_dir(root)
           end
         end,

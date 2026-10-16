@@ -40,17 +40,17 @@ end
 --- the file (else the workspace root package, else the first one) and its bin
 --- named like the package (else its first bin). Returns { pkg, bin, dir, path }.
 local function current_binary()
-  local file = vim.api.nvim_buf_get_name(0)
+  local file = vim.fs.normalize(vim.api.nvim_buf_get_name(0))
   local meta, root = metadata(file ~= "" and file or (vim.uv.cwd() .. "/x"))
   if not meta then
     return nil
   end
   local best, best_len, rootpkg, firstbin
   for _, pkg in ipairs(meta.packages) do
-    local dir = vim.fs.dirname(pkg.manifest_path)
+    local dir = vim.fs.normalize(vim.fs.dirname(pkg.manifest_path))
     if #bins_of(pkg, "bin") > 0 then
       firstbin = firstbin or pkg
-      if dir == root then
+      if dir == vim.fs.normalize(root) then
         rootpkg = pkg
       end
       if file:sub(1, #dir + 1) == dir .. "/" and #dir > (best_len or 0) then
@@ -73,7 +73,7 @@ local function current_binary()
     pkg = pkg.name,
     bin = bin.name,
     dir = vim.fs.dirname(pkg.manifest_path),
-    path = meta.target_directory .. "/debug/" .. bin.name,
+    path = meta.target_directory .. "/debug/" .. bin.name .. (vim.fn.has("win32") == 1 and ".exe" or ""),
   }
 end
 

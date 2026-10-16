@@ -1103,8 +1103,8 @@ function M.find_definition(bufnr, row, col, name, cb)
     if not def or #def.arms == 0 then
       return fallback("not a macro_rules! macro (a proc macro has no matcher arms)")
     end
-    local home = vim.env.HOME or ""
-    local short = fname:gsub("^" .. vim.pesc(home), "~"):gsub("^.*/library/", "")
+    local home = vim.fs.normalize(vim.uv.os_homedir() or "")
+    local short = vim.fs.normalize(fname):gsub("^" .. vim.pesc(home), "~"):gsub("^.*/library/", "")
     cb(def, ("%s:%d"):format(short, def.row + 1))
   end, bufnr)
 end
@@ -2152,19 +2152,23 @@ function M.ignore_proc_macro(root, crate, names)
     path = root .. "/.rust-analyzer.toml"
   end
   local text = ""
-  local fh = io.open(path, "r")
+  local fh = io.open(path, "rb") -- binary: text mode would turn LF into CRLF on Windows
   if fh then
     text = fh:read("*a")
     fh:close()
   end
-  local new, why = M.toml_ignore(text, crate, names)
+  local crlf = text:find("\r\n", 1, true) ~= nil
+  local new, why = M.toml_ignore(crlf and text:gsub("\r\n", "\n") or text, crate, names)
   if not new then
     return nil, why
+  end
+  if crlf then
+    new = new:gsub("\r?\n", "\r\n")
   end
   -- atomic (tmp + rename) onto the real file, so a symlinked settings file stays one
   local real = uv.fs_realpath(path) or path
   local tmp = ("%s.%d.tmp"):format(real, uv.os_getpid())
-  local out, err = io.open(tmp, "w")
+  local out, err = io.open(tmp, "wb")
   if not out then
     return nil, err
   end
@@ -2174,7 +2178,7 @@ function M.ignore_proc_macro(root, crate, names)
   if st then
     pcall(uv.fs_chmod, tmp, st.mode % 4096)
   end
-  local okr, rerr = uv.fs_rename(tmp, real)
+  local okr, rerr = require("config.fsutil").rename(tmp, real)
   if not okr then
     uv.fs_unlink(tmp)
     return nil, rerr

@@ -15,9 +15,11 @@ end
 --- Mason's bin dir first (installed by `ensure_installed`), then PATH.
 local function find(bin, mason)
   if mason then
-    local p = vim.fn.stdpath("data") .. "/mason/bin/" .. bin
-    if vim.fn.executable(p) == 1 then
-      return p, "Mason"
+    for _, ext in ipairs(vim.fn.has("win32") == 1 and { "", ".cmd", ".exe" } or { "" }) do
+      local p = vim.fs.joinpath(vim.fn.stdpath("data"), "mason", "bin", bin .. ext)
+      if vim.fn.executable(p) == 1 then
+        return p, "Mason"
+      end
     end
   end
   local p = vim.fn.exepath(bin)
@@ -54,11 +56,30 @@ local TOOLS = {
   { "bwrap", "bubblewrap sandbox for the 99 agent (Linux only; without it 99 refuses to run unless vim.g.xynovim_99_allow_unsandboxed = true)", false, { "--version" }, "warn" },
 }
 
+-- Not needed (or not available) on Windows: Mason there unpacks with PowerShell / tar,
+-- mold is a Linux linker, bubblewrap is Linux only (99 then refuses to run).
+local WIN_SKIP = { unzip = true, gzip = true, mold = true, clang = true, bwrap = true }
+-- A C compiler for tree-sitter parsers: gcc, or any of these on Windows.
+local WIN_CC = { "cc", "clang", "cl", "zig" }
+
 function M.check()
   vim.health.start("xynovim: external tools")
+  local win = vim.fn.has("win32") == 1
   for _, t in ipairs(TOOLS) do
     local bin, purpose, mason, vargs, level = t[1], t[2], t[3], t[4], t[5]
     local path, where = find(bin, mason)
+    if win and bin == "gcc" and not path then
+      for _, cc in ipairs(WIN_CC) do
+        if vim.fn.exepath(cc) ~= "" then
+          bin, path, where = cc, vim.fn.exepath(cc), "PATH"
+          vargs = nil
+          break
+        end
+      end
+    end
+    if win and WIN_SKIP[bin] then
+      goto continue
+    end
     local v = path and vargs and first_line(vim.list_extend({ path }, vargs))
     if path and vargs and not v then
       -- e.g. rustup's rust-analyzer proxy when the component is not installed
@@ -75,6 +96,7 @@ function M.check()
       end
       vim.health[level](("%s not found: %s"):format(bin, purpose), hint)
     end
+    ::continue::
   end
 
   vim.health.start("xynovim: rust toolchain")

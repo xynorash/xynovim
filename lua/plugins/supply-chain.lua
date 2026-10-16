@@ -43,7 +43,7 @@ local deny_severity = {
 }
 
 local function in_workflows(ctx)
-  return ctx.filename:find("/%.github/workflows/") ~= nil
+  return require("config.fsutil").slash(ctx.filename):find("/%.github/workflows/") ~= nil
 end
 
 return {

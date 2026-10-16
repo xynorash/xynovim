@@ -145,6 +145,7 @@ function M.applicable_file(file)
   if file == "" or not file:match("%.rs$") then
     return false
   end
+  file = require("config.fsutil").slash(file)
   if file:find("/.cargo/registry/", 1, true) or file:find("/.cargo/git/", 1, true) or file:find("/target/", 1, true) then
     return false
   end
@@ -440,7 +441,7 @@ end
 --- The manifest line `cargo add` wrote for `name` in the table of `kind`.
 local HEADERS = { normal = "dependencies", dev = "dev-dependencies", build = "build-dependencies" }
 function M.added_line(manifest, name, kind)
-  local f = io.open(manifest, "r")
+  local f = io.open(manifest, "rb")
   if not f then
     return nil
   end
@@ -464,7 +465,7 @@ end
 --- Does [workspace.dependencies] of the workspace root list `name`? (cargo
 --- add then writes `name.workspace = true` into a member by itself.)
 function M.in_workspace_table(root, name)
-  local f = io.open(root .. "/Cargo.toml", "r")
+  local f = io.open(root .. "/Cargo.toml", "rb")
   if not f then
     return false
   end

@@ -142,7 +142,7 @@ end
 local function ra_idle(root)
   local any = false
   for _, c in ipairs(vim.lsp.get_clients({ name = "rust-analyzer" })) do
-    local r = c.config and c.config.root_dir
+    local r = require("config.fsutil").slash(c.config and c.config.root_dir)
     if not r or root:sub(1, #r + 1) == r .. "/" or r:sub(1, #root + 1) == root .. "/" or r == root then
       any = true
       if state[c.id] == nil or state[c.id].quiescent ~= true then
@@ -197,7 +197,7 @@ function M.deps(bufnr)
   if next(deps) == nil then
     return nil
   end
-  local name = vim.api.nvim_buf_get_name(bufnr or 0)
+  local name = require("config.fsutil").slash(vim.api.nvim_buf_get_name(bufnr or 0))
   for root in pairs(deps) do
     if name:sub(1, #root + 1) == root .. "/" then
       return "deps resolving"
@@ -209,7 +209,7 @@ end
 --- rust-analyzer reported its status: ends the waits it has finished.
 local function deps_status(client, quiescent)
   for root, d in pairs(deps) do
-    local r = client.config and client.config.root_dir
+    local r = require("config.fsutil").slash(client.config and client.config.root_dir)
     if not r or root:sub(1, #r + 1) == r .. "/" or r:sub(1, #root + 1) == root .. "/" or r == root then
       if quiescent == false then
         d.busy = true

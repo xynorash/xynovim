@@ -3,6 +3,7 @@
 -- diagnostic tiers, codelens/inlay hints, taplo, wgsl-analyzer, kulala.
 -- Needs rust-analyzer and cargo (run with TEST_TIMEOUT=600); tests that need Mason's taplo / wgsl-analyzer,
 -- the network, curl or python3 skip with a message when those are missing.
+-- xyno-os: linux (scans /proc and runs python3 http.server)
 local H = require("xynotest.helpers")
 local harness = require("xynotest.harness")
 

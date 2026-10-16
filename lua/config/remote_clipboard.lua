@@ -41,6 +41,11 @@ local function ancestor_process_named(name)
 end
 
 function M.setup()
+  -- Linux only: the herdr detection walks /proc, and OSC 52 paste would replace
+  -- the native providers (win32yank, pbcopy) with a query many terminals never answer.
+  if vim.fn.has("linux") ~= 1 then
+    return
+  end
   -- Ordered cheapest-first so the /proc ancestor walk (16 process-file
   -- reads) only runs when no env var has already decided the answer.
   local relevant = vim.env.TMUX ~= nil

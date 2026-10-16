@@ -3,6 +3,7 @@
 -- health.check() is unit-tested with vim.health stubbed and a fake PATH of stub
 -- executables; bootstrap.sh runs in a temp "checkout" with a stub nvim. The one
 -- test that needs the network (a real fresh install) runs only with XYNO_TEST_NETWORK=1.
+-- xyno-os: linux,macos (sh stubs and scripts/bootstrap.sh)
 local H = require("xynotest.helpers")
 
 local repo = H.repo

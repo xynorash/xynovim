@@ -3,6 +3,7 @@
 -- (deterministic, no servers); the second half ("live") runs rust-analyzer and
 -- bacon-ls on scratch crates and kills them (skipped without the Rust tools).
 -- The live half takes a few minutes: run it with `scripts/test.sh --timeout 600`.
+-- xyno-os: linux (POSIX signals and /proc on language server processes)
 local H = require("xynotest.helpers")
 
 -- nvim-lspconfig (LazyVim enables bacon_ls from its config) must not first load

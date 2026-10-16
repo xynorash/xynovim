@@ -2,6 +2,18 @@
 -- minimal) and a project scaffold command. Honors the :RustContext choice.
 local M = {}
 
+--- `<build argv> && samply record <bin>`: through sh on POSIX, through cmd.exe on
+--- Windows (where sh may be missing and vim.fn.shellescape quotes for the 'shell' option).
+function M.samply_cmd(build, bin)
+  if vim.fn.has("win32") == 1 then
+    local function q(s)
+      return '"' .. s:gsub('"', '""') .. '"'
+    end
+    return { "cmd", "/s", "/c", '"' .. table.concat(vim.tbl_map(q, build), " ") .. " && samply record " .. q(bin) .. '"' }
+  end
+  return { "sh", "-c", table.concat(vim.tbl_map(vim.fn.shellescape, build), " ") .. " && samply record " .. vim.fn.shellescape(bin) }
+end
+
 local rc = require("config.rust_context")
 
 local function cargo_metadata(root)
@@ -76,12 +88,12 @@ function M.targets()
       kind = (kind == "proc-macro" or kind == "rlib" or kind == "cdylib" or kind == "staticlib" or kind == "dylib") and "lib" or kind
       if kind == "bin" then
         -- `profiling` profile = release + debug symbols (~/.cargo/config.toml)
-        local bin = ("%s/profiling/%s"):format(meta.target_directory, t.name)
+        local bin = ("%s/profiling/%s"):format(meta.target_directory, t.name) .. (vim.fn.has("win32") == 1 and ".exe" or "")
         local build = { "cargo", "build", "--profile", "profiling", "-p", p.name, "--bin", t.name }
         vim.list_extend(build, ctx_flags(root))
         items[#items + 1] = {
           text = ("samply  bin %s (%s)"):format(t.name, p.name),
-          cmd = { "sh", "-c", table.concat(vim.tbl_map(vim.fn.shellescape, build), " ") .. " && samply record " .. vim.fn.shellescape(bin) },
+          cmd = M.samply_cmd(build, bin),
         }
         items[#items + 1] = {
           text = ("flamegraph  bin %s (%s)"):format(t.name, p.name),

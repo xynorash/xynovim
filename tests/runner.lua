@@ -5,6 +5,9 @@
 --   XYNO_RESULT passed=N failed=N skipped=N
 -- line that scripts/test.sh parses. Exit code is 0 only without failures.
 local spec = assert(vim.env.XYNO_SPEC, "XYNO_SPEC not set")
+if vim.fn.has("win32") == 1 and (vim.env.HOME or "") == "" then
+  vim.env.HOME = vim.uv.os_homedir() -- Windows has USERPROFILE; several specs read $HOME
+end
 local repo = vim.fs.dirname(vim.fs.dirname(debug.getinfo(1, "S").source:sub(2)))
 -- "tests.*" would also match other plugins' lua/tests/ modules (lazy's loader
 -- runs before package.path), so the helpers live under a private name.
@@ -36,9 +39,42 @@ local function finish(n)
   end
 end
 
+--- "linux", "macos" or "windows".
+local function platform()
+  return vim.fn.has("win32") == 1 and "windows" or vim.fn.has("mac") == 1 and "macos" or "linux"
+end
+
+--- A spec may declare where it can run in a header line (first 15 lines):
+---   -- xyno-os: linux,macos (why it cannot run elsewhere)
+--- On any other platform the whole file is skipped with that reason, printed as a SKIP line.
+local function os_skip_reason()
+  local n = 0
+  for line in io.lines(spec) do
+    n = n + 1
+    local list, why = line:match("^%-%- xyno%-os: *([%a,]+) *(.*)$")
+    if list then
+      for os_name in list:gmatch("[^,]+") do
+        if os_name == platform() then
+          return nil
+        end
+      end
+      why = why:gsub("^%((.*)%)$", "%1")
+      return ("needs %s, this is %s%s"):format(list:gsub(",", " or "), platform(), why ~= "" and (": " .. why) or "")
+    end
+    if n >= 15 then
+      break
+    end
+  end
+end
+
 local function main()
   local harness = require("xynotest.harness")
   harness.install()
+  local why = os_skip_reason()
+  if why then
+    io.stdout:write(("SKIP %s (%s)\n"):format(vim.fs.basename(spec), why))
+    return finish({ passed = 0, failed = 0, skipped = 1 })
+  end
   -- A spec may bail out at load time with helpers.skip_file(reason).
   local ok, err = xpcall(dofile, debug.traceback, spec)
   if not ok then

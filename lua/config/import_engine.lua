@@ -117,7 +117,7 @@ local function save_memory()
   end
   f:write(vim.json.encode(memory))
   f:close()
-  return vim.uv.fs_rename(tmp, path) and true or false
+  return require("config.fsutil").rename(tmp, path) and true or false
 end
 
 --- Forget the in-memory copy (the next access reads the file again).

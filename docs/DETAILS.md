@@ -127,14 +127,14 @@ colors/        island-dark colourscheme entry point
 lua/island/    Island Dark: init.lua (mapping), palette.lua (generated)
 lua/lualine/   island-dark lualine theme
 tools/         icls2nvim.py + Dark.icls (the scheme it converts)
-scripts/       bootstrap.sh (fresh-install two-step restore, prerequisite check), test.sh (spec runner), coverage.lua (coverage report)
+scripts/       bootstrap.sh and bootstrap.ps1 (fresh-install two-step restore, prerequisite check), test.sh (spec runner), test.lua and test.ps1 (the same runner without bash), coverage.lua (coverage report)
 tests/         *_spec.lua, harness.lua, helpers.lua, runner.lua, coverage_hook.lua, fixtures/ (see Tests)
 Makefile       make test / make coverage
 plugin/after/  transparency, unsafe highlight
 after/ftplugin/ Rust buffer settings (plain `'`, comment spelling)
 queries/       base rust injections (copy of nvim-treesitter's minus the sqlx macros)
 after/queries/ treesitter query extensions (sqlx SQL injection)
-.github/       CI: bootstrap, lockfile check, startup smoke test, spec suite
+.github/       CI: bootstrap, lockfile check, startup smoke test, spec suite (Ubuntu in ci.yml; Windows and macOS in platforms.yml)
 ```
 
 LazyVim extras enabled (`lazyvim.json`): `ai.claudecode`, `editor.neo-tree`, `editor.overseer`, `lang.rust`, `lang.toml`, `lang.yaml`, `lang.json`, `lang.markdown`, `lang.git`, `dap.core`, `test.core`, `ui.treesitter-context`, `editor.navic`, `coding.mini-surround`, `coding.neogen`, `editor.inc-rename`, `util.rest`.

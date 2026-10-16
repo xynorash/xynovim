@@ -1353,7 +1353,7 @@ local function write_all(path, text)
   if st then
     pcall(vim.uv.fs_chmod, tmp, st.mode % 4096)
   end
-  return vim.uv.fs_rename(tmp, path) and true or false
+  return require("config.fsutil").rename(tmp, path) and true or false
 end
 
 local function manifest_buffer_modified(manifest)

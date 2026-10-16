@@ -133,7 +133,7 @@ local function write_file(path, data)
   end
   f:write(data)
   f:close()
-  return vim.uv.fs_rename(tmp, path) and true or false
+  return require("config.fsutil").rename(tmp, path) and true or false
 end
 
 local function mtime(path)
@@ -395,7 +395,7 @@ end
 -- ------------------------------------------------- registry and sources
 
 local function cargo_home()
-  return M.config.cargo_home or vim.env.CARGO_HOME or ((vim.env.HOME or "") .. "/.cargo")
+  return M.config.cargo_home or vim.env.CARGO_HOME or (vim.fs.joinpath(vim.uv.os_homedir() or "", ".cargo"))
 end
 
 --- Unpacked registry source of `name` (exact `version`, else the highest one

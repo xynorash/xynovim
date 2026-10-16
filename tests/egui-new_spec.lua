@@ -6,6 +6,7 @@
 -- http://127.0.0.1 base_url (a tiny server inside this nvim, so the ETag /
 -- If-None-Match / offline-cache behaviour is exercised without the network).
 -- ONE test downloads the real template and skips without network.
+-- xyno-os: linux,macos (sh stubs, file mode bits, sed -i)
 local H = require("xynotest.helpers")
 local E = require("config.egui_new")
 

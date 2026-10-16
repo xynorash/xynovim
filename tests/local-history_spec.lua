@@ -3,6 +3,7 @@
 -- Hermetic: temp repos, a private GIT_CONFIG_GLOBAL, a logging/fault-injecting
 -- `git` wrapper first in PATH (hangs, failures, lock errors, delays), timers
 -- and os.time are shimmed where the real thing would take a minute.
+-- xyno-os: linux,macos (bash stubs, sleep, kill -0)
 local H = require("xynotest.helpers")
 local LH = require("config.local_history")
 

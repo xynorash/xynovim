@@ -3,6 +3,7 @@
 -- dashboard entries) and lua/plugins/rust-new.lua. Pure functions first, then the flows with the
 -- REAL cargo in temp directories (cargo new works offline), the failure paths (stub cargo / empty
 -- PATH / read-only parent), and the dashboard rendered in tmux at several window sizes.
+-- xyno-os: linux,macos (sh cargo stubs and a tmux dashboard)
 local H = require("xynotest.helpers")
 local R = require("config.rust_new")
 local E = require("config.egui_new")

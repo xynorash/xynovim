@@ -663,7 +663,7 @@ end
 --- Why a workspace `name` in `parent` would nest badly, or nil: an enclosing workspace whose
 --- members cover it (cargo then finds two workspace roots) or an enclosing git work tree.
 function M.nesting_warning(parent, name)
-  local dir = parent:gsub("/+$", "")
+  local dir = require("config.fsutil").slash(parent):gsub("/+$", "")
   while dir ~= "" do
     local rel = (parent:sub(#dir + 1) .. "/" .. name):gsub("^/", "")
     local text = read_file(dir .. "/Cargo.toml")

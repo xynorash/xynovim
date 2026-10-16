@@ -7,6 +7,8 @@
 -- Fixtures     H.fixture(name, {git=true}) H.open_fixture(name, rel) H.git(...)
 -- Processes    H.sandbox_sh(script, project) H.tmux(...) H.spawn(cmd)
 -- Skipping     H.skip_file(reason) H.need_rust() H.need_sandbox() H.need_tmux()
+--              H.need_os({ "linux", "macos" }, reason) H.need_posix(reason)
+--              and, in a spec's first 15 lines, `-- xyno-os: linux (reason)` (tests/runner.lua)
 -- Cleanup      H.cleanup() (the runner calls it at the end; registered
 --              resources are temp dirs, jobs, tmux sockets, LSP clients)
 local harness = require("xynotest.harness")
@@ -248,6 +250,22 @@ function H.tmux_available()
   return true
 end
 
+--- "linux", "macos" or "windows".
+H.os = vim.fn.has("win32") == 1 and "windows" or vim.fn.has("mac") == 1 and "macos" or "linux"
+H.is_win = H.os == "windows"
+
+--- Skip the test (or, at load time, the file) unless this platform is in `list`.
+function H.need_os(list, reason)
+  if not vim.tbl_contains(list, H.os) then
+    harness.skip(("needs %s, this is %s: %s"):format(table.concat(list, " or "), H.os, reason))
+  end
+end
+
+--- Skip on Windows (shell scripts, chmod bits, signals, symlinks without privileges).
+function H.need_posix(reason)
+  H.need_os({ "linux", "macos" }, reason)
+end
+
 function H.skip_file(reason)
   harness.skip(reason)
 end
@@ -306,6 +324,21 @@ function H.git_init(dir)
   return dir
 end
 
+--- Recursive copy of a file or directory (modes kept by libuv, symlinks recreated).
+function H.copy_tree(src, dest)
+  local st = assert(vim.uv.fs_lstat(src))
+  if st.type == "directory" then
+    vim.fn.mkdir(dest, "p")
+    for name in vim.fs.dir(src) do
+      H.copy_tree(src .. "/" .. name, dest .. "/" .. name)
+    end
+  elseif st.type == "link" then
+    assert(vim.uv.fs_symlink(assert(vim.uv.fs_readlink(src)), dest))
+  else
+    assert(vim.uv.fs_copyfile(src, dest))
+  end
+end
+
 --- Copy tests/fixtures/<name> (a crate directory or a single .rs file) into a
 --- fresh temp dir. Returns the path of the copy (directory, or file path).
 --- opts.git = true makes the crate a git repository with one commit.
@@ -313,8 +346,12 @@ function H.fixture(name, opts)
   opts = opts or {}
   local src = H.fixtures .. "/" .. name
   local dir = H.tmpdir()
-  local r = run({ "cp", "-a", "--no-preserve=ownership", src, dir .. "/" })
-  assert(r.code == 0, "copying fixture " .. name .. ": " .. (r.stderr or ""))
+  if H.os == "linux" then
+    local r = run({ "cp", "-a", "--no-preserve=ownership", src, dir .. "/" })
+    assert(r.code == 0, "copying fixture " .. name .. ": " .. (r.stderr or ""))
+  else
+    H.copy_tree(src, dir .. "/" .. name) -- BSD cp lacks --no-preserve, Windows has no cp
+  end
   local dest = dir .. "/" .. name
   if opts.git then
     H.git_init(vim.fn.isdirectory(dest) == 1 and dest or dir)
