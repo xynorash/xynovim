@@ -571,7 +571,7 @@ describe("keymap uniqueness", function()
     vim.list_extend(files, vim.fn.globpath(H.repo .. "/after", "**/*.lua", false, true))
     vim.list_extend(files, vim.fn.globpath(H.repo .. "/plugin", "**/*.lua", false, true))
     for _, f in ipairs(files) do
-      local rel = f:sub(#H.repo + 2)
+      local rel = f:gsub("\\", "/"):sub(#H.repo + 2)
       local lines = vim.fn.readfile(f)
       local i = 1
       while i <= #lines do

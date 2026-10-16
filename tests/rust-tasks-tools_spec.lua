@@ -267,6 +267,7 @@ describe(":RustTargets items", function()
   end)
 
   it("the samply item builds with the profiling profile, then records the binary (shellescaped)", function()
+    H.need_posix("the samply item is `sh -c` on POSIX and a cmd.exe line on Windows")
     local opts, dir = targets_for_all(nil)
     local meta = vim.json.decode(
       vim.system({ "cargo", "metadata", "--format-version", "1", "--no-deps" }, { cwd = dir, text = true }):wait().stdout
@@ -279,6 +280,7 @@ describe(":RustTargets items", function()
   end)
 
   it("the samply item shellescapes odd target directories and names", function()
+    H.need_posix("the samply item is `sh -c` on POSIX and a cmd.exe line on Windows")
     local dir = H.fixture("rust-tasks-tools-all")
     vim.cmd.cd(vim.fn.fnameescape(dir))
     H.open(dir .. "/src/main.rs")

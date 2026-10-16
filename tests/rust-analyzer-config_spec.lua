@@ -826,7 +826,7 @@ describe("editing-ui and domain specs", function()
     vim.fn.writefile({ "[package]", 'name = "big"', 'version = "0.1.0"', 'edition = "2021"' }, dir .. "/Cargo.toml")
     vim.fn.mkdir(dir .. "/src")
     local line = "pub const X: u8 = 1; // padding padding padding padding padding padding padding\n"
-    local f = assert(io.open(dir .. "/src/main.rs", "w"))
+    local f = assert(io.open(dir .. "/src/main.rs", "wb"))
     f:write("fn main() {}\n")
     for _ = 1, math.ceil(1.6 * 1024 * 1024 / #line) do
       f:write(line)

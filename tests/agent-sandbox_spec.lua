@@ -15,7 +15,7 @@ local uid = vim.uv.os_get_passwd().uid
 
 local function write(path, text)
   vim.fn.mkdir(vim.fs.dirname(path), "p")
-  local f = assert(io.open(path, "w"))
+  local f = assert(io.open(path, "wb"))
   f:write(text or "x\n")
   f:close()
 end

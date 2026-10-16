@@ -173,7 +173,7 @@ def main():
             left = re.findall(r"\{\{[A-Z]+\}\}", text)
             if left:
                 sys.exit("build-site: unknown placeholder %s in %s" % (left[0], fn))
-            with open(path, "w", encoding="utf-8") as f:
+            with open(path, "w", encoding="utf-8", newline="\n") as f:
                 f.write(text)
 
     with open(os.path.join(out, ".nojekyll"), "w", encoding="utf-8"):

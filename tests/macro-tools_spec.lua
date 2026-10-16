@@ -639,7 +639,7 @@ pub fn select(input: TokenStream) -> TokenStream { input }
 
   it("uses .rust-analyzer.toml when that is the file the project has", function()
     local dir = H.tmpdir()
-    local f = assert(io.open(dir .. "/.rust-analyzer.toml", "w"))
+    local f = assert(io.open(dir .. "/.rust-analyzer.toml", "wb"))
     f:write('[cargo]\nfeatures = "all"\n')
     f:close()
     local path = H.ok(mt.ignore_proc_macro(dir, "a", { "a" }))
@@ -653,7 +653,7 @@ pub fn select(input: TokenStream) -> TokenStream { input }
     H.is_nil(ok)
     H.match(err, "odd crate name", true)
     H.is_nil(vim.uv.fs_stat(dir .. "/rust-analyzer.toml"))
-    local f = assert(io.open(dir .. "/rust-analyzer.toml", "w"))
+    local f = assert(io.open(dir .. "/rust-analyzer.toml", "wb"))
     f:write('procMacro.ignored.a = ["x"]\n')
     f:close()
     ok, err = mt.ignore_proc_macro(dir, "b", nil)

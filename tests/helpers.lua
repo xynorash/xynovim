@@ -250,6 +250,9 @@ function H.tmux_available()
   return true
 end
 
+--- bash by absolute path (specs that run bootstrap.sh with a cleared environment).
+H.bash = vim.uv.fs_stat("/usr/bin/bash") and "/usr/bin/bash" or vim.fn.exepath("bash")
+
 --- "linux", "macos" or "windows".
 H.os = vim.fn.has("win32") == 1 and "windows" or vim.fn.has("mac") == 1 and "macos" or "linux"
 H.is_win = H.os == "windows"
@@ -298,6 +301,11 @@ function H.tmpdir()
   end
   local dir = assert(vim.uv.fs_mkdtemp(base .. "/spec-XXXXXX"))
   H._dirs[#H._dirs + 1] = dir
+  if H.os ~= "linux" then
+    -- one spelling of the path: macOS /var is /private/var (cargo prints the
+    -- latter), Windows has short 8.3 names and backslashes
+    dir = vim.fs.normalize(vim.uv.fs_realpath(dir) or dir)
+  end
   return dir
 end
 

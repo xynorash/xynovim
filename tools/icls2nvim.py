@@ -165,7 +165,7 @@ def main(argv):
         if kind == "color" and key in colors:
             derived[name] = colors[key]
     os.makedirs(os.path.dirname(dst), exist_ok=True)
-    with open(dst, "w") as fh:
+    with open(dst, "w", newline="\n") as fh:
         fh.write(emit(root, src, colors, attrs, derived))
     print("%s: %d colours, %d attributes (of %d), %d derived -> %s" % (
         os.path.basename(src), len(colors), len(attrs), len(raw), len(derived), dst))

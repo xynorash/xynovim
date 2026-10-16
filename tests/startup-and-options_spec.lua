@@ -21,7 +21,7 @@ local function read(path)
 end
 
 local function write(path, s)
-  local f = assert(io.open(path, "w"))
+  local f = assert(io.open(path, "wb"))
   f:write(s)
   f:close()
 end

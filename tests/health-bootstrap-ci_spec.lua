@@ -410,7 +410,7 @@ exit 0
         TMPDIR = self.tmp,
         LOCK = self.lock,
       }, env or {})
-      return sh({ "/usr/bin/bash", self.script }, { env = env, clear_env = true, cwd = self.ck })
+      return sh({ H.bash, self.script }, { env = env, clear_env = true, cwd = self.ck })
     end,
   }
 end
@@ -488,7 +488,7 @@ describe("bootstrap.sh: config link check", function()
     sh({ "mv", c.ck, c.root .. "/nvim" })
     local script = c.root .. "/nvim/scripts/bootstrap.sh"
     local env = { PATH = c.bin, XDG_CONFIG_HOME = c.root, HOME = c.root .. "/home", TMPDIR = c.tmp, BOOTSTRAP_SKIP_PREREQS = "1", LOCK = c.root .. "/nvim/lazy-lock.json" }
-    local r2 = sh({ "/usr/bin/bash", script }, { env = env, clear_env = true })
+    local r2 = sh({ H.bash, script }, { env = env, clear_env = true })
     H.eq(0, r2.code, r2.stderr)
   end)
 end)
@@ -752,7 +752,7 @@ describe("ci.yml", function()
       end
       local script = dir .. "/smoke.sh"
       vim.fn.writefile(vim.split(run_block(ci_steps()[7]), "\n"), script)
-      local r = sh({ "/usr/bin/bash", "-e", script }, { env = { PATH = bin, RUNNER_TEMP = dir }, clear_env = true, cwd = dir })
+      local r = sh({ H.bash, "-e", script }, { env = { PATH = bin, RUNNER_TEMP = dir }, clear_env = true, cwd = dir })
       return r, dir
     end
 

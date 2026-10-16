@@ -66,7 +66,9 @@ end
 local function canon(p)
   if p and vim.fn.has("win32") == 1 then
     p = vim.fs.normalize((p:gsub("^\\\\%?\\", "")), { expand_env = false })
-    p = p:gsub("^(%a):", string.lower)
+    p = p:gsub("^(%a):", function(d)
+      return d:lower() .. ":"
+    end)
   end
   return p
 end

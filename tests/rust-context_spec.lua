@@ -10,7 +10,7 @@ local state_file = vim.fn.stdpath("state") .. "/rust-context.json"
 
 local function write_text(path, text)
   vim.fn.mkdir(vim.fs.dirname(path), "p")
-  local f = assert(io.open(path, "w"))
+  local f = assert(io.open(path, "wb"))
   f:write(text)
   f:close()
 end
