@@ -370,7 +370,7 @@ The official site (https://xynorash.github.io/xynovim/) is one static page in [`
 
 ## Acknowledgements
 
-Thank you to JetBrains for their amazing products. The author is a full-in JetBrains user and considers the whole suite of IDEs and tools the best they have ever used. RustRover, one IDE of that suite, is the specific source of inspiration for xynovim, and the Island Dark colour scheme is derived from JetBrains' Islands Dark scheme (imported from its `Dark.icls`). xynovim is an independent project, not affiliated with or endorsed by JetBrains.
+Thank you to JetBrains for their amazing products. The author is a full-in JetBrains user and considers JetBrains' products, the whole suite of IDEs and tools, the best the author has ever used. RustRover, one IDE of that suite, is the specific source of inspiration for xynovim: the author was so satisfied with those tools that they wanted to build their own dream configuration from that inspiration, and still uses JetBrains tools. The Island Dark colour scheme is derived from JetBrains' Islands Dark scheme. xynovim is an independent personal project, not affiliated with or endorsed by JetBrains, not competing with them and not an alternative to their products.
 
 ## Layout
 

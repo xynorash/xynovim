@@ -480,7 +480,7 @@ describe("the page says what the README says", function()
     H.ok(ack, "README Acknowledgements section")
     local foot = html:match('<footer class="site%-footer">(.-)</footer>')
     H.ok(foot, "footer")
-    for _, w in ipairs({ "amazing products", "RustRover, one IDE of that suite", "derived from", "not affiliated with or endorsed by JetBrains" }) do
+    for _, w in ipairs({ "amazing products", "RustRover, one IDE of that suite", "derived from", "not affiliated with or endorsed by JetBrains", "still uses JetBrains tools", "not an alternative" }) do
       H.match(ack, w, true, w)
       H.match(foot, w, true, w)
     end
