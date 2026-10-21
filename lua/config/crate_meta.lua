@@ -384,9 +384,18 @@ end
 
 --- The member whose directory contains `path` (the longest match).
 function M.member_of(meta, path)
+  -- cargo's manifest paths and a buffer name may spell one Windows path
+  -- differently (drive letter case, slashes): compare one spelling
+  local win = vim.fn.has("win32") == 1
+  local function key(p)
+    p = require("config.rust_context").canon(p)
+    return win and p:lower() or p
+  end
+  local want = key(path)
   local best
   for _, m in ipairs(meta.members) do
-    if (path == m.dir or vim.startswith(path, m.dir .. "/")) and (not best or #m.dir > #best.dir) then
+    local dir = key(m.dir)
+    if (want == dir or vim.startswith(want, dir .. "/")) and (not best or #m.dir > #best.dir) then
       best = m
     end
   end

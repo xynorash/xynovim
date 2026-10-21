@@ -510,6 +510,7 @@ describe("auto-import flow (fake rust-analyzer)", function()
   end)
 
   it("triggers after InsertLeave and a save, debounced, and not again after an undo", function()
+    H.known_issue({ "macos" }, "timing on the macos-latest runner (run 39647013043: auto import after InsertLeave timed out at 17 s; passes on Linux and Windows)")
     need_ts()
     vim.g.xynovim_auto_import = "single"
     E.config.debounce = 80

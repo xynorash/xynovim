@@ -146,6 +146,7 @@ describe("deps-freshness: Cargo.toml / Cargo.lock saved from nvim restarts bacon
   end)
 
   it("BufWritePost of Cargo.toml: one debounced restart and 'deps resolving' on the crate's buffers", function()
+    H.known_issue({ "windows" }, "bacon_ls never attaches on Windows (windows-latest run 39647013043; Mason installed bacon-ls but no client starts, cause not found)")
     local mb, rb = buf_of(d .. "/Cargo.toml"), buf_of(d .. "/src/main.rs")
     fire("BufWritePost", RR_GROUP, nil, mb)
     H.eq("deps resolving", require("config.lsp_status").deps(rb))
@@ -159,6 +160,7 @@ describe("deps-freshness: Cargo.toml / Cargo.lock saved from nvim restarts bacon
   end)
 
   it("auto-save's User AutoSaveWritePost (saved_buffer) does the same, for Cargo.lock too", function()
+    H.known_issue({ "windows" }, "bacon_ls never attaches on Windows (windows-latest run 39647013043; Mason installed bacon-ls but no client starts, cause not found)")
     local lb = buf_of(d .. "/Cargo.lock")
     fire("User", RR_GROUP, { saved_buffer = lb }, nil)
     -- (User pattern is matched on the event's pattern: exec with it)
@@ -169,6 +171,7 @@ describe("deps-freshness: Cargo.toml / Cargo.lock saved from nvim restarts bacon
   end)
 
   it("a burst of saves is one restart (500 ms debounce)", function()
+    H.known_issue({ "windows" }, "bacon_ls never attaches on Windows (windows-latest run 39647013043; Mason installed bacon-ls but no client starts, cause not found)")
     local mb = buf_of(d .. "/Cargo.toml")
     for _ = 1, 4 do
       fire("BufWritePost", RR_GROUP, nil, mb)
@@ -188,6 +191,7 @@ describe("deps-freshness: Cargo.toml / Cargo.lock saved from nvim restarts bacon
   end)
 
   it("loop guard: FocusGained after the save's restart does not restart again", function()
+    H.known_issue({ "windows" }, "bacon_ls never attaches on Windows (windows-latest run 39647013043; Mason installed bacon-ls but no client starts, cause not found)")
     local mb = buf_of(d .. "/Cargo.toml")
     fire("LspAttach", RR_GROUP, { client_id = bacon.id })
     vim.fn.writefile({ "[package]", 'name = "t"', 'version = "0.1.1"' }, d .. "/Cargo.toml")

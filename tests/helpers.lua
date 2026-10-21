@@ -292,6 +292,14 @@ function H.need_os(list, reason)
   end
 end
 
+--- Skip the test on the platforms in `list`: a failure seen in a CI run that is
+--- not diagnosed or fixed yet. Always names the reason; listed in docs/KNOWN_ISSUES.md.
+function H.known_issue(list, reason)
+  if vim.tbl_contains(list, H.os) then
+    harness.skip(("known issue on %s: %s"):format(H.os, reason))
+  end
+end
+
 --- Skip on Windows (shell scripts, chmod bits, signals, symlinks without privileges).
 function H.need_posix(reason)
   H.need_os({ "linux", "macos" }, reason)

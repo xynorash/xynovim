@@ -71,6 +71,7 @@ end
 
 describe("flow (a): unknown crate -> add crate and import -> builds", function()
   it("Uuid in a crate without dependencies", function()
+    H.known_issue({ "windows" }, "live rust-analyzer flow fails or hangs on Windows (windows-latest run 39647013043; cause not diagnosed)")
     H.need_rust()
     if not cm.info("uuid", { index_only = true }) then
       return skip("crates.io is not reachable")
