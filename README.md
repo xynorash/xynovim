@@ -7,7 +7,7 @@
 [![ci](https://github.com/xynorash/xynovim/actions/workflows/ci.yml/badge.svg)](https://github.com/xynorash/xynovim/actions/workflows/ci.yml)
 ![neovim 0.12](https://img.shields.io/badge/neovim-0.12-57a143?logo=neovim&logoColor=white)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
-![tests](https://img.shields.io/badge/tests-1769%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-1771%20passing-brightgreen)
 
 Website: https://xynorash.github.io/xynovim/
 
@@ -27,7 +27,7 @@ The website, <https://xynorash.github.io/xynovim/>, is published from the dedica
 - **A debugger and a test runner that look like the ones in an IDE**: breakpoints with Rust-aware variable views, a test summary tree, coverage in the gutter.
 - **A safety net**: every save is snapshotted as a git ref (a "Local History"), and the AI agent runs inside a sandbox.
 - **Treesitter everywhere**: sticky scope, text objects, SQL injected into `sqlx` strings, a live syntax-tree view.
-- **Tested**: 1769 passing checks across 38 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
+- **Tested**: 1771 passing checks across 38 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
 
 ## Tour
 
@@ -129,7 +129,7 @@ Video: [09-theme.mp4](docs/media/09-theme.mp4)
 
 ### The AI agent, sandboxed
 
-[99](https://github.com/ThePrimeagen/99) with the Claude Code provider is wired in (`<leader>9`), and its `claude --dangerously-skip-permissions` runs inside **bubblewrap**, which exists only on Linux, so the agent **only runs where a sandbox exists** (Linux with `bwrap`; WSL2 with `bwrap` is the route on Windows, not tested here). Without one (Windows, macOS, Linux without `bwrap`) 99 **refuses** to start a request and says why. Two explicit booleans override that, and either one warns on every request: `vim.g.xynovim_99_sandbox = false` turns the sandbox off on purpose (even where `bwrap` works), `vim.g.xynovim_99_allow_unsandboxed = true` runs the agent anyway only when there is no backend (it never disables a working sandbox); `0`, `"false"` or `1` count as nothing. Where `bwrap` works: the filesystem is read-only except the project and Claude's own state, credentials and agent sockets are hidden, `.git/hooks`, `.git/config` and Claude's settings are locked read-only, the environment is scrubbed of tokens, and every request is preceded by a Local History snapshot with auto-save paused. It is a seatbelt, not a jail: the network stays open (details in [docs/DETAILS.md](docs/DETAILS.md)). There are no screenshots: the sandbox has no UI, and a real request needs an account.
+[99](https://github.com/ThePrimeagen/99) with the Claude Code provider is wired in (`<leader>9`), and its `claude --dangerously-skip-permissions` runs inside **bubblewrap**, which exists only on Linux, so the agent **only runs where a sandbox exists** (Linux with `bwrap`; WSL2 with `bwrap` is the route on Windows, not tested here). Without one (Windows, macOS, Linux without `bwrap`) 99 **refuses** to start a request and says why. Two explicit booleans override that, and either one warns on every request: `vim.g.xynovim_99_sandbox = false` turns the sandbox off on purpose (even where `bwrap` works), `vim.g.xynovim_99_allow_unsandboxed = true` runs the agent anyway only when there is no backend (it never disables a working sandbox); `0`, `"false"` or `1` count as nothing. The `<leader>9P` provider picker only accepts the guarded Claude Code provider under the same rule (the other CLIs would run with no sandbox or checkpoint). Where `bwrap` works: the filesystem is read-only except the project and Claude's own state, credentials and agent sockets are hidden, `.git/hooks`, `.git/config` and Claude's settings are locked read-only, the environment is scrubbed of tokens, and every request is preceded by a Local History snapshot with auto-save paused. It is a seatbelt, not a jail: the network stays open (details in [docs/DETAILS.md](docs/DETAILS.md)). There are no screenshots: the sandbox has no UI, and a real request needs an account.
 
 ## Install
 
@@ -301,7 +301,7 @@ Video: [14-egui-new.mp4](docs/media/14-egui-new.mp4)
 
 ## Tests: run them yourself
 
-The config ships with an automated suite: **38 spec files, 1769 checks passing, 26 skipped with a stated reason, 0 failing**, in about twelve minutes. Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
+The config ships with an automated suite: **38 spec files, 1771 checks passing, 26 skipped with a stated reason, 0 failing**, in about twelve minutes. Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
 
 ```sh
 scripts/test.sh                  # everything (or: make test)

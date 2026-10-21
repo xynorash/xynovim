@@ -897,3 +897,52 @@ pending(
   "a real 99 request end to end (claude, sandbox, response applied)",
   "not verified in the README: needs a real claude session and network"
 )
+
+-- ------------------------------------------- the provider picker is guarded
+
+describe("provider picker (<leader>9P)", function()
+  local pickers, cap
+
+  before_each(function()
+    vim.g.xynovim_99_sandbox = nil
+    vim.g.xynovim_99_allow_unsandboxed = nil
+    require("99").set_provider(guarded())
+    pickers = require("99.extensions.pickers")
+    cap = H.capture_notify()
+  end)
+
+  after_each(function()
+    cap.restore()
+    vim.g.xynovim_99_sandbox = nil
+    vim.g.xynovim_99_allow_unsandboxed = nil
+    require("99").set_provider(guarded())
+  end)
+
+  it("refuses every provider but the guarded one, spawning nothing", function()
+    local g = guarded()
+    local info = pickers.get_providers()
+    H.ok(#info.names >= 2, "no other providers listed")
+    for _, name in ipairs(info.names) do
+      if info.lookup[name] ~= claude() then
+        pickers.on_provider_selected(name, info.lookup)
+        H.ok(require("99").get_provider() == g, name .. " replaced the guarded provider")
+      end
+    end
+    local refused = vim.tbl_filter(function(n)
+      return type(n.msg) == "string" and n.msg:find("only the guarded", 1, true)
+    end, cap.list)
+    H.eq(#info.names - 1, #refused)
+    H.eq(0, #vim.tbl_filter(function(n)
+      return type(n.msg) == "string" and n.msg:find("Provider set", 1, true)
+    end, cap.list), "the picker announced a switch that did not happen")
+  end)
+
+  it("allows another provider with the explicit opt-out", function()
+    vim.g.xynovim_99_allow_unsandboxed = true
+    local info = pickers.get_providers()
+    local other = info.lookup.OpenCodeProvider
+    H.ok(other, "OpenCodeProvider not listed")
+    pickers.on_provider_selected("OpenCodeProvider", info.lookup)
+    H.ok(require("99").get_provider() == other)
+  end)
+end)

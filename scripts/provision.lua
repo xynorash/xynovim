@@ -87,6 +87,35 @@ vim.wait(900000, function()
   quiet_since = quiet_since or vim.uv.now()
   return vim.uv.now() - quiet_since > 5000 -- no new install started for 5 s
 end, 200)
+-- A package whose install was aborted or lost a race (seen: codelldb on Linux,
+-- "Neovim is exiting while packages are still installing") is retried, waiting
+-- on the install handles themselves.
+for round = 1, 2 do
+  local handles = {}
+  for _, name in ipairs(TOOLS) do
+    local ok, pkg = pcall(reg.get_package, name)
+    if ok and not pkg:is_installed() then
+      say(("retrying Mason package %s (round %d)"):format(name, round))
+      local started, h = pcall(function()
+        return pkg:install()
+      end)
+      if started and h then
+        handles[#handles + 1] = h
+      end
+    end
+  end
+  if #handles == 0 then
+    break
+  end
+  vim.wait(600000, function()
+    for _, h in ipairs(handles) do
+      if not h:is_closed() then
+        return false
+      end
+    end
+    return true
+  end, 200)
+end
 say("mason packages: " .. table.concat(reg.get_installed_package_names(), ", "))
 for _, name in ipairs(TOOLS) do
   local ok, pkg = pcall(reg.get_package, name)

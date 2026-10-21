@@ -209,5 +209,37 @@ return {
         source = "blink",
       },
     })
+
+    -- The <leader>9P picker (and anything else) swaps the provider with
+    -- _99.set_provider. The stock providers of the other CLIs run with no
+    -- sandbox, no checkpoint and no auto-save guard, so only the guarded
+    -- provider may be selected unless the sandbox was switched off explicitly.
+    local set_provider = _99.set_provider
+    local function allowed(provider)
+      return provider == Guarded or vim.g.xynovim_99_sandbox == false or vim.g.xynovim_99_allow_unsandboxed == true
+    end
+    function _99.set_provider(provider)
+      if not allowed(provider) then
+        vim.notify(
+          "99: only the guarded Claude Code provider can be selected (the other providers run without the"
+            .. " sandbox, checkpoint and auto-save guard). Set vim.g.xynovim_99_sandbox = false or"
+            .. " vim.g.xynovim_99_allow_unsandboxed = true to allow them.",
+          vim.log.levels.ERROR
+        )
+        return _99
+      end
+      return set_provider(provider)
+    end
+    -- the picker announces "Provider set" after its call: skip that when refused
+    local pickers = require("99.extensions.pickers")
+    local on_selected = pickers.on_provider_selected
+    function pickers.on_provider_selected(name, lookup)
+      local provider = lookup[name]
+      if provider and not allowed(provider) then
+        _99.set_provider(provider) -- prints the refusal
+        return
+      end
+      return on_selected(name, lookup)
+    end
   end,
 }
