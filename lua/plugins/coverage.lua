@@ -1,4 +1,4 @@
--- Code coverage in the gutter (RustRover "Run with Coverage").
+-- Code coverage in the gutter (same idea as "Run with Coverage" in the JetBrains IDEs).
 -- <leader>tc runs `cargo llvm-cov nextest` (falls back to plain cargo test),
 -- writes target/lcov.info in the workspace root and loads it as signs. On demand
 -- only, never per autosave: an instrumented build is a separate target tree

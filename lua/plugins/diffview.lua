@@ -1,5 +1,5 @@
--- Visual diff / merge-conflict / file-history UI (RustRover's Git tool
--- windows). Merge conflicts: :DiffviewOpen during a merge opens the 3-way
+-- Visual diff / merge-conflict / file-history UI (same idea as the
+-- Git tool windows of the JetBrains IDEs). Merge conflicts: :DiffviewOpen during a merge opens the 3-way
 -- view; <leader>co / ct / cb / ca pick ours / theirs / base / all in a hunk.
 return {
   "sindrets/diffview.nvim",

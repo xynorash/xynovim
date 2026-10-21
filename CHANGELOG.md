@@ -4,6 +4,7 @@ All notable changes to this config are documented here.
 
 ## [Unreleased]
 
+- Positioning: xynovim is a personal project inspired by JetBrains' tools, which the author still uses; it is not a competitor to them. The pitch, page title, meta descriptions, history headings and code comments no longer read as a comparison or a race ("goes after", "closing the gap", "matches or beats", "poor man's", "clone"); the facts and the history stay as they were.
 - Acknowledgements: README section and a website footer paragraph thanking JetBrains (RustRover as the inspiration, Island Dark derived from the Islands Dark scheme, no affiliation). Text only.
 - Platforms, wording: README (Install, Platforms), the website (install section, limitations) and the repository description now say only what the `platforms` and `ci` runs show. Windows: run 39673715062 green (bootstrap.ps1, headless start, 1077 passed, 0 failed, 87 skipped; 10 of 38 spec files skipped whole), green in 3 of the last 4 runs (39660597368, 39663956677, 39673715062; 39668277143 failed on spec path assertions, fixed). macOS: not reliably green, green once (39663956677: 1431 passed, 0 failed, 73 skipped), red in 39660597368, 39668277143 and 39673715062 (a treesitter parser failed to compile during the plugin restore). Linux: `ci` run 39673715029, 1724 passed, 0 failed, 76 skipped. Still unverified: Local History, startup options, project creation and live rust-analyzer flows on Windows, codelldb on both, everything the 99 sandbox does off Linux (it refuses to start).
 - Windows and macOS, last iteration of the first pass: `crate_meta.member_of` compares one path spelling (drive-letter case, slashes) so members are found on Windows; the specs that fail on `windows-latest` / `macos-latest` in run 39647013043 for causes not found yet skip with a printed reason (`H.known_issue`) and are listed in docs/KNOWN_ISSUES.md.
@@ -282,7 +283,7 @@ All notable changes to this config are documented here.
 ## [1.6.0] — 2026-10-12
 
 ### Changed
-- Theme: Island Dark (the user's RustRover "Dark" scheme, parent Darcula) is now
+- Theme: Island Dark (the author's own "Dark" scheme, parent Darcula) is now
   the permanent colourscheme. `tools/icls2nvim.py` converts `tools/Dark.icls` to
   `lua/island/palette.lua`; `lua/island/init.lua`, `colors/island-dark.lua` and a
   lualine theme map it to UI, Treesitter, LSP semantic (`org.rust.*`) and plugin
@@ -467,8 +468,9 @@ All notable changes to this config are documented here.
   the README already described. Verified a fresh crate links with mold.
 
 ### Docs
-- README: added a "Roadmap: closing the gap with RustRover" section with the
-  11-step, ordered plan from a researched gap analysis against RustRover 2026.2
+- README: added a "Roadmap" section with the 11-step, ordered plan from the
+  author's wish list of features missed from the JetBrains workflow (researched
+  while using RustRover 2026.2)
   (research only; no config changes). Items not tested on this machine are
   marked *(unverified)*.
 
@@ -637,8 +639,8 @@ All notable changes to this config are documented here.
 ## [1.1.0] — 2026-09-03
 
 ### Added
-- **Live-as-you-type Rust diagnostics via bacon-ls** — the RustRover-style
-  always-on inspections. `vim.g.lazyvim_rust_diagnostics = "bacon-ls"` in
+- **Live-as-you-type Rust diagnostics via bacon-ls** — the always-on
+  inspections known from the JetBrains IDEs. `vim.g.lazyvim_rust_diagnostics = "bacon-ls"` in
   `options.lua` hands the diagnostics role to bacon-ls (LazyVim's rust extra
   disables rust-analyzer's own checkOnSave/diagnostics to avoid duplicates);
   rust-analyzer keeps completion, goto/references, hover, inlay hints, and
@@ -876,7 +878,7 @@ All notable changes to this config are documented here.
   defaults to `false` (diagnostics only redraw on `InsertLeave`, not while still typing)
   — since `Esc` always precedes `:w`, it read as "only updates on save" when it was
   really "only updates on leaving insert mode." Set `update_in_insert = true` in
-  `lsp.lua` for RustRover-style continuous feedback while actively typing. Confirmed
+  `lsp.lua` for continuous feedback while actively typing. Confirmed
   correct against Neovim's own documented semantics for this option; the live
   while-still-in-insert-mode behavior itself couldn't be synthetically verified in
   headless automation (same category of limitation as simulated keypresses elsewhere in
@@ -902,12 +904,12 @@ All notable changes to this config are documented here.
 
 ### Added
 - `auto-save.nvim` (`okuuva` fork — the original `Pocco81/auto-save.nvim` has been
-  unmaintained since 2024-05) for RustRover-style background auto-save. Configured with
+  unmaintained since 2024-05) for background auto-save, as in the JetBrains IDEs. Configured with
   `noautocmd = true` so debounced autosaves don't also trigger format-on-save; only a
   manual `:w`/`<leader>f` formats. Verified: an intentionally mis-formatted file survives
   an autosave untouched, then reformats correctly on manual save.
 - Inline diagnostics styling: virtual text with gutter sign icons (``/``/``/``),
-  underline, severity-sorted — matches the inline error-message style from JetBrains IDEs.
+  underline, severity-sorted — same idea as the inline error-message style of the JetBrains IDEs.
 - Inlay type hints, auto-enabled on any LSP client that supports `textDocument/inlayHint`.
 - Real-time clippy for Rust: `rust-analyzer.check.command = "clippy"`. Verified with a
   clippy-only lint (`needless_return`) that plain `cargo check` never flags.

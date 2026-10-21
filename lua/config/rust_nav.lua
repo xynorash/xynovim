@@ -5,7 +5,7 @@ local function ra_client(buf)
   return vim.lsp.get_clients({ bufnr = buf, name = "rust-analyzer" })[1]
 end
 
---- RustRover's "Go to super method" (Ctrl+U): from a method inside
+--- Go to super method (same idea as Ctrl+U in the JetBrains IDEs): from a method inside
 --- `impl Trait for T`, jump to the same method in the trait definition.
 function M.goto_super()
   local buf = vim.api.nvim_get_current_buf()
@@ -68,7 +68,7 @@ function M.goto_super()
 end
 
 --- Reads/writes of the symbol under the cursor in this file, labelled
---- [R]/[W], in the quickfix list (RustRover's usage-type grouping).
+--- [R]/[W], in the quickfix list (same idea as usage-type grouping in the JetBrains IDEs).
 function M.local_usages()
   local buf = vim.api.nvim_get_current_buf()
   local client = ra_client(buf)

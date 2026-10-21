@@ -1,5 +1,5 @@
 -- :RustRoutes - HTTP route picker for axum / actix / rocket projects
--- (RustRover's Endpoints tool window, minimal). Pure treesitter, no LSP:
+-- (inspired by the Endpoints tool window of the JetBrains IDEs, minimal). Pure treesitter, no LSP:
 --   .route("/users/{id}", get(show).delete(remove))   axum, actix `web::get().to(h)`
 --   #[get("/users")] async fn list() {}               actix-web, rocket, poem-style
 --   #[actix_web::post("/users")]

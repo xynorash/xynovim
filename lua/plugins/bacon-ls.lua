@@ -3,7 +3,7 @@
 -- (the older "bacon" backend would need the `bacon` binary and its own
 -- prefs; it is not configured or used here).
 --
--- updateOnInsert is the RustRover-style part: bacon-ls mirrors the workspace
+-- updateOnInsert is the always-on part: bacon-ls mirrors the workspace
 -- into a hardlinked shadow under target/bacon-ls-live/, writes dirty buffers
 -- into it on every didChange, and runs clippy against the shadow - so
 -- diagnostics update as you type, before any save. It MUST be set in

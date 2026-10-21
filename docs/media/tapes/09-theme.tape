@@ -1,4 +1,4 @@
-# Island Dark (converted from a RustRover export): completion with docs,
+# Island Dark (generated from the author's own colour-scheme export): completion with docs,
 # a picker, and hover.
 Type "nvim src/lib.rs"
 Enter

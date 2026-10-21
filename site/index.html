@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
-<title>xynovim: a Neovim config for Rust</title>
-<meta name="description" content="A Neovim config for Rust that goes after RustRover: instant diagnostics, a real debugger and test UI, a git safety net, and a test suite you can run yourself.">
+<title>xynovim: a personal Neovim config for Rust</title>
+<meta name="description" content="A personal Neovim configuration for Rust, built on LazyVim and inspired by JetBrains' tools. Instant diagnostics, a debugger and test UI, a git safety net, and a test suite you can run yourself.">
 <meta name="color-scheme" content="dark light">
 <meta name="theme-color" content="#1e1f22" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
@@ -13,18 +13,18 @@
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="xynovim">
-<meta property="og:title" content="xynovim: a Neovim config for Rust">
+<meta property="og:title" content="xynovim: a personal Neovim config for Rust">
 <meta property="og:description" content="Instant two-tier diagnostics, a real debugger and test UI, a git safety net, and a test suite you can run yourself.">
 <meta property="og:url" content="https://xynorash.github.io/xynovim/">
 <meta property="og:image" content="https://xynorash.github.io/xynovim/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="xynovim: a Neovim config for Rust, with a screenshot of the editor in the Island Dark theme">
+<meta property="og:image:alt" content="xynovim: a personal Neovim config for Rust, with a screenshot of the editor in the Island Dark theme">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="xynovim: a Neovim config for Rust">
+<meta name="twitter:title" content="xynovim: a personal Neovim config for Rust">
 <meta name="twitter:description" content="Instant two-tier diagnostics, a real debugger and test UI, a git safety net, and a test suite you can run yourself.">
 <meta name="twitter:image" content="https://xynorash.github.io/xynovim/assets/og.png">
-<meta name="twitter:image:alt" content="xynovim: a Neovim config for Rust, with a screenshot of the editor in the Island Dark theme">
+<meta name="twitter:image:alt" content="xynovim: a personal Neovim config for Rust, with a screenshot of the editor in the Island Dark theme">
 <link rel="stylesheet" href="assets/style.css">
 <script src="assets/app.js" defer></script>
 </head>
@@ -67,7 +67,7 @@
   <div class="wrap hero-grid">
     <div>
       <h1 id="title">xynovim<span class="cursor" aria-hidden="true"></span></h1>
-      <p class="pitch">A Neovim config for Rust that goes after RustRover: instant diagnostics, a real debugger and test UI, a git safety net, and a test suite you can run yourself.</p>
+      <p class="pitch">A personal Neovim configuration for Rust, built on LazyVim and inspired by JetBrains' tools. Instant diagnostics, a debugger and test UI, a git safety net, and a test suite you can run yourself.</p>
       <ul class="pills" aria-label="Project status">
         <li><a class="pill" href="https://github.com/xynorash/xynovim/actions/workflows/ci.yml">CI <b>workflow</b></a></li>
         <li><span class="pill">Neovim <b>0.12</b></span></li>
@@ -100,7 +100,7 @@
     <div class="section-head">
       <p class="kicker">What you get</p>
       <h2 id="why-h">Why xynovim</h2>
-      <p class="lead">Built on <a href="https://github.com/LazyVim/LazyVim">LazyVim</a>, developed on Linux (Arch) and also run in CI on Windows and macOS (see <a href="#platforms">Platforms</a>), with the <strong>Island Dark</strong> colour scheme converted from a RustRover export. Everything on this page was recorded from the real config running on the small demo crate: nothing is mocked up.</p>
+      <p class="lead">Built on <a href="https://github.com/LazyVim/LazyVim">LazyVim</a>, developed on Linux (Arch) and also run in CI on Windows and macOS (see <a href="#platforms">Platforms</a>), with the <strong>Island Dark</strong> colour scheme generated from the author&rsquo;s own colour-scheme export. Everything on this page was recorded from the real config running on the small demo crate: nothing is mocked up.</p>
     </div>
     <ul class="cards">
 <li class="card"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-bolt"></use></svg><p><strong>Two diagnostic tiers</strong>: rust-analyzer answers while you type, clippy follows about half a second later, on every keystroke and before any save.</p></li>

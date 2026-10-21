@@ -1,4 +1,4 @@
--- Per-project Cargo "context" (features / target), RustRover's Cargo tool
+-- Per-project Cargo "context" (features / target), inspired by the Cargo tool
 -- window toggles. rust-analyzer and bacon-ls (the clippy tier) must agree on
 -- both, otherwise mutually exclusive features give bogus errors from one tier.
 -- Stored per workspace root in stdpath("state"); applied at server start

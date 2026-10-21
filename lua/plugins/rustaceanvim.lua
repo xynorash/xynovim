@@ -65,7 +65,7 @@ return {
           -- scripts, proc-macros) so they never contend for the build-dir
           -- file lock with terminal `cargo run`/`cargo test`.
           cargo = { targetDir = true },
-          -- RustRover-style inline type/lifetime annotations.
+          -- Inline type/lifetime annotations (inspired by JetBrains' inlay hints).
           inlayHints = {
             closureReturnTypeHints = { enable = "with_block" },
             lifetimeElisionHints = { enable = "skip_trivial", useParameterNames = true },

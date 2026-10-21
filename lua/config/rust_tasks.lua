@@ -1,4 +1,4 @@
--- Cargo targets picker (RustRover's Cargo tool window / run configurations,
+-- Cargo targets picker (inspired by the Cargo tool window / run configurations of the JetBrains IDEs,
 -- minimal) and a project scaffold command. Honors the :RustContext choice.
 local M = {}
 

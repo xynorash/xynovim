@@ -1,6 +1,6 @@
 # xynovim in detail
 
-Engineering notes behind the README: why each setting is what it is, what was measured and what was **not** verified. The README is the overview; this file is the reference. (The old step-by-step RustRover roadmap this config was built from is in the git history before the "README: showcase" commit.)
+Engineering notes behind the README: why each setting is what it is, what was measured and what was **not** verified. The README is the overview; this file is the reference. (The old step-by-step wish list this config was built from is in the git history before the "README: showcase" commit.)
 
 ## What's here beyond stock LazyVim
 
@@ -62,7 +62,7 @@ Hard-won configuration notes:
 
 ### Theme
 
-**Island Dark** is the permanent colourscheme (`:colorscheme island-dark`, `vim.g.colors_name == "island-dark"`). It is the user's own JetBrains "Island" dark scheme (scheme name `Dark`, parent Darcula, exported from RustRover 2026.2.3), kept in the repo as `tools/Dark.icls`.
+**Island Dark** is the permanent colourscheme (`:colorscheme island-dark`, `vim.g.colors_name == "island-dark"`). It is the author's own dark scheme (scheme name `Dark`, parent Darcula, exported from RustRover 2026.2.3); the export itself is not distributed, only the palette generated from it, `lua/island/palette.lua`.
 
 - **Generated, not hand-copied**: `python3 tools/icls2nvim.py` (stdlib only) parses the `.icls` (colours, foreground/background, bold/italic, underline/undercurl/dotted effects, `baseAttributes` inheritance with the `DEFAULT_*` fallbacks) and writes `lua/island/palette.lua` (generated, do not edit). `lua/island/init.lua` maps that palette to editor UI, classic syntax groups, the Treesitter captures, LSP semantic tokens (`@lsp.type/mod/typemod`, incl. the scheme's `org.rust.*` colours) and the plugins in use (blink.cmp, snacks, which-key, neo-tree, trouble, gitsigns, diffview, dap/dap-ui, neotest, satellite, treesitter-context, navic, flash, noice, mini, harpoon, render-markdown, coverage, inlay hints, codelens); `colors/island-dark.lua` is the entry point and `lua/lualine/themes/island-dark.lua` the statusline theme. Only scheme colours are used. To change the colours, replace `tools/Dark.icls` and rerun the script (a restart picks up the new palette).
 - **Derived (not in the export)**: the file has no selection colour, so `Visual`/`PmenuSel` use its blue `VCS_ANNOTATIONS_COLOR_2` (`#2d416b`); borders use `SELECTED_INDENT_GUIDE`. It has no `org.rust.LIFETIME` or trait entry: lifetimes use the type-parameter colour, traits the struct colour. `org.rust.UNSAFE_CODE` (a background band) is not applied: unsafe code keeps the underline from `plugin/after/unsafe-highlight.lua`. rust-analyzer's inactive `#[cfg]` code is a normal "unnecessary" diagnostic, so it shares the dim `NOT_USED` grey instead of the olive `CFG_DISABLED_CODE` (`RustCfgDisabled` holds that colour).

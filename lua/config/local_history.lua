@@ -1,4 +1,4 @@
--- Poor man's JetBrains "Local History": every (throttled) save also writes the
+-- Local history, inspired by the JetBrains feature of that name: every (throttled) save also writes the
 -- whole worktree - untracked files included, .gitignore respected, target/
 -- excluded - as a commit on refs/lochist/<key>, using a private index file
 -- so the real index/stash/branches are never touched. Survives what

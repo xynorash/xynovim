@@ -442,7 +442,7 @@ describe("the page says what the README says", function()
 
   it("the tagline, the badges' facts and the docs links come from the repo", function()
     local html = page()
-    local pitch = readme:match("%*%*(A Neovim config for Rust that goes after RustRover:.-)%*%*")
+    local pitch = readme:match("%*%*(A personal Neovim configuration for Rust.-)%*%*")
     H.ok(pitch)
     H.match(html, pitch, true)
     H.match(html, "Neovim <b>0.12</b>", true)

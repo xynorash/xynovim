@@ -3,7 +3,7 @@
 -- lazyvim.json; this file tunes them and adds the rest.
 return {
   -- Error stripe: diagnostics, git hunks, search hits and marks on the
-  -- scrollbar, like RustRover's right gutter.
+  -- scrollbar, inspired by the JetBrains right gutter.
   {
     "lewis6991/satellite.nvim",
     event = "VeryLazy",
@@ -14,7 +14,7 @@ return {
     },
   },
 
-  -- Persistent call hierarchy (RustRover Ctrl+Alt+H): gai/gao are flat lists.
+  -- Persistent call hierarchy (same idea as Ctrl+Alt+H in the JetBrains IDEs): gai/gao are flat lists.
   -- auto_refresh=false: the lsp_* sources refresh on CursorHold/BufEnter, which blanked the tree.
   {
     "folke/trouble.nvim",

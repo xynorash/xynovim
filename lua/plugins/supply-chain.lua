@@ -1,5 +1,5 @@
 -- Supply-chain / CI diagnostics as nvim-lint sources (roadmap step 9), the
--- stuff RustRover has no built-in advisory scanning for:
+-- advisory scanning, unused dependencies and workflow lint:
 --   Cargo.toml / Cargo.lock : cargo-deny (advisories + bans), cargo-machete (unused deps)
 --   .github/workflows/*.yml : actionlint + zizmor
 -- Everything runs on the LazyVim lint events (save, read, InsertLeave) and is
