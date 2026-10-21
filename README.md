@@ -301,7 +301,7 @@ Video: [14-egui-new.mp4](docs/media/14-egui-new.mp4)
 
 ## Tests: run them yourself
 
-The config ships with an automated suite: **38 spec files, 1771 checks passing, 26 skipped with a stated reason, 0 failing**, in about twelve minutes. Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
+The config ships with an automated suite: **38 spec files, 1771 checks passing, 26 skipped with a stated reason, 0 failing**, in about twelve minutes. The passing and skipped counts depend on the machine (the figures are from the author's setup, which has `debug = true` in `~/.cargo/config.toml`, a `~/.cargo/bin` and no `pwsh`; the Ubuntu CI run 39660597409 shows 1721 passed, 76 skipped, 0 failed). Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
 
 ```sh
 scripts/test.sh                  # everything (or: make test)

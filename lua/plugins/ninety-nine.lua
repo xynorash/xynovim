@@ -215,8 +215,46 @@ return {
     -- sandbox, no checkpoint and no auto-save guard, so only the guarded
     -- provider may be selected unless the sandbox was switched off explicitly.
     local set_provider = _99.set_provider
+    -- allow_unsandboxed only counts when no backend exists (status().via);
+    -- with a working bwrap only sandbox = false opts out.
     local function allowed(provider)
-      return provider == Guarded or vim.g.xynovim_99_sandbox == false or vim.g.xynovim_99_allow_unsandboxed == true
+      if provider == Guarded or vim.g.xynovim_99_sandbox == false then
+        return true
+      end
+      local st = require("config.agent_sandbox").status()
+      return st.mode == "unsandboxed" and st.via == "allow_unsandboxed"
+    end
+    -- The opt-in is re-checked on EVERY request, not only at selection: a
+    -- provider chosen under it must not keep running once it is revoked, and
+    -- each unsandboxed request warns.
+    local proxies = {}
+    local function checked(provider)
+      if provider == Guarded or provider == nil then
+        return provider
+      end
+      if not proxies[provider] then
+        proxies[provider] = setmetatable({
+          _xyno_inner = provider,
+          make_request = function(self, query, context, observer)
+            if not allowed(provider) then
+              local msg = "99 refused to start: this provider runs without the sandbox, checkpoint and auto-save"
+                .. " guard, and the opt-in (vim.g.xynovim_99_sandbox = false or vim.g.xynovim_99_allow_unsandboxed"
+                .. " = true) is not set any more. Select the Claude Code provider (<leader>9P)."
+              vim.notify(msg, vim.log.levels.ERROR)
+              pcall(observer.on_start)
+              pcall(observer.on_complete, "failed", msg)
+              return nil
+            end
+            vim.notify(
+              "99 runs this provider WITHOUT a sandbox, checkpoint or auto-save guard: the whole filesystem,"
+                .. " your credentials and the network are reachable.",
+              vim.log.levels.WARN
+            )
+            return provider.make_request(self, query, context, observer)
+          end,
+        }, { __index = provider })
+      end
+      return proxies[provider]
     end
     function _99.set_provider(provider)
       if not allowed(provider) then
@@ -228,7 +266,7 @@ return {
         )
         return _99
       end
-      return set_provider(provider)
+      return set_provider(checked(provider))
     end
     -- the picker announces "Provider set" after its call: skip that when refused
     local pickers = require("99.extensions.pickers")

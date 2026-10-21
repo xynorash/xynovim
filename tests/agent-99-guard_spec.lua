@@ -7,7 +7,7 @@ local H = require("xynotest.helpers")
 -- scripts/test.sh, never in the real cache.
 local test_tmp = vim.env.XYNO_TEST_TMP
 local cache = vim.fn.stdpath("cache")
-if not test_tmp or test_tmp == "" or not vim.startswith(cache, vim.fs.dirname(test_tmp) .. "/") then
+if not test_tmp or test_tmp == "" or not vim.startswith(vim.fs.normalize(cache), vim.fs.normalize(vim.fs.dirname(test_tmp)) .. "/") then
   H.skip_file("run through scripts/test.sh (stdpath('cache') must be a temp dir, got " .. cache .. ")")
 end
 
@@ -938,11 +938,68 @@ describe("provider picker (<leader>9P)", function()
   end)
 
   it("allows another provider with the explicit opt-out", function()
-    vim.g.xynovim_99_allow_unsandboxed = true
+    vim.g.xynovim_99_sandbox = false
     local info = pickers.get_providers()
     local other = info.lookup.OpenCodeProvider
     H.ok(other, "OpenCodeProvider not listed")
     pickers.on_provider_selected("OpenCodeProvider", info.lookup)
-    H.ok(require("99").get_provider() == other)
+    H.ok(require("99").get_provider()._xyno_inner == other)
+  end)
+
+  it("allow_unsandboxed does not unlock providers while a working sandbox exists", function()
+    if vim.fn.has("linux") ~= 1 or vim.fn.executable("bwrap") ~= 1 then
+      return
+    end
+    vim.g.xynovim_99_allow_unsandboxed = true
+    local info = pickers.get_providers()
+    pickers.on_provider_selected("OpenCodeProvider", info.lookup)
+    H.ok(require("99").get_provider() == guarded())
+  end)
+
+  it("allow_unsandboxed unlocks providers when there is no backend", function()
+    local saved = vim.env.PATH
+    vim.env.PATH = "/nonexistent-xyno-path"
+    vim.g.xynovim_99_allow_unsandboxed = true
+    local info = pickers.get_providers()
+    pickers.on_provider_selected("OpenCodeProvider", info.lookup)
+    vim.env.PATH = saved
+    H.ok(require("99").get_provider()._xyno_inner == info.lookup.OpenCodeProvider)
+  end)
+
+  it("a provider chosen under the opt-in is refused per request once revoked, and warns while active", function()
+    local info = pickers.get_providers()
+    local other = info.lookup.OpenCodeProvider
+    local calls = 0
+    local orig = other.make_request
+    other.make_request = function()
+      calls = calls + 1
+      return "ran"
+    end
+    local function obs()
+      local o = { completed = {} }
+      o.on_start = function() end
+      o.on_complete = function(...)
+        o.completed[#o.completed + 1] = { ... }
+      end
+      return o
+    end
+    local ok, err = pcall(function()
+      vim.g.xynovim_99_sandbox = false
+      pickers.on_provider_selected("OpenCodeProvider", info.lookup)
+      local p = require("99").get_provider()
+      H.eq("ran", p:make_request("q", {}, obs()))
+      H.eq(1, #vim.tbl_filter(function(n)
+        return type(n.msg) == "string" and n.msg:find("WITHOUT a sandbox", 1, true)
+      end, cap.list))
+      vim.g.xynovim_99_sandbox = nil
+      local o = obs()
+      H.is_nil(p:make_request("q", {}, o))
+      H.eq(1, calls)
+      H.eq("failed", o.completed[1][1])
+    end)
+    other.make_request = orig
+    if not ok then
+      error(err, 0)
+    end
   end)
 end)

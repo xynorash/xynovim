@@ -7,6 +7,23 @@ vim.fn.writefile({ "fn main() {}" }, dir .. "/src/main.rs")
 print("exepath bacon-ls: " .. vim.fn.exepath("bacon-ls"))
 print("exepath bacon: " .. vim.fn.exepath("bacon"))
 print("exepath rust-analyzer: " .. vim.fn.exepath("rust-analyzer"))
+do
+  local bin = vim.fs.joinpath(vim.fn.stdpath("data"), "mason", "bin")
+  local sep = vim.fn.has("win32") == 1 and ";" or ":"
+  local on_path = false
+  for _, d in ipairs(vim.split(vim.env.PATH or "", sep, { plain = true })) do
+    if vim.fs.normalize(d):lower() == vim.fs.normalize(bin):lower() then
+      on_path = true
+    end
+  end
+  print("mason bin: " .. bin .. " on PATH: " .. tostring(on_path))
+  local names = {}
+  for name in vim.fs.dir(bin) do
+    names[#names + 1] = name
+  end
+  table.sort(names)
+  print("mason bin contents: " .. table.concat(names, " "))
+end
 vim.cmd.edit(dir .. "/src/main.rs")
 vim.api.nvim_exec_autocmds("User", { pattern = "VeryLazy" })
 vim.wait(90000, function()
