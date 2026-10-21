@@ -2,6 +2,7 @@
 -- lua/config/rust_restart.lua, lua/config/rust_context.lua.
 -- Needs rust-analyzer and cargo (skipped with a message otherwise); the
 -- bacon-ls binary is Mason's, from the real XDG_DATA_HOME.
+-- xyno-os: linux,macos (bacon_ls never attaches on windows-latest, run 39655339161: three live tests time out after 63 s and the file after 240 s; cause not found)
 local H = require("xynotest.helpers")
 
 local mason_bin = vim.fn.stdpath("data") .. "/mason/bin"

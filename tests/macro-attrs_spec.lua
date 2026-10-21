@@ -1318,6 +1318,7 @@ describe("accepting a derive that is not in scope", function()
   end)
 
   it("adds the use line through rust-analyzer's own import action (real rust-analyzer)", function()
+    H.known_issue({ "macos" }, "real rust-analyzer import action did not arrive within 95 s on macos-latest (run 39655339161)")
     H.need_rust()
     for i = #restores, 1, -1 do
       pcall(restores[i])
