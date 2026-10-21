@@ -42,6 +42,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0 # the sitemap's lastmod dates come from git history
 
       - name: Build the site and check its links and assets
         run: python3 scripts/build-site.py --out _site --check

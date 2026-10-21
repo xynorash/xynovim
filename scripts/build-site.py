@@ -4,15 +4,20 @@
     python3 scripts/build-site.py [--out _site] [--check]
 
 - copies site/ (without site/README.md) into the output directory;
-- copies ONLY the media files that site/index.html references (src, href,
-  poster, srcset under media/) from docs/media/ to <out>/media/ and fails when
-  one is missing;
+- the pages are site/index.html and every site/**/index.html (the guides under
+  site/guides/<slug>/); 404.html is not a page of the sitemap;
+- copies ONLY the media files that those pages reference (src, href, poster,
+  srcset, resolved against the page, landing in media/) from docs/media/ to
+  <out>/media/ and fails when one is missing;
 - substitutes the placeholders in the .html / .xml / .txt files, so the
   numbers cannot drift from the README: {{TESTS}} {{SPECS}} {{SKIPPED}}
   {{FAILED}} {{COMMIT}} {{DATE}};
+- writes <out>/sitemap.xml from the pages, with lastmod from git (the last
+  commit that touched the page's source; today's date without git history);
 - writes <out>/.nojekyll;
-- with --check, afterwards verifies the built index.html: every local
-  href/src/poster/srcset target exists and every #anchor has its id.
+- with --check, afterwards verifies every built page: every local
+  href/src/poster/srcset target exists and every #anchor (also of another
+  page) has its id.
 
 Standard library only.
 """
@@ -27,6 +32,7 @@ from html.parser import HTMLParser
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEXT_EXT = (".html", ".xml", ".txt")
+BASE = "https://xynorash.github.io/xynovim/"
 
 
 class Refs(HTMLParser):
@@ -46,18 +52,26 @@ class Refs(HTMLParser):
                 self.refs.extend(part.split()[0] for part in value.split(",") if part.strip())
 
 
-def media_refs(html):
+def is_external(ref):
+    return bool(re.match(r"^(https?:|mailto:|data:|//)", ref))
+
+
+def media_refs(html, page):
+    """Names under docs/media that `page` (a path relative to site/) references."""
     p = Refs()
     p.feed(html)
     found = []
+    pagedir = os.path.dirname(page)
     for ref in p.refs:
         ref = ref.split("#")[0].split("?")[0]
-        if ref.startswith("media/"):
-            name = ref[len("media/"):]
-            norm = os.path.normpath(name)
-            if os.path.isabs(norm) or norm == ".." or norm.startswith(".." + os.sep):
-                sys.exit("build-site: media reference leaves docs/media: " + ref)
-            found.append(name)
+        if not ref or is_external(ref):
+            continue
+        parts = [x for x in ref.split("/") if x not in ("", ".", "..")]
+        norm = os.path.normpath(os.path.join(pagedir, ref))
+        if norm.startswith("media" + os.sep):
+            found.append(norm[len("media" + os.sep):])
+        elif parts and parts[0] == "media":
+            sys.exit("build-site: media reference leaves docs/media: " + ref)
     return sorted(set(found))
 
 
@@ -72,28 +86,47 @@ class Ids(HTMLParser):
                 self.ids.add(value)
 
 
-def check(out):
-    """Fail on a dangling local reference or anchor in <out>/index.html."""
-    with open(os.path.join(out, "index.html"), encoding="utf-8") as f:
-        text = f.read()
-    refs = Refs()
-    refs.feed(text)
-    ids = Ids()
-    ids.feed(text)
+def resolve(out, page, ref):
+    """The file a local reference of `page` points at (a directory means its index.html)."""
+    path = ref.split("#")[0].split("?")[0]
+    target = os.path.normpath(os.path.join(out, os.path.dirname(page), path)) if path else os.path.join(out, page)
+    if os.path.isdir(target):
+        target = os.path.join(target, "index.html")
+    return target
+
+
+def check(out, pages):
+    """Fail on a dangling local reference or anchor in any built page."""
+    ids = {}
+
+    def ids_of(path):
+        if path not in ids:
+            i = Ids()
+            with open(path, encoding="utf-8") as f:
+                i.feed(f.read())
+            ids[path] = i.ids
+        return ids[path]
+
     bad = []
-    for ref in refs.refs:
-        if re.match(r"^(https?:|mailto:|data:)", ref):
-            continue
-        if ref.startswith("#"):
-            if ref[1:] not in ids.ids:
-                bad.append(ref)
-            continue
-        path = ref.split("#")[0].split("?")[0]
-        if path and not os.path.isfile(os.path.join(out, path)):
-            bad.append(ref)
+    total = 0
+    for page in pages:
+        with open(os.path.join(out, page), encoding="utf-8") as f:
+            refs = Refs()
+            refs.feed(f.read())
+        for ref in refs.refs:
+            total += 1
+            if is_external(ref):
+                continue
+            target = resolve(out, page, ref)
+            if not os.path.isfile(target):
+                bad.append("%s -> %s" % (page, ref))
+                continue
+            frag = ref.split("#")[1] if "#" in ref else ""
+            if frag and target.endswith(".html") and frag not in ids_of(target):
+                bad.append("%s -> %s" % (page, ref))
     if bad:
         sys.exit("build-site: dangling references: " + ", ".join(sorted(set(bad))))
-    print("build-site: %d references checked, all resolve" % len(refs.refs))
+    print("build-site: %d references in %d pages checked, all resolve" % (total, len(pages)))
 
 
 def readme_numbers():
@@ -125,6 +158,36 @@ def commit():
     return sha[:7]
 
 
+def site_pages(src):
+    """Paths (relative to site/, '/' separated) of every page: index.html and */index.html."""
+    pages = []
+    for dirpath, _, files in os.walk(src):
+        if "index.html" in files:
+            rel = os.path.relpath(os.path.join(dirpath, "index.html"), src)
+            pages.append(rel.replace(os.sep, "/"))
+    return sorted(pages, key=lambda p: (p != "index.html", p))
+
+
+def lastmod(paths, today):
+    """Date of the last commit that touched any of `paths` (relative to the repo root)."""
+    try:
+        r = subprocess.run(["git", "-C", ROOT, "log", "-1", "--format=%cs", "--"] + paths, capture_output=True, text=True, check=True)
+        return r.stdout.strip() or today
+    except (OSError, subprocess.CalledProcessError):
+        return today
+
+
+def write_sitemap(out, pages, today):
+    lines = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    for page in pages:
+        url = BASE + page[: -len("index.html")]
+        sources = ["site/" + page] + (["README.md"] if page == "index.html" else [])
+        lines += ["  <url>", "    <loc>%s</loc>" % url, "    <lastmod>%s</lastmod>" % lastmod(sources, today), "  </url>"]
+    lines.append("</urlset>")
+    with open(os.path.join(out, "sitemap.xml"), "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--out", default=os.path.join(ROOT, "_site"))
@@ -134,12 +197,19 @@ def main():
     src = os.path.join(ROOT, "site")
     media_src = os.path.join(ROOT, "docs", "media")
 
-    with open(os.path.join(src, "index.html"), encoding="utf-8") as f:
-        wanted = media_refs(f.read())
+    pages = site_pages(src)
+    if "index.html" not in pages:
+        sys.exit("build-site: site/index.html is missing")
+    wanted = set()
+    for page in pages:
+        with open(os.path.join(src, page), encoding="utf-8") as f:
+            wanted.update(media_refs(f.read(), page))
+    wanted = sorted(wanted)
     missing = [n for n in wanted if not os.path.isfile(os.path.join(media_src, n))]
     if missing:
         sys.exit("build-site: missing in docs/media: " + ", ".join(missing))
 
+    today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
     tests, skipped, failed = readme_numbers()
     subst = {
         "TESTS": tests,
@@ -147,7 +217,7 @@ def main():
         "SKIPPED": skipped,
         "FAILED": failed,
         "COMMIT": commit(),
-        "DATE": datetime.datetime.now(datetime.timezone.utc).date().isoformat(),
+        "DATE": today,
     }
 
     if os.path.isdir(out):
@@ -176,11 +246,12 @@ def main():
             with open(path, "w", encoding="utf-8", newline="\n") as f:
                 f.write(text)
 
+    write_sitemap(out, pages, today)
     with open(os.path.join(out, ".nojekyll"), "w", encoding="utf-8"):
         pass
     if args.check:
-        check(out)
-    print("build-site: %s (%d media files, tests %s, specs %s, commit %s)" % (out, len(wanted), tests, subst["SPECS"], subst["COMMIT"]))
+        check(out, pages)
+    print("build-site: %s (%d pages, %d media files, tests %s, specs %s, commit %s)" % (out, len(pages), len(wanted), tests, subst["SPECS"], subst["COMMIT"]))
 
 
 if __name__ == "__main__":

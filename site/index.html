@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
 <title>xynovim: a personal Neovim config for Rust</title>
-<meta name="description" content="A personal Neovim configuration for Rust, built on LazyVim and inspired by JetBrains' tools. Instant diagnostics, a debugger and test UI, a git safety net, and a test suite you can run yourself.">
+<meta name="description" content="A personal Neovim configuration for Rust on LazyVim: instant two-tier diagnostics, a debugger, a test UI with coverage and a git safety net.">
 <meta name="color-scheme" content="dark light">
 <meta name="theme-color" content="#1e1f22" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
@@ -13,8 +13,9 @@
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="xynovim">
+<meta property="og:locale" content="en">
 <meta property="og:title" content="xynovim: a personal Neovim config for Rust">
-<meta property="og:description" content="Instant two-tier diagnostics, a real debugger and test UI, a git safety net, and a test suite you can run yourself.">
+<meta property="og:description" content="A personal Neovim configuration for Rust on LazyVim: instant two-tier diagnostics, a debugger, a test UI with coverage and a git safety net.">
 <meta property="og:url" content="https://xynorash.github.io/xynovim/">
 <meta property="og:image" content="https://xynorash.github.io/xynovim/assets/og.png">
 <meta property="og:image:width" content="1200">
@@ -22,10 +23,44 @@
 <meta property="og:image:alt" content="xynovim: a personal Neovim config for Rust, with a screenshot of the editor in the Island Dark theme">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="xynovim: a personal Neovim config for Rust">
-<meta name="twitter:description" content="Instant two-tier diagnostics, a real debugger and test UI, a git safety net, and a test suite you can run yourself.">
+<meta name="twitter:description" content="A personal Neovim configuration for Rust on LazyVim: instant two-tier diagnostics, a debugger, a test UI with coverage and a git safety net.">
 <meta name="twitter:image" content="https://xynorash.github.io/xynovim/assets/og.png">
 <meta name="twitter:image:alt" content="xynovim: a personal Neovim config for Rust, with a screenshot of the editor in the Island Dark theme">
 <link rel="stylesheet" href="assets/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://xynorash.github.io/xynovim/#website",
+      "url": "https://xynorash.github.io/xynovim/",
+      "name": "xynovim",
+      "description": "A personal Neovim configuration for Rust on LazyVim: instant two-tier diagnostics, a debugger, a test UI with coverage and a git safety net.",
+      "inLanguage": "en",
+      "author": {"@id": "https://github.com/xynorash"}
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://xynorash.github.io/xynovim/#code",
+      "name": "xynovim",
+      "description": "A personal Neovim configuration for Rust on LazyVim: instant two-tier diagnostics, a debugger, a test UI with coverage and a git safety net.",
+      "url": "https://xynorash.github.io/xynovim/",
+      "codeRepository": "https://github.com/xynorash/xynovim",
+      "programmingLanguage": "Lua",
+      "runtimePlatform": "Neovim 0.12",
+      "license": "https://www.apache.org/licenses/LICENSE-2.0",
+      "author": {"@id": "https://github.com/xynorash"}
+    },
+    {
+      "@type": "Person",
+      "@id": "https://github.com/xynorash",
+      "name": "Xynorash",
+      "url": "https://github.com/xynorash"
+    }
+  ]
+}
+</script>
 <script src="assets/app.js" defer></script>
 </head>
 <body id="top">

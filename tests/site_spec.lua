@@ -29,6 +29,9 @@ local function sh(cmd, opts)
 end
 
 local readme = read(repo .. "/README.md")
+local function readme_license()
+  return read(repo .. "/LICENSE")
+end
 local workflow = read(repo .. "/.github/workflows/pages.yml")
 -- the workflow without its comment lines (the header talks about deploy-pages and git push)
 local code_only = workflow:gsub("\n%s*#[^\n]*", "")
@@ -348,7 +351,8 @@ describe("index.html structure", function()
     for _, file in ipairs({ "index.html", "404.html" }) do
       local html = read(out .. "/" .. file)
       for _, t in ipairs(find(html, "script")) do
-        H.ok(t.attrs.src, "inline script in " .. file)
+        -- the only inline script allowed is a JSON-LD data block: the browser never executes it
+        H.ok(t.attrs.src or t.attrs.type == "application/ld+json", "inline script in " .. file)
       end
       H.eq(0, #find(html, "style"), "<style> in " .. file)
       for _, t in ipairs(tags(html)) do
@@ -493,6 +497,380 @@ describe("the page says what the README says", function()
     H.match(readme, "gh-pages", true)
     H.match(readme, "pages.yml", true)
     H.match(readme, "site/", true)
+  end)
+end)
+
+-- ------------------------------------------------------------------ every page
+
+local HOST_PREFIX = "^https://xynorash%.github%.io/xynovim/"
+
+--- Every built page: index.html and guides/<slug>/index.html.
+--- { path = "guides/x/index.html", dir = "guides/x", html = <text>, url = <canonical URL> }
+local function all_pages()
+  built()
+  local list = {}
+  local function walk(dir, rel)
+    for _, name in ipairs(vim.fn.readdir(dir)) do
+      local full = dir .. "/" .. name
+      local r = rel == "" and name or (rel .. "/" .. name)
+      if vim.fn.isdirectory(full) == 1 then
+        walk(full, r)
+      elseif name == "index.html" then
+        table.insert(list, { path = r, dir = rel, html = read(full), url = CANON .. (rel == "" and "" or (rel .. "/")) })
+      end
+    end
+  end
+  walk(out, "")
+  table.sort(list, function(a, b)
+    return a.path < b.path
+  end)
+  return list
+end
+
+--- The file a local reference of page `pg` points at (a directory means its index.html).
+local function resolve(pg, ref)
+  local path = ref:gsub("[#?].*$", "")
+  local target = vim.fs.normalize(out .. "/" .. pg.dir .. "/" .. path)
+  if vim.fn.isdirectory(target) == 1 then
+    target = target .. "/index.html"
+  end
+  return target
+end
+
+local function png_size(path)
+  local png = io.open(path, "rb"):read(24)
+  local function be32(i)
+    local a, b, c, d = png:byte(i, i + 3)
+    return ((a * 256 + b) * 256 + c) * 256 + d
+  end
+  return be32(17), be32(21)
+end
+
+local function url_to_file(url)
+  return out .. "/" .. url:gsub(HOST_PREFIX, "")
+end
+
+describe("every page: head and social cards", function()
+  it("has lang, charset, viewport, a unique title of at most 60 characters, a description of 120 to 160 and its own canonical URL", function()
+    local titles = {}
+    local descriptions = {}
+    for _, pg in ipairs(all_pages()) do
+      local html, id = pg.html, pg.path
+      H.match(html, '^<!doctype html>\n<html lang="en">', false, id)
+      H.ok(find(html, "meta")[1].attrs.charset, "charset first in " .. id)
+      H.match(meta(html, "name", "viewport"), "width=device-width", true)
+      H.eq(1, #find(html, "title"), id)
+      local title = html:match("<title>(.-)</title>")
+      H.ok(title and #title >= 8 and #title <= 60, ("title of %s is %d characters"):format(id, #(title or "")))
+      H.not_ok(titles[title], "duplicate title " .. title)
+      titles[title] = true
+      local d = meta(html, "name", "description")
+      H.ok(d and #d >= 120 and #d <= 160, ("description of %s is %d characters"):format(id, #(d or "")))
+      H.not_ok(descriptions[d], "duplicate description in " .. id)
+      descriptions[d] = true
+      H.ok(meta(html, "name", "theme-color"), id)
+      local canon, n = nil, 0
+      for _, t in ipairs(find(html, "link")) do
+        if t.attrs.rel == "canonical" then
+          canon, n = t.attrs.href, n + 1
+        end
+      end
+      H.eq(1, n, "canonical links in " .. id)
+      H.eq(pg.url, canon, id)
+    end
+  end)
+
+  it("has Open Graph and Twitter tags: absolute canonical URLs, a 1200x630 card under 300 KB and alt text", function()
+    for _, pg in ipairs(all_pages()) do
+      local html, id = pg.html, pg.path
+      H.eq(pg.url, meta(html, "property", "og:url"), id)
+      H.eq("xynovim", meta(html, "property", "og:site_name"), id)
+      H.eq("en", meta(html, "property", "og:locale"), id)
+      H.eq(pg.path == "index.html" and "website" or "article", meta(html, "property", "og:type"), id)
+      local title = html:match("<title>(.-)</title>")
+      H.eq(title, meta(html, "property", "og:title"), id)
+      H.eq(title, meta(html, "name", "twitter:title"), id)
+      H.eq(meta(html, "name", "description"), meta(html, "property", "og:description"), id)
+      H.eq(meta(html, "name", "description"), meta(html, "name", "twitter:description"), id)
+      H.eq("summary_large_image", meta(html, "name", "twitter:card"), id)
+      local img = meta(html, "property", "og:image")
+      H.ok(img and img:match(HOST_PREFIX), "og:image of " .. id)
+      H.eq(img, meta(html, "name", "twitter:image"), id)
+      H.ok(exists(url_to_file(img)), img)
+      H.ok(size(url_to_file(img)) < 300 * 1024, ("%s is %d bytes"):format(img, size(url_to_file(img))))
+      local w, h = png_size(url_to_file(img))
+      H.eq(1200, w, img)
+      H.eq(630, h, img)
+      H.eq("1200", meta(html, "property", "og:image:width"), id)
+      H.eq("630", meta(html, "property", "og:image:height"), id)
+      local alt = meta(html, "property", "og:image:alt")
+      H.ok(alt and #alt >= 20, "og:image:alt of " .. id)
+      H.eq(alt, meta(html, "name", "twitter:image:alt"), id)
+    end
+  end)
+
+  it("has no competitor keyword anywhere in the head or the card texts", function()
+    for _, pg in ipairs(all_pages()) do
+      local head = pg.html:match("<head>(.-)</head>"):lower()
+      for _, bad in ipairs({ "rustrover", "jetbrains", "alternative", " vs ", "better than", "replacement" }) do
+        H.no_match(head, bad, true, pg.path .. ": " .. bad)
+      end
+    end
+  end)
+
+  it("has a CSP that allows no inline script", function()
+    for _, pg in ipairs(all_pages()) do
+      local csp = meta(pg.html, "http-equiv", "Content-Security-Policy")
+      H.ok(csp, pg.path)
+      H.match(csp, "script-src 'self'", true)
+      H.no_match(csp, "unsafe", true)
+    end
+  end)
+end)
+
+describe("every page: JSON-LD structured data", function()
+  local function blocks(pg)
+    local list = {}
+    for body in pg.html:gmatch('<script type="application/ld%+json">(.-)</script>') do
+      table.insert(list, body)
+    end
+    return list
+  end
+
+  local function walk(v, fn, key)
+    if type(v) == "table" then
+      for k, x in pairs(v) do
+        walk(x, fn, type(k) == "string" and k or key)
+      end
+    else
+      fn(key, v)
+    end
+  end
+
+  it("is valid JSON, with absolute URLs, no ratings, reviews or prices", function()
+    for _, pg in ipairs(all_pages()) do
+      local list = blocks(pg)
+      H.ok(#list >= 1, "no JSON-LD in " .. pg.path)
+      for _, body in ipairs(list) do
+        local ok, data = pcall(vim.json.decode, body)
+        H.ok(ok, ("JSON-LD of %s does not parse: %s"):format(pg.path, tostring(data)))
+        H.eq("https://schema.org", data["@context"], pg.path)
+        walk(data, function(key, v)
+          if type(v) == "string" and (key == "url" or key == "item" or key == "codeRepository" or key == "@id" or key == "license") then
+            H.match(v, "^https://", false, ("%s: %s = %s"):format(pg.path, key, v))
+            if key == "url" and not v:match("^https://github%.com/") then
+              H.match(v, HOST_PREFIX, false, "url on the canonical host: " .. v)
+            end
+          end
+        end)
+        local text = body:lower()
+        for _, bad in ipairs({ "aggregaterating", "review", "offers", "price", "ratingvalue" }) do
+          H.no_match(text, bad, true, pg.path .. ": " .. bad)
+        end
+      end
+    end
+  end)
+
+  it("the home page says WebSite and SoftwareSourceCode (Lua, Apache-2.0, the repository, the author)", function()
+    local pg = all_pages()[1]
+    H.eq("index.html", pg.path)
+    local data = vim.json.decode(blocks(pg)[1])
+    local by_type = {}
+    for _, node in ipairs(data["@graph"]) do
+      by_type[node["@type"]] = node
+    end
+    H.eq(CANON, by_type.WebSite.url)
+    H.eq("en", by_type.WebSite.inLanguage)
+    local code = by_type.SoftwareSourceCode
+    H.eq("Lua", code.programmingLanguage)
+    H.eq("https://github.com/xynorash/xynovim", code.codeRepository)
+    H.eq("https://www.apache.org/licenses/LICENSE-2.0", code.license)
+    H.eq("Xynorash", by_type.Person.name)
+    H.eq("https://github.com/xynorash", by_type.Person.url)
+    H.eq("https://github.com/xynorash", code.author["@id"])
+    H.match(readme_license(), "Apache License", true)
+  end)
+
+  it("every inner page has a BreadcrumbList that ends at its own canonical URL", function()
+    for _, pg in ipairs(all_pages()) do
+      if pg.path ~= "index.html" then
+        local found
+        for _, body in ipairs(blocks(pg)) do
+          local data = vim.json.decode(body)
+          local nodes = data["@graph"] or { data }
+          for _, node in ipairs(nodes) do
+            if node["@type"] == "BreadcrumbList" then
+              found = node
+            end
+          end
+        end
+        H.ok(found, "BreadcrumbList on " .. pg.path)
+        local items = found.itemListElement
+        H.ok(#items >= 2, pg.path)
+        for i, it in ipairs(items) do
+          H.eq("ListItem", it["@type"])
+          H.eq(i, it.position)
+          H.match(it.item, HOST_PREFIX)
+        end
+        H.eq(CANON, items[1].item, pg.path)
+        H.eq(pg.url, items[#items].item, pg.path)
+      end
+    end
+  end)
+end)
+
+describe("every page: structure", function()
+  it("has landmarks, a skip link, one h1 and no skipped heading levels", function()
+    for _, pg in ipairs(all_pages()) do
+      for _, t in ipairs({ "<header", "<nav", "<main", "<footer" }) do
+        H.match(pg.html, t, true, pg.path .. ": " .. t)
+      end
+      H.match(pg.html, 'class="skip" href="#main"', true, pg.path)
+      H.match(pg.html, '<main id="main"', true, pg.path)
+      local level, h1 = 0, 0
+      for l in pg.html:gmatch("<h(%d)[ >]") do
+        l = tonumber(l)
+        h1 = h1 + (l == 1 and 1 or 0)
+        H.ok(l <= level + 1, ("%s: heading level jumps from %d to %d"):format(pg.path, level, l))
+        level = l
+      end
+      H.eq(1, h1, pg.path)
+    end
+  end)
+
+  it("has unique ids and every local reference and #anchor resolves, also to other pages", function()
+    local ids_of = {}
+    for _, pg in ipairs(all_pages()) do
+      ids_of[vim.fs.normalize(out .. "/" .. pg.path)] = (function()
+        local ids = {}
+        for _, t in ipairs(tags(pg.html)) do
+          if t.attrs.id then
+            H.not_ok(ids[t.attrs.id], pg.path .. ": duplicate id " .. t.attrs.id)
+            ids[t.attrs.id] = true
+          end
+        end
+        return ids
+      end)()
+    end
+    for _, pg in ipairs(all_pages()) do
+      for _, r in ipairs(refs(pg.html)) do
+        if is_local(r.ref) then
+          H.no_match(r.ref, "^/", false, pg.path .. ": absolute path " .. r.ref)
+          local target = resolve(pg, r.ref)
+          H.ok(exists(target), pg.path .. ": " .. r.ref)
+          local frag = r.ref:match("#(.+)$")
+          if frag and target:match("%.html$") then
+            H.ok(ids_of[vim.fs.normalize(target)] and ids_of[vim.fs.normalize(target)][frag], pg.path .. ": anchor " .. r.ref)
+          end
+        end
+      end
+    end
+  end)
+
+  it("makes no external request: only github.com links and nexte.st as <a href>", function()
+    for _, pg in ipairs(all_pages()) do
+      for _, r in ipairs(refs(pg.html)) do
+        if not is_local(r.ref) and r.rel ~= "canonical" then
+          H.eq("a", r.tag, ("%s: external %s on <%s>: %s"):format(pg.path, r.attr, r.tag, r.ref))
+          H.ok(r.ref:match("^https://github%.com/") or r.ref:match("^https://nexte%.st/?$") or r.ref:match("^https://crates%.io/"), r.ref)
+        end
+      end
+      for _, t in ipairs(find(pg.html, "link")) do
+        if t.attrs.rel ~= "canonical" then
+          H.ok(is_local(t.attrs.href), "link " .. t.attrs.href)
+        end
+      end
+    end
+  end)
+
+  it("every img has alt, width and height; every link says where it goes", function()
+    local vague = { ["here"] = true, ["click here"] = true, ["link"] = true, ["read more"] = true, ["more"] = true, ["this"] = true }
+    for _, pg in ipairs(all_pages()) do
+      for _, t in ipairs(find(pg.html, "img")) do
+        local a = t.attrs
+        H.ok(type(a.alt) == "string", pg.path .. ": alt on " .. a.src)
+        if not a.src:match("favicon%.svg$") then
+          H.ok(#a.alt > 10, pg.path .. ": alt of " .. a.src)
+        end
+        H.ok(tonumber(a.width) and tonumber(a.height), pg.path .. ": size of " .. a.src)
+      end
+      for attrs, inner in pg.html:gmatch("<a ([^>]*)>(.-)</a>") do
+        local text = vim.trim(inner:gsub("<[^>]+>", " "):gsub("&[%w#]+;", " "):gsub("%s+", " ")):lower()
+        H.ok(#text > 0 or attrs:match("aria%-label=") or inner:match('<img[^>]-alt="[^"]+"'), pg.path .. ": empty link " .. attrs)
+        H.not_ok(vague[text], pg.path .. ": vague link text '" .. text .. "'")
+      end
+    end
+  end)
+
+  it("has no inline script but JSON-LD, no style, no event handler", function()
+    for _, pg in ipairs(all_pages()) do
+      for _, t in ipairs(find(pg.html, "script")) do
+        H.ok(t.attrs.src or t.attrs.type == "application/ld+json", pg.path)
+      end
+      H.eq(0, #find(pg.html, "style"), pg.path)
+      for _, t in ipairs(tags(pg.html)) do
+        H.not_ok(t.attrs.style, pg.path .. ": style attribute on <" .. t.name .. ">")
+        for k in pairs(t.attrs) do
+          H.no_match(k, "^on%a+$", false, pg.path .. ": handler " .. k)
+        end
+      end
+    end
+  end)
+
+  it("is well-formed enough: every opened non-void element is closed (python html.parser)", function()
+    if vim.fn.executable("python3") == 0 then
+      skip("python3 is missing")
+    end
+    local script = [[
+import sys
+from html.parser import HTMLParser
+VOID = {"area","base","br","col","embed","hr","img","input","link","meta","source","track","wbr"}
+class P(HTMLParser):
+    def __init__(self):
+        super().__init__(); self.stack = []; self.errors = []
+    def handle_starttag(self, tag, attrs):
+        if tag not in VOID: self.stack.append(tag)
+    def handle_endtag(self, tag):
+        if tag in VOID: return
+        if not self.stack or self.stack[-1] != tag:
+            self.errors.append("unexpected </%s> after %s at line %d" % (tag, self.stack[-3:], self.getpos()[0]))
+            if tag in self.stack:
+                while self.stack and self.stack.pop() != tag: pass
+        else:
+            self.stack.pop()
+p = P(); p.feed(open(sys.argv[1], encoding="utf-8").read()); p.close()
+if p.stack: p.errors.append("unclosed: %s" % p.stack)
+print("\n".join(p.errors)); sys.exit(1 if p.errors else 0)
+]]
+    for _, pg in ipairs(all_pages()) do
+      local r = sh({ "python3", "-c", script, out .. "/" .. pg.path })
+      H.eq(0, r.code, pg.path .. ": " .. r.out)
+    end
+    local r = sh({ "python3", "-c", script, out .. "/404.html" })
+    H.eq(0, r.code, "404.html: " .. r.out)
+  end)
+end)
+
+describe("sitemap lists every page", function()
+  it("sitemap.xml is well-formed XML with one <url> per page, a git-derived lastmod and the same host", function()
+    built()
+    local sm = read(out .. "/sitemap.xml")
+    if vim.fn.executable("python3") == 1 then
+      local r = sh({ "python3", "-c", "import sys, xml.dom.minidom as m; m.parse(sys.argv[1])", out .. "/sitemap.xml" })
+      H.eq(0, r.code, r.out)
+    end
+    local locs = {}
+    for loc in sm:gmatch("<loc>(.-)</loc>") do
+      locs[loc] = true
+    end
+    local n = 0
+    for _, pg in ipairs(all_pages()) do
+      n = n + 1
+      H.ok(locs[pg.url], "sitemap has " .. pg.url)
+    end
+    H.eq(n, vim.tbl_count(locs), "sitemap entries vs pages")
+    H.eq(n, select(2, sm:gsub("<lastmod>%d%d%d%d%-%d%d%-%d%d</lastmod>", "")))
+    H.no_match(sm, "404", true)
   end)
 end)
 
