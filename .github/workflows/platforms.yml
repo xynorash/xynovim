@@ -57,6 +57,10 @@ jobs:
           $log = Join-Path $env:LOCALAPPDATA 'nvim-data\mason.log'
           if (Test-Path $log) { Get-Content $log | Select-String -Pattern 'codelldb|ERROR|failed' | Select-Object -Last 60 } else { "no $log" }
 
+      - name: Language client diagnostic (what attaches to a fresh crate)
+        if: always()
+        run: nvim --headless "+luafile .github/ci/diag-lsp.lua"
+
       - name: Lockfile unchanged
         run: git diff --exit-code lazy-lock.json
 

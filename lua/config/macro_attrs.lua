@@ -765,6 +765,7 @@ end
 
 --- Start (or reuse) a cargo metadata run for `root`; cb() when it is cached.
 function M.refresh_dependencies(root, cb)
+  root = require("config.rust_context").canon(root)
   cm.metadata_async(root, function(meta)
     inflight[root] = nil
     if meta then

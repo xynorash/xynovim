@@ -10,6 +10,7 @@
 -- time; the interactive prompts (vim.fn.input, vim.ui.select) are stubbed.
 -- One real codelldb session runs at the end (skipped without codelldb).
 local H = require("xynotest.helpers")
+local EXE = vim.fn.has("win32") == 1 and ".exe" or ""
 
 local undo = {}
 --- Replace t[k] by v until after_each.
@@ -173,7 +174,7 @@ describe("configurations: program / args / cwd", function()
       H.eq("ANSWER", c.program())
     end
     H.eq(2, #calls)
-    H.eq({ "Path to executable: ", target .. "/debug/progpkg", "file" }, calls[1])
+    H.eq({ "Path to executable: ", target .. "/debug/progpkg" .. EXE, "file" }, calls[1])
     H.eq(calls[1], calls[2])
     -- config 1 has plain empty args, config 2 prompts
     H.eq({}, by_name(cfgs, "LLDB: Launch").args)
@@ -212,7 +213,7 @@ describe("configurations: program / args / cwd", function()
     local n = capture()
     H.eq(nil, coroutine.running(), "the test runs on the main thread")
     local path = c.program()
-    H.eq(cargo_meta(dir).target_directory .. "/debug/blockpkg", path)
+    H.eq(cargo_meta(dir).target_directory .. "/debug/blockpkg" .. EXE, path)
     H.ok(vim.uv.fs_stat(path), "binary was built at " .. path)
     H.eq({ msg = "cargo build --package blockpkg --bin blockpkg", level = vim.log.levels.INFO, title = "dap" }, n[1])
     H.eq(1, #n)
@@ -237,7 +238,7 @@ describe("configurations: program / args / cwd", function()
     H.wait_for(function()
       return finished
     end, 60000, "the coroutine build to finish")
-    H.eq(cargo_meta(dir).target_directory .. "/debug/copkg", result)
+    H.eq(cargo_meta(dir).target_directory .. "/debug/copkg" .. EXE, result)
     H.ok(vim.uv.fs_stat(result))
   end)
 end)
@@ -281,10 +282,10 @@ describe("current_binary selection (seen through config 3's cwd and config 1's d
     local _, cfgs = fresh_setup()
     edit(dir .. "/b/src/util.rs")
     H.eq(dir .. "/b", cwd_of(cfgs))
-    H.eq(target .. "/debug/b", default_for(cfgs))
+    H.eq(target .. "/debug/b" .. EXE, default_for(cfgs))
     edit(dir .. "/a/src/main.rs")
     H.eq(dir .. "/a", cwd_of(cfgs))
-    H.eq(target .. "/debug/a", default_for(cfgs))
+    H.eq(target .. "/debug/a" .. EXE, default_for(cfgs))
   end)
 
   it("bin named like the package wins, else the first bin", function()
@@ -293,9 +294,9 @@ describe("current_binary selection (seen through config 3's cwd and config 1's d
     local target = cargo_meta(dir).target_directory
     local _, cfgs = fresh_setup()
     edit(dir .. "/multi/src/main.rs")
-    H.eq(target .. "/debug/multi", default_for(cfgs))
+    H.eq(target .. "/debug/multi" .. EXE, default_for(cfgs))
     edit(dir .. "/plain/src/second.rs")
-    H.eq(target .. "/debug/first", default_for(cfgs))
+    H.eq(target .. "/debug/first" .. EXE, default_for(cfgs))
   end)
 
   it("a package without a bin is skipped: the file's own package is not chosen, the first package with a bin is", function()
@@ -304,7 +305,7 @@ describe("current_binary selection (seen through config 3's cwd and config 1's d
     local target = cargo_meta(dir).target_directory
     local _, cfgs = fresh_setup()
     edit(dir .. "/libonly/src/lib.rs")
-    H.eq(target .. "/debug/a", default_for(cfgs))
+    H.eq(target .. "/debug/a" .. EXE, default_for(cfgs))
     H.eq(dir .. "/a", cwd_of(cfgs))
   end)
 
@@ -319,9 +320,9 @@ describe("current_binary selection (seen through config 3's cwd and config 1's d
     local target = cargo_meta(dir).target_directory
     local _, cfgs = fresh_setup()
     edit(dir .. "/sub/src/main.rs")
-    H.eq(target .. "/debug/sub", default_for(cfgs))
+    H.eq(target .. "/debug/sub" .. EXE, default_for(cfgs))
     edit(dir .. "/src/main.rs")
-    H.eq(target .. "/debug/top", default_for(cfgs))
+    H.eq(target .. "/debug/top" .. EXE, default_for(cfgs))
   end)
 
   it("no file: the workspace root package, else (virtual workspace) the first package with a bin", function()
@@ -336,7 +337,7 @@ describe("current_binary selection (seen through config 3's cwd and config 1's d
     vim.cmd.cd(vim.fn.fnameescape(top))
     vim.cmd.enew()
     H.eq(top, cwd_of(cfgs))
-    H.eq(cargo_meta(top).target_directory .. "/debug/rootpkg", default_for(cfgs))
+    H.eq(cargo_meta(top).target_directory .. "/debug/rootpkg" .. EXE, default_for(cfgs))
     local virt = workspace()
     vim.cmd.cd(vim.fn.fnameescape(virt))
     vim.cmd.enew()
@@ -1229,7 +1230,7 @@ describe("real debug session (codelldb + cargo)", function()
     local b = vim.system({ "cargo", "build" }, { cwd = dir, text = true }):wait(180000)
     H.eq(0, b.code, "building the debug crate: " .. (b.stderr or ""))
     H.wait_lsp("rust-analyzer", vim.api.nvim_get_current_buf(), 60000)
-    S = { dir = dir, bin = cargo_meta(dir).target_directory .. "/debug/panicker" }
+    S = { dir = dir, bin = cargo_meta(dir).target_directory .. "/debug/panicker" .. EXE }
     return S
   end
 

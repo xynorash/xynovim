@@ -73,6 +73,8 @@ local function canon(p)
   return p
 end
 
+M.canon = canon
+
 --- Workspace root (dir holding the top Cargo.toml) for a path.
 function M.root(path)
   return canon(M._root(path))
@@ -127,6 +129,7 @@ local function sanitize(ctx)
 end
 
 function M.get(root)
+  root = canon(root)
   return root and sanitize(read_all()[root]) or nil
 end
 
@@ -200,6 +203,7 @@ end
 --- folder (rustaceanvim attaches a further workspace's buffers to the ONE
 --- running rust-analyzer as an added folder; its root_dir stays the first's).
 local function serves(c, root)
+  root = canon(root)
   local function is(dir)
     return dir ~= nil and M.root(dir .. "/x") == root
   end
@@ -218,6 +222,7 @@ end
 --- old file and the later rename dropped the other's key (8 nvims x 20 applies kept 79 of
 --- 160). A lock older than 5s is a dead owner's; after ~2s without it the write goes on.
 local function store(root, ctx)
+  root = canon(root)
   local lock = state_file .. ".lock"
   -- (mkdir "p" raises E739 when another nvim creates the dir between its stat and mkdir)
   pcall(vim.fn.mkdir, vim.fs.dirname(state_file), "p")

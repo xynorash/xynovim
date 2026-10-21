@@ -1,3 +1,4 @@
+-- xyno-timeout: 400
 -- config.rust_context (:RustContext, per-workspace cargo features/target) and
 -- its two consumers, plugins/rustaceanvim.lua (server.settings) and
 -- plugins/bacon-ls.lua (before_init). The pure part and the picker/command
@@ -292,7 +293,13 @@ end
       local jobs = {}
       for id = 1, 8 do
         jobs[id] = vim.system({ vim.fn.exepath("nvim"), "--headless", "-u", "NONE", "-l", script, tostring(id) }, {
-          env = { XDG_STATE_HOME = state, XDG_CONFIG_HOME = state, XDG_DATA_HOME = state, XDG_CACHE_HOME = state },
+          env = {
+            XDG_STATE_HOME = state,
+            XDG_CONFIG_HOME = state,
+            XDG_DATA_HOME = state,
+            XDG_CACHE_HOME = state,
+            LOCALAPPDATA = state, -- Windows: stdpath("state") is $LOCALAPPDATA/nvim-data
+          },
           text = true,
         })
       end
@@ -300,11 +307,12 @@ end
         local r = j:wait(60000)
         H.eq(0, r.code, "worker " .. id .. ": " .. tostring(r.stderr))
       end
-      local f = assert(io.open(state .. "/nvim/rust-context.json"))
+      local dir = state .. (vim.fn.has("win32") == 1 and "/nvim-data" or "/nvim")
+      local f = assert(io.open(dir .. "/rust-context.json"))
       local all = vim.json.decode(f:read("*a"))
       f:close()
       H.eq(120, vim.tbl_count(all), "every worker's keys are in the file")
-      H.eq(0, vim.fn.filereadable(state .. "/nvim/rust-context.json.lock"), "lock released")
+      H.eq(0, vim.fn.filereadable(dir .. "/rust-context.json.lock"), "lock released")
     end)
 
     it("holds { [root] = ctx } under stdpath('state')", function()

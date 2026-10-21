@@ -1395,9 +1395,13 @@ describe("egui_new.check_rust_version (stub rustc on PATH)", function()
     with_path(bin)
     local state, cap = check(project())
     H.eq("old", state)
-    H.eq(1, #cap.list)
-    H.eq(vim.log.levels.WARN, cap.list[1].level)
-    H.has(cap.list[1].msg, "this project needs Rust >= 1.95 (you have 1.94.1): run rustup update stable")
+    -- other plugins may notify meanwhile (seen on macOS runners): count the rustc one
+    local mine = vim.tbl_filter(function(n)
+      return type(n.msg) == "string" and n.msg:find("this project needs Rust", 1, true) ~= nil
+    end, cap.list)
+    H.eq(1, #mine, vim.inspect(cap.list))
+    H.eq(vim.log.levels.WARN, mine[1].level)
+    H.has(mine[1].msg, "this project needs Rust >= 1.95 (you have 1.94.1): run rustup update stable")
   end)
 
   it("equal and newer rustc: silent", function()

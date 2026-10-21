@@ -28,8 +28,11 @@ end
 -- canonical form (forward slashes, lower-case drive letter) there.
 local function canon(v)
   if type(v) == "string" then
-    if v:match("^%a:[/\\]") then
-      return (v:gsub("\\", "/"):gsub("^%a", string.lower))
+    if v:find("%f[%a]%a:[/\\]") then
+      -- also drive paths embedded in a message ("coverage loaded (D:\\x\\y)")
+      return (v:gsub("\\", "/"):gsub("%f[%a](%a):/", function(d)
+        return d:lower() .. ":/"
+      end))
     end
     return v
   elseif type(v) == "table" then

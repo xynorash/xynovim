@@ -39,18 +39,28 @@ end
 --- The package/binary the current buffer belongs to: the package containing
 --- the file (else the workspace root package, else the first one) and its bin
 --- named like the package (else its first bin). Returns { pkg, bin, dir, path }.
+--- Windows spells a drive "C:" or "c:" depending on who reports the path
+--- (cargo metadata, the buffer name, rust_context's canonical root): compare
+--- with the drive letter folded.
+local function drive_fold(p)
+  if vim.fn.has("win32") == 1 then
+    return (p:gsub("^%a:", string.lower))
+  end
+  return p
+end
+
 local function current_binary()
-  local file = vim.fs.normalize(vim.api.nvim_buf_get_name(0))
+  local file = drive_fold(vim.fs.normalize(vim.api.nvim_buf_get_name(0)))
   local meta, root = metadata(file ~= "" and file or (vim.uv.cwd() .. "/x"))
   if not meta then
     return nil
   end
   local best, best_len, rootpkg, firstbin
   for _, pkg in ipairs(meta.packages) do
-    local dir = vim.fs.normalize(vim.fs.dirname(pkg.manifest_path))
+    local dir = drive_fold(vim.fs.normalize(vim.fs.dirname(pkg.manifest_path)))
     if #bins_of(pkg, "bin") > 0 then
       firstbin = firstbin or pkg
-      if dir == vim.fs.normalize(root) then
+      if dir == drive_fold(vim.fs.normalize(root)) then
         rootpkg = pkg
       end
       if file:sub(1, #dir + 1) == dir .. "/" and #dir > (best_len or 0) then

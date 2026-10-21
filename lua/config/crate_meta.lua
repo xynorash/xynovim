@@ -151,10 +151,11 @@ local pending = {} -- root -> { callbacks }
 function M.root(path)
   path = path or vim.api.nvim_buf_get_name(0)
   local st = vim.uv.fs_stat(path)
+  local rc = require("config.rust_context")
   if st and st.type == "directory" and vim.uv.fs_stat(path .. "/Cargo.toml") then
-    return path
+    return rc.canon(path) -- one spelling of a root (Windows drive letter / slashes)
   end
-  return require("config.rust_context").root(path)
+  return rc.root(path)
 end
 
 local function stamp_of(root, meta)
