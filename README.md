@@ -368,6 +368,10 @@ docs/media/record.sh 05-tests   # one tape
 The official site (https://xynorash.github.io/xynovim/) is one static page in [`site/`](site) with no external requests (system fonts, no CDN, no analytics) that presents the config with the recordings above. `python3 scripts/build-site.py` assembles it into `_site/` (the site plus only the media files the page references from `docs/media/`, with the numbers filled in from this README, so they cannot drift). [`.github/workflows/pages.yml`](.github/workflows/pages.yml) builds it on every push to `main` that touches the site, the media, this README or the build script, and publishes it as a single orphan commit to the branch `gh-pages`, which holds nothing but the built site; GitHub Pages serves that branch (Settings > Pages > Deploy from a branch > `gh-pages` / root). Preview locally under the same `/xynovim/` prefix: see [site/README.md](site/README.md).
 
 
+## Acknowledgements
+
+Thank you to JetBrains for their amazing products. The author is a full-in JetBrains user and considers the whole suite of IDEs and tools the best they have ever used. RustRover, one IDE of that suite, is the specific source of inspiration for xynovim, and the Island Dark colour scheme is derived from JetBrains' Islands Dark scheme (imported from its `Dark.icls`). xynovim is an independent project, not affiliated with or endorsed by JetBrains.
+
 ## Layout
 
 ```

@@ -474,6 +474,20 @@ describe("the page says what the README says", function()
     H.no_match(html, "works on macOS", true)
   end)
 
+  it("the acknowledgements are in the README and in the footer, text only", function()
+    local html = page()
+    local ack = readme:match("\n## Acknowledgements\n(.-)\n## ")
+    H.ok(ack, "README Acknowledgements section")
+    local foot = html:match('<footer class="site%-footer">(.-)</footer>')
+    H.ok(foot, "footer")
+    for _, w in ipairs({ "amazing products", "RustRover, one IDE of that suite", "derived from", "not affiliated with or endorsed by JetBrains" }) do
+      H.match(ack, w, true, w)
+      H.match(foot, w, true, w)
+    end
+    H.no_match(foot:lower(), "<img", true)
+    H.no_match(ack:lower(), "![", true)
+  end)
+
   it("the README links to the site and says where it is published from", function()
     H.match(readme, "Website: https://xynorash.github.io/xynovim/", true)
     H.match(readme, "gh-pages", true)
