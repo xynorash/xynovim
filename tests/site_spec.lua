@@ -456,6 +456,24 @@ describe("the page says what the README says", function()
     H.match(html, "Built from commit", true)
   end)
 
+  it("the platform facts on the page are the README's and the cited runs are in the README", function()
+    local html = page()
+    H.match(html, 'id="platforms"', true)
+    local plat = readme:match("### Platforms\n(.-)\n## ")
+    H.ok(plat, "README Platforms section")
+    for _, run in ipairs({ "39673715029", "39673715062", "39663956677" }) do
+      H.match(html, run, true, run)
+      H.match(plat, run, true, run)
+    end
+    for _, fact in ipairs({ "1724 passed, 0 failed, 76 skipped", "1077 passed, 0 failed, 87 skipped", "1431 passed, 0 failed, 73 skipped" }) do
+      H.match(html, fact, true, fact)
+      H.match(plat, fact, true, fact)
+    end
+    H.match(html, "not reliably green", true)
+    H.match(plat:lower(), "not reliably green", true)
+    H.no_match(html, "works on macOS", true)
+  end)
+
   it("the README links to the site and says where it is published from", function()
     H.match(readme, "Website: https://xynorash.github.io/xynovim/", true)
     H.match(readme, "gh-pages", true)

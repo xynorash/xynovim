@@ -100,7 +100,7 @@
     <div class="section-head">
       <p class="kicker">What you get</p>
       <h2 id="why-h">Why xynovim</h2>
-      <p class="lead">Built on <a href="https://github.com/LazyVim/LazyVim">LazyVim</a>, for Linux (Arch is what it is developed on), with the <strong>Island Dark</strong> colour scheme converted from a RustRover export. Everything on this page was recorded from the real config running on the small demo crate: nothing is mocked up.</p>
+      <p class="lead">Built on <a href="https://github.com/LazyVim/LazyVim">LazyVim</a>, developed on Linux (Arch) and also run in CI on Windows and macOS (see <a href="#platforms">Platforms</a>), with the <strong>Island Dark</strong> colour scheme converted from a RustRover export. Everything on this page was recorded from the real config running on the small demo crate: nothing is mocked up.</p>
     </div>
     <ul class="cards">
 <li class="card"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-bolt"></use></svg><p><strong>Two diagnostic tiers</strong>: rust-analyzer answers while you type, clippy follows about half a second later, on every keystroke and before any save.</p></li>
@@ -350,6 +350,15 @@
         </ul>
       </div>
     </div>
+    <h3 class="sub" id="platforms">Platforms</h3>
+    <p>The shell scripts are bash conveniences for Linux and macOS, with PowerShell counterparts for Windows (<code>scripts/bootstrap.ps1</code>). The config itself is Lua and is meant to run wherever Neovim 0.12 runs with the prerequisites. What CI shows, and no more:</p>
+    <ul class="limits">
+      <li><strong>Linux</strong>: developed on (Arch), fully tested. Ubuntu <code>ci</code> run 39673715029: 1724 passed, 0 failed, 76 skipped.</li>
+      <li><strong>Windows</strong>: the plugin restore from the lockfile, a silent headless start and the specs that are not Linux-only pass. <code>platforms</code> run 39673715062: 1077 passed, 0 failed, 87 skipped; 10 of the 38 spec files are skipped whole there and not demonstrated. Green in 3 of the last 4 runs.</li>
+      <li><strong>macOS</strong>: not reliably green. Neovim starts and most specs pass, but the job failed in 3 of the last 4 runs (green once: run 39663956677, 1431 passed, 0 failed, 73 skipped).</li>
+      <li><strong>Linux only by design</strong>: the 99 agent sandbox (bubblewrap; without it 99 refuses to run), the remote clipboard, the tmux-based and bash-stub test tooling (<code>scripts/test.sh</code>) and the mold linker setup.</li>
+      <li><strong>Not demonstrated on Windows or macOS</strong>: Local History, startup options, new Rust and egui project creation, live rust-analyzer flows on Windows, and debugging through codelldb. <a href="https://github.com/xynorash/xynovim/blob/main/docs/KNOWN_ISSUES.md">docs/KNOWN_ISSUES.md</a> has the list.</li>
+    </ul>
   </div>
 </section>
 
@@ -388,7 +397,7 @@
       <h2 id="limits-h">Known limitations</h2>
     </div>
     <ul class="limits">
-      <li><strong>Linux, Neovim 0.12.</strong> Arch is what it is developed on. The previous from-scratch Windows config lives on the <a href="https://github.com/xynorash/xynovim/tree/windows-legacy">windows-legacy</a> branch.</li>
+      <li><strong>Neovim 0.12; developed on Linux.</strong> Windows is exercised in CI and macOS is not reliably green (<a href="#platforms">Platforms</a>). The previous from-scratch Windows config lives on the <a href="https://github.com/xynorash/xynovim/tree/windows-legacy">windows-legacy</a> branch.</li>
       <li><strong>The agent sandbox is a seatbelt, not a jail.</strong> The network stays open, and no real request to the agent was driven in the test suite.</li>
       <li><strong>The macros and dependencies work is tested headless.</strong> The suite uses real cargo and rust-analyzer, but the pickers and key presses were not driven in a real terminal; the unknown-crate hint is deliberately conservative (a miss is better than a false hint), and a &ldquo;(guess)&rdquo; import can miss.</li>
       <li><strong>Two Neovim instances on the same workspace share bacon-ls&rsquo;s shadow</strong>, so one&rsquo;s unsaved text can show up as clippy errors in the other (upstream; open one Neovim per workspace). A multi-file rename is undone per buffer: use <code>&lt;leader&gt;gH</code> local history to revert it.</li>
