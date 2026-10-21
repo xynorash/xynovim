@@ -24,8 +24,30 @@ local function fail(msg, level)
   error(msg, (level or 1) + 1)
 end
 
+-- Windows spells one path several ways (D:\\a, D:/a, d:/a): compare the
+-- canonical form (forward slashes, lower-case drive letter) there.
+local function canon(v)
+  if type(v) == "string" then
+    if v:match("^%a:[/\\]") then
+      return (v:gsub("\\", "/"):gsub("^%a", string.lower))
+    end
+    return v
+  elseif type(v) == "table" then
+    local t = {}
+    for k, x in pairs(v) do
+      t[k] = canon(x)
+    end
+    return t
+  end
+  return v
+end
+
 function H.eq(expected, actual, msg)
-  if not vim.deep_equal(expected, actual) then
+  local same = vim.deep_equal(expected, actual)
+  if not same and vim.fn.has("win32") == 1 then
+    same = vim.deep_equal(canon(expected), canon(actual))
+  end
+  if not same then
     fail(
       ("%sexpected %s\n  actual   %s"):format(msg and (msg .. ": ") or "", vim.inspect(expected), vim.inspect(actual)),
       2
@@ -197,6 +219,9 @@ function H.capture_notify()
   local orig = vim.notify
   local cap = { list = {} }
   vim.notify = function(msg, level)
+    if type(msg) == "string" and msg:find("has been overwritten by another plugin", 1, true) then
+      return -- noice's late check (timing dependent, seen on macOS runners)
+    end
     cap.list[#cap.list + 1] = { msg = msg, level = level }
   end
   cap.restore = function()

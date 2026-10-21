@@ -51,6 +51,12 @@ jobs:
       - name: Restore plugins from the lockfile
         run: scripts\bootstrap.ps1
 
+      - name: Mason log (what could not be installed here, and why)
+        if: always()
+        run: |
+          $log = Join-Path $env:LOCALAPPDATA 'nvim-data\mason.log'
+          if (Test-Path $log) { Get-Content $log | Select-String -Pattern 'codelldb|ERROR|failed' | Select-Object -Last 60 } else { "no $log" }
+
       - name: Lockfile unchanged
         run: git diff --exit-code lazy-lock.json
 
@@ -97,6 +103,12 @@ jobs:
 
       - name: Restore plugins from the lockfile
         run: scripts/bootstrap.sh
+
+      - name: Mason log (what could not be installed here, and why)
+        if: always()
+        run: |
+          log="$HOME/.local/state/nvim/mason.log"
+          if [ -f "$log" ]; then grep -E 'codelldb|ERROR|failed' "$log" | tail -n 60; else echo "no $log"; fi
 
       - name: Lockfile unchanged
         run: git diff --exit-code lazy-lock.json

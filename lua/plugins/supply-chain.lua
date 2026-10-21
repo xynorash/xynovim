@@ -186,7 +186,7 @@ return {
             local path = line:match("^%S+ %-%- (.+):$")
             if path then
               -- relative to the scanned dir, or absolute when given an absolute dir
-              local full = path:sub(1, 1) == "/" and path or (dir .. "/" .. path:gsub("^%./", ""))
+              local full = (path:sub(1, 1) == "/" or path:match("^%a:[/\\]")) and path or (dir .. "/" .. path:gsub("^%./", ""))
               current = vim.fs.normalize(full) == file
             elseif current and line:match("^\t%S+$") then
               local dep = vim.trim(line)

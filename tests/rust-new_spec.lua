@@ -526,7 +526,7 @@ describe("rust_new.create_workspace (real cargo)", function()
 for a in "$@"; do last=$a; done
 # rewrite the edition cargo wrote, as if this were an older cargo
 f="$last/Cargo.toml"; [ -f "$f" ] || f="$PWD/$last/Cargo.toml"
-sed -i 's/^edition = .*/edition = "%s"/' "$f"
+sed -i.bak 's/^edition = .*/edition = "%s"/' "$f"; rm -f "$f.bak"
 ]]):format(real, ed)
       )
       vim.uv.fs_chmod(d .. "/cargo", 493)

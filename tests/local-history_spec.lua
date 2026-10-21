@@ -380,6 +380,9 @@ before_each(function()
   deferred, timer_starts, timer_news = {}, {}, 0
   notes = {}
   vim.notify = function(msg, level)
+    if type(msg) == "string" and msg:find("has been overwritten by another plugin", 1, true) then
+      return -- noice's late check (timing dependent, seen on macOS runners)
+    end
     notes[#notes + 1] = { msg = msg, level = level }
   end
   pcall(function()
