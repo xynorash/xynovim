@@ -857,6 +857,21 @@ print("\n".join(p.errors)); sys.exit(1 if p.errors else 0)
 end)
 
 describe("sitemap lists every page", function()
+  it("has one IndexNow key file at the root: <32 hex>.txt containing exactly the key", function()
+    built()
+    local keys = {}
+    for _, n in ipairs(vim.fn.readdir(out)) do
+      if n:match("^%x+%.txt$") then
+        table.insert(keys, n)
+      end
+    end
+    H.eq(1, #keys, "key files: " .. table.concat(keys, ","))
+    local key = keys[1]:gsub("%.txt$", "")
+    H.eq(32, #key)
+    H.eq(key, read(out .. "/" .. keys[1]))
+    H.eq(key, read(repo .. "/site/" .. keys[1]))
+  end)
+
   it("sitemap.xml is well-formed XML with one <url> per page, a git-derived lastmod and the same host", function()
     built()
     local sm = read(out .. "/sitemap.xml")
