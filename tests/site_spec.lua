@@ -606,7 +606,7 @@ describe("budgets and assets", function()
     local palette = read(repo .. "/lua/island/palette.lua"):lower()
     for _, hex in pairs(dark) do
       if hex ~= "#ffffff" and hex ~= "#17181b" and hex ~= "#e6e8ec" and hex ~= "#4b5059" and hex ~= "#393b40" then
-        H.match(palette .. read(repo .. "/tools/Dark.icls"):lower(), hex, true, hex .. " is in the Island Dark sources")
+        H.match(palette, hex, true, hex .. " is in the Island Dark palette")
       end
     end
   end)

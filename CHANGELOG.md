@@ -4,6 +4,7 @@ All notable changes to this config are documented here.
 
 ## [Unreleased]
 
+- Removed `tools/Dark.icls`: the author's scheme export is no longer distributed, only the palette generated from it (`lua/island/palette.lua`, same content). `tools/icls2nvim.py` stays as a converter for a scheme file you supply (without an input it prints a message and exits 1). The specs use a small synthetic `.icls` rebuilt from the palette.
 - Acknowledgements, aligned with the positioning: JetBrains' products are thanked as the whole suite, RustRover named as the one IDE that inspired xynovim, the author still uses them, and xynovim is an independent personal project (no affiliation, no competition, no alternative). Text only.
 - Positioning: xynovim is a personal project inspired by JetBrains' tools, which the author still uses; it is not a competitor to them. The pitch, page title, meta descriptions, history headings and code comments no longer read as a comparison or a race ("goes after", "closing the gap", "matches or beats", "poor man's", "clone"); the facts and the history stay as they were.
 - Acknowledgements: README section and a website footer paragraph thanking JetBrains (RustRover as the inspiration, Island Dark derived from the Islands Dark scheme, no affiliation). Text only.

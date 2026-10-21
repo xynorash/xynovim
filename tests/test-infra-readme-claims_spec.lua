@@ -1445,7 +1445,7 @@ describe("README layout and path claims", function()
     }) do
       want[#want + 1] = "lua/config/" .. p .. ".lua"
     end
-    vim.list_extend(want, { "plugin/after/transparency.lua", "plugin/after/unsafe-highlight.lua", "tools/icls2nvim.py", "tools/Dark.icls" })
+    vim.list_extend(want, { "plugin/after/transparency.lua", "plugin/after/unsafe-highlight.lua", "tools/icls2nvim.py" })
     for _, rel in ipairs(want) do
       H.ok(exists(repo .. "/" .. rel), rel)
       local stem = (vim.fs.basename(rel):gsub("%.%a+$", ""))
@@ -1468,6 +1468,7 @@ describe("README layout and path claims", function()
           not p:find("[<*{~]")
           and p:match("%.%a+$")
           and p ~= "lua/plugins/theme.lua" -- named as a historical finding of roadmap step 1
+          and p ~= "tools/Dark.icls" -- named in the CHANGELOG as the removed scheme export
           and not exists(repo .. "/" .. p)
         then
           missing[#missing + 1] = p
@@ -1514,7 +1515,7 @@ describe("README mechanical numeric claims", function()
     H.eq(actual, tonumber(total), "README plugin count vs the installed plugin count")
   end)
 
-  it("independent .icls parse: group colours/italics of the loaded scheme match (>= 35 checks)", function()
+  it("independent .icls parse (fixture rebuilt from the palette): group colours/italics of the loaded scheme match (>= 35 checks)", function()
     local script = H.tmpdir() .. "/icls.py"
     write(
       script,
@@ -1541,7 +1542,9 @@ def res(n, seen=()):
 print(json.dumps({n: res(n) for n in raw}))
 ]]
     )
-    local r = sh({ "python3", "-I", script, repo .. "/tools/Dark.icls" })
+    local fixture = H.tmpdir() .. "/fixture.icls"
+    H.write_icls(fixture)
+    local r = sh({ "python3", "-I", script, fixture })
     H.eq(0, r.code, r.out)
     local attrs = vim.json.decode(r.stdout)
     local pairs_ = {
@@ -1586,7 +1589,7 @@ print(json.dumps({n: res(n) for n in raw}))
     H.eq({}, bad)
     H.ok(checked >= 35, "only " .. checked .. " attribute checks had an .icls foreground")
     -- the README claim is "49 group/attribute checks"; this independent re-implementation does `checked`
-    H.match(readme, "49 group/attribute checks against an independent parse of the `.icls`", true)
+    H.match(readme, "49 group/attribute checks against an independent parse of an `.icls` rebuilt from the palette", true)
   end)
 end)
 

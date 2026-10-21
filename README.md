@@ -119,7 +119,7 @@ Video: [08-git.mp4](docs/media/08-git.mp4)
 
 ### Island Dark
 
-The colour scheme is generated from the author's own RustRover export ([`tools/Dark.icls`](tools/Dark.icls)) by [`tools/icls2nvim.py`](tools/icls2nvim.py): colours, italics, underlines and the `org.rust.*` entries that colour structs, enums, macros and lifetimes. Contrast was checked against WCAG targets and lifted where the export was too dim. Floats and the completion menu stay solid on a transparent editor (`<leader>uO` toggles the editor background).
+The colour scheme is generated from the author's own colour-scheme export, which is not distributed (the generated palette is [`lua/island/palette.lua`](lua/island/palette.lua)), by [`tools/icls2nvim.py`](tools/icls2nvim.py), which converts a scheme file you supply yourself: colours, italics, underlines and the `org.rust.*` entries that colour structs, enums, macros and lifetimes. Contrast was checked against WCAG targets and lifted where the export was too dim. Floats and the completion menu stay solid on a transparent editor (`<leader>uO` toggles the editor background).
 
 | completion with documentation | picker |
 | --- | --- |
@@ -383,7 +383,7 @@ lua/plugins/   one spec per concern (bacon-ls, rustaceanvim, ninety-nine, auto-s
 colors/        island-dark colourscheme entry point
 lua/island/    Island Dark: init.lua (mapping), palette.lua (generated)
 lua/lualine/   island-dark lualine theme
-tools/         icls2nvim.py + Dark.icls (the scheme it converts)
+tools/         icls2nvim.py (converts a JetBrains .icls you supply into the palette)
 scripts/       bootstrap.sh and bootstrap.ps1 (fresh-install two-step restore, prerequisite check), test.sh (spec runner), test.lua and test.ps1 (the same runner without bash), coverage.lua (coverage report), build-site.py (builds the website)
 tests/         *_spec.lua, harness.lua, helpers.lua, runner.lua, coverage_hook.lua, fixtures/ (see Tests)
 Makefile       make test / make coverage

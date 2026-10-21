@@ -1,5 +1,5 @@
 -- Island Dark: maps the resolved JetBrains scheme (island/palette.lua, generated
--- by tools/icls2nvim.py from tools/Dark.icls) onto Neovim highlight groups.
+-- by tools/icls2nvim.py from the author's own export, which is not distributed) onto Neovim highlight groups.
 -- Only palette colours are used; where the scheme has no entry for something,
 -- the closest scheme colour is taken (noted inline).
 local M = {}

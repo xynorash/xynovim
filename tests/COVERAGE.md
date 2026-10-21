@@ -12,7 +12,7 @@ found so far are fixed (listed at the end).
 | Startup, options, lazy.nvim setup, lockfile, extras, small plugin specs (news, scrolling, telescope, ghost text, codelens, harpoon, navigation), remote clipboard (`config/{options,lazy,remote_clipboard}.lua`, `lazyvim.json`) | `startup-and-options` | fresh-startup facts come from child nvims |
 | Clean startup, harness proof | `smoke` | |
 | Test helpers | `harness` | |
-| Island Dark theme (`colors/`, `lua/island/*`, `plugin/after/*`, `tools/icls2nvim.py`, lualine theme) | `theme-island` | colours written out literally; load time printed, not asserted |
+| Island Dark theme (`colors/`, `lua/island/*`, `plugin/after/*`, `tools/icls2nvim.py`, lualine theme) | `theme-island` | colours written out literally; converter tested on a synthetic `.icls` rebuilt from the palette; load time printed, not asserted |
 | Global keymaps (`config/keymaps.lua`, diffview/coverage/99/harpoon/dap keys, which-key groups, key uniqueness) | `keymaps-global` | |
 | Rust keymaps (`<leader>r*`, `rust_assist.lua`, `rust_nav.lua`, `after/ftplugin/rust.lua`) | `keymaps-rust` | real rust-analyzer for rv, rh, rw, rT, ru, rl; the rest stubbed |
 | `:RustContext` (`rust_context.lua`) and its two consumers | `rust-context` | live apply on one workspace |
