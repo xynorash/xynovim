@@ -503,3 +503,24 @@ td code + code { margin-left: 2px; }
 .notfound { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding-block: 48px; }
 .notfound h1 { font-size: clamp(2rem, 1.4rem + 3vw, 3.4rem); }
 .chips + p { margin-top: 1.2em; }
+
+/* guide pages (site/guides/<slug>/index.html) */
+.prose { padding-block: clamp(28px, 5vw, 64px) clamp(40px, 7vw, 88px); }
+.prose-body { max-width: 76ch; }
+.prose h1 { font-size: clamp(1.8rem, 1.3rem + 2.2vw, 2.8rem); margin-bottom: 0.6em; }
+.prose h2 { font-size: clamp(1.3rem, 1.1rem + 0.9vw, 1.7rem); margin-top: 2.2em; }
+.prose h3 { font-size: 1.1rem; margin-top: 1.6em; }
+.prose p, .prose li { max-width: 76ch; }
+.prose .lead { margin-bottom: 1.4em; }
+.prose figure.term { margin: 1.6em 0; }
+.prose table { margin: 1.2em 0; }
+.crumbs { list-style: none; padding: 0; margin: 0 0 20px; display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 0.9rem; color: var(--muted); }
+.crumbs li { margin: 0; }
+.crumbs li + li::before { content: "/"; margin-right: 8px; color: var(--muted); }
+.crumbs a { color: var(--blue); }
+.related { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); list-style: none; padding: 0; margin: 1em 0 0; }
+.related li { margin: 0; }
+.related a { display: block; height: 100%; padding: 14px 16px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); text-decoration: none; color: var(--text); }
+.related a:hover { border-color: var(--blue); }
+.related b { display: block; font: 700 0.95rem var(--mono); color: var(--blue); margin-bottom: 4px; }
+.guide-links { margin-top: 2em; }

@@ -384,7 +384,7 @@ colors/        island-dark colourscheme entry point
 lua/island/    Island Dark: init.lua (mapping), palette.lua (generated)
 lua/lualine/   island-dark lualine theme
 tools/         icls2nvim.py (converts a JetBrains .icls you supply into the palette)
-scripts/       bootstrap.sh and bootstrap.ps1 (fresh-install two-step restore, prerequisite check), test.sh (spec runner), test.lua and test.ps1 (the same runner without bash), coverage.lua (coverage report), build-site.py (builds the website)
+scripts/       bootstrap.sh and bootstrap.ps1 (fresh-install two-step restore, prerequisite check), test.sh (spec runner), test.lua and test.ps1 (the same runner without bash), coverage.lua (coverage report), build-site.py (builds the website), make-share-images.sh (the share cards)
 tests/         *_spec.lua, harness.lua, helpers.lua, runner.lua, coverage_hook.lua, fixtures/ (see Tests)
 Makefile       make test / make coverage
 plugin/after/  transparency, unsafe highlight
@@ -392,7 +392,7 @@ after/ftplugin/ Rust buffer settings (plain `'`, comment spelling)
 queries/       base rust injections (copy of nvim-treesitter's minus the sqlx macros)
 after/queries/ treesitter query extensions (sqlx SQL injection)
 .github/       CI: bootstrap, lockfile check, startup smoke test, spec suite; the platforms workflow runs bootstrap, startup and the suite on Windows and macOS; the pages workflow publishes the website to gh-pages
-site/          the website's source (index.html, assets/, 404.html, ...), see site/README.md
+site/          the website's source (index.html, guides/, assets/, 404.html, ...), see site/README.md
 ```
 
 LazyVim extras enabled (`lazyvim.json`): `ai.claudecode`, `editor.neo-tree`, `editor.overseer`, `lang.rust`, `lang.toml`, `lang.yaml`, `lang.json`, `lang.markdown`, `lang.git`, `dap.core`, `test.core`, `ui.treesitter-context`, `editor.navic`, `coding.mini-surround`, `coding.neogen`, `editor.inc-rename`, `util.rest`.

@@ -90,6 +90,7 @@
         <li><a href="#install">Install</a></li>
         <li><a href="#keys">Keys</a></li>
         <li><a href="#limits">Limits</a></li>
+        <li><a href="#guides">Guides</a></li>
         <li><a href="#docs">Docs</a></li>
       </ul>
     </nav>
@@ -438,6 +439,24 @@
       <li><strong>Two Neovim instances on the same workspace share bacon-ls&rsquo;s shadow</strong>, so one&rsquo;s unsaved text can show up as clippy errors in the other (upstream; open one Neovim per workspace). A multi-file rename is undone per buffer: use <code>&lt;leader&gt;gH</code> local history to revert it.</li>
     </ul>
     <p>The complete list, with what was decided and why: <a href="https://github.com/xynorash/xynovim/blob/main/docs/KNOWN_ISSUES.md">docs/KNOWN_ISSUES.md</a>.</p>
+  </div>
+</section>
+
+<section class="section" id="guides" aria-labelledby="guides-h">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="kicker">Learn the workflows</p>
+      <h2 id="guides-h">Guides</h2>
+      <p class="lead">Six short guides to the parts of the configuration people ask about most: what each one does, the keys, why it is set up that way and where it stops.</p>
+    </div>
+    <ul class="doc-links">
+<li><a href="guides/neovim-rust-diagnostics/"><b>Rust diagnostics</b>How xynovim gets Rust errors on screen while you type: rust-analyzer for instant type errors, clippy through bacon-ls half a second later, before any save.</a></li>
+<li><a href="guides/neovim-rust-debugging/"><b>Rust debugging</b>Set breakpoints, read Rust values and stop at panics in Neovim: the nvim-dap and codelldb setup of xynovim, with the debuginfo setting that makes locals work.</a></li>
+<li><a href="guides/neovim-rust-tests-coverage/"><b>Tests and coverage</b>Run Rust tests from Neovim with neotest and cargo-nextest, read a summary tree, and see line coverage from cargo-llvm-cov in the gutter, on demand.</a></li>
+<li><a href="guides/neovim-cargo-workspaces/"><b>Workspaces, features, crates</b>Create Rust binaries, libraries and workspaces, add crates with their features and fix missing derive features from Neovim: :CrateAdd, :CrateFeatures and more.</a></li>
+<li><a href="guides/neovim-git-local-history/"><b>Git safety net</b>Every save in Neovim written as a git ref you can restore, plus lazygit and diffview: how xynovim recovers deleted files and edits that undo cannot bring back.</a></li>
+<li><a href="guides/neovim-island-dark-theme/"><b>Island Dark theme</b>Island Dark is the dark colour scheme of xynovim: a generated palette mapped to Treesitter captures, LSP tokens and the plugins in use, tuned for contrast.</a></li>
+    </ul>
   </div>
 </section>
 

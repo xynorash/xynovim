@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
+<title>Cargo workspaces, features and crates in Neovim | xynovim</title>
+<meta name="description" content="Create Rust binaries, libraries and workspaces, add crates with their features and fix missing derive features from Neovim: :CrateAdd, :CrateFeatures and more.">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#1e1f22" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<link rel="canonical" href="https://xynorash.github.io/xynovim/guides/neovim-cargo-workspaces/">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="xynovim">
+<meta property="og:locale" content="en">
+<meta property="og:title" content="Cargo workspaces, features and crates in Neovim | xynovim">
+<meta property="og:description" content="Create Rust binaries, libraries and workspaces, add crates with their features and fix missing derive features from Neovim: :CrateAdd, :CrateFeatures and more.">
+<meta property="og:url" content="https://xynorash.github.io/xynovim/guides/neovim-cargo-workspaces/">
+<meta property="og:image" content="https://xynorash.github.io/xynovim/assets/og/neovim-cargo-workspaces.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="xynovim guide: Cargo workspaces, features and crates in Neovim, a new workspace tree with a member crate">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Cargo workspaces, features and crates in Neovim | xynovim">
+<meta name="twitter:description" content="Create Rust binaries, libraries and workspaces, add crates with their features and fix missing derive features from Neovim: :CrateAdd, :CrateFeatures and more.">
+<meta name="twitter:image" content="https://xynorash.github.io/xynovim/assets/og/neovim-cargo-workspaces.png">
+<meta name="twitter:image:alt" content="xynovim guide: Cargo workspaces, features and crates in Neovim, a new workspace tree with a member crate">
+<link rel="stylesheet" href="../../assets/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://xynorash.github.io/xynovim/guides/neovim-cargo-workspaces/#article",
+      "headline": "Cargo workspaces, features and dependencies in Neovim",
+      "description": "Create Rust binaries, libraries and workspaces, add crates with their features and fix missing derive features from Neovim: :CrateAdd, :CrateFeatures and more.",
+      "url": "https://xynorash.github.io/xynovim/guides/neovim-cargo-workspaces/",
+      "mainEntityOfPage": "https://xynorash.github.io/xynovim/guides/neovim-cargo-workspaces/",
+      "inLanguage": "en",
+      "image": "https://xynorash.github.io/xynovim/assets/og/neovim-cargo-workspaces.png",
+      "author": {
+        "@id": "https://github.com/xynorash"
+      },
+      "isPartOf": {
+        "@id": "https://xynorash.github.io/xynovim/#website"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "xynovim",
+          "item": "https://xynorash.github.io/xynovim/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Workspaces, features, crates",
+          "item": "https://xynorash.github.io/xynovim/guides/neovim-cargo-workspaces/"
+        }
+      ]
+    },
+    {
+      "@type": "Person",
+      "@id": "https://github.com/xynorash",
+      "name": "Xynorash",
+      "url": "https://github.com/xynorash"
+    }
+  ]
+}
+</script>
+<script src="../../assets/app.js" defer></script>
+</head>
+<body id="top">
+<svg width="0" height="0" hidden aria-hidden="true" focusable="false">
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></symbol>
+  <symbol id="i-tick" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-branch" viewBox="0 0 24 24"><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 7v10M18 10c0 5-8 3-12 7"/></symbol>
+</svg>
+<a class="skip" href="#main">Skip to the content</a>
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="brand" href="../../"><img src="../../assets/favicon.svg" width="28" height="28" alt="">xynovim</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Show the menu">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-menu"></use></svg></label>
+    <nav id="site-nav" aria-label="Sections">
+      <ul>
+        <li><a href="../../#why">Why</a></li>
+        <li><a href="../../#tour">Tour</a></li>
+        <li><a href="../../#guides">Guides</a></li>
+        <li><a href="../../#install">Install</a></li>
+        <li><a href="../../#docs">Docs</a></li>
+      </ul>
+    </nav>
+    <a class="btn" href="https://github.com/xynorash/xynovim"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-branch"></use></svg>GitHub</a>
+  </div>
+</header>
+
+<main id="main">
+<article class="prose">
+  <div class="wrap">
+    <div class="prose-body">
+    <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="../../">xynovim</a></li><li><a href="../../#guides">Guides</a></li><li aria-current="page">Workspaces, features, crates</li></ol></nav>
+    <p class="kicker">xynovim guide</p>
+    <h1>Cargo workspaces, features and dependencies in Neovim</h1>
+    <p class="lead">Adding a dependency, picking its features and starting a workspace are chores that usually mean a terminal, a browser tab for crates.io and a manual edit of Cargo.toml. This guide covers the commands of xynovim, a personal Neovim configuration for Rust, that do these inside the editor: new projects and workspaces, <code>:CrateAdd</code> with feature selection, <code>:CrateFeatures</code>, the code action that enables a missing derive feature, and the feature set that rust-analyzer and clippy share.</p>
+<figure class="term"><a href="../../media/15-rust-new-workspace-tree.png"><img src="../../media/15-rust-new-workspace-tree.png" width="1440" height="820" alt="a new Cargo workspace in Neovim: the file tree with crates, the member and the root Cargo.toml" loading="lazy" decoding="async"></a><figcaption>Recorded from the real configuration on the demo crate.</figcaption></figure>
+<h2 id="new">New projects and workspaces</h2>
+<p>Three dashboard entries and four commands create projects. They all run cargo underneath, asynchronously, and remove whatever they created if cargo fails.</p>
+<table>
+<thead><tr><th>Dashboard</th><th>Command</th><th>What it creates</th></tr></thead>
+<tbody>
+<tr><td><code>b</code></td><td><code>:RustNewBin [name]</code></td><td><code>cargo new --bin --vcs git</code>, then opens <code>src/main.rs</code></td></tr>
+<tr><td><code>i</code></td><td><code>:RustNewLib [name]</code></td><td>the same with <code>src/lib.rs</code>; a hyphenated name shows its Rust identifier</td></tr>
+<tr><td><code>w</code></td><td><code>:RustNewWorkspace [name]</code></td><td>a workspace with a first member</td></tr>
+<tr><td></td><td><code>:RustNewMember [name]</code></td><td>adds a binary or library to the workspace of the current buffer</td></tr>
+</tbody>
+</table>
+<p>Cargo has no one-step workspace command, so xynovim builds it: a root <code>Cargo.toml</code> with <code>[workspace]</code>, <code>resolver = "3"</code> (or <code>"2"</code> for editions before 2024), <code>members = ["crates/*"]</code>, <code>[workspace.package]</code> and an empty <code>[workspace.dependencies]</code>, and a first member under <code>crates/</code> that inherits <code>version.workspace</code> and <code>edition.workspace</code>. The edition is whatever your installed cargo writes into a new project, read once per session, never hard-coded. The <code>crates/*</code> glob picks up later members without editing the manifest. <code>:RustNewMember</code> refuses outside a workspace with a <code>members</code> list and refuses a name that collides with an existing member.</p>
+<figure class="term"><a href="../../media/15-rust-new-workspace-cargo-toml.png"><img src="../../media/15-rust-new-workspace-cargo-toml.png" width="1440" height="820" alt="the root Cargo.toml of a new workspace: workspace table, resolver and workspace.package" loading="lazy" decoding="async"></a><figcaption>The root manifest of a workspace created from the dashboard.</figcaption></figure>
+<p>The fourth dashboard entry, <code>e</code>, runs <code>:EguiNew [name]</code>, which downloads the current <a href="https://github.com/emilk/eframe_template">eframe_template</a>, personalises it and keeps your own Rust toolchain instead of the template's pin.</p>
+
+<h2 id="add">Adding a crate with its features</h2>
+<p><code>&lt;leader&gt;rA</code> or <code>:CrateAdd [query]</code> searches crates.io and shows version, downloads and the features of the chosen release with their descriptions. You pick features and the target: the package that holds the file, <code>--dev</code> or <code>--build</code>, and <code>workspace.dependencies</code> entries are used when they exist. Then it runs <code>cargo add</code>. Writing a path such as <code>uuid::Uuid::new_v4()</code> for a crate that is not a dependency yet gives a hint and a code action, "Add crate uuid", that does the same and then offers the import.</p>
+<figure class="term"><a href="../../media/11-add-crate-features.png"><img src="../../media/11-add-crate-features.png" width="1440" height="820" alt="the feature picker of the uuid crate with the v4 feature toggled on" loading="lazy" decoding="async"></a><figcaption>The feature picker of <code>:CrateAdd</code>, here with <code>v4</code> toggled on.</figcaption></figure>
+
+<h2 id="features">Exploring and fixing features</h2>
+<ul>
+<li><code>:CrateFeatures [crate]</code> is a feature explorer: which features are on or off, what each one unlocks, the default set, an "unused?" hint, and toggling in <code>Cargo.toml</code>.</li>
+<li><code>&lt;leader&gt;rG</code>, or the code action "Enable feature derive of serde", fixes <code>cannot find derive macro Serialize</code>: the feature is found in the crate's own source and <code>Cargo.toml</code> is edited.</li>
+<li><code>&lt;leader&gt;rI</code> or <code>:ImportName</code> imports a name with the candidates ranked and the reasons shown, and remembers your choice per project.</li>
+</ul>
+<figure class="term"><a href="../../media/12-attributes-missing-feature.png"><img src="../../media/12-attributes-missing-feature.png" width="1440" height="820" alt="the error cannot find derive macro Serialize because the serde derive feature is off" loading="lazy" decoding="async"></a><figcaption>The error that the enable-feature action repairs.</figcaption></figure>
+
+<h2 id="context">One feature set for the whole workspace</h2>
+<p><code>:RustContext</code> chooses the Cargo features and the build target for a workspace, and applies them to rust-analyzer and bacon-ls together so the two diagnostic tiers cannot disagree. <code>:RustTargets</code> lists every binary, example, test and bench of the workspace, and <code>:RustTools</code> opens cargo-deny, audit, machete, bloat and build timings when those tools are installed.</p>
+
+<h2 id="deps">After a dependency changes</h2>
+<p>Saving <code>Cargo.toml</code> or <code>Cargo.lock</code> from Neovim restarts bacon-ls 500 ms after the last save, and the statusline says <code>deps resolving</code> until rust-analyzer finishes reloading, so a red error in that window is understood as transient. A <code>cargo add</code> in a terminal gets the same treatment on the next focus event.</p>
+
+<h2 id="limits">Limits</h2>
+<ul>
+<li>Project creation depends on cargo's own naming rules and on a network for crates.io and the egui template; the egui flow uses a cached copy offline.</li>
+<li>The unknown-crate hint is deliberately conservative: a file with a glob import from a dependency gets no hint.</li>
+<li>New Rust and egui project creation is not demonstrated on Windows or macOS.</li>
+</ul>
+
+<h2 id="try">Try it</h2>
+<p>Install the configuration, open the dashboard and press <code>w</code> to create a workspace, then use <code>&lt;leader&gt;rA</code> inside a member to add a crate.</p>
+    <div class="install-box" id="hero-install">
+      <div class="label"><span>Install</span></div>
+      <pre data-copy><code id="install-cmd"><span class="ln">git clone https://github.com/xynorash/xynovim ~/.config/nvim</span>   <span class="cmt"># or ln -s &lt;checkout&gt; ~/.config/nvim</span>
+<span class="ln">~/.config/nvim/scripts/bootstrap.sh</span></code></pre>
+    </div>
+    <p>xynovim is a personal project: <a href="../../">the home page</a> has the tour, the install details and the platform status.</p>
+
+    <h2 id="related">Related guides</h2>
+    <ul class="related">
+<li><a href="../neovim-rust-diagnostics/"><b>Rust diagnostics</b>Instant Rust diagnostics in Neovim with rust-analyzer and clippy</a></li>
+<li><a href="../neovim-rust-tests-coverage/"><b>Tests and coverage</b>Running Rust tests with coverage in Neovim</a></li>
+<li><a href="../neovim-git-local-history/"><b>Git safety net</b>A git safety net for Neovim: Local History, lazygit and diffview</a></li>
+    </ul>
+
+    <h2 id="source">In the repository</h2>
+    <ul class="guide-links">
+<li><a href="https://github.com/xynorash/xynovim/blob/main/README.md#macros-and-dependencies">README: Macros and dependencies</a></li>
+<li><a href="https://github.com/xynorash/xynovim/blob/main/README.md#new-rust-projects">README: New Rust projects</a></li>
+    </ul>
+    </div>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>xynovim is an independent personal project, inspired by JetBrains&rsquo; tools and not affiliated with or endorsed by JetBrains. See the <a href="../../#thanks">acknowledgements</a>. It is licensed under <a href="https://github.com/xynorash/xynovim/blob/main/LICENSE">Apache-2.0</a>; the source is at <a href="https://github.com/xynorash/xynovim">github.com/xynorash/xynovim</a>.</p>
+    <p>Built from commit <a href="https://github.com/xynorash/xynovim/commit/{{COMMIT}}"><code>{{COMMIT}}</code></a> on {{DATE}}. This site makes no external requests: no CDN, no web fonts, no analytics.</p>
+  </div>
+</footer>
+</body>
+</html>

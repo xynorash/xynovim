@@ -129,12 +129,17 @@ describe("the build", function()
   end)
 
   it("only the referenced media is copied", function()
+    built()
     local want = {}
-    for _, r in ipairs(refs(page())) do
-      local name = r.ref:match("^media/([^#?]+)")
-      if name then
-        want[name] = true
-        H.ok(exists(out .. "/media/" .. name), name)
+    for _, file in ipairs(vim.fn.globpath(out, "**/index.html", false, true)) do
+      local dir = vim.fs.dirname(file)
+      for _, r in ipairs(refs(read(file))) do
+        local target = is_local(r.ref) and vim.fs.normalize(dir .. "/" .. r.ref:gsub("[#?].*$", "")) or ""
+        local name = target:match("^" .. vim.pesc(out) .. "/media/([^#?]+)")
+        if name then
+          want[name] = true
+          H.ok(exists(out .. "/media/" .. name), name)
+        end
       end
     end
     local have = vim.fn.readdir(out .. "/media")
@@ -522,7 +527,7 @@ local function all_pages()
   end
   walk(out, "")
   table.sort(list, function(a, b)
-    return a.path < b.path
+    return (a.path ~= "index.html" and a.path or "") < (b.path ~= "index.html" and b.path or "")
   end)
   return list
 end
@@ -871,6 +876,165 @@ describe("sitemap lists every page", function()
     H.eq(n, vim.tbl_count(locs), "sitemap entries vs pages")
     H.eq(n, select(2, sm:gsub("<lastmod>%d%d%d%d%-%d%d%-%d%d</lastmod>", "")))
     H.no_match(sm, "404", true)
+  end)
+end)
+
+-- ------------------------------------------------------------------ the guides
+
+describe("the guides (site/guides/<slug>/)", function()
+  local function guides()
+    local list = {}
+    for _, pg in ipairs(all_pages()) do
+      if pg.dir:match("^guides/[%w%-]+$") then
+        pg.slug = pg.dir:match("^guides/(.+)$")
+        pg.article = pg.html:match("<article.-</article>")
+        table.insert(list, pg)
+      end
+    end
+    return list
+  end
+
+  local function plain_text(fragment)
+    return (fragment:gsub("<script.-</script>", " "):gsub("<[^>]+>", " "):gsub("&[%w#]+;", " "))
+  end
+
+  --- GitHub's anchor of a Markdown heading
+  local function slug_of(heading)
+    return (heading:lower():gsub("`", ""):gsub("[^%w%s%-_]", ""):gsub("%s", "-"))
+  end
+
+  it("there are five or six, each with a unique h1, 600 to 1200 words and its own og image", function()
+    local list = guides()
+    H.ok(#list >= 5 and #list <= 6, "guides: " .. #list)
+    local h1s = {}
+    for _, g in ipairs(list) do
+      H.ok(g.article, g.slug .. " has an <article>")
+      local words = 0
+      for _ in plain_text(g.article):gmatch("%S+") do
+        words = words + 1
+      end
+      H.ok(words >= 600 and words <= 1200, ("%s has %d words"):format(g.slug, words))
+      local h1 = g.html:match("<h1[^>]*>(.-)</h1>")
+      H.not_ok(h1s[h1], "duplicate h1 " .. h1)
+      h1s[h1] = true
+      H.ok(exists(out .. "/assets/og/" .. g.slug .. ".png"), g.slug)
+      H.eq(CANON .. "assets/og/" .. g.slug .. ".png", meta(g.html, "property", "og:image"))
+    end
+  end)
+
+  it("the home page links every guide, in the nav and in the guides section", function()
+    local home = all_pages()[1].html
+    H.match(home, 'href="#guides"', true)
+    H.match(home, 'id="guides"', true)
+    for _, g in ipairs(guides()) do
+      H.match(home, 'href="guides/' .. g.slug .. '/"', true, g.slug)
+    end
+  end)
+
+  it("each guide links home, to two other guides, to the repository docs and has the README's install box", function()
+    local block = readme:match("\n## Install\n.-\n```sh\n(.-)\n```")
+    local known = {}
+    for _, g in ipairs(guides()) do
+      known[g.slug] = true
+    end
+    for _, g in ipairs(guides()) do
+      H.match(g.html, 'href="../../"', true, g.slug .. " links home")
+      local others = 0
+      for slug in g.article:gmatch('href="%.%./([%w%-]+)/"') do
+        H.ok(known[slug] and slug ~= g.slug, g.slug .. " links an unknown or its own guide: " .. slug)
+        others = others + 1
+      end
+      H.ok(others >= 2, g.slug .. " related guides: " .. others)
+      H.match(g.html, 'href="https://github.com/xynorash/xynovim/blob/main/', true, g.slug)
+      local inner = g.html:match('<code id="install%-cmd">(.-)</code>')
+      H.ok(inner, g.slug .. " install box")
+      H.eq(block, (inner:gsub("<[^>]+>", ""):gsub("&lt;", "<"):gsub("&gt;", ">"):gsub("&amp;", "&")))
+      H.match(g.html, "<img", true)
+    end
+  end)
+
+  it("the README and DETAILS sections the guides link to exist, anchors included", function()
+    for _, g in ipairs(guides()) do
+      for path, anchor in g.article:gmatch('href="https://github%.com/xynorash/xynovim/blob/main/([^"#]+)#?([^"]*)"') do
+        H.ok(exists(repo .. "/" .. path), g.slug .. ": " .. path)
+        if anchor ~= "" then
+          local found = false
+          for l in read(repo .. "/" .. path):gmatch("[^\n]+") do
+            local heading = l:match("^#+%s+(.-)%s*$")
+            if heading and slug_of(heading) == anchor then
+              found = true
+            end
+          end
+          H.ok(found, ("%s: %s has no heading for #%s"):format(g.slug, path, anchor))
+        end
+      end
+    end
+  end)
+
+  it("is in the voice of a personal project: no comparison with other products", function()
+    for _, g in ipairs(guides()) do
+      local text = plain_text(g.article):lower()
+      for _, bad in ipairs({ "rustrover", "jetbrains", "alternative", "better than", " beats ", " vs ", "competitor", "replacement for" }) do
+        H.no_match(text, bad, true, g.slug .. ": " .. bad)
+      end
+    end
+  end)
+
+  it("images are lazy and every guide image is a media file the home page also uses or the README shows", function()
+    for _, g in ipairs(guides()) do
+      for _, t in ipairs(find(g.html, "img")) do
+        if not t.attrs.src:match("favicon%.svg$") then
+          H.eq("lazy", t.attrs.loading, g.slug .. " " .. t.attrs.src)
+          H.eq("async", t.attrs.decoding)
+          H.match(t.attrs.src, "^%.%./%.%./media/[%w%-]+%.png$")
+        end
+      end
+    end
+  end)
+
+  it("every :Command and <leader> key the guides name exists in the running config", function()
+    local dir, buf = H.open_fixture("keymaps-rust-crate")
+    H.wait_for(function()
+      return vim.api.nvim_buf_call(buf, function()
+        return vim.fn.maparg("<leader>cR", "n", false, true).desc == "Rename File"
+          and vim.fn.maparg("<leader>ca", "n", false, true).desc ~= nil
+      end)
+    end, 15000, "the scheduled rust maps")
+    local cmds, keys = {}, {}
+    for _, g in ipairs(guides()) do
+      for c in g.article:gmatch("<code>:(%u%w+)[ %]<]") do
+        cmds[c] = g.slug
+      end
+      for c in g.article:gmatch("<code>:(%u%w+)</code>") do
+        cmds[c] = g.slug
+      end
+      for k in g.article:gmatch("<code>&lt;leader&gt;(%w%w+)</code>") do
+        keys[k] = g.slug
+      end
+    end
+    H.ok(vim.tbl_count(cmds) >= 15, "commands named: " .. vim.tbl_count(cmds))
+    H.ok(vim.tbl_count(keys) >= 25, "keys named: " .. vim.tbl_count(keys))
+    cmds.RustLsp = nil -- rustaceanvim's own command, defined only once rust-analyzer is attached
+    for c, slug in pairs(cmds) do
+      H.eq(2, vim.fn.exists(":" .. c), ("%s: :%s is not a command"):format(slug, c))
+    end
+    -- the maps that keymaps.lua sets on LspAttach of rust-analyzer need a client: wait for one
+    -- when rust is usable, otherwise accept a key that keymaps.lua defines
+    local with_ra = H.rust_available()
+    if with_ra then
+      H.wait_lsp("rust-analyzer", buf)
+    end
+    local keymaps_lua = read(repo .. "/lua/config/keymaps.lua")
+    local missing = {}
+    vim.api.nvim_buf_call(buf, function()
+      for k, slug in pairs(keys) do
+        if vim.fn.maparg("<leader>" .. k, "n", false, true).lhs == nil and (with_ra or not keymaps_lua:find('"<leader>' .. k .. '"', 1, true)) then
+          table.insert(missing, slug .. ": <leader>" .. k)
+        end
+      end
+    end)
+    table.sort(missing)
+    H.eq({}, missing, "keys named in the guides that are not mapped")
   end)
 end)
 
