@@ -1043,7 +1043,9 @@ describe("the guides (site/guides/<slug>/)", function()
     local missing = {}
     vim.api.nvim_buf_call(buf, function()
       for k, slug in pairs(keys) do
-        if vim.fn.maparg("<leader>" .. k, "n", false, true).lhs == nil and (with_ra or not keymaps_lua:find('"<leader>' .. k .. '"', 1, true)) then
+        -- LazyVim maps <leader>gg only where lazygit is installed
+        local optional = k == "gg" and vim.fn.executable("lazygit") == 0
+        if vim.fn.maparg("<leader>" .. k, "n", false, true).lhs == nil and not optional and (with_ra or not keymaps_lua:find('"<leader>' .. k .. '"', 1, true)) then
           table.insert(missing, slug .. ": <leader>" .. k)
         end
       end
