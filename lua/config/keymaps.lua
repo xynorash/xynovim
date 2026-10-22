@@ -207,7 +207,6 @@ vim.keymap.set("n", "<leader>uu", function()
   vim.cmd.packadd("nvim.undotree")
   require("undotree").open()
 end, { desc = "Undotree" })
-vim.keymap.set("n", "<leader>gH", "<cmd>LocalHistory<cr>", { desc = "Local history (file)" })
 
 -- Okabe-Ito diagnostic colours (off by default; also :ColorblindDiagnostics).
 Snacks.toggle({

@@ -4,6 +4,8 @@ return {
     "nvim-telescope/telescope.nvim",
     -- required by 99's blink completion source
     { "saghen/blink.compat", version = "2.*" },
+    -- the pre-request checkpoint (not lazy itself, see plugins/xyno-history.lua)
+    "xynorash/xyno-history.nvim",
   },
   -- Everything is reached through these keymaps, so lazy-load on them
   -- instead of eager-loading 99 + telescope + blink.compat at startup.
@@ -170,7 +172,7 @@ return {
       local path = vim.api.nvim_buf_get_name(0)
       if path ~= "" and vim.fs.root(path, ".git") then
         vim.defer_fn(start, 15000)
-        require("config.local_history").snapshot({
+        require("xyno_history").snapshot({
           path = path,
           force = true,
           label = "before 99 request",

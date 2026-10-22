@@ -60,9 +60,6 @@ vim.g.trouble_lualine = false
 -- rustaceanvim.lua switches the native in-memory diagnostics back on.
 vim.g.lazyvim_rust_diagnostics = "bacon-ls"
 
--- Local History: shadow-ref snapshots on every (throttled) save.
-require("config.local_history").setup()
-
 -- Auto-save safety: no writes into dependency sources or over files that
 -- changed on disk; save everything a multi-file rename touched.
 require("config.disk_guard").setup()

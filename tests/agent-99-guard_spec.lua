@@ -446,7 +446,7 @@ describe("Guarded.make_request", function()
   it("takes a forced 'before 99 request' snapshot of the buffer path before the request starts", function()
     H.need_os({ "linux" }, "times out waiting for the snapshot commit on macos-latest (run 38912021512), cause not diagnosed")
     local dir = H.open_fixture("basic", "src/main.rs", { git = true })
-    local lh = require("config.local_history")
+    local lh = require("xyno_history")
     local order, snap = {}, nil
     local orig = lh.snapshot
     patch(lh, {
@@ -493,7 +493,7 @@ describe("Guarded.make_request", function()
 
   it("starts the agent only from the checkpoint's done callback; a cancel before that never starts it", function()
     H.open_fixture("basic", "src/main.rs", { git = true })
-    local lh = require("config.local_history")
+    local lh = require("xyno_history")
     local dones = {}
     patch(lh, {
       snapshot = function(opts)

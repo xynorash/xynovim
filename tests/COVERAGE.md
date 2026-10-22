@@ -28,7 +28,7 @@ found so far are fixed (listed at the end).
 | Agent sandbox fails closed, the guarded provider refuses without a backend, on every OS | `agent-failclosed` | |
 | Provider picker `<leader>9P` cannot leave the guarded provider | `agent-99-guard` | no real provider CLI |
 | Portable runner (`scripts/test.lua`, `scripts/test.ps1`), `xyno-os` headers, `scripts/bootstrap.ps1`, `platforms.yml` | `scripts-portable` | the PowerShell scripts and the workflow only run in the platforms workflow (Windows, macOS) |
-| Local history (`local_history.lua`) | `local-history` | fake git wrapper, shimmed timers |
+| Local history through `xyno-history.nvim` (`plugins/xyno-history.lua`: wiring, old `vim.g` caps, pre-split snapshots, integrations; the module itself is covered in the plugin repository) | `local-history` | |
 | Diffview, gitsigns, supply-chain linters (`plugins/{diffview,gitsigns,supply-chain}.lua`) | `git-lint-supply-chain` | real cargo-deny, machete, actionlint, zizmor |
 | Snippets, completion guard, SQL injections, ghost text off (`snippets/`, `ux.lua`, `after/queries`) | `snippets-completion-injections` | |
 | UX menu, diagnostics text, colourblind palette, Neovide, noice, dashboard (`ux.lua`, `editing-ui.lua`) | `ux-menu-diagnostics-colourblind` | |
