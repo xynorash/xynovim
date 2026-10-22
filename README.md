@@ -7,7 +7,7 @@
 [![ci](https://github.com/xynorash/xynovim/actions/workflows/ci.yml/badge.svg)](https://github.com/xynorash/xynovim/actions/workflows/ci.yml)
 ![neovim 0.12](https://img.shields.io/badge/neovim-0.12-57a143?logo=neovim&logoColor=white)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
-![tests](https://img.shields.io/badge/tests-1659%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-906%20passing-brightgreen)
 
 Website: https://xynorash.github.io/xynovim/ (with [guides](https://xynorash.github.io/xynovim/#guides) to the workflows below)
 
@@ -38,7 +38,7 @@ The website, <https://xynorash.github.io/xynovim/>, is published from the dedica
 - **A debugger and a test runner that look like the ones in an IDE**: breakpoints with Rust-aware variable views, a test summary tree, coverage in the gutter.
 - **A safety net**: every save is snapshotted as a git ref (a "Local History"), and the AI agent runs inside a sandbox.
 - **Treesitter everywhere**: sticky scope, text objects, SQL injected into `sqlx` strings, a live syntax-tree view.
-- **Tested**: 1659 passing checks across 32 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
+- **Tested**: 906 passing checks across 32 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
 
 ## Guides
 
@@ -369,7 +369,7 @@ Video: [14-egui-new.mp4](docs/media/14-egui-new.mp4)
 
 ## Tests: run them yourself
 
-The config ships with an automated suite: **32 spec files, 1659 checks passing, 25 skipped with a stated reason, 0 failing**, in about ten minutes. The passing and skipped counts depend on the machine (the figures are from my Linux machine (Arch), which has `debug = true` in `~/.cargo/config.toml`, a `~/.cargo/bin` and no `pwsh`; the Ubuntu CI run 39695896272 shows 1749 passed, 76 skipped, 0 failed). Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
+The config ships with an automated suite: **32 spec files, 906 checks passing, 35 skipped with a stated reason, 0 failing**, in about six minutes. The passing and skipped counts depend on the machine (the figures are from my Linux machine (Arch), which has `debug = true` in `~/.cargo/config.toml`, a `~/.cargo/bin` and no `pwsh`; the Ubuntu CI run 39695896272 shows 1749 passed, 76 skipped, 0 failed). Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
 
 ```sh
 scripts/test.sh                  # everything (or: make test)
