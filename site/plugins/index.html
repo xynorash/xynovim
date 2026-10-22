@@ -1,0 +1,738 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
+<title>xyno plugins: nine MIT Neovim plugins | xynovim</title>
+<meta name="description" content="Nine MIT-licensed Neovim plugins extracted from my xynovim config: Local History, an agent sandbox, OSC 52 clipboard, an auto-save guard and a Rust toolkit.">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#1e1f22" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<link rel="canonical" href="https://xynorash.github.io/xynovim/plugins/">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="xynovim">
+<meta property="og:locale" content="en">
+<meta property="og:title" content="xyno plugins: nine MIT Neovim plugins | xynovim">
+<meta property="og:description" content="Nine MIT-licensed Neovim plugins extracted from my xynovim config: Local History, an agent sandbox, OSC 52 clipboard, an auto-save guard and a Rust toolkit.">
+<meta property="og:url" content="https://xynorash.github.io/xynovim/plugins/">
+<meta property="og:image" content="https://xynorash.github.io/xynovim/assets/og-plugins.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="xynovim plugins: the nine xyno-* Neovim plugins, four standalone and five in the Rust toolkit, listed on a dark card">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="xyno plugins: nine MIT Neovim plugins | xynovim">
+<meta name="twitter:description" content="Nine MIT-licensed Neovim plugins extracted from my xynovim config: Local History, an agent sandbox, OSC 52 clipboard, an auto-save guard and a Rust toolkit.">
+<meta name="twitter:image" content="https://xynorash.github.io/xynovim/assets/og-plugins.png">
+<meta name="twitter:image:alt" content="xynovim plugins: the nine xyno-* Neovim plugins, four standalone and five in the Rust toolkit, listed on a dark card">
+<link rel="stylesheet" href="../assets/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "CollectionPage",
+      "@id": "https://xynorash.github.io/xynovim/plugins/#page",
+      "name": "xyno plugins",
+      "url": "https://xynorash.github.io/xynovim/plugins/",
+      "description": "Nine MIT-licensed Neovim plugins extracted from my xynovim config: Local History, an agent sandbox, OSC 52 clipboard, an auto-save guard and a Rust toolkit.",
+      "inLanguage": "en",
+      "image": "https://xynorash.github.io/xynovim/assets/og-plugins.png",
+      "author": {
+        "@id": "https://github.com/xynorash"
+      },
+      "isPartOf": {
+        "@id": "https://xynorash.github.io/xynovim/#website"
+      },
+      "mainEntity": {
+        "@id": "https://xynorash.github.io/xynovim/plugins/#plugins"
+      }
+    },
+    {
+      "@type": "ItemList",
+      "@id": "https://xynorash.github.io/xynovim/plugins/#plugins",
+      "name": "The nine xyno plugins",
+      "numberOfItems": 9,
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "item": {
+            "@type": "SoftwareSourceCode",
+            "@id": "https://github.com/xynorash/xyno-history.nvim",
+            "name": "xyno-history.nvim",
+            "description": "Local History for Neovim: every throttled save is snapshotted into private git refs, so deletions, resets and bad edits can be recovered.",
+            "url": "https://github.com/xynorash/xyno-history.nvim",
+            "codeRepository": "https://github.com/xynorash/xyno-history.nvim",
+            "license": "https://opensource.org/licenses/MIT",
+            "programmingLanguage": "Lua",
+            "runtimePlatform": "Neovim 0.12",
+            "version": "0.1.0",
+            "author": {
+              "@id": "https://github.com/xynorash"
+            }
+          }
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "item": {
+            "@type": "SoftwareSourceCode",
+            "@id": "https://github.com/xynorash/xyno-sandbox.nvim",
+            "name": "xyno-sandbox.nvim",
+            "description": "Runs a command-line coding agent inside a bubblewrap sandbox and refuses to start it without one. Linux only.",
+            "url": "https://github.com/xynorash/xyno-sandbox.nvim",
+            "codeRepository": "https://github.com/xynorash/xyno-sandbox.nvim",
+            "license": "https://opensource.org/licenses/MIT",
+            "programmingLanguage": "Lua",
+            "runtimePlatform": "Neovim 0.12",
+            "version": "0.1.0",
+            "author": {
+              "@id": "https://github.com/xynorash"
+            }
+          }
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "item": {
+            "@type": "SoftwareSourceCode",
+            "@id": "https://github.com/xynorash/xyno-clipboard.nvim",
+            "name": "xyno-clipboard.nvim",
+            "description": "A clipboard provider for sessions whose yanks must reach another machine: tmux, SSH and herdr panes get OSC 52 copy, with no change anywhere else.",
+            "url": "https://github.com/xynorash/xyno-clipboard.nvim",
+            "codeRepository": "https://github.com/xynorash/xyno-clipboard.nvim",
+            "license": "https://opensource.org/licenses/MIT",
+            "programmingLanguage": "Lua",
+            "runtimePlatform": "Neovim 0.12",
+            "version": "0.1.0",
+            "author": {
+              "@id": "https://github.com/xynorash"
+            }
+          }
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "item": {
+            "@type": "SoftwareSourceCode",
+            "@id": "https://github.com/xynorash/xyno-guard.nvim",
+            "name": "xyno-guard.nvim",
+            "description": "Keeps auto-save away from files it must never write: dependency and standard-library sources, files changed on disk, and similar. Works with any auto-save plugin.",
+            "url": "https://github.com/xynorash/xyno-guard.nvim",
+            "codeRepository": "https://github.com/xynorash/xyno-guard.nvim",
+            "license": "https://opensource.org/licenses/MIT",
+            "programmingLanguage": "Lua",
+            "runtimePlatform": "Neovim 0.12",
+            "version": "0.1.0",
+            "author": {
+              "@id": "https://github.com/xynorash"
+            }
+          }
+        },
+        {
+          "@type": "ListItem",
+          "position": 5,
+          "item": {
+            "@type": "SoftwareSourceCode",
+            "@id": "https://github.com/xynorash/xyno-rust.nvim",
+            "name": "xyno-rust.nvim",
+            "description": "Rust project plumbing for Neovim: a per-project Cargo context, a targets picker, an HTTP route picker, navigation helpers, language-server restart handling and a statusline readiness indicator.",
+            "url": "https://github.com/xynorash/xyno-rust.nvim",
+            "codeRepository": "https://github.com/xynorash/xyno-rust.nvim",
+            "license": "https://opensource.org/licenses/MIT",
+            "programmingLanguage": "Lua",
+            "runtimePlatform": "Neovim 0.12",
+            "version": "0.1.0",
+            "author": {
+              "@id": "https://github.com/xynorash"
+            }
+          }
+        },
+        {
+          "@type": "ListItem",
+          "position": 6,
+          "item": {
+            "@type": "SoftwareSourceCode",
+            "@id": "https://github.com/xynorash/xyno-new.nvim",
+            "name": "xyno-new.nvim",
+            "description": "New Rust projects from inside Neovim: a binary, a library, a workspace or an egui app, each behind a few guarded prompts.",
+            "url": "https://github.com/xynorash/xyno-new.nvim",
+            "codeRepository": "https://github.com/xynorash/xyno-new.nvim",
+            "license": "https://opensource.org/licenses/MIT",
+            "programmingLanguage": "Lua",
+            "runtimePlatform": "Neovim 0.12",
+            "version": "0.1.0",
+            "author": {
+              "@id": "https://github.com/xynorash"
+            }
+          }
+        },
+        {
+          "@type": "ListItem",
+          "position": 7,
+          "item": {
+            "@type": "SoftwareSourceCode",
+            "@id": "https://github.com/xynorash/xyno-imports.nvim",
+            "name": "xyno-imports.nvim",
+            "description": "Imports without the menu for Rust: auto-import of unresolved names, ranked disambiguation with a per-project memory, and organize imports, on top of rust-analyzer code actions.",
+            "url": "https://github.com/xynorash/xyno-imports.nvim",
+            "codeRepository": "https://github.com/xynorash/xyno-imports.nvim",
+            "license": "https://opensource.org/licenses/MIT",
+            "programmingLanguage": "Lua",
+            "runtimePlatform": "Neovim 0.12",
+            "version": "0.1.0",
+            "author": {
+              "@id": "https://github.com/xynorash"
+            }
+          }
+        },
+        {
+          "@type": "ListItem",
+          "position": 8,
+          "item": {
+            "@type": "SoftwareSourceCode",
+            "@id": "https://github.com/xynorash/xyno-crates.nvim",
+            "name": "xyno-crates.nvim",
+            "description": "Cargo dependencies from inside Neovim: search crates.io, add crates with their features, enable a missing feature from a code action, and import from crates that are not dependencies yet.",
+            "url": "https://github.com/xynorash/xyno-crates.nvim",
+            "codeRepository": "https://github.com/xynorash/xyno-crates.nvim",
+            "license": "https://opensource.org/licenses/MIT",
+            "programmingLanguage": "Lua",
+            "runtimePlatform": "Neovim 0.12",
+            "version": "0.1.0",
+            "author": {
+              "@id": "https://github.com/xynorash"
+            }
+          }
+        },
+        {
+          "@type": "ListItem",
+          "position": 9,
+          "item": {
+            "@type": "SoftwareSourceCode",
+            "@id": "https://github.com/xynorash/xyno-macros.nvim",
+            "name": "xyno-macros.nvim",
+            "description": "Rust macro help in Neovim: completion inside helper attributes and derives (serde, clap, tokio, sqlx and more), macro_rules! signature help, :MacroExpand and proc-macro status.",
+            "url": "https://github.com/xynorash/xyno-macros.nvim",
+            "codeRepository": "https://github.com/xynorash/xyno-macros.nvim",
+            "license": "https://opensource.org/licenses/MIT",
+            "programmingLanguage": "Lua",
+            "runtimePlatform": "Neovim 0.12",
+            "version": "0.1.0",
+            "author": {
+              "@id": "https://github.com/xynorash"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "xynovim",
+          "item": "https://xynorash.github.io/xynovim/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Plugins",
+          "item": "https://xynorash.github.io/xynovim/plugins/"
+        }
+      ]
+    },
+    {
+      "@type": "Person",
+      "@id": "https://github.com/xynorash",
+      "name": "Xynorash",
+      "url": "https://github.com/xynorash"
+    }
+  ]
+}
+</script>
+<script src="../assets/app.js" defer></script>
+</head>
+<body id="top">
+<svg width="0" height="0" hidden aria-hidden="true" focusable="false">
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></symbol>
+  <symbol id="i-tick" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-branch" viewBox="0 0 24 24"><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 7v10M18 10c0 5-8 3-12 7"/></symbol>
+</svg>
+<a class="skip" href="#main">Skip to the content</a>
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="brand" href="../"><img src="../assets/favicon.svg" width="28" height="28" alt="">xynovim</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Show the menu">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-menu"></use></svg></label>
+    <nav id="site-nav" aria-label="Sections">
+      <ul>
+        <li><a href="../#why">Why</a></li>
+        <li><a href="../#tour">Tour</a></li>
+        <li><a href="./" aria-current="page">Plugins</a></li>
+        <li><a href="../#guides">Guides</a></li>
+        <li><a href="../#install">Install</a></li>
+        <li><a href="../#docs">Docs</a></li>
+      </ul>
+    </nav>
+    <a class="btn" href="https://github.com/xynorash/xynovim"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-branch"></use></svg>GitHub</a>
+  </div>
+</header>
+
+<main id="main">
+<article class="prose">
+  <div class="wrap">
+    <div class="prose-body">
+    <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="../">xynovim</a></li><li aria-current="page">Plugins</li></ol></nav>
+    <p class="kicker">xynovim plugins</p>
+    <h1>The xyno plugins: nine Neovim plugins extracted from xynovim</h1>
+    <p class="lead">These are the original parts of my Neovim config that I extracted into standalone plugins, so anyone can use them without the rest of xynovim. There are nine: four standalone plugins (Local History, an agent sandbox, a remote clipboard provider and an auto-save guard) and a Rust toolkit of five that share one base. All nine are public, tagged <code>v0.1.0</code> with a GitHub release, and install with lazy.nvim.</p>
+    <p>The plugins are MIT licensed. xynovim itself, the configuration they come from, stays Apache-2.0. Linux is the platform I test on; for Windows and macOS each section below copies what its README says, and where nothing was run I say so. They are my own independent projects.</p>
+
+    <h2 id="overview">The nine at a glance</h2>
+    <table class="plugin-table">
+<thead><tr><th>Plugin</th><th>What it does</th><th>Also needs</th><th>Platform</th></tr></thead>
+<tbody>
+<tr><td data-label="Plugin"><a href="#xyno-history">xyno-history.nvim</a></td><td data-label="What it does">Local History: snapshots on private git refs</td><td data-label="Also needs">git</td><td data-label="Platform">Linux tested</td></tr>
+<tr><td data-label="Plugin"><a href="#xyno-sandbox">xyno-sandbox.nvim</a></td><td data-label="What it does">Runs an agent in bubblewrap, refuses without it</td><td data-label="Also needs">bubblewrap (Linux)</td><td data-label="Platform">Linux only</td></tr>
+<tr><td data-label="Plugin"><a href="#xyno-clipboard">xyno-clipboard.nvim</a></td><td data-label="What it does">OSC 52 clipboard provider for tmux, SSH and herdr</td><td data-label="Also needs">Linux; wl-copy and wl-paste optional</td><td data-label="Platform">Linux only</td></tr>
+<tr><td data-label="Plugin"><a href="#xyno-guard">xyno-guard.nvim</a></td><td data-label="What it does">Keeps auto-save off dependency sources and changed files</td><td data-label="Also needs">an auto-save plugin with a condition function</td><td data-label="Platform">Linux tested</td></tr>
+<tr><td data-label="Plugin"><a href="#xyno-rust">xyno-rust.nvim</a></td><td data-label="What it does">Cargo context, targets, routes, nav, restart, statusline</td><td data-label="Also needs">cargo, snacks.nvim, rust-analyzer</td><td data-label="Platform">Linux tested</td></tr>
+<tr><td data-label="Plugin"><a href="#xyno-new">xyno-new.nvim</a></td><td data-label="What it does">New Rust bin, lib, workspace, egui project</td><td data-label="Also needs">xyno-rust.nvim, cargo</td><td data-label="Platform">Linux tested</td></tr>
+<tr><td data-label="Plugin"><a href="#xyno-imports">xyno-imports.nvim</a></td><td data-label="What it does">Auto-import, ranked choice, organize imports</td><td data-label="Also needs">xyno-rust.nvim, cargo, rust-analyzer</td><td data-label="Platform">Linux tested</td></tr>
+<tr><td data-label="Plugin"><a href="#xyno-crates">xyno-crates.nvim</a></td><td data-label="What it does">crates.io search, crate add, features, crate import</td><td data-label="Also needs">xyno-rust.nvim, xyno-imports.nvim, snacks.nvim, cargo</td><td data-label="Platform">Linux tested</td></tr>
+<tr><td data-label="Plugin"><a href="#xyno-macros">xyno-macros.nvim</a></td><td data-label="What it does">Macro attribute completion, signature help, MacroExpand</td><td data-label="Also needs">xyno-rust.nvim, xyno-imports.nvim, cargo, rust-analyzer</td><td data-label="Platform">Linux tested</td></tr>
+</tbody>
+</table>
+    <p>All nine need Neovim 0.12+. The platform column is the tested one: Linux. What each README says about Windows and macOS is in the section of the plugin.</p>
+    <p>The dependency order of the Rust toolkit is xyno-rust.nvim first, then xyno-new.nvim and xyno-imports.nvim (each needs only xyno-rust.nvim), then xyno-crates.nvim and xyno-macros.nvim (each needs xyno-rust.nvim and xyno-imports.nvim). The four standalone plugins can be installed in any combination, alone or next to the toolkit.</p>
+
+    <h2 id="install-order">Install the whole Rust toolkit</h2>
+    <p>lazy.nvim installs what each spec lists under <code>dependencies</code>, so the order inside the file does not matter; the order below is the dependency order, which is also the order to read the plugins in.</p>
+    <ol>
+<li><strong>xyno-rust.nvim</strong>, with snacks.nvim for the pickers.</li>
+<li><strong>xyno-new.nvim</strong> and <strong>xyno-imports.nvim</strong>, which need only xyno-rust.nvim.</li>
+<li><strong>xyno-crates.nvim</strong> and <strong>xyno-macros.nvim</strong>, which need xyno-rust.nvim and xyno-imports.nvim.</li>
+    </ol>
+    <p>One complete spec, assembled from the install snippets of the five READMEs (<code>lua/plugins/xyno.lua</code> in your config, for example). The blink.cmp entry at the end is optional and only gives <code>xyno-macros.nvim</code> its completion sources; rust-analyzer has to be started through <code>vim.lsp</code> (I use rustaceanvim) for the live parts.</p>
+    <div class="block"><pre data-copy class="lua"><code>return {
+  -- 1. the base: every other Rust plugin needs it
+  {
+    "xynorash/xyno-rust.nvim",
+    dependencies = { "folke/snacks.nvim" }, -- pickers and terminals
+    ft = "rust",
+    cmd = { "RustContext", "RustTargets", "RustTools", "RustRoutes", "RustNew", "RustRestart", "ActJob" },
+    opts = {},
+    keys = {
+      { "&lt;leader&gt;rF", "&lt;cmd&gt;RustContext&lt;cr&gt;", ft = "rust", desc = "Cargo features / target" },
+      { "&lt;leader&gt;rX", "&lt;cmd&gt;RustTargets&lt;cr&gt;", ft = "rust", desc = "Cargo targets: run / test / bench" },
+      { "&lt;leader&gt;rZ", "&lt;cmd&gt;RustTools&lt;cr&gt;", ft = "rust", desc = "Cargo tools" },
+      { "&lt;leader&gt;rN", "&lt;cmd&gt;RustRoutes&lt;cr&gt;", ft = "rust", desc = "HTTP routes" },
+      { "&lt;leader&gt;ru", function() require("xyno_rust.rust_nav").goto_super() end, ft = "rust", desc = "Go to super method" },
+      { "&lt;leader&gt;rl", function() require("xyno_rust.rust_nav").local_usages() end, ft = "rust", desc = "Usages in file (R/W)" },
+      { "&lt;leader&gt;tD", function() require("xyno_rust.rust_tasks").doctests() end, ft = "rust", desc = "Doctests" },
+    },
+  },
+  -- 2. new projects: needs xyno-rust
+  {
+    "xynorash/xyno-new.nvim",
+    dependencies = { "xynorash/xyno-rust.nvim" },
+    cmd = { "RustNewBin", "RustNewLib", "RustNewWorkspace", "RustNewMember", "EguiNew" },
+    opts = {},
+    keys = {
+      { "&lt;leader&gt;rnb", "&lt;cmd&gt;RustNewBin&lt;cr&gt;", desc = "New Rust binary" },
+      { "&lt;leader&gt;rni", "&lt;cmd&gt;RustNewLib&lt;cr&gt;", desc = "New Rust library" },
+      { "&lt;leader&gt;rnw", "&lt;cmd&gt;RustNewWorkspace&lt;cr&gt;", desc = "New Rust workspace" },
+      { "&lt;leader&gt;rnm", "&lt;cmd&gt;RustNewMember&lt;cr&gt;", desc = "New member in this workspace" },
+      { "&lt;leader&gt;rne", "&lt;cmd&gt;EguiNew&lt;cr&gt;", desc = "New egui project" },
+    },
+  },
+  -- 3. imports: needs xyno-rust
+  {
+    "xynorash/xyno-imports.nvim",
+    dependencies = { "xynorash/xyno-rust.nvim" },
+    ft = "rust",
+    cmd = { "ImportName", "ImportForget", "ImportOrganize" },
+    opts = {},
+    keys = {
+      { "&lt;leader&gt;rI", "&lt;cmd&gt;ImportName&lt;cr&gt;", ft = "rust", desc = "Import name (ranked)" },
+      { "&lt;leader&gt;rO", "&lt;cmd&gt;ImportOrganize&lt;cr&gt;", ft = "rust", desc = "Organize imports" },
+    },
+  },
+  -- 4. crates: needs xyno-rust and xyno-imports
+  {
+    "xynorash/xyno-crates.nvim",
+    dependencies = {
+      "xynorash/xyno-rust.nvim",
+      "xynorash/xyno-imports.nvim",
+      "folke/snacks.nvim", -- pickers
+    },
+    ft = "rust",
+    cmd = { "CrateAdd", "CrateFeatures" },
+    opts = {},
+    keys = {
+      { "&lt;leader&gt;rA", "&lt;cmd&gt;CrateAdd&lt;cr&gt;", ft = { "rust", "toml" }, desc = "Add crate (crates.io search)" },
+      { "&lt;leader&gt;rG", function() require("xyno_crates.crate_features").fix_at_cursor() end, ft = "rust", desc = "Fix missing crate feature" },
+    },
+  },
+  -- 5. macros: needs xyno-rust and xyno-imports
+  {
+    "xynorash/xyno-macros.nvim",
+    dependencies = { "xynorash/xyno-rust.nvim", "xynorash/xyno-imports.nvim" },
+    ft = "rust",
+    cmd = { "MacroExpand", "MacroFormatFix", "MacroSignature", "ProcMacroStatus", "MacroAttrs" },
+    opts = {},
+    keys = {
+      { "&lt;leader&gt;rx", "&lt;cmd&gt;MacroExpand&lt;cr&gt;", ft = "rust", desc = "Expand macro under cursor" },
+      { "&lt;leader&gt;rq", "&lt;cmd&gt;ProcMacroStatus&lt;cr&gt;", ft = "rust", desc = "Proc-macro status" },
+    },
+  },
+  -- optional: the completion sources of xyno-macros (blink.cmp 1.x)
+  {
+    "saghen/blink.cmp",
+    version = "1.*", -- blink.cmp 2.x needs saghen/blink.lib too; the sources are written against 1.x
+    opts = function(_, opts)
+      return require("xyno_macros").blink_opts(opts)
+    end,
+  },
+}</code></pre></div>
+
+    <h2 id="standalone">The standalone plugins</h2>
+    <p>These four have no dependencies on other xyno plugins.</p>
+<h3 id="xyno-history">xyno-history.nvim</h3>
+<p>Local History for Neovim: every throttled save is snapshotted into private git refs, so deletions, resets and bad edits can be recovered.</p>
+<p>Every throttled save is snapshotted into private git refs, so deletions, resets and bad edits can be recovered. A snapshot is a commit on <code>refs/lochist/&lt;branch&gt;</code> whose tree is the whole worktree: untracked files included, <code>.gitignore</code> respected, <code>target/</code> left out. It is built with a private index file per Neovim process, so your index, your stash and your branches are untouched.</p>
+<p>Saves are throttled to one snapshot per minute and the last save of a window is never lost. Without the plugin the snapshots are plain git (<code>git log refs/lochist/main</code>), and they stay in the repository until pruned.</p>
+<p class="inspired">The idea is inspired by the Local History of JetBrains IDEs. I still use JetBrains tools; this plugin is my own independent project and is not affiliated with JetBrains.</p>
+<p><strong>Needs.</strong> Neovim 0.12+, git.</p>
+<p><strong>Commands.</strong></p>
+<ul>
+<li><code>:LocalHistory</code>: pick a snapshot of the current file and diff against it</li>
+<li><code>:LocalHistoryRestore</code>: pick a snapshot and replace the buffer text with it (buffer left modified, <code>u</code> undoes it)</li>
+<li><code>:LocalHistoryPrune[!] [N | Nd]</code>: keep the newest N snapshots per branch, or the last N days (default <code>30d</code>), then <code>git gc</code></li>
+</ul>
+<p><strong>Options.</strong> <code>require("xyno_history").setup(opts)</code> takes <code>commands</code>, <code>keymaps</code> (false by default; <code>true</code> maps <code>&lt;leader&gt;gH</code>), <code>max_bytes</code> (per-file cap, 10 MB when nil) and <code>max_total_bytes</code> (cap of one snapshot, 200 MB when nil).</p>
+<p><strong>Install</strong> (lazy.nvim)</p>
+<div class="block"><pre data-copy class="lua"><code>{
+  "xynorash/xyno-history.nvim",
+  event = "VeryLazy", -- setup() registers the autocmds and commands, so load it early
+  opts = {},
+  keys = {
+    { "&lt;leader&gt;gH", "&lt;cmd&gt;LocalHistory&lt;cr&gt;", desc = "Local history (file)" },
+    { "&lt;leader&gt;gR", "&lt;cmd&gt;LocalHistoryRestore&lt;cr&gt;", desc = "Local history restore" },
+  },
+}</code></pre></div>
+<p><strong>Platform status.</strong> <span class="badge">Linux tested; Windows and macOS not verified</span></p>
+<ul>
+<li>Linux: tested by the specs in the plugin repository (<code>nvim -l tests/run.lua</code>, 65 tests, plus a lazy.nvim smoke test in CI). The specs use bash stubs and <code>kill -0</code>, so they run on Linux and macOS only.</li>
+<li>Windows: no evidence at all. In the original xynovim CI this code's spec was skipped on Windows, so nothing about it is demonstrated there.</li>
+<li>macOS: not tested there. In xynovim's CI the original spec ran in the one fully green macOS run; other macOS runs were flaky or failed elsewhere, so I do not claim it works.</li>
+</ul>
+<p><strong>License.</strong> MIT, Copyright (c) 2026 Xynorash (<a href="https://github.com/xynorash/xyno-history.nvim/blob/main/LICENSE" rel="noopener">LICENSE<span class="vh"> of xyno-history.nvim</span></a>). <strong>Links.</strong> <a href="https://github.com/xynorash/xyno-history.nvim" rel="noopener">Repository and README<span class="vh"> of xyno-history.nvim</span></a>, <a href="https://github.com/xynorash/xyno-history.nvim/releases/tag/v0.1.0" rel="noopener">release v0.1.0<span class="vh"> of xyno-history.nvim</span></a>.</p>
+<h3 id="xyno-sandbox">xyno-sandbox.nvim</h3>
+<p>Runs a command-line coding agent inside a bubblewrap sandbox and refuses to start it without one. Linux only.</p>
+<p>Command-line coding agents that run without permission prompts have all of your privileges. This wraps them: the filesystem is read-only except the project and a scratch directory, credentials are hidden, secret environment variables are stripped, and anything that would later run outside the sandbox (git hooks, editor task files, direnv, cargo config, the agent's own settings) is locked read-only.</p>
+<p>Where no sandbox can be created, the agent does not start. That fail-closed default is the point of the plugin. The policy knows the directories of one agent CLI, but <code>wrap()</code> takes any command.</p>
+<p><strong>Needs.</strong> Neovim 0.12+, Linux with bubblewrap (<code>bwrap</code>) and unprivileged user namespaces.</p>
+<p><strong>Commands.</strong></p>
+<ul>
+<li><code>:XynoSandboxStatus</code>: shows how an agent would run here: sandboxed, unsandboxed (and why), or refused (and why)</li>
+<li><code>:XynoSandboxRun {cmd} [args...]</code>: runs the command in a terminal split, wrapped; if no sandbox is available it prints a one-line error and starts nothing</li>
+</ul>
+<p><strong>Options.</strong> <code>require("xyno_sandbox").setup(opts)</code> takes <code>sandbox</code> (<code>false</code> is a deliberate opt-out), <code>allow_unsandboxed</code> (<code>true</code> runs unsandboxed only when no backend exists), <code>keymaps</code> and <code>commands</code>. Only the booleans <code>false</code> and <code>true</code> count. The Lua API has <code>status()</code>, <code>wrap(cmd, project, tmp_dir)</code> and <code>run()</code>.</p>
+<p><strong>Install</strong> (lazy.nvim)</p>
+<div class="block"><pre data-copy class="lua"><code>{
+  "xynorash/xyno-sandbox.nvim",
+  cmd = { "XynoSandboxStatus", "XynoSandboxRun" },
+  opts = {},
+  -- no dependencies on other plugins
+  keys = {
+    { "&lt;leader&gt;as", "&lt;Cmd&gt;XynoSandboxStatus&lt;CR&gt;", desc = "Sandbox status" },
+  },
+}</code></pre></div>
+<p><strong>Platform status.</strong> <span class="badge">Linux only</span></p>
+<ul>
+<li>Linux: the specs in the plugin repository run on Linux; that is the only platform where the sandbox works and the only one I claim.</li>
+<li>Windows and macOS: there is no bubblewrap, so <code>wrap()</code> refuses and nothing starts. In the original xynovim CI the sandbox spec is skipped on both by design.</li>
+</ul>
+<p><strong>License.</strong> MIT, Copyright (c) 2026 Xynorash (<a href="https://github.com/xynorash/xyno-sandbox.nvim/blob/main/LICENSE" rel="noopener">LICENSE<span class="vh"> of xyno-sandbox.nvim</span></a>). <strong>Links.</strong> <a href="https://github.com/xynorash/xyno-sandbox.nvim" rel="noopener">Repository and README<span class="vh"> of xyno-sandbox.nvim</span></a>, <a href="https://github.com/xynorash/xyno-sandbox.nvim/releases/tag/v0.1.0" rel="noopener">release v0.1.0<span class="vh"> of xyno-sandbox.nvim</span></a>.</p>
+<h3 id="xyno-clipboard">xyno-clipboard.nvim</h3>
+<p>A clipboard provider for sessions whose yanks must reach another machine: tmux, SSH and herdr panes get OSC 52 copy, with no change anywhere else.</p>
+<p>I work in tmux over SSH a lot. The default clipboard detection picks nothing useful there, and a plain OSC 52 provider breaks pasting from other applications on my Wayland desktop. This one copies through OSC 52 (inside tmux that becomes a tmux buffer shared by every attached client) and, when a local Wayland clipboard exists, also keeps it in sync and pastes from it.</p>
+<p>The provider is installed only when <code>$TMUX</code>, <code>$SSH_TTY</code>, <code>$SSH_CONNECTION</code> or <code>$HERDR_PANE_ID</code> is set, or when an ancestor process has a name containing <code>herdr</code>. Elsewhere nothing is installed. It has no keys and works through the normal <code>"+</code> and <code>"*</code> registers.</p>
+<p><strong>Needs.</strong> Neovim 0.12+, Linux; optional <code>wl-copy</code> and <code>wl-paste</code> with <code>WAYLAND_DISPLAY</code>.</p>
+<p><strong>Commands.</strong></p>
+<ul>
+<li><code>:XynoClipboardStatus</code>: shows whether the provider is active and why, or why it is not</li>
+</ul>
+<p><strong>Options.</strong> <code>require("xyno_clipboard").setup(opts)</code> takes <code>commands</code> and <code>osc52</code>. <code>vim.g.xyno_clipboard_osc52 = false</code> stops the OSC 52 emit at runtime; the local Wayland copy still happens.</p>
+<p><strong>Install</strong> (lazy.nvim)</p>
+<div class="block"><pre data-copy class="lua"><code>{
+  "xynorash/xyno-clipboard.nvim",
+  lazy = false, -- the provider should exist before the first yank
+  opts = {},
+}</code></pre></div>
+<p><strong>Platform status.</strong> <span class="badge">Linux only</span></p>
+<ul>
+<li>Linux: covered by the specs in the plugin repository (<code>nvim -l tests/run.lua</code>).</li>
+<li>Windows and macOS: Linux only by design. <code>setup()</code> returns early without installing anything. In xynovim's own CI this module was skipped on both, so nothing about it is demonstrated there.</li>
+</ul>
+<p><strong>License.</strong> MIT, Copyright (c) 2026 Xynorash (<a href="https://github.com/xynorash/xyno-clipboard.nvim/blob/main/LICENSE" rel="noopener">LICENSE<span class="vh"> of xyno-clipboard.nvim</span></a>). <strong>Links.</strong> <a href="https://github.com/xynorash/xyno-clipboard.nvim" rel="noopener">Repository and README<span class="vh"> of xyno-clipboard.nvim</span></a>, <a href="https://github.com/xynorash/xyno-clipboard.nvim/releases/tag/v0.1.0" rel="noopener">release v0.1.0<span class="vh"> of xyno-clipboard.nvim</span></a>.</p>
+<h3 id="xyno-guard">xyno-guard.nvim</h3>
+<p>Keeps auto-save away from files it must never write: dependency and standard-library sources, files changed on disk, and similar. Works with any auto-save plugin.</p>
+<p>I use auto-save all day while writing Rust, and three things kept going wrong: a save landing in <code>~/.cargo/registry</code> or the standard library sources I was only reading, a save overwriting a file that <code>git checkout</code> or a formatter had just changed on disk, and Neovim stopping at a blocking W12 prompt that swallowed my keystrokes. This is the guard I put in front of the writes.</p>
+<p><code>can_save(buf)</code> is the auto-save <code>condition</code>. Dependency and standard-library buffers are opened nomodifiable and readonly, and a file whose mtime changed on disk is not overwritten (<code>:w!</code> keeps your buffer, <code>:e!</code> takes the disk version). It sets no keymaps and registers no commands.</p>
+<p><strong>Needs.</strong> Neovim 0.12+; an auto-save plugin that accepts a <code>condition</code> function (I use okuuva/auto-save.nvim).</p>
+<p><strong>API (module <code>xyno_guard</code>).</strong></p>
+<ul>
+<li><code>setup(opts?)</code>: installs the autocmds and records the buffers already loaded</li>
+<li><code>can_save(buf)</code>: may this buffer be written now? Use it as the auto-save <code>condition</code></li>
+<li><code>is_dependency(name)</code>: is this file below <code>~/.cargo/registry</code>, <code>~/.cargo/git</code>, <code>~/.rustup</code>, <code>$CARGO_HOME/{registry,git}</code> or <code>$RUSTUP_HOME</code>?</li>
+<li><code>save_all()</code>: writes every modified file buffer that <code>can_save</code> allows</li>
+</ul>
+<p><strong>Options.</strong> There are no options yet; <code>setup()</code> accepts an argument for later and can be called again safely. Without lazy.nvim, call <code>require("xyno_guard").setup()</code> and pass <code>require("xyno_guard").can_save</code> as the condition of your auto-save plugin.</p>
+<p><strong>Install</strong> (lazy.nvim)</p>
+<div class="block"><pre data-copy class="lua"><code>{
+  "okuuva/auto-save.nvim",
+  event = { "InsertLeave", "TextChanged", "TextChangedI" },
+  dependencies = { "xynorash/xyno-guard.nvim" },
+  opts = function()
+    require("xyno_guard").setup()
+    return { condition = require("xyno_guard").can_save }
+  end,
+}</code></pre></div>
+<p><strong>Platform status.</strong> <span class="badge">Linux tested; Windows and macOS not verified</span></p>
+<ul>
+<li>Linux: tested by the specs in the plugin repository (<code>nvim --headless --clean -l tests/run.lua</code>, 39 tests).</li>
+<li>Windows and macOS: the original spec for this code in xynovim was not among the files its platforms workflow skipped there, and that workflow passed. The specs of the plugin repository have not been run on either, so I treat both as unverified.</li>
+<li>The <code>~/.cargo</code> and <code>~/.rustup</code> roots are Rust-specific; other languages' dependency directories are not covered.</li>
+</ul>
+<p><strong>License.</strong> MIT, Copyright (c) 2026 Xynorash (<a href="https://github.com/xynorash/xyno-guard.nvim/blob/main/LICENSE" rel="noopener">LICENSE<span class="vh"> of xyno-guard.nvim</span></a>). <strong>Links.</strong> <a href="https://github.com/xynorash/xyno-guard.nvim" rel="noopener">Repository and README<span class="vh"> of xyno-guard.nvim</span></a>, <a href="https://github.com/xynorash/xyno-guard.nvim/releases/tag/v0.1.0" rel="noopener">release v0.1.0<span class="vh"> of xyno-guard.nvim</span></a>.</p>
+
+    <h2 id="toolkit">The Rust toolkit</h2>
+    <p>xyno-rust.nvim is the base; the other four build on it. Their install snippets below name their dependencies, so each one can also be installed alone with what it needs.</p>
+<h3 id="xyno-rust">xyno-rust.nvim</h3>
+<p>Rust project plumbing for Neovim: a per-project Cargo context, a targets picker, an HTTP route picker, navigation helpers, language-server restart handling and a statusline readiness indicator.</p>
+<p>rust-analyzer and bacon-ls (clippy) are two servers that each run cargo. If they disagree on features or target, mutually exclusive features give bogus errors from one of them. This keeps one choice per workspace and applies it to both, and adds the small glue around it: run a target, find the route handlers of a web service, restart a server that died, see in the statusline whether the servers are ready.</p>
+<p>It is also the shared base of the other xyno Rust plugins, which require its modules (<code>xyno_rust.rust_context</code>, <code>xyno_rust.crate_meta</code>, <code>xyno_rust.code_actions</code>, ...). Without snacks.nvim the plugin still loads, but the picker commands print one error line.</p>
+<p class="inspired">The Cargo context and the tools picker are inspired by the Cargo tool window of the JetBrains IDEs. I still use JetBrains tools; this plugin is my own independent project and is not affiliated with JetBrains.</p>
+<p><strong>Needs.</strong> Neovim 0.12+, <code>cargo</code>, snacks.nvim (pickers), rust-analyzer through <code>vim.lsp</code>, the tree-sitter <code>rust</code> parser.</p>
+<p><strong>Commands.</strong></p>
+<ul>
+<li><code>:RustContext</code>: pick Cargo features and a target; applied to the running rust-analyzer and bacon-ls and stored for the workspace (<code>show</code> and <code>reset</code> as arguments)</li>
+<li><code>:RustTargets</code>: pick a target (bin, example, test, bench, lib) and run, test, build, bench or profile it in a bottom terminal</li>
+<li><code>:RustTools</code>: pick a workspace tool: timings, bloat, machete, deny, audit, duplicate versions, coverage summary</li>
+<li><code>:RustRoutes</code>: pick an axum, actix or rocket route and jump to it</li>
+<li><code>:RustNew [name]</code>: <code>cargo new</code> (bin or lib) in the current directory and open it</li>
+<li><code>:ActJob</code>: run the GitHub Actions job under the cursor with <code>act</code></li>
+<li><code>:RustRestart</code>: restart rust-analyzer and bacon-ls, also when one has died</li>
+</ul>
+<p><strong>Options.</strong> <code>require("xyno_rust").setup(opts)</code> takes <code>commands</code>, <code>keymaps</code> (false by default; <code>true</code> maps <code>&lt;leader&gt;rF</code>, <code>rX</code>, <code>rZ</code>, <code>rN</code>, <code>ru</code>, <code>rl</code> and <code>&lt;leader&gt;tD</code> buffer-locally in Rust files) and <code>modules</code> to switch the context, tasks, routes, status and restart parts off. The statusline component with lualine is <code>require("xyno_rust.lsp_status").component</code>.</p>
+<p><strong>Install</strong> (lazy.nvim)</p>
+<div class="block"><pre data-copy class="lua"><code>{
+  "xynorash/xyno-rust.nvim",
+  dependencies = { "folke/snacks.nvim" }, -- pickers and terminals
+  ft = "rust",
+  cmd = { "RustContext", "RustTargets", "RustTools", "RustRoutes", "RustNew", "RustRestart", "ActJob" },
+  opts = {},
+  keys = {
+    { "&lt;leader&gt;rF", "&lt;cmd&gt;RustContext&lt;cr&gt;", ft = "rust", desc = "Cargo features / target" },
+    { "&lt;leader&gt;rX", "&lt;cmd&gt;RustTargets&lt;cr&gt;", ft = "rust", desc = "Cargo targets: run / test / bench" },
+    { "&lt;leader&gt;rZ", "&lt;cmd&gt;RustTools&lt;cr&gt;", ft = "rust", desc = "Cargo tools" },
+    { "&lt;leader&gt;rN", "&lt;cmd&gt;RustRoutes&lt;cr&gt;", ft = "rust", desc = "HTTP routes" },
+    { "&lt;leader&gt;ru", function() require("xyno_rust.rust_nav").goto_super() end, ft = "rust", desc = "Go to super method" },
+    { "&lt;leader&gt;rl", function() require("xyno_rust.rust_nav").local_usages() end, ft = "rust", desc = "Usages in file (R/W)" },
+    { "&lt;leader&gt;tD", function() require("xyno_rust.rust_tasks").doctests() end, ft = "rust", desc = "Doctests" },
+  },
+}</code></pre></div>
+<p><strong>Platform status.</strong> <span class="badge">Linux tested; Windows and macOS not verified</span></p>
+<ul>
+<li>Linux: tested by the specs in the plugin repository (<code>nvim -l tests/run.lua</code>), with a real rust-analyzer and cargo where the specs need them. The live bacon-ls half of the original supervision specs is not part of that repository, so bacon-ls itself is not exercised there.</li>
+<li>Windows: the Windows guards of the original code are kept, but I have no evidence for them from the plugin repository. In xynovim's CI the Windows job passed overall (run 39673715062), but the supervision and statusline spec is skipped whole there.</li>
+<li>macOS: nothing tested there. In xynovim's CI the supervision and statusline spec is skipped on macOS, and the macOS runs were not stable, so I do not claim it works.</li>
+</ul>
+<p><strong>License.</strong> MIT, Copyright (c) 2026 Xynorash (<a href="https://github.com/xynorash/xyno-rust.nvim/blob/main/LICENSE" rel="noopener">LICENSE<span class="vh"> of xyno-rust.nvim</span></a>). <strong>Links.</strong> <a href="https://github.com/xynorash/xyno-rust.nvim" rel="noopener">Repository and README<span class="vh"> of xyno-rust.nvim</span></a>, <a href="https://github.com/xynorash/xyno-rust.nvim/releases/tag/v0.1.0" rel="noopener">release v0.1.0<span class="vh"> of xyno-rust.nvim</span></a>.</p>
+<h3 id="xyno-new">xyno-new.nvim</h3>
+<p>New Rust projects from inside Neovim: a binary, a library, a workspace or an egui app, each behind a few guarded prompts.</p>
+<p><code>cargo new</code> makes a binary or a library, but not a workspace, and starting a project means leaving the editor to find a directory, check the name rules and <code>cd</code>. This asks for the name and the parent directory, applies cargo's name rules before anything is created, builds the workspace layout cargo has no command for, leaves nothing behind when a step fails, and opens the new project's source file.</p>
+<p>A workspace inherits its version and edition to the first member. <code>:EguiNew</code> starts from the current eframe_template instead of a stale copy and executes nothing from it. A <code>dashboard_keys()</code> function adds the entries to a snacks.nvim dashboard, but only if you call it.</p>
+<p><strong>Needs.</strong> xyno-rust.nvim, Neovim 0.12+, <code>cargo</code>; optional <code>git</code>; <code>curl</code> and <code>unzip</code> for <code>:EguiNew</code>.</p>
+<p><strong>Commands.</strong></p>
+<ul>
+<li><code>:RustNewBin [name]</code>: <code>cargo new --bin --vcs git</code>, then switch to the project and open <code>src/main.rs</code></li>
+<li><code>:RustNewLib [name]</code>: the same with <code>--lib</code> and <code>src/lib.rs</code></li>
+<li><code>:RustNewWorkspace [name]</code>: writes the workspace <code>Cargo.toml</code>, <code>.gitignore</code> and the first member, and runs <code>git init -b main</code> (no commit)</li>
+<li><code>:RustNewMember [name]</code>: adds a binary or library crate to the workspace of the current buffer</li>
+<li><code>:EguiNew [name]</code>: downloads the current eframe_template as a ZIP and personalises it</li>
+</ul>
+<p><strong>Options.</strong> <code>require("xyno_new").setup(opts)</code> takes <code>commands</code>, <code>keymaps</code> (false by default; <code>true</code> maps <code>&lt;leader&gt;rnb</code>, <code>rni</code>, <code>rnw</code>, <code>rnm</code>, <code>rne</code>), <code>projects_dir</code>, <code>egui_template</code> and <code>egui_build_after_new</code>.</p>
+<p><strong>Install</strong> (lazy.nvim)</p>
+<div class="block"><pre data-copy class="lua"><code>{
+  "xynorash/xyno-new.nvim",
+  dependencies = { "xynorash/xyno-rust.nvim" },
+  cmd = { "RustNewBin", "RustNewLib", "RustNewWorkspace", "RustNewMember", "EguiNew" },
+  opts = {},
+  keys = {
+    { "&lt;leader&gt;rnb", "&lt;cmd&gt;RustNewBin&lt;cr&gt;", desc = "New Rust binary" },
+    { "&lt;leader&gt;rni", "&lt;cmd&gt;RustNewLib&lt;cr&gt;", desc = "New Rust library" },
+    { "&lt;leader&gt;rnw", "&lt;cmd&gt;RustNewWorkspace&lt;cr&gt;", desc = "New Rust workspace" },
+    { "&lt;leader&gt;rnm", "&lt;cmd&gt;RustNewMember&lt;cr&gt;", desc = "New member in this workspace" },
+    { "&lt;leader&gt;rne", "&lt;cmd&gt;EguiNew&lt;cr&gt;", desc = "New egui project" },
+  },
+}</code></pre></div>
+<p><strong>Platform status.</strong> <span class="badge">Linux tested; Windows and macOS not verified</span></p>
+<ul>
+<li>Linux: tested by the specs in the plugin repository (<code>nvim -l tests/run.lua</code>) with a real cargo; the egui flow runs against a local fake template, plus one test against the real template that skips without network.</li>
+<li>Windows: the Windows branches of the original code are kept (<code>tar</code> instead of <code>unzip</code>), but I have no evidence for them. In xynovim's CI the specs for this code were skipped whole on Windows.</li>
+<li>macOS: the specs ran there in xynovim's CI, whose macOS runs were not stable overall, so I do not claim it works.</li>
+</ul>
+<p><strong>License.</strong> MIT, Copyright (c) 2026 Xynorash (<a href="https://github.com/xynorash/xyno-new.nvim/blob/main/LICENSE" rel="noopener">LICENSE<span class="vh"> of xyno-new.nvim</span></a>). <strong>Links.</strong> <a href="https://github.com/xynorash/xyno-new.nvim" rel="noopener">Repository and README<span class="vh"> of xyno-new.nvim</span></a>, <a href="https://github.com/xynorash/xyno-new.nvim/releases/tag/v0.1.0" rel="noopener">release v0.1.0<span class="vh"> of xyno-new.nvim</span></a>.</p>
+<h3 id="xyno-imports">xyno-imports.nvim</h3>
+<p>Imports without the menu for Rust: auto-import of unresolved names, ranked disambiguation with a per-project memory, and organize imports, on top of rust-analyzer code actions.</p>
+<p>rust-analyzer offers <code>Import X</code> as a code action, but you have to stop, open the menu and pick. When there is exactly one candidate that is a wasted round trip, and when there are several the list is in server order, not in the order your project would choose. This does the single case for you (or asks for one key), ranks the several-candidates case by what the project already does, and remembers the choice.</p>
+<p>The <code>mode</code> option decides what happens to a name that resolves to nothing: <code>"ask"</code> (the default, never silent), <code>"single"</code> or <code>"off"</code>; <code>vim.g.xyno_auto_import</code> overrides it at runtime. Several candidates are never guessed at: use <code>:ImportName</code>.</p>
+<p class="inspired">The auto-import flow and organize imports are inspired by the import handling of the JetBrains IDEs. I still use JetBrains tools; this plugin is my own independent project and is not affiliated with JetBrains.</p>
+<p><strong>Needs.</strong> xyno-rust.nvim, Neovim 0.12+, <code>cargo</code>, rust-analyzer through <code>vim.lsp</code>, the tree-sitter <code>rust</code> parser.</p>
+<p><strong>Commands.</strong></p>
+<ul>
+<li><code>:ImportName [name]</code>: list the candidates for the name (default: under the cursor), best first with the reasons, and import the chosen one; the choice is remembered per project</li>
+<li><code>:ImportForget [name]</code>: forget the remembered choice for the name, or all choices of this project</li>
+<li><code>:ImportOrganize</code>: rust-analyzer's merge, normalize and remove-unused import assists, applied in one undo step</li>
+</ul>
+<p><strong>Options.</strong> <code>require("xyno_imports").setup(opts)</code> takes <code>commands</code>, <code>keymaps</code> (false by default; <code>true</code> maps <code>&lt;leader&gt;rI</code> and <code>&lt;leader&gt;rO</code> in Rust files), <code>mode</code> and <code>config</code> for the engine tuning.</p>
+<p><strong>Install</strong> (lazy.nvim)</p>
+<div class="block"><pre data-copy class="lua"><code>{
+  "xynorash/xyno-imports.nvim",
+  dependencies = { "xynorash/xyno-rust.nvim" },
+  ft = "rust",
+  cmd = { "ImportName", "ImportForget", "ImportOrganize" },
+  opts = {},
+  keys = {
+    { "&lt;leader&gt;rI", "&lt;cmd&gt;ImportName&lt;cr&gt;", ft = "rust", desc = "Import name (ranked)" },
+    { "&lt;leader&gt;rO", "&lt;cmd&gt;ImportOrganize&lt;cr&gt;", ft = "rust", desc = "Organize imports" },
+  },
+}</code></pre></div>
+<p><strong>Platform status.</strong> <span class="badge">Linux tested; Windows and macOS not verified</span></p>
+<ul>
+<li>Linux: tested by the specs in the plugin repository (<code>nvim -l tests/run.lua</code>): the scoring, memory, scan and flow against a fake rust-analyzer client, plus cases against a real rust-analyzer on a small fixture crate where it is available.</li>
+<li>Windows: the Windows guards of the original code are kept, but I have no evidence for them from the plugin repository. In xynovim's CI the live rust-analyzer flows of neighbouring specs failed or hung there as a known issue, so I do not claim the live part works on Windows.</li>
+<li>macOS: nothing tested there. One auto-import timing spec timed out on macOS in xynovim's CI and is skipped there as a known issue, so I do not claim it works.</li>
+</ul>
+<p><strong>License.</strong> MIT, Copyright (c) 2026 Xynorash (<a href="https://github.com/xynorash/xyno-imports.nvim/blob/main/LICENSE" rel="noopener">LICENSE<span class="vh"> of xyno-imports.nvim</span></a>). <strong>Links.</strong> <a href="https://github.com/xynorash/xyno-imports.nvim" rel="noopener">Repository and README<span class="vh"> of xyno-imports.nvim</span></a>, <a href="https://github.com/xynorash/xyno-imports.nvim/releases/tag/v0.1.0" rel="noopener">release v0.1.0<span class="vh"> of xyno-imports.nvim</span></a>.</p>
+<h3 id="xyno-crates">xyno-crates.nvim</h3>
+<p>Cargo dependencies from inside Neovim: search crates.io, add crates with their features, enable a missing feature from a code action, and import from crates that are not dependencies yet.</p>
+<p>Adding a dependency means leaving the editor for crates.io, copying a name, finding out which features exist, and running <code>cargo add</code> with the right flags. And when <code>#[derive(Serialize)]</code> fails because <code>serde</code> was added without its <code>derive</code> feature, the error does not say which feature to turn on. This does those steps where the cursor is.</p>
+<p>Two in-process language clients put actions into the normal code-action menu: <code>Add crate rand</code> for an unknown crate, and `<code>Enable feature </code>derive<code> of </code>serde<code> </code><code> for a missing feature. The unknown-crate rules are conservative: a false positive is worse than a miss. </code>vim.g.xyno_crate_check = false` switches the hint off.</p>
+<p class="inspired">The crate-adding flow is inspired by the dependency handling of the JetBrains IDEs. I still use JetBrains tools; this plugin is my own independent project and is not affiliated with JetBrains.</p>
+<p><strong>Needs.</strong> xyno-rust.nvim, xyno-imports.nvim, snacks.nvim (for <code>:CrateAdd</code>), Neovim 0.12+, <code>cargo</code>, the tree-sitter <code>rust</code> parser, network access to crates.io.</p>
+<p><strong>Commands.</strong></p>
+<ul>
+<li><code>:CrateAdd [query]</code>: search crates.io, pick the crate, its features and the target, then run <code>cargo add</code></li>
+<li><code>:CrateFeatures [crate]</code>: explore the cargo features of a dependency and toggle one; <code>Cargo.toml</code> is edited</li>
+</ul>
+<p><strong>Options.</strong> <code>require("xyno_crates").setup(opts)</code> takes <code>commands</code>, <code>keymaps</code> (false by default; <code>true</code> maps <code>&lt;leader&gt;rA</code> and <code>&lt;leader&gt;rG</code>) and <code>modules</code> (<code>add</code>, <code>features</code>, <code>import</code>).</p>
+<p><strong>Install</strong> (lazy.nvim)</p>
+<div class="block"><pre data-copy class="lua"><code>{
+  "xynorash/xyno-crates.nvim",
+  dependencies = {
+    "xynorash/xyno-rust.nvim",
+    "xynorash/xyno-imports.nvim",
+    "folke/snacks.nvim", -- pickers
+  },
+  ft = "rust",
+  cmd = { "CrateAdd", "CrateFeatures" },
+  opts = {},
+  keys = {
+    { "&lt;leader&gt;rA", "&lt;cmd&gt;CrateAdd&lt;cr&gt;", ft = { "rust", "toml" }, desc = "Add crate (crates.io search)" },
+    { "&lt;leader&gt;rG", function() require("xyno_crates.crate_features").fix_at_cursor() end, ft = "rust", desc = "Fix missing crate feature" },
+  },
+}</code></pre></div>
+<p><strong>Platform status.</strong> <span class="badge">Linux tested; Windows and macOS not verified</span></p>
+<ul>
+<li>Linux: tested by the specs in the plugin repository (<code>nvim -l tests/run.lua</code>), among them flows against the real crates.io, cargo and rust-analyzer on small fixture crates (they skip with a printed reason when the network, cargo or rust-analyzer are not available).</li>
+<li>Windows: the Windows guards of the original code are kept, but I have no evidence for them from the plugin repository. In xynovim's CI the live rust-analyzer flows of the hint, code action and import specs failed or hung there as a known issue, so I do not claim those work on Windows.</li>
+<li>macOS: nothing tested there. The macOS runs in xynovim's CI were not stable, so I do not claim it works.</li>
+</ul>
+<p><strong>License.</strong> MIT, Copyright (c) 2026 Xynorash (<a href="https://github.com/xynorash/xyno-crates.nvim/blob/main/LICENSE" rel="noopener">LICENSE<span class="vh"> of xyno-crates.nvim</span></a>). <strong>Links.</strong> <a href="https://github.com/xynorash/xyno-crates.nvim" rel="noopener">Repository and README<span class="vh"> of xyno-crates.nvim</span></a>, <a href="https://github.com/xynorash/xyno-crates.nvim/releases/tag/v0.1.0" rel="noopener">release v0.1.0<span class="vh"> of xyno-crates.nvim</span></a>.</p>
+<h3 id="xyno-macros">xyno-macros.nvim</h3>
+<p>Rust macro help in Neovim: completion inside helper attributes and derives (serde, clap, tokio, sqlx and more), macro_rules! signature help, :MacroExpand and proc-macro status.</p>
+<p>rust-analyzer returns nothing inside <code>#[serde(...)]</code> or <code>#[arg(...)]</code>, so the keys and the enumerated values (<code>rename_all = "camelCase"</code>) were typed from memory. This plugin completes those attributes from small JSON schemas per crate (serde, clap, tokio, sqlx, thiserror, derive_more, strum, bon, schemars, utoipa), shows the arms of a <code>macro_rules!</code> while you write a call, expands the macro under the cursor, and lists the proc-macro crates and the macros rust-analyzer could not expand.</p>
+<p>A project overrides or adds schemas with <code>.xyno-macros/attrs/*.json</code> in the workspace root. The completion sources need blink.cmp, pinned to <code>1.*</code> because I only tried them against 1.x; everything else works without it.</p>
+<p class="inspired">The macro expansion view and the macro-aware completion are inspired by what the JetBrains Rust tooling does with macros. I still use JetBrains tools; this plugin is my own independent project and is not affiliated with JetBrains.</p>
+<p><strong>Needs.</strong> xyno-rust.nvim, xyno-imports.nvim, Neovim 0.12+, <code>cargo</code>, rust-analyzer through <code>vim.lsp</code>, the tree-sitter <code>rust</code> parser; optional blink.cmp.</p>
+<p><strong>Commands.</strong></p>
+<ul>
+<li><code>:MacroExpand</code>: expand the macro under the cursor in a read-only split; falls back to <code>cargo expand</code></li>
+<li><code>:MacroFormatFix</code>: append the missing arguments (<code>todo!()</code>) of the format macro call at the cursor</li>
+<li><code>:MacroSignature</code>: show the matcher arms of the <code>macro_rules!</code> call at the cursor</li>
+<li><code>:ProcMacroStatus</code>: list the proc-macro crates of the workspace and the macros that were not expanded</li>
+<li><code>:MacroAttrs</code>: show what the attribute completion sees at the cursor, for finding out why a completion is missing</li>
+</ul>
+<p><strong>Options.</strong> <code>require("xyno_macros").setup(opts)</code> takes <code>commands</code>, <code>keymaps</code> (false by default; <code>true</code> maps <code>&lt;leader&gt;rx</code>, <code>&lt;leader&gt;rq</code> and insert-mode <code>&lt;C-k&gt;</code>), <code>snippets_allowed</code> and <code>attrs</code>. <code>require("xyno_macros").blink_opts(opts)</code> registers the blink.cmp sources.</p>
+<p><strong>Install</strong> (lazy.nvim)</p>
+<div class="block"><pre data-copy class="lua"><code>{
+  "xynorash/xyno-macros.nvim",
+  dependencies = { "xynorash/xyno-rust.nvim", "xynorash/xyno-imports.nvim" },
+  ft = "rust",
+  cmd = { "MacroExpand", "MacroFormatFix", "MacroSignature", "ProcMacroStatus", "MacroAttrs" },
+  opts = {},
+  keys = {
+    { "&lt;leader&gt;rx", "&lt;cmd&gt;MacroExpand&lt;cr&gt;", ft = "rust", desc = "Expand macro under cursor" },
+    { "&lt;leader&gt;rq", "&lt;cmd&gt;ProcMacroStatus&lt;cr&gt;", ft = "rust", desc = "Proc-macro status" },
+  },
+}</code></pre></div>
+<p><strong>Platform status.</strong> <span class="badge">Linux tested; Windows and macOS not verified</span></p>
+<ul>
+<li>Linux: tested by the specs in the plugin repository (<code>nvim -l tests/run.lua</code>): the lexer, schema, matcher and report logic table-wise, plus cases against a real rust-analyzer on a small fixture crate where it is available. The completion-menu specs need blink.cmp and skip without it.</li>
+<li>Windows: the guards of the original code are kept, but I have no evidence for them from the plugin repository. In xynovim's CI the live part of the macro tool specs failed or hung there as a known issue; I do not claim the live part works on Windows.</li>
+<li>macOS: nothing tested there. In xynovim's CI the live part of the macro tool specs hung on macOS in one run and the macOS runs were not stable, so I do not claim it works.</li>
+</ul>
+<p><strong>License.</strong> MIT, Copyright (c) 2026 Xynorash (<a href="https://github.com/xynorash/xyno-macros.nvim/blob/main/LICENSE" rel="noopener">LICENSE<span class="vh"> of xyno-macros.nvim</span></a>). <strong>Links.</strong> <a href="https://github.com/xynorash/xyno-macros.nvim" rel="noopener">Repository and README<span class="vh"> of xyno-macros.nvim</span></a>, <a href="https://github.com/xynorash/xyno-macros.nvim/releases/tag/v0.1.0" rel="noopener">release v0.1.0<span class="vh"> of xyno-macros.nvim</span></a>.</p>
+
+    <h2 id="faq">Questions</h2>
+<h3 id="faq-1">Do I need xynovim to use them?</h3>
+<p>No. Each plugin was pulled out of xynovim as a standalone plugin, and its README lists what it needs: Neovim 0.12+, a few command-line tools and, for the Rust toolkit, xyno-rust.nvim. None of them requires xynovim, LazyVim or any other config. The READMEs give lazy.nvim specs; xyno-guard.nvim also says how to use it without lazy.nvim (call <code>require("xyno_guard").setup()</code> and pass <code>can_save</code> to your auto-save plugin). xynovim itself still has the same code in its own tree, under another namespace.</p>
+<h3 id="faq-2">Which Neovim version do they need?</h3>
+<p>All nine list Neovim 0.12+ as a requirement. The CI of each repository runs on Ubuntu with Neovim 0.12.5.</p>
+<h3 id="faq-3">What does the sandbox plugin not protect against?</h3>
+<p>xyno-sandbox.nvim is a denylist on a read-only view of the whole filesystem, with the network open because the model needs it. It is not a security boundary against a determined attacker. The README lists the residual risks: the agent's credential file under its config directory in <code>$HOME</code> must stay readable and writable, so an agent can read that token; everything unlisted under <code>$HOME</code> is readable; loopback services and abstract sockets are reachable; cargo's <code>registry/src</code> and <code>git</code> are writable, so your own cargo may later build planted code; a nested <code>.git</code> deeper than two levels is not locked; and files the project lacks (<code>.envrc</code>, <code>.vscode/tasks.json</code>, <code>rust-toolchain.toml</code>, <code>bacon.toml</code>) can be created inside the project. It also works only on Linux with bubblewrap, and it refuses to start the agent where no sandbox can be created.</p>
+<h3 id="faq-4">Why separate repositories?</h3>
+<p>I extracted them from my config so anyone can use one part without taking the rest. Each repository has its own README, specs, CI, tag and release, and you add only the plugins you want to your own lazy.nvim spec. The four standalone plugins have no dependencies on other plugins. The five Rust plugins share xyno-rust.nvim as a base, which is why it is its own repository and why the others list it under <code>dependencies</code>.</p>
+<h3 id="faq-5">Where do I report issues?</h3>
+<p>On the Issues tab of the repository of the plugin concerned: <a href="https://github.com/xynorash/xyno-history.nvim/issues" rel="noopener">xyno-history.nvim<span class="vh"> issues</span></a>, <a href="https://github.com/xynorash/xyno-sandbox.nvim/issues" rel="noopener">xyno-sandbox.nvim<span class="vh"> issues</span></a>, <a href="https://github.com/xynorash/xyno-clipboard.nvim/issues" rel="noopener">xyno-clipboard.nvim<span class="vh"> issues</span></a>, <a href="https://github.com/xynorash/xyno-guard.nvim/issues" rel="noopener">xyno-guard.nvim<span class="vh"> issues</span></a>, <a href="https://github.com/xynorash/xyno-rust.nvim/issues" rel="noopener">xyno-rust.nvim<span class="vh"> issues</span></a>, <a href="https://github.com/xynorash/xyno-new.nvim/issues" rel="noopener">xyno-new.nvim<span class="vh"> issues</span></a>, <a href="https://github.com/xynorash/xyno-imports.nvim/issues" rel="noopener">xyno-imports.nvim<span class="vh"> issues</span></a>, <a href="https://github.com/xynorash/xyno-crates.nvim/issues" rel="noopener">xyno-crates.nvim<span class="vh"> issues</span></a>, <a href="https://github.com/xynorash/xyno-macros.nvim/issues" rel="noopener">xyno-macros.nvim<span class="vh"> issues</span></a>. If you are not sure which one it is, xyno-rust.nvim is the base of the Rust toolkit. These are personal projects that I maintain on my own time.</p>
+<h3 id="faq-6">How do I pin a version?</h3>
+<p>Every plugin is tagged <code>v0.1.0</code> and has a GitHub release of that name. In a lazy.nvim spec add <code>tag = "v0.1.0"</code> to the plugin (lazy.nvim also records the exact commit in its lockfile, <code>lazy-lock.json</code>). That is lazy.nvim behaviour, not a feature of the plugins, so pin the dependencies of a toolkit plugin the same way.</p>
+
+    <h2 id="license">License</h2>
+    <p>The nine plugins are MIT licensed, Copyright (c) 2026 Xynorash; each repository has a <code>LICENSE</code> file. xynovim, the configuration they were extracted from, is licensed under <a href="https://github.com/xynorash/xynovim/blob/main/LICENSE">Apache-2.0</a>.</p>
+
+    <h2 id="related">Related</h2>
+    <ul class="related">
+<li><a href="../guides/neovim-git-local-history/"><b>Git safety net</b>Local History in xynovim, the feature xyno-history.nvim was extracted from</a></li>
+<li><a href="../guides/neovim-cargo-workspaces/"><b>Workspaces, features, crates</b>New projects and crate handling, the features behind xyno-new.nvim and xyno-crates.nvim</a></li>
+<li><a href="../"><b>xynovim</b>The configuration the plugins come from</a></li>
+    </ul>
+
+    <h2 id="source">In the repository</h2>
+    <ul class="guide-links">
+<li><a href="https://github.com/xynorash/xynovim/blob/main/README.md#plugins">README: Plugins</a></li>
+<li><a href="https://github.com/xynorash/xynovim/blob/main/docs/DETAILS.md#the-xyno-plugins">DETAILS: The xyno plugins</a></li>
+<li><a href="https://github.com/xynorash/xynovim/blob/main/CHANGELOG.md">CHANGELOG</a></li>
+    </ul>
+    </div>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>xynovim is an independent personal project, inspired by JetBrains&rsquo; tools and not affiliated with or endorsed by JetBrains. See the <a href="../#thanks">acknowledgements</a>. It is licensed under <a href="https://github.com/xynorash/xynovim/blob/main/LICENSE">Apache-2.0</a>; the xyno plugins are MIT licensed. The source is at <a href="https://github.com/xynorash/xynovim">github.com/xynorash/xynovim</a>.</p>
+    <p>Built from commit <a href="https://github.com/xynorash/xynovim/commit/{{COMMIT}}"><code>{{COMMIT}}</code></a> on {{DATE}}. This site makes no external requests: no CDN, no web fonts, no analytics.</p>
+  </div>
+</footer>
+</body>
+</html>

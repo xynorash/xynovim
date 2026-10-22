@@ -4,6 +4,7 @@
 #
 #   site/assets/og.png              1200x630 card of the home page
 #   site/assets/og/<slug>.png       1200x630 card of each guide
+#   site/assets/og-plugins.png      1200x630 card of the plugins page (the nine names, no screenshot)
 #   site/assets/social-preview.png  1280x640 GitHub social preview (upload it by hand:
 #                                   Settings > Social preview; GitHub has no API for it)
 #
@@ -47,3 +48,13 @@ neovim-cargo-workspaces|Cargo workspaces, features and crates in Neovim|New proj
 neovim-git-local-history|A git safety net for Neovim|Local History as git refs, lazygit and diffview|08-git-local-history.png
 neovim-island-dark-theme|The Island Dark colour scheme for Neovim|A dark palette for Rust, Treesitter and LSP tokens|09-theme-completion.png
 LIST
+
+# The plugins page: the card shows the nine plugin names instead of a screenshot.
+plug=$(mktemp --suffix=.png)
+trap 'rm -f "$plug"' EXIT
+magick -size 1440x470 "xc:$PANEL" -font "$MONO" -pointsize 40 \
+  -fill "$BLUE" -annotate +60+80 "Standalone" -fill "$BLUE" -annotate +760+80 "Rust toolkit" \
+  -fill "$TITLE" -annotate +60+160 "xyno-history.nvim" -annotate +60+215 "xyno-sandbox.nvim" -annotate +60+270 "xyno-clipboard.nvim" -annotate +60+325 "xyno-guard.nvim" \
+  -annotate +760+160 "xyno-rust.nvim" -annotate +760+215 "xyno-new.nvim" -annotate +760+270 "xyno-imports.nvim" -annotate +760+325 "xyno-crates.nvim" -annotate +760+380 "xyno-macros.nvim" \
+  "$plug"
+card site/assets/og-plugins.png 1200 630 "xynovim plugins" "Nine Neovim plugins" "MIT licensed, extracted from my config, installed with lazy.nvim" "$plug" 60
