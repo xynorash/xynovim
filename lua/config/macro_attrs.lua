@@ -1735,12 +1735,12 @@ end
 
 --- Hook: a derive that is not in scope was accepted. `info` = { bufnr, row, col (just
 --- after the inserted name), path = "crate::Name", crate }. The default asks the
---- import engine (config.import_engine.resolve, which ranks the candidates and knows
+--- import engine (xyno_imports.engine.resolve, which ranks the candidates and knows
 --- the remembered choice of the project): it applies the remembered or only import,
 --- else the single candidate that comes from the derive's own crate. Replace it to
 --- plug in something else.
 M.on_derive_accepted = function(name, info)
-  local engine = require("config.import_engine")
+  local engine = require("xyno_imports.engine")
   local attempts = 0
   local function try()
     attempts = attempts + 1

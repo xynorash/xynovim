@@ -5,7 +5,7 @@
 -- it skips without network, cargo or rust-analyzer.
 local H = require("xynotest.helpers")
 local ci = require("config.crate_import")
-local E = require("config.import_engine")
+local E = require("xyno_imports.engine")
 local cm = require("xyno_rust.crate_meta")
 local ca = require("xyno_rust.code_actions")
 local cadd = require("config.crate_add")

@@ -11,7 +11,7 @@
 --       remembered, then imported and builds (deps-lab, real rust-analyzer)
 -- Each flow skips with a message without the tool or network it needs.
 local H = require("xynotest.helpers")
-local E = require("config.import_engine")
+local E = require("xyno_imports.engine")
 local ci = require("config.crate_import")
 local cf = require("config.crate_features")
 local ma = require("config.macro_attrs")

@@ -46,7 +46,7 @@ end
 --- it. cb(ok, message). Preference: the candidate's own path, then the shortest
 --- path under the crate (the least surprising re-export).
 function M.wait_and_import(buf, mark_ns, mark, name, spec, cb)
-  local engine = require("config.import_engine")
+  local engine = require("xyno_imports.engine")
   local ca = require("xyno_rust.code_actions")
   local started = vim.uv.now()
   local poll
@@ -276,7 +276,7 @@ function M.setup()
   if unregister then
     return
   end
-  unregister = require("config.import_engine").register_source(M.source, { async = true })
+  unregister = require("xyno_imports.engine").register_source(M.source, { async = true })
 end
 
 return M
