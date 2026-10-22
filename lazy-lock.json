@@ -61,6 +61,7 @@
   "ts-comments.nvim": { "branch": "main", "commit": "a59d6092213447450191122c9346f309161504cb" },
   "which-key.nvim": { "branch": "main", "commit": "3aab2147e74890957785941f0c1ad87d0a44c15a" },
   "xyno-clipboard.nvim": { "branch": "main", "commit": "b162212ffeb23b72b1cf809ba10ac7e540d57ed1" },
+  "xyno-crates.nvim": { "branch": "main", "commit": "dacc6a0b8173a796ff9182932c48f26bc55bbbf9" },
   "xyno-guard.nvim": { "branch": "main", "commit": "9c3e9ecbfdec4089a2fb151ab417d4959f4f8cc1" },
   "xyno-history.nvim": { "branch": "main", "commit": "40b8c5340e8575d5d474165825a72f23faf4f630" },
   "xyno-imports.nvim": { "branch": "main", "commit": "9373a52d845f77778c10d668f66a049337259a9a" },

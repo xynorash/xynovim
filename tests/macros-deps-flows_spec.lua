@@ -12,8 +12,8 @@
 -- Each flow skips with a message without the tool or network it needs.
 local H = require("xynotest.helpers")
 local E = require("xyno_imports.engine")
-local ci = require("config.crate_import")
-local cf = require("config.crate_features")
+local ci = require("xyno_crates.crate_import")
+local cf = require("xyno_crates.crate_features")
 local ma = require("config.macro_attrs")
 local cm = require("xyno_rust.crate_meta")
 local ca = require("xyno_rust.code_actions")

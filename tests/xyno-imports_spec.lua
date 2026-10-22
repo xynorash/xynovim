@@ -1,9 +1,9 @@
 -- The glue of the xyno-imports.nvim plugin (lua/plugins/xyno-imports.lua): the plugin is installed and
 -- set up at VeryLazy, :ImportName / :ImportForget / :ImportOrganize and the buffer-local <leader>rI /
 -- <leader>rO exist, the old vim.g.xynovim_auto_import still decides the mode, the remembered choices
--- stay in the old state file, the crates.io source of config/crate_import.lua is registered, and no local
--- copy is left. The engine itself (scoring, memory, scan, the flows) is specced in the xyno-imports.nvim
--- repository; crate-import and macros-deps-flows here use it through xyno_imports.engine.
+-- stay in the old state file, and no local copy is left. The engine itself (scoring, memory, scan, the
+-- flows) is specced in the xyno-imports.nvim repository; macros-deps-flows here uses it through
+-- xyno_imports.engine.
 -- xyno-os: linux,macos
 local H = require("xynotest.helpers")
 
@@ -86,22 +86,6 @@ describe("xyno-imports.nvim glue", function()
     }, { text = true, timeout = 60000 }):wait()
     H.eq(0, out.code, out.stderr)
     H.eq("off", out.stdout)
-  end)
-
-  it("the crates.io source of config/crate_import.lua is registered on the engine", function()
-    H.very_lazy()
-    local ci = require("config.crate_import")
-    local registered
-    for i = 1, 20 do
-      local name, value = debug.getupvalue(ci.setup, i)
-      if not name then
-        break
-      end
-      if name == "unregister" then
-        registered = type(value) == "function"
-      end
-    end
-    H.ok(registered, "crate_import.setup() did not register its source")
   end)
 
   it("no local copy is left", function()

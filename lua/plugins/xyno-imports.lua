@@ -1,8 +1,8 @@
 -- Auto-import, ranked disambiguation and organize imports, from the xyno-imports.nvim plugin
 -- (:ImportName, :ImportForget, :ImportOrganize, the buffer-local <leader>rI / <leader>rO in Rust files).
 -- Loaded at VeryLazy, like the rest of the UI layer (the old setup waited for it too: keys and commands
--- need LazyVim's own maps in place to leave them alone). The crates.io candidate source of
--- config/crate_import.lua (Add crate X and import) is registered on the engine right after setup().
+-- need LazyVim's own maps in place to leave them alone). The crates.io candidate source (Add crate X and
+-- import) is registered on the engine by xyno-crates.nvim (lua/plugins/xyno-crates.lua).
 --
 -- The old behaviour stays, as a thin layer over the plugin:
 --   * vim.g.xynovim_auto_import ("ask" default, "single", "off") still decides the mode, read at every
@@ -29,7 +29,5 @@ return {
       end
       return plugin_mode()
     end
-    -- crates.io candidates for names no dependency offers (Add crate X and import)
-    require("config.crate_import").setup()
   end,
 }
