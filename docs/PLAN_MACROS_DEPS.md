@@ -4,6 +4,8 @@ The question (answered by the implementation below, see Status): when a crate is
 
 ## Status (2026-10-14, after the implementation round)
 
+Note from 2026-10-22: the modules named in the Where column (`crate_add`, `crate_meta`, `crate_features`, `crate_import`, `macro_attrs`, `macro_tools`, `import_engine`, `rust_restart`, `lsp_status`) and `data/macro_attrs/` now live in the xyno-rust, xyno-crates, xyno-macros and xyno-imports repositories; the table is kept as the 2026-10-14 snapshot.
+
 Legend: **done** = implemented, covered by a spec that was run; **partial** = implemented with the stated gap; **not done**. Acceptance results are what was run, nothing more. The user-facing description is the README section "Macros and dependencies", the engineering notes are in [DETAILS.md](DETAILS.md#macros-and-dependencies).
 
 | Item | Status | Where | Acceptance and what is missing |
