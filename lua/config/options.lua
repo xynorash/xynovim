@@ -1,5 +1,4 @@
 -- Options are automatically loaded before lazy.nvim startup.
-require("config.remote_clipboard").setup()
 
 -- rustup's proxies (rust-analyzer, cargo) live in ~/.cargo/bin: a start from a desktop launcher or
 -- another non-login environment lacks it, and opening a .rs file raised a rustaceanvim error

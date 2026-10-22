@@ -1435,13 +1435,13 @@ describe("README layout and path claims", function()
     local want = {}
     for _, p in ipairs({
       "bacon-ls", "rustaceanvim", "dap", "auto-save", "ninety-nine", "editing-ui", "navigation", "supply-chain",
-      "coverage", "diffview", "domain", "gitsigns", "telescope", "island-theme", "lualine", "no-ghost-text", "xyno-history", "xyno-sandbox",
+      "coverage", "diffview", "domain", "gitsigns", "telescope", "island-theme", "lualine", "no-ghost-text", "xyno-history", "xyno-sandbox", "xyno-clipboard",
     }) do
       want[#want + 1] = "lua/plugins/" .. p .. ".lua"
     end
     for _, p in ipairs({
       "rust_context", "rust_restart", "lsp_status", "disk_guard", "rust_tasks", "rust_routes", "rust_nav",
-      "rust_assist", "ux", "remote_clipboard",
+      "rust_assist", "ux",
     }) do
       want[#want + 1] = "lua/config/" .. p .. ".lua"
     end
@@ -1780,7 +1780,7 @@ describe("Omarchy removal", function()
     local lazy_lua = read(repo .. "/lua/config/lazy.lua")
     H.no_match(lazy_lua, "theme.lua", true)
     -- the replacement names exist
-    H.match(read(repo .. "/lua/config/remote_clipboard.lua"), "xynovim_remote_clipboard_osc52", true)
+    H.match(read(repo .. "/lua/plugins/xyno-clipboard.lua"), "xynovim_remote_clipboard_osc52", true)
     H.eq("island-dark", vim.g.colors_name)
   end)
 

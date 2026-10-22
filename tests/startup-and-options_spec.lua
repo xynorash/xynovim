@@ -1,11 +1,11 @@
 -- Startup, options, lazy.nvim setup, lockfile, extras and the small plugin
 -- spec files (news, scrolling, telescope, ghost text, gitsigns, codelens,
--- harpoon, navigation) plus config/remote_clipboard.lua.
+-- harpoon, navigation) plus the clipboard glue (plugins/xyno-clipboard.lua).
 --
 -- Facts about a FRESH startup (what is loaded, which messages appeared) come
 -- from child nvim processes (`child()`), because the runner's own editor is
 -- changed by the earlier tests. Everything else runs in the runner's nvim.
--- xyno-os: linux (reads /proc, uses sh stubs for wl-copy, wl-paste)
+-- xyno-os: linux (the clipboard provider is Linux only)
 local H = require("xynotest.helpers")
 
 local repo = H.repo
@@ -932,255 +932,64 @@ describe("plugins/navigation.lua", function()
   end)
 end)
 
--- --------------------------------------------------------- 30 - 35 clipboard
+-- --------------------------------------------------------- clipboard (xyno-clipboard.nvim)
 
-describe("config/remote_clipboard.lua", function()
-  local ENV = { "TMUX", "SSH_TTY", "SSH_CONNECTION", "HERDR_PANE_ID", "WAYLAND_DISPLAY", "PATH", "XYNO_FAKE_RC" }
-  local saved
-  local real_osc52
-
-  -- fake ancestor chain: { [pid] = { ppid = n, comm = "x" } }
-  local function with_fake_proc(chain, fn)
-    local real_readfile, real_getpid = vim.fn.readfile, vim.fn.getpid
-    local reads = {}
-    rawset(vim.fn, "getpid", function()
-      return 1000
-    end)
-    rawset(vim.fn, "readfile", function(path, ...)
-      local pid, file = tostring(path):match("^/proc/(%d+)/(%a+)$")
-      if not pid then
-        return real_readfile(path, ...)
-      end
-      reads[#reads + 1] = path
-      local e = chain[tonumber(pid)]
-      if not e then
-        error("E484: Can't open file " .. path)
-      end
-      if file == "status" then
-        if e.unreadable then
-          error("E484: Can't open file " .. path)
-        end
-        return { "Name:\t" .. e.comm, "PPid:\t" .. e.ppid }
-      end
-      return { e.comm }
-    end)
-    local ok, err = pcall(fn, reads)
-    rawset(vim.fn, "readfile", nil)
-    rawset(vim.fn, "getpid", nil)
-    if not ok then
-      error(err, 0)
-    end
-  end
-
-  --- Run setup() with the given env and return vim.g.clipboard.
-  local function setup(env)
-    for _, k in ipairs({ "TMUX", "SSH_TTY", "SSH_CONNECTION", "HERDR_PANE_ID" }) do
-      vim.env[k] = nil
-    end
-    for k, v in pairs(env or {}) do
-      vim.env[k] = v
-    end
-    vim.g.clipboard = nil
-    require("config.remote_clipboard").setup()
-    return vim.g.clipboard
-  end
-
-  local plain_chain = { [1000] = { ppid = 500, comm = "nvim" }, [500] = { ppid = 400, comm = "bash" }, [400] = { ppid = 1, comm = "init" } }
-
-  before_each(function()
-    saved = { g = vim.g.clipboard, flag = vim.g.xynovim_remote_clipboard_osc52, old = vim.g.omarchy_remote_clipboard_osc52 }
-    for _, k in ipairs(ENV) do
-      saved[k] = vim.env[k]
-    end
-    real_osc52 = package.loaded["vim.ui.clipboard.osc52"]
+-- The provider logic is specified in the plugin repository (11 specs there, which include the 8
+-- cases of the old config/remote_clipboard.lua describe); here: what xynovim promises on top.
+describe("clipboard through xyno-clipboard.nvim (plugins/xyno-clipboard.lua)", function()
+  it("is a non-lazy plugin of the config, with no :XynoClipboardStatus (xynovim never had it)", function()
+    local plugin = Config.plugins["xyno-clipboard.nvim"]
+    H.ok(plugin, "plugin spec xyno-clipboard.nvim")
+    H.eq("xynorash/xyno-clipboard.nvim", plugin[1])
+    H.ok(plugin._.loaded, "loaded at startup")
+    H.is_nil(vim.api.nvim_get_commands({}).XynoClipboardStatus)
   end)
 
-  after_each(function()
-    rawset(vim.fn, "readfile", nil)
-    rawset(vim.fn, "getpid", nil)
-    for _, k in ipairs(ENV) do
-      vim.env[k] = saved[k]
-    end
-    package.loaded["vim.ui.clipboard.osc52"] = real_osc52
-    vim.g.xynovim_remote_clipboard_osc52 = saved.flag
-    vim.g.omarchy_remote_clipboard_osc52 = saved.old
-    vim.g.clipboard = saved.g
+  it("installs the provider at startup in a tmux session", function()
+    local env = xdg_env()
+    env.PATH = vim.env.PATH
+    env.TMUX = "/tmp/fake-tmux,1,0"
+    local res = child([[ return { clip = vim.g.clipboard and vim.g.clipboard.name } ]], { env = env, clear_env = true })
+    H.eq("XynoClipboard", res.clip)
   end)
 
-  --- A recording replacement for vim.ui.clipboard.osc52.
-  local function fake_osc52()
-    local rec = { emitted = {}, paste = {} }
+  it("vim.g.xynovim_remote_clipboard_osc52 = false still suppresses the OSC52 emit at run time", function()
+    local saved = {
+      g = vim.g.clipboard, flag = vim.g.xynovim_remote_clipboard_osc52, new = vim.g.xyno_clipboard_osc52,
+      TMUX = vim.env.TMUX, WAYLAND_DISPLAY = vim.env.WAYLAND_DISPLAY, osc52 = package.loaded["vim.ui.clipboard.osc52"],
+    }
+    local emitted = 0
     package.loaded["vim.ui.clipboard.osc52"] = {
-      copy = function(reg)
-        return function(lines)
-          rec.emitted[#rec.emitted + 1] = { reg = reg, lines = lines }
+      copy = function()
+        return function()
+          emitted = emitted + 1
         end
       end,
-      paste = function(reg)
-        local f = function()
-          return { "osc52 " .. reg }
-        end
-        rec.paste[reg] = f
-        return f
-      end,
+      paste = function() end,
     }
-    return rec
-  end
-
-  --- A directory with fake wl-copy / wl-paste recording their calls.
-  local function fake_wl()
-    local dir = H.tmpdir()
-    write(
-      dir .. "/wl-copy",
-      ("#!/bin/sh\nprintf '%%s\\n' \"$@\" > %s/copy.args\ncat > %s/copy.stdin\n"):format(dir, dir)
-    )
-    write(
-      dir .. "/wl-paste",
-      ("#!/bin/sh\nprintf '%%s\\n' \"$@\" > %s/paste.args\nprintf 'one\\ntwo'\nexit ${XYNO_FAKE_RC:-0}\n"):format(dir)
-    )
-    vim.fn.system({ "chmod", "+x", dir .. "/wl-copy", dir .. "/wl-paste" })
-    return dir
-  end
-
-  it("does nothing outside tmux/ssh/herdr when no ancestor is herdr", function()
-    with_fake_proc(plain_chain, function()
-      H.is_nil(setup({}))
-    end)
-  end)
-
-  it("detects an ancestor process whose comm contains 'herdr'", function()
-    local chain = {
-      [1000] = { ppid = 500, comm = "nvim" },
-      [500] = { ppid = 400, comm = "herdr-server" },
-      [400] = { ppid = 1, comm = "init" },
-    }
-    with_fake_proc(chain, function()
-      local c = setup({})
-      H.ok(c, "no clipboard provider although an ancestor is herdr")
-      H.eq("XynovimRemoteClipboard", c.name)
-    end)
-  end)
-
-  it("installs the provider for each of TMUX, SSH_CONNECTION, SSH_TTY and HERDR_PANE_ID", function()
-    for _, var in ipairs({ "TMUX", "SSH_CONNECTION", "SSH_TTY", "HERDR_PANE_ID" }) do
-      with_fake_proc(plain_chain, function(reads)
-        local c = setup({ [var] = "x" })
-        H.ok(c, var .. ": no clipboard provider")
-        H.eq("XynovimRemoteClipboard", c.name, var)
-        H.eq(0, c.cache_enabled, var)
-        for _, reg in ipairs({ "+", "*" }) do
-          H.eq("function", type(c.copy[reg]), var .. " copy " .. reg)
-          H.eq("function", type(c.paste[reg]), var .. " paste " .. reg)
-        end
-        H.eq(0, #reads, var .. ": the /proc walk must be skipped when an env var decides")
-      end)
-    end
-  end)
-
-  it("without a Wayland display or wl-copy/wl-paste: OSC52 copy only, paste is osc52.paste", function()
-    local rec = fake_osc52()
-    local wl = fake_wl()
-    -- (a) no WAYLAND_DISPLAY although the tools exist
-    vim.env.PATH = wl .. ":" .. saved.PATH
+    vim.env.TMUX = "/tmp/fake-tmux,1,0"
     vim.env.WAYLAND_DISPLAY = nil
-    local c = setup({ TMUX = "x" })
-    c.copy["+"]({ "hi", "there" })
-    H.eq({ { reg = "+", lines = { "hi", "there" } } }, rec.emitted)
-    H.eq(0, vim.fn.filereadable(wl .. "/copy.args"), "wl-copy must not run without WAYLAND_DISPLAY")
-    H.ok(rawequal(rec.paste["+"], c.paste["+"]), "paste + is not osc52.paste")
-    H.ok(rawequal(rec.paste["*"], c.paste["*"]), "paste * is not osc52.paste")
-    -- (b) WAYLAND_DISPLAY but no wl-copy/wl-paste on PATH
-    rec.emitted = {}
-    vim.env.WAYLAND_DISPLAY = "wayland-fake"
-    vim.env.PATH = H.tmpdir()
-    c = setup({ TMUX = "x" })
-    c.copy["*"]({ "x" })
-    H.eq({ { reg = "*", lines = { "x" } } }, rec.emitted)
-    H.ok(rawequal(rec.paste["*"], c.paste["*"]), "paste * is not osc52.paste without wl-paste")
-  end)
-
-  it("with Wayland: copy runs wl-copy --sensitive --type text/plain (--primary for *) and emits OSC52", function()
-    local rec = fake_osc52()
-    local wl = fake_wl()
-    vim.env.PATH = wl .. ":" .. saved.PATH
-    vim.env.WAYLAND_DISPLAY = "wayland-fake"
-    local c = setup({ TMUX = "x" })
-    c.copy["+"]({ "a", "b" })
-    H.eq({ "--sensitive", "--type", "text/plain" }, vim.fn.readfile(wl .. "/copy.args"))
-    H.eq({ "a", "b" }, vim.fn.readfile(wl .. "/copy.stdin"))
-    c.copy["*"]({ "c" })
-    H.eq({ "--sensitive", "--type", "text/plain", "--primary" }, vim.fn.readfile(wl .. "/copy.args"))
-    H.eq(2, #rec.emitted)
-    H.eq("*", rec.emitted[2].reg)
-  end)
-
-  it("with Wayland: paste runs wl-paste --no-newline (--primary for *), {} on a non-zero exit", function()
-    fake_osc52()
-    local wl = fake_wl()
-    vim.env.PATH = wl .. ":" .. saved.PATH
-    vim.env.WAYLAND_DISPLAY = "wayland-fake"
-    local c = setup({ TMUX = "x" })
-    H.eq({ "one", "two" }, c.paste["+"]())
-    H.eq({ "--no-newline" }, vim.fn.readfile(wl .. "/paste.args"))
-    H.eq({ "one", "two" }, c.paste["*"]())
-    H.eq({ "--no-newline", "--primary" }, vim.fn.readfile(wl .. "/paste.args"))
-    vim.env.XYNO_FAKE_RC = "1"
-    H.eq({}, c.paste["+"]())
-    H.eq({}, c.paste["*"]())
-  end)
-
-  it("vim.g.xynovim_remote_clipboard_osc52 = false suppresses the OSC52 emit; the omarchy_ name is ignored", function()
-    local rec = fake_osc52()
-    local wl = fake_wl()
-    vim.env.PATH = wl .. ":" .. saved.PATH
-    vim.env.WAYLAND_DISPLAY = "wayland-fake"
-    local c = setup({ TMUX = "x" })
-    vim.g.xynovim_remote_clipboard_osc52 = false
-    c.copy["+"]({ "quiet" })
-    H.eq({}, rec.emitted)
-    H.eq({ "quiet" }, vim.fn.readfile(wl .. "/copy.stdin"), "the local copy still happens")
     vim.g.xynovim_remote_clipboard_osc52 = nil
-    vim.g.omarchy_remote_clipboard_osc52 = false
-    c.copy["+"]({ "loud" })
-    H.eq(1, #rec.emitted, "the old omarchy_ variable must not suppress the emit")
-  end)
-
-  it("the ancestor walk stops at ppid <= 1, is bounded to 16 steps and survives unreadable /proc entries", function()
-    -- stops at ppid <= 1: a herdr 'above' init is never looked at
-    local chain = {
-      [1000] = { ppid = 500, comm = "nvim" },
-      [500] = { ppid = 1, comm = "bash" },
-      [1] = { ppid = 0, comm = "herdr" },
-    }
-    with_fake_proc(chain, function(reads)
-      H.is_nil(setup({}))
-      for _, r in ipairs(reads) do
-        H.no_match(r, "/proc/1/", true)
-      end
+    vim.g.xyno_clipboard_osc52 = nil
+    local plugin = Config.plugins["xyno-clipboard.nvim"]
+    local ok, err = pcall(function()
+      plugin.config(plugin, {})
+      H.eq("XynoClipboard", vim.g.clipboard.name)
+      vim.g.clipboard.copy["+"]({ "a" })
+      H.eq(1, emitted, "emitted by default")
+      vim.g.xynovim_remote_clipboard_osc52 = false
+      vim.g.clipboard.copy["+"]({ "b" })
+      vim.g.clipboard.copy["*"]({ "c" })
+      H.eq(1, emitted, "the old switch suppresses it for + and *")
+      H.is_nil(vim.g.xyno_clipboard_osc52, "the plugin's own switch is left as it was")
+      vim.g.xynovim_remote_clipboard_osc52 = nil
+      vim.g.clipboard.copy["+"]({ "d" })
+      H.eq(2, emitted, "emitting again once the switch is gone")
     end)
-    -- unreadable status of the first parent: no error, no provider
-    with_fake_proc({ [1000] = { ppid = 500, comm = "nvim", unreadable = true } }, function()
-      H.is_nil(setup({}))
-    end)
-    -- a missing /proc entry deeper in the chain
-    with_fake_proc({ [1000] = { ppid = 500, comm = "nvim" }, [500] = { ppid = 400, comm = "x" } }, function()
-      H.is_nil(setup({}))
-    end)
-    -- a cycle that never reaches init: at most 16 status reads, herdr at step 17 is not seen
-    local cyc = { [1000] = { ppid = 2000, comm = "nvim" } }
-    for i = 0, 20 do
-      cyc[2000 + i] = { ppid = 2000 + i + 1, comm = i == 17 and "herdr" or "sh" }
-    end
-    with_fake_proc(cyc, function(reads)
-      H.is_nil(setup({}))
-      local status = 0
-      for _, r in ipairs(reads) do
-        if r:match("/status$") then
-          status = status + 1
-        end
-      end
-      H.ok(status <= 16, "status reads: " .. status)
-    end)
+    vim.g.clipboard, vim.g.xynovim_remote_clipboard_osc52, vim.g.xyno_clipboard_osc52 = saved.g, saved.flag, saved.new
+    vim.env.TMUX, vim.env.WAYLAND_DISPLAY = saved.TMUX, saved.WAYLAND_DISPLAY
+    package.loaded["vim.ui.clipboard.osc52"] = saved.osc52
+    assert(ok, err)
   end)
 end)
 
@@ -1202,7 +1011,7 @@ describe("clean startup in unusual environments", function()
       { env = env, clear_env = true }
     )
     check(res)
-    H.eq("XynovimRemoteClipboard", res.clip)
+    H.eq("XynoClipboard", res.clip)
   end)
 
   it("with an empty environment (only HOME and the XDG dirs)", function()
@@ -1226,6 +1035,6 @@ describe("clean startup in unusual environments", function()
       { env = env, clear_env = true, cmd = bin .. "/nvim" }
     )
     check(res)
-    H.eq("XynovimRemoteClipboard", res.clip)
+    H.eq("XynoClipboard", res.clip)
   end)
 end)

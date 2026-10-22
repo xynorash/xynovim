@@ -9,7 +9,7 @@ found so far are fixed (listed at the end).
 
 | Area (files) | Spec | Notes |
 |---|---|---|
-| Startup, options, lazy.nvim setup, lockfile, extras, small plugin specs (news, scrolling, telescope, ghost text, codelens, harpoon, navigation), remote clipboard (`config/{options,lazy,remote_clipboard}.lua`, `lazyvim.json`) | `startup-and-options` | fresh-startup facts come from child nvims |
+| Startup, options, lazy.nvim setup, lockfile, extras, small plugin specs (news, scrolling, telescope, ghost text, codelens, harpoon, navigation), the clipboard glue of `xyno-clipboard.nvim` (`config/{options,lazy}.lua`, `plugins/xyno-clipboard.lua`, `lazyvim.json`; the provider itself is covered in the plugin repository) | `startup-and-options` | fresh-startup facts come from child nvims |
 | Clean startup, harness proof | `smoke` | |
 | Test helpers | `harness` | |
 | Island Dark theme (`colors/`, `lua/island/*`, `plugin/after/*`, `tools/icls2nvim.py`, lualine theme) | `theme-island` | colours written out literally; converter tested on a synthetic `.icls` rebuilt from the palette; load time printed, not asserted |
