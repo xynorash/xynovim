@@ -418,7 +418,7 @@ Thank you to JetBrains for their amazing products. I am a full-in JetBrains user
 ## Layout
 
 ```
-lua/config/    options, keymaps, autocmds, statusline/UX helpers, disk_guard, rust_context/nav/tasks/routes/assist/restart, egui_new, rust_new, lsp_status, lazy, crate_meta/crate_add/crate_features/crate_import, import_engine, macro_attrs, macro_tools, code_actions
+lua/config/    options, keymaps, autocmds, statusline/UX helpers, rust_context/nav/tasks/routes/assist/restart, egui_new, rust_new, lsp_status, lazy, crate_meta/crate_add/crate_features/crate_import, import_engine, macro_attrs, macro_tools, code_actions
 lua/xynovim/   :checkhealth xynovim
 snippets/       rust.json (registered with blink)
 data/          macro_attrs/*.json: attribute schemas (serde, clap, thiserror, tokio, ...) for the completion inside `#[...(`

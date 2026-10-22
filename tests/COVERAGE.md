@@ -22,7 +22,7 @@ found so far are fixed (listed at the end).
 | bacon-ls tier (`plugins/bacon-ls.lua`) | `bacon-ls-config` | |
 | Server supervision and statusline (`rust_restart.lua`, `lsp_status.lua`, lualine component) | `server-supervision-statusline` | real kill -9 / SIGTERM / loop guard |
 | DAP, neotest, overseer, dap-ui (`plugins/dap.lua`, `plugins/rustaceanvim.lua`) | `dap-neotest-coverage` | real codelldb sessions |
-| Auto-save and disk guard (`plugins/auto-save.lua`, `disk_guard.lua`) | `auto-save-disk-guard` | typing test runs in tmux |
+| Auto-save and its guard (`plugins/auto-save.lua`, `plugins/xyno-guard.lua`; the guard itself is covered in the xyno-guard.nvim repository) | `auto-save-disk-guard` | typing test runs in tmux |
 | 99 agent plugin and Guarded provider (`plugins/ninety-nine.lua`) | `agent-99-guard` | no real claude request |
 | Agent sandbox through `xyno-sandbox.nvim` (`plugins/xyno-sandbox.lua`; the bwrap command itself is covered in the plugin repository) | `agent-99-guard`, `agent-failclosed` | real bwrap |
 | Agent sandbox fails closed, the guarded provider refuses without a backend, on every OS | `agent-failclosed` | |

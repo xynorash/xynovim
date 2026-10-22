@@ -1,6 +1,8 @@
 return {
   "okuuva/auto-save.nvim",
   event = { "InsertLeave", "TextChanged", "TextChangedI" },
+  -- the guard behind `condition` below (not lazy itself, see plugins/xyno-guard.lua)
+  dependencies = { "xynorash/xyno-guard.nvim" },
   config = function()
     -- noautocmd (below) skips BufWritePre/BufWritePost for autosaves so
     -- conform's format-on-save doesn't fire on every debounced autosave -
@@ -45,7 +47,7 @@ return {
           pcall(vim.cmd, "undojoin")
         end
         local buf = ev.data and ev.data.saved_buffer
-        -- still modified: the write was refused (see config/disk_guard.lua)
+        -- still modified: the write was refused (see plugins/xyno-guard.lua)
         if not (buf and vim.api.nvim_buf_is_valid(buf)) or vim.bo[buf].modified then
           return
         end
@@ -76,7 +78,7 @@ return {
       enabled = true,
       noautocmd = true,
       -- never into dependency sources, never over a file that changed on disk
-      condition = require("config.disk_guard").can_save,
+      condition = require("xyno_guard").can_save,
       trigger_events = {
         immediate_save = { "BufLeave", "FocusLost", "QuitPre", "VimSuspend" },
         -- TextChanged only fires for edits made OUTSIDE insert mode; its

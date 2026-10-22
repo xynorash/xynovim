@@ -1435,12 +1435,12 @@ describe("README layout and path claims", function()
     local want = {}
     for _, p in ipairs({
       "bacon-ls", "rustaceanvim", "dap", "auto-save", "ninety-nine", "editing-ui", "navigation", "supply-chain",
-      "coverage", "diffview", "domain", "gitsigns", "telescope", "island-theme", "lualine", "no-ghost-text", "xyno-history", "xyno-sandbox", "xyno-clipboard",
+      "coverage", "diffview", "domain", "gitsigns", "telescope", "island-theme", "lualine", "no-ghost-text", "xyno-history", "xyno-sandbox", "xyno-clipboard", "xyno-guard",
     }) do
       want[#want + 1] = "lua/plugins/" .. p .. ".lua"
     end
     for _, p in ipairs({
-      "rust_context", "rust_restart", "lsp_status", "disk_guard", "rust_tasks", "rust_routes", "rust_nav",
+      "rust_context", "rust_restart", "lsp_status", "rust_tasks", "rust_routes", "rust_nav",
       "rust_assist", "ux",
     }) do
       want[#want + 1] = "lua/config/" .. p .. ".lua"

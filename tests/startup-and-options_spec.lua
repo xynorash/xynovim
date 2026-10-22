@@ -402,7 +402,7 @@ describe("config/options.lua", function()
   it("sets up every config module: augroups and user commands exist", function()
     for _, g in ipairs({
       "xyno_history",
-      "xynovim_disk_guard",
+      "xyno_guard",
       "xynovim_lsp_status",
       "xynovim_rust_restart",
       "xynovim_ux",
