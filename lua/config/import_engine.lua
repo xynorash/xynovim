@@ -21,8 +21,8 @@
 --     dependency yet): fn(name, ctx) -> { { path = "rand::Rng", crate = "rand",
 --     add_crate = true, apply = function(cb) ... cb(ok, err) end }, ... }.
 --     Such candidates are ranked last and never applied automatically.
-local ca = require("config.code_actions")
-local cm = require("config.crate_meta")
+local ca = require("xyno_rust.code_actions")
+local cm = require("xyno_rust.crate_meta")
 
 local M = {}
 
@@ -117,7 +117,7 @@ local function save_memory()
   end
   f:write(vim.json.encode(memory))
   f:close()
-  return require("config.fsutil").rename(tmp, path) and true or false
+  return require("xyno_rust.fsutil").rename(tmp, path) and true or false
 end
 
 --- Forget the in-memory copy (the next access reads the file again).

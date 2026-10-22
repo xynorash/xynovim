@@ -159,7 +159,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
 
       -- neotest cannot run doctests (nextest): plain cargo test --doc
       map("n", "<leader>tD", function()
-        require("config.rust_tasks").doctests()
+        require("xyno_rust.rust_tasks").doctests()
       end, "Doctests (cargo test --doc)")
 
       -- Flip references.excludeTests live (rust-analyzer re-pulls config on
@@ -176,10 +176,10 @@ vim.api.nvim_create_autocmd("LspAttach", {
       end, "Toggle tests in find usages")
 
       map("n", "<leader>ru", function()
-        require("config.rust_nav").goto_super()
+        require("xyno_rust.rust_nav").goto_super()
       end, "Go to super method (trait item)")
       map("n", "<leader>rl", function()
-        require("config.rust_nav").local_usages()
+        require("xyno_rust.rust_nav").local_usages()
       end, "Usages in file (R/W)")
 
       map("n", "<leader>rF", "<cmd>RustContext<cr>", "Cargo features / target (both diagnostic tiers)")

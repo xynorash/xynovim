@@ -7,8 +7,8 @@
 -- registry to hold them offline (cargo metadata --offline) and skip with the
 -- reason otherwise; one test runs a real `cargo check` on the fixture.
 local H = require("xynotest.helpers")
-local cm = require("config.crate_meta")
-local ca = require("config.code_actions")
+local cm = require("xyno_rust.crate_meta")
+local ca = require("xyno_rust.code_actions")
 local cf = require("config.crate_features")
 
 local restores = {}
@@ -827,7 +827,7 @@ describe("crate_features review fixes", function()
     write(dir .. "/real/Cargo.toml", '[package]\nname = "app"\nversion = "0.1.0"\n\n[dependencies]\nserde = "1"\n')
     vim.fn.mkdir(dir .. "/m", "p")
     vim.uv.fs_symlink(dir .. "/real/Cargo.toml", dir .. "/m/Cargo.toml")
-    stub(require("config.rust_restart"), "manifest_saved", function() end)
+    stub(require("xyno_rust.rust_restart"), "manifest_saved", function() end)
     local ok = run(dep(dir .. "/m"), { "derive" }, true)
     H.eq(true, ok)
     H.eq("link", vim.uv.fs_lstat(dir .. "/m/Cargo.toml").type)
@@ -838,7 +838,7 @@ describe("crate_features review fixes", function()
     local dir = H.tmpdir()
     write(dir .. "/Cargo.toml", '[package]\nname = "app"\nversion = "0.1.0"\n\n[dependencies]\nserde = "1"\n')
     local saved = {}
-    stub(require("config.rust_restart"), "manifest_saved", function(file)
+    stub(require("xyno_rust.rust_restart"), "manifest_saved", function(file)
       saved[#saved + 1] = file
     end)
     H.eq(true, (run(dep(dir), { "derive" }, true)))

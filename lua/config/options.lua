@@ -59,15 +59,10 @@ vim.g.trouble_lualine = false
 -- rustaceanvim.lua switches the native in-memory diagnostics back on.
 vim.g.lazyvim_rust_diagnostics = "bacon-ls"
 
--- :RustContext (cargo features / target for both diagnostic tiers).
-require("config.rust_context").setup()
-require("config.rust_tasks").setup()
-require("config.rust_routes").setup()
+-- :RustContext, :RustTargets, :RustTools, :RustRoutes, :RustRestart, :ActJob and the server
+-- supervision / statusline autocmds come from the xyno-rust.nvim plugin (lua/plugins/xyno-rust.lua).
 require("config.egui_new").setup()
 require("config.rust_new").setup()
 
--- Rust server readiness in the statusline, right-click menu, Neovide,
--- opt-in colourblind palette.
-require("config.lsp_status").setup()
-require("config.rust_restart").setup()
+-- Right-click menu, Neovide, opt-in colourblind palette.
 require("config.ux").setup()

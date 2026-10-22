@@ -25,7 +25,7 @@
 -- the feature in the member's own entry (additive), the workspace table is not
 -- touched. Everything that comes from the network or from files (crate and
 -- feature names) is validated before it reaches an argv.
-local cm = require("config.crate_meta")
+local cm = require("xyno_rust.crate_meta")
 
 local M = {}
 
@@ -1353,7 +1353,7 @@ local function write_all(path, text)
   if st then
     pcall(vim.uv.fs_chmod, tmp, st.mode % 4096)
   end
-  return require("config.fsutil").rename(tmp, path) and true or false
+  return require("xyno_rust.fsutil").rename(tmp, path) and true or false
 end
 
 local function manifest_buffer_modified(manifest)
@@ -1376,7 +1376,7 @@ end
 local function after_edit(manifest)
   cm.invalidate()
   -- the edit did not go through a buffer save: restart bacon-ls like a save of Cargo.toml would
-  pcall(require("config.rust_restart").manifest_saved, manifest)
+  pcall(require("xyno_rust.rust_restart").manifest_saved, manifest)
   -- an open, unmodified Cargo.toml buffer picks the new text up
   pcall(vim.cmd, "silent! checktime")
 end

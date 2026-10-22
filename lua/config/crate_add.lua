@@ -22,7 +22,7 @@
 -- feature names and package names are validated before they reach one.
 local M = {}
 
-local cm = require("config.crate_meta")
+local cm = require("xyno_rust.crate_meta")
 
 M.config = {
   debounce_ms = 300,
@@ -145,7 +145,7 @@ function M.applicable_file(file)
   if file == "" or not file:match("%.rs$") then
     return false
   end
-  file = require("config.fsutil").slash(file)
+  file = require("xyno_rust.fsutil").slash(file)
   if file:find("/.cargo/registry/", 1, true) or file:find("/.cargo/git/", 1, true) or file:find("/target/", 1, true) then
     return false
   end
@@ -518,7 +518,7 @@ function M.run_add(root, spec, cb)
     notify(msg)
     -- no BufWritePost ran for this edit: restart bacon-ls (and show "deps resolving") like a
     -- save would, or its stale E0433 / "cannot find derive macro" errors stay for minutes
-    pcall(require("config.rust_restart").manifest_saved, spec.manifest or (root .. "/Cargo.toml"))
+    pcall(require("xyno_rust.rust_restart").manifest_saved, spec.manifest or (root .. "/Cargo.toml"))
     refresh_all()
     if cb then
       cb(true, msg, line)

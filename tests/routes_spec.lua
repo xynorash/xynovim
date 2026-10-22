@@ -1,4 +1,4 @@
--- :RustRoutes scanner on the sql_and_routes.rs fixture (treesitter, no LSP).
+-- :RustRoutes scanner (xyno_rust.rust_routes of xyno-rust.nvim) on the sql_and_routes.rs fixture (treesitter, no LSP). Kept as the small hermetic sample spec of the runner specs.
 local H = require("xynotest.helpers")
 
 describe("rust_routes.scan_source", function()
@@ -7,7 +7,7 @@ describe("rust_routes.scan_source", function()
     local src = f:read("*a")
     f:close()
     local paths = {}
-    for _, r in ipairs(require("config.rust_routes").scan_source(src)) do
+    for _, r in ipairs(require("xyno_rust.rust_routes").scan_source(src)) do
       paths[#paths + 1] = r.path
     end
     table.sort(paths)

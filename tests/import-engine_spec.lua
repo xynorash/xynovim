@@ -6,8 +6,8 @@
 -- without rust-analyzer, cargo or the registry crates).
 local H = require("xynotest.helpers")
 local E = require("config.import_engine")
-local ca = require("config.code_actions")
-local cm = require("config.crate_meta")
+local ca = require("xyno_rust.code_actions")
+local cm = require("xyno_rust.crate_meta")
 
 local restores = {}
 local function stub(t, k, v)

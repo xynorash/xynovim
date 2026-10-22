@@ -26,7 +26,7 @@
 -- accepting one that is not imported calls M.on_derive_accepted(name, info).
 local M = {}
 
-local cm = require("config.crate_meta")
+local cm = require("xyno_rust.crate_meta")
 
 M.config = {
   shipped_glob = "data/macro_attrs/*.json",
@@ -765,7 +765,7 @@ end
 
 --- Start (or reuse) a cargo metadata run for `root`; cb() when it is cached.
 function M.refresh_dependencies(root, cb)
-  root = require("config.rust_context").canon(root)
+  root = require("xyno_rust.rust_context").canon(root)
   cm.metadata_async(root, function(meta)
     inflight[root] = nil
     if meta then

@@ -6,8 +6,8 @@
 local H = require("xynotest.helpers")
 local ci = require("config.crate_import")
 local E = require("config.import_engine")
-local cm = require("config.crate_meta")
-local ca = require("config.code_actions")
+local cm = require("xyno_rust.crate_meta")
+local ca = require("xyno_rust.code_actions")
 local cadd = require("config.crate_add")
 
 local restores = {}

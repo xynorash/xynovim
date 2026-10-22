@@ -819,7 +819,7 @@ describe("lualine_x", function()
   it("starts with lsp_status.component, hidden when it is empty", function()
     local o = opts_of("lualine.nvim")
     local first = o.sections.lualine_x[1]
-    local status = require("config.lsp_status")
+    local status = require("xyno_rust.lsp_status")
     H.ok(first[1] == status.component, "first component is lsp_status.component")
     H.eq("function", type(first.cond))
     local orig = status.component
@@ -841,7 +841,7 @@ describe("lualine_x", function()
     local buf = vim.api.nvim_create_buf(true, false)
     vim.api.nvim_set_current_buf(buf)
     vim.bo[buf].filetype = "text"
-    H.eq("", require("config.lsp_status").component())
+    H.eq("", require("xyno_rust.lsp_status").component())
   end)
 end)
 

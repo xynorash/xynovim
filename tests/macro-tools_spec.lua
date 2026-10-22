@@ -997,7 +997,7 @@ describe("live rust-analyzer", function()
   it(":ProcMacroStatus lists the workspace proc-macro crates and writes the ignore setting", function()
     H.known_issue({ "windows", "macos" }, "live rust-analyzer flow fails or hangs on Windows (run 39647013043) and macOS (macos-latest run 39668277143: the file timed out after 240 s in :MacroExpand)")
     local dir, buf = open_lab()
-    local cm = require("config.crate_meta")
+    local cm = require("xyno_rust.crate_meta")
     local meta = cm.metadata(dir)
     if not meta then
       H.skip_file("cargo metadata failed (registry not populated?)")

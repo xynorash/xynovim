@@ -102,7 +102,7 @@ function M.check()
   -- the parts of the config that are plugins of their own (lua/plugins/xyno-*.lua), restored from the lockfile
   vim.health.start("xynovim: xyno plugins")
   local plugins = require("lazy.core.config").plugins
-  for _, name in ipairs({ "xyno-history.nvim", "xyno-sandbox.nvim", "xyno-clipboard.nvim", "xyno-guard.nvim" }) do
+  for _, name in ipairs({ "xyno-history.nvim", "xyno-sandbox.nvim", "xyno-clipboard.nvim", "xyno-guard.nvim", "xyno-rust.nvim" }) do
     local plugin = plugins[name]
     if plugin and plugin._.installed then
       vim.health.ok(name .. " installed (" .. plugin[1] .. ")")

@@ -1028,7 +1028,7 @@ describe("neotest, overseer", function()
     stub(Snacks.terminal, "open", function(cmd, opts)
       seen = { cmd = cmd, cwd = opts.cwd }
     end)
-    local rc = require("config.rust_context")
+    local rc = require("xyno_rust.rust_context")
     local flags = rc.cargo_flags(rc.get(dir))
     H.feed("<leader>tD", "mx")
     H.wait_for(function()
@@ -1109,7 +1109,7 @@ describe("coverage honours :RustContext", function()
     })
     edit(dir .. "/src/main.rs")
     undo[#undo + 1] = function()
-      pcall(require("config.rust_context").apply, dir, nil)
+      pcall(require("xyno_rust.rust_context").apply, dir, nil)
     end
     return dir
   end
@@ -1130,7 +1130,7 @@ describe("coverage honours :RustContext", function()
   it("a stored context (features, no default, target) is passed on", function()
     H.need_rust()
     local dir = setup_crate()
-    require("config.rust_context").apply(dir, { all = false, no_default = true, features = { "b" }, target = "x86_64-unknown-linux-gnu" })
+    require("xyno_rust.rust_context").apply(dir, { all = false, no_default = true, features = { "b" }, target = "x86_64-unknown-linux-gnu" })
     local s = run_tc(dir)
     local tail = vim.list_slice(s.cmd, #s.cmd - 4)
     H.eq({ "--no-default-features", "--features", "b", "--target", "x86_64-unknown-linux-gnu" }, tail)
@@ -1140,12 +1140,12 @@ describe("coverage honours :RustContext", function()
   it(":RustTools coverage entry carries the same flags", function()
     H.need_rust()
     local dir = setup_crate()
-    require("config.rust_context").apply(dir, { all = false, no_default = false, features = { "a", "b" } })
+    require("xyno_rust.rust_context").apply(dir, { all = false, no_default = false, features = { "a", "b" } })
     local items
     stub(Snacks, "picker", function(o)
       items = o.items
     end)
-    require("config.rust_tasks").tools()
+    require("xyno_rust.rust_tasks").tools()
     H.ok(items, "the tools picker was opened")
     local cov
     for _, i in ipairs(items) do
@@ -1155,9 +1155,9 @@ describe("coverage honours :RustContext", function()
     end
     H.ok(cov, "coverage entry")
     H.eq({ "cargo", "llvm-cov", "--workspace", "--ignore-run-fail", "--summary-only", "--features", "a,b" }, cov.cmd)
-    require("config.rust_context").apply(dir, nil)
+    require("xyno_rust.rust_context").apply(dir, nil)
     items = nil
-    require("config.rust_tasks").tools()
+    require("xyno_rust.rust_tasks").tools()
     for _, i in ipairs(items) do
       if i.text:find("coverage report", 1, true) then
         H.eq({ "cargo", "llvm-cov", "--workspace", "--ignore-run-fail", "--summary-only", "--all-features" }, i.cmd)

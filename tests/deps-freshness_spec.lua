@@ -9,11 +9,11 @@ pcall(function()
   require("lazy").load({ plugins = { "nvim-lspconfig" } })
 end)
 
-local RR_GROUP, LS_GROUP = "xynovim_rust_restart", "xynovim_lsp_status"
+local RR_GROUP, LS_GROUP = "xyno_rust_restart", "xyno_rust_lsp_status"
 
 local function fresh_restart()
-  package.loaded["config.rust_restart"] = nil
-  local rr = require("config.rust_restart")
+  package.loaded["xyno_rust.rust_restart"] = nil
+  local rr = require("xyno_rust.rust_restart")
   rr.setup()
   return rr
 end
@@ -142,14 +142,14 @@ describe("deps-freshness: Cargo.toml / Cargo.lock saved from nvim restarts bacon
   after_each(function()
     remove_stubs()
     fresh_restart()
-    require("config.lsp_status").deps_clear()
+    require("xyno_rust.lsp_status").deps_clear()
   end)
 
   it("BufWritePost of Cargo.toml: one debounced restart and 'deps resolving' on the crate's buffers", function()
     H.known_issue({ "windows" }, "bacon_ls never attaches on Windows (windows-latest run 39647013043; Mason installed bacon-ls but no client starts, cause not found)")
     local mb, rb = buf_of(d .. "/Cargo.toml"), buf_of(d .. "/src/main.rs")
     fire("BufWritePost", RR_GROUP, nil, mb)
-    H.eq("deps resolving", require("config.lsp_status").deps(rb))
+    H.eq("deps resolving", require("xyno_rust.lsp_status").deps(rb))
     H.eq(0, s.restarts(), "debounced: nothing at once")
     H.wait_for(function()
       return s.restarts() > 0
@@ -187,7 +187,7 @@ describe("deps-freshness: Cargo.toml / Cargo.lock saved from nvim restarts bacon
     fire("BufWritePost", RR_GROUP, nil, buf_of(other .. "/Cargo.toml"))
     settle(1000)
     H.eq(0, s.restarts())
-    H.is_nil(require("config.lsp_status").deps(buf_of(other .. "/src/main.rs")))
+    H.is_nil(require("xyno_rust.lsp_status").deps(buf_of(other .. "/src/main.rs")))
   end)
 
   it("loop guard: FocusGained after the save's restart does not restart again", function()
@@ -212,7 +212,7 @@ describe("deps-freshness: Cargo.toml / Cargo.lock saved from nvim restarts bacon
     H.wait_for(function()
       return s.restarts() > 0
     end, 3000, "restart after the on-disk change")
-    H.eq("deps resolving", require("config.lsp_status").deps(rb))
+    H.eq("deps resolving", require("xyno_rust.lsp_status").deps(rb))
   end)
 end)
 
@@ -222,7 +222,7 @@ describe("deps-freshness: the 'deps resolving' status", function()
   local s, status, d, ra, rb
   before_each(function()
     s = install_stubs()
-    status = require("config.lsp_status")
+    status = require("xyno_rust.lsp_status")
     status.setup()
     d = crate()
     rb = buf_of(d .. "/src/main.rs")
@@ -273,7 +273,7 @@ describe("deps-freshness: the 'deps resolving' status", function()
   it("ends on :RustRestart and on the wipe of the manifest buffer", function()
     status.deps_begin(d)
     H.ok(shown())
-    require("config.rust_restart").restart()
+    require("xyno_rust.rust_restart").restart()
     H.not_ok(shown(), "restart")
     local mb = buf_of(d .. "/Cargo.toml")
     status.deps_begin(d, mb)
@@ -305,7 +305,7 @@ describe("deps-freshness: live servers on deps-lab", function()
       skip("crates.io not reachable (rand must be fetched)")
     end
     local dir, main = H.open_fixture("deps-lab", "src/main.rs")
-    local status = require("config.lsp_status")
+    local status = require("xyno_rust.lsp_status")
     H.wait_for(function()
       return status.component() == "RA ready | clippy ok"
     end, 180000, "ready; is " .. status.component())

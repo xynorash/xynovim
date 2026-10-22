@@ -6,7 +6,7 @@
 -- flow for real (crates.io + cargo add itoa on a copy of the deps-lab fixture,
 -- then cargo check) and skips without network or cargo.
 local H = require("xynotest.helpers")
-local cm = require("config.crate_meta")
+local cm = require("xyno_rust.crate_meta")
 local ca = require("config.crate_add")
 
 local restores = {}
@@ -831,7 +831,7 @@ describe("crate_add review fixes", function()
     fake_cargo()
     script_ui({})
     local saved = {}
-    stub(require("config.rust_restart"), "manifest_saved", function(file)
+    stub(require("xyno_rust.rust_restart"), "manifest_saved", function(file)
       saved[#saved + 1] = file
     end)
     H.ok(run_add("itoa"))

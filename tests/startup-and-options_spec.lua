@@ -403,8 +403,8 @@ describe("config/options.lua", function()
     for _, g in ipairs({
       "xyno_history",
       "xyno_guard",
-      "xynovim_lsp_status",
-      "xynovim_rust_restart",
+      "xyno_rust_lsp_status",
+      "xyno_rust_restart",
       "xynovim_ux",
     }) do
       local ok, acs = pcall(vim.api.nvim_get_autocmds, { group = g })
@@ -425,6 +425,24 @@ describe("config/options.lua", function()
       "ColorblindDiagnostics",
     }) do
       H.ok(cmds[c], "user command :" .. c .. " missing")
+    end
+  end)
+
+  it("xyno-rust.nvim is installed and loaded at startup, its keys stay in keymaps.lua, no local copy is left", function()
+    local plugin = require("lazy.core.config").plugins["xyno-rust.nvim"]
+    H.ok(plugin and plugin._.installed, "xyno-rust.nvim is not installed")
+    H.eq("xynorash/xyno-rust.nvim", plugin[1])
+    H.ok(plugin._.loaded, "xyno-rust.nvim is lazy: the supervision autocmds must exist from startup")
+    -- setup() ran with keymaps = false: its own FileType keymap group does not exist
+    H.ok(#vim.api.nvim_get_autocmds({ group = "xyno_rust_restart" }) > 0, "setup() did not run")
+    local ok = pcall(vim.api.nvim_get_autocmds, { group = "xyno_rust_keymaps" })
+    H.not_ok(ok, "keymaps = false, so xyno_rust_keymaps must not exist")
+    for _, m in ipairs({
+      "fsutil", "rust_context", "code_actions", "crate_meta", "lsp_status", "rust_restart", "rust_tasks",
+      "rust_routes", "rust_nav",
+    }) do
+      H.eq(0, vim.fn.filereadable(H.repo .. "/lua/config/" .. m .. ".lua"), "lua/config/" .. m .. ".lua is back")
+      H.ok(pcall(require, "xyno_rust." .. m), "xyno_rust." .. m .. " does not load")
     end
   end)
 end)

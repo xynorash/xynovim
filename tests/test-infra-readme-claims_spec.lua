@@ -1435,12 +1435,11 @@ describe("README layout and path claims", function()
     local want = {}
     for _, p in ipairs({
       "bacon-ls", "rustaceanvim", "dap", "auto-save", "ninety-nine", "editing-ui", "navigation", "supply-chain",
-      "coverage", "diffview", "domain", "gitsigns", "telescope", "island-theme", "lualine", "no-ghost-text", "xyno-history", "xyno-sandbox", "xyno-clipboard", "xyno-guard",
+      "coverage", "diffview", "domain", "gitsigns", "telescope", "island-theme", "lualine", "no-ghost-text", "xyno-history", "xyno-sandbox", "xyno-clipboard", "xyno-guard", "xyno-rust",
     }) do
       want[#want + 1] = "lua/plugins/" .. p .. ".lua"
     end
     for _, p in ipairs({
-      "rust_context", "rust_restart", "lsp_status", "rust_tasks", "rust_routes", "rust_nav",
       "rust_assist", "ux",
     }) do
       want[#want + 1] = "lua/config/" .. p .. ".lua"
@@ -1472,6 +1471,11 @@ describe("README layout and path claims", function()
           -- named in docs/HISTORY.md as they were, now the plugins xyno-history.nvim and xyno-sandbox.nvim
           and p ~= "lua/config/local_history.lua"
           and p ~= "lua/config/agent_sandbox.lua"
+          -- named in docs/HISTORY.md as they were, now the modules of xyno-rust.nvim
+          and p ~= "lua/config/rust_nav.lua"
+          and p ~= "lua/config/rust_tasks.lua"
+          and p ~= "lua/config/rust_routes.lua"
+          and p ~= "lua/config/lsp_status.lua"
           and not exists(repo .. "/" .. p)
         then
           missing[#missing + 1] = p

@@ -14,13 +14,13 @@ found so far are fixed (listed at the end).
 | Test helpers | `harness` | |
 | Island Dark theme (`colors/`, `lua/island/*`, `plugin/after/*`, `tools/icls2nvim.py`, lualine theme) | `theme-island` | colours written out literally; converter tested on a synthetic `.icls` rebuilt from the palette; load time printed, not asserted |
 | Global keymaps (`config/keymaps.lua`, diffview/coverage/99/harpoon/dap keys, which-key groups, key uniqueness) | `keymaps-global` | |
-| Rust keymaps (`<leader>r*`, `rust_assist.lua`, `rust_nav.lua`, `after/ftplugin/rust.lua`) | `keymaps-rust` | real rust-analyzer for rv, rh, rw, rT, ru, rl; the rest stubbed |
-| `:RustContext` (`rust_context.lua`) and its two consumers | `rust-context` | live apply on one workspace |
-| `:RustRoutes` (`rust_routes.lua`) | `routes`, `rust-routes` | picker is stubbed |
-| `:RustTargets`, `:RustTools`, `:ActJob`, `:RustNew`, doctests, coverage (`rust_tasks.lua`, `plugins/coverage.lua`) | `rust-tasks-tools` | one real `<leader>tc` run with llvm-cov |
+| Rust keymaps (`<leader>r*`, `rust_assist.lua`, the `rust_nav` keys, `after/ftplugin/rust.lua`) | `keymaps-rust` | real rust-analyzer for rv, rh, rw, rT; the rest stubbed; the rust_nav module itself is covered in the xyno-rust.nvim repository |
+| `:RustContext` consumers (`plugins/rustaceanvim.lua` server.settings, `plugins/bacon-ls.lua`) and the live bacon-ls half; the module itself is covered in the xyno-rust.nvim repository | `rust-context` | live apply on one workspace |
+| The `<leader>rN` map of `:RustRoutes`; `routes` is the small hermetic sample spec of the runner specs (the route module is covered in the xyno-rust.nvim repository) | `routes`, `rust-routes` | |
+| `:RustTargets`, `:RustTools`, `:ActJob`, `:RustNew`, doctests, coverage (`plugins/coverage.lua`; the `xyno_rust.rust_tasks` module and its other cases are covered in the xyno-rust.nvim repository) | `rust-tasks-tools` | one real `<leader>tc` run with llvm-cov |
 | rust-analyzer settings, codelens, inlay hints, taplo, wgsl-analyzer, kulala (`plugins/{rustaceanvim,editing-ui,domain}.lua`) | `rust-analyzer-config`, `rust_spec` | |
 | bacon-ls tier (`plugins/bacon-ls.lua`) | `bacon-ls-config` | |
-| Server supervision and statusline (`rust_restart.lua`, `lsp_status.lua`, lualine component) | `server-supervision-statusline` | real kill -9 / SIGTERM / loop guard |
+| Server supervision and statusline (`xyno_rust.rust_restart`, `xyno_rust.lsp_status`, lualine component; the fake-client cases are in the xyno-rust.nvim repository, here the live bacon-ls cases) | `server-supervision-statusline` | real kill -9 / SIGTERM / loop guard |
 | DAP, neotest, overseer, dap-ui (`plugins/dap.lua`, `plugins/rustaceanvim.lua`) | `dap-neotest-coverage` | real codelldb sessions |
 | Auto-save and its guard (`plugins/auto-save.lua`, `plugins/xyno-guard.lua`; the guard itself is covered in the xyno-guard.nvim repository) | `auto-save-disk-guard` | typing test runs in tmux |
 | 99 agent plugin and Guarded provider (`plugins/ninety-nine.lua`) | `agent-99-guard` | no real claude request |
@@ -35,8 +35,8 @@ found so far are fixed (listed at the end).
 | `:checkhealth xynovim`, `bootstrap.sh`, CI, Makefile, stylua, `.gitignore`, LICENSE, README prerequisites | `health-bootstrap-ci` | |
 | Website: `site/`, `scripts/build-site.py`, `.github/workflows/pages.yml` (built into a temp dir: head tags, links, anchors, CSP, alt texts, README numbers, budgets, contrast, workflow pins and permissions) | `site` | no browser: the screenshots were checked by hand; the deployment itself is only observable on GitHub |
 | `scripts/test.sh`, `scripts/coverage.lua`, runner/harness/helpers/coverage hook, README/CHANGELOG claims | `test-infra-readme-claims` | |
-| Dependency freshness: `deps resolving` status, bacon-ls restart on a saved `Cargo.toml` / `Cargo.lock` (`rust_restart.lua`, `lsp_status.lua`) | `deps-freshness`, `server-supervision-statusline` | real rust-analyzer; the 120 s ceiling is a shimmed timer |
-| Crate metadata, crates.io client, registry sources (`crate_meta.lua`, `code_actions.lua`) | `crate-meta` | network parts skip offline |
+| Dependency freshness: `deps resolving` status, bacon-ls restart on a saved `Cargo.toml` / `Cargo.lock` (`xyno_rust.rust_restart`, `xyno_rust.lsp_status`) | `deps-freshness`, `server-supervision-statusline` | real rust-analyzer; the 120 s ceiling is a shimmed timer |
+| Crate metadata, crates.io client, registry sources (`xyno_rust.crate_meta`, `xyno_rust.code_actions`) | covered in the xyno-rust.nvim repository; xynovim's crate_add, crate_features, import_engine, macro specs use them | network parts skip offline |
 | Unknown-crate hint, "Add crate" action, `:CrateAdd`, `<leader>rA` (`crate_add.lua`) | `crate-add` | real `cargo add` on temp crates; picker stubbed |
 | Missing-feature fix, `:CrateFeatures`, `<leader>rG` (`crate_features.lua`) | `crate-features` | real `cargo check --offline`; diagnostic is hand-made |
 | Import engine: auto-import modes, ranking, per-project memory, organize, paste, `:ImportName/:ImportForget/:ImportOrganize`, `<leader>rI/rO` (`import_engine.lua`) | `import-engine` | real rust-analyzer; picker stubbed |

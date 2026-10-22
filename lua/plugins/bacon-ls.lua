@@ -51,7 +51,7 @@ return {
         -- (~/.cargo/bin/bacon-ls) is gone.
         init_options = bacon_ls_settings,
         -- One client per Cargo WORKSPACE, rooted at the outermost manifest
-        -- with a [workspace] table (config.rust_context.root), not at the
+        -- with a [workspace] table (xyno_rust.rust_context.root), not at the
         -- nearest Cargo.toml: bacon-ls mirrors its root into a shadow, so a
         -- member-rooted shadow lacks the workspace manifest and the sibling
         -- path dependencies and cargo fails ("believes it's in a workspace
@@ -85,14 +85,14 @@ return {
               return
             end
           end
-          local root = require("config.rust_context").root(name)
+          local root = require("xyno_rust.rust_context").root(name)
           if root and (root:sub(1, 1) == "/" or root:match("^%a:[/\\]")) then
             on_dir(root)
           end
         end,
-        -- A crashed server is restarted (rust_restart.lua).
+        -- A crashed server is restarted (xyno_rust.rust_restart).
         on_exit = function(...)
-          return require("config.rust_restart").on_exit("bacon_ls")(...)
+          return require("xyno_rust.rust_restart").on_exit("bacon_ls")(...)
         end,
         -- Match the per-project Cargo context (:RustContext) so both
         -- diagnostic tiers see the same features/target. Settings reach the
@@ -102,7 +102,7 @@ return {
         -- `:RustContext reset` the restarted client must not keep the
         -- previous context's args.
         before_init = function(params, config)
-          local rc = require("config.rust_context")
+          local rc = require("xyno_rust.rust_context")
           local ctx = rc.get(rc.root((config.root_dir or vim.uv.cwd()) .. "/x"))
           local s = vim.deepcopy(bacon_ls_settings)
           s.cargo.extraArgs = rc.bacon_args(ctx)

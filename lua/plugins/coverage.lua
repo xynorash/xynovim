@@ -11,7 +11,7 @@ return {
     {
       "<leader>tc",
       function()
-        local root = require("config.rust_context").root()
+        local root = require("xyno_rust.rust_context").root()
         if not root then
           return vim.notify("no Cargo.toml found", vim.log.levels.WARN)
         end
@@ -24,7 +24,7 @@ return {
         -- lcov is written (it cannot be combined with --no-fail-fast).
         vim.list_extend(cmd, { "--workspace", "--ignore-run-fail", "--lcov", "--output-path", "target/lcov.info" })
         -- same features/target as the diagnostics (:RustContext)
-        local rc = require("config.rust_context")
+        local rc = require("xyno_rust.rust_context")
         vim.list_extend(cmd, rc.cargo_flags(rc.get(root)))
         vim.notify("coverage: running " .. table.concat(cmd, " "))
         vim.system(cmd, { cwd = root, text = true }, function(o)
@@ -57,7 +57,7 @@ return {
     lang = {
       rust = {
         coverage_file = function()
-          return (require("config.rust_context").root() or vim.uv.cwd()) .. "/target/lcov.info"
+          return (require("xyno_rust.rust_context").root() or vim.uv.cwd()) .. "/target/lcov.info"
         end,
       },
     },

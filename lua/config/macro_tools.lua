@@ -1050,7 +1050,7 @@ local function lsp_character(bufnr, row, col, enc)
 end
 
 local function ra_client(bufnr)
-  return require("config.code_actions").clients(bufnr)[1]
+  return require("xyno_rust.code_actions").clients(bufnr)[1]
 end
 
 --- Lines of a file (an open buffer wins over the disk), nil when unreadable or huge.
@@ -1750,7 +1750,7 @@ local function cargo_expand_fallback(bufnr, push)
   if vim.fn.executable("cargo-expand") ~= 1 then
     return vim.notify("rust-analyzer expanded nothing here and cargo-expand is not installed (cargo install cargo-expand)", vim.log.levels.WARN)
   end
-  local cm = require("config.crate_meta")
+  local cm = require("xyno_rust.crate_meta")
   cm.metadata_async(file, function(meta, err)
     if not meta then
       return vim.notify("cargo expand fallback: " .. tostring(err), vim.log.levels.WARN)
@@ -1954,7 +1954,7 @@ end
 
 --- Proc-macro crates of the metadata: { { name, version, member, dir, built } }.
 function M.proc_macro_crates(meta, target_dir)
-  local cm = require("config.crate_meta")
+  local cm = require("xyno_rust.crate_meta")
   local out = {}
   for _, p in ipairs(meta.packages) do
     local toml = p.dir and cm.read_manifest(p.dir)
@@ -2178,7 +2178,7 @@ function M.ignore_proc_macro(root, crate, names)
   if st then
     pcall(uv.fs_chmod, tmp, st.mode % 4096)
   end
-  local okr, rerr = require("config.fsutil").rename(tmp, real)
+  local okr, rerr = require("xyno_rust.fsutil").rename(tmp, real)
   if not okr then
     uv.fs_unlink(tmp)
     return nil, rerr
@@ -2297,7 +2297,7 @@ function M.proc_macro_status(opts)
   opts = opts or {}
   local src = opts.reuse and report.src or vim.api.nvim_get_current_buf()
   report.src = src
-  local cm = require("config.crate_meta")
+  local cm = require("xyno_rust.crate_meta")
   local file = vim.api.nvim_buf_get_name(src)
   local root = cm.root(file)
   if not root then
@@ -2435,7 +2435,7 @@ function M.setup()
       -- any client: LazyVim's LSP keys (<C-k>) are set again on every attach,
       -- so the maps follow the same events, after them
       vim.defer_fn(function()
-        if vim.api.nvim_buf_is_valid(ev.buf) and #require("config.code_actions").clients(ev.buf) > 0 then
+        if vim.api.nvim_buf_is_valid(ev.buf) and #require("xyno_rust.code_actions").clients(ev.buf) > 0 then
           buf_keys(ev.buf)
         end
       end, 120)
@@ -2445,7 +2445,7 @@ function M.setup()
   for _, b in ipairs(vim.api.nvim_list_bufs()) do
     if vim.bo[b].filetype == "rust" then
       schedule_hints(b)
-      if #require("config.code_actions").clients(b) > 0 then
+      if #require("xyno_rust.code_actions").clients(b) > 0 then
         buf_keys(b)
       end
     end

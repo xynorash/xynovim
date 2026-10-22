@@ -1,5 +1,5 @@
 -- bacon-ls (clippy tier) configuration: lua/plugins/bacon-ls.lua,
--- lua/config/rust_restart.lua, lua/config/rust_context.lua.
+-- xyno_rust.rust_restart, xyno_rust.rust_context.
 -- Needs rust-analyzer and cargo (skipped with a message otherwise); the
 -- bacon-ls binary is Mason's, from the real XDG_DATA_HOME.
 -- xyno-os: linux,macos (bacon_ls never attaches on windows-latest, run 39655339161: three live tests time out after 63 s and the file after 240 s; cause not found)
@@ -231,7 +231,7 @@ describe("bacon-ls config", function()
     end
 
     it("uses the stored :RustContext for the root without mutating the shared settings", function()
-      local rc = require("config.rust_context")
+      local rc = require("xyno_rust.rust_context")
       local srv = plugin_server()
       local dir = H.fixture("basic")
       local cap = H.capture_notify()
@@ -255,7 +255,7 @@ describe("bacon-ls config", function()
     end)
 
     it("rebuilds from the defaults when no context is stored (also after a reset)", function()
-      local rc = require("config.rust_context")
+      local rc = require("xyno_rust.rust_context")
       local srv = plugin_server()
       local dir = H.fixture("basic")
       local cap = H.capture_notify()
@@ -278,9 +278,9 @@ describe("bacon-ls config", function()
   it("restarts bacon-ls through rust_restart.on_exit after it was killed", function()
     -- earlier tests' forced client stops count as exits in the module's
     -- 3-per-minute budget: start from a fresh module (the hook requires it per call)
-    package.loaded["config.rust_restart"] = nil
+    package.loaded["xyno_rust.rust_restart"] = nil
     local _, buf, c = open_bacon("basic", "src/lib.rs")
-    H.is_nil(vim.b[buf].xynovim_stopped)
+    H.is_nil(vim.b[buf].xyno_rust_stopped)
     H.eq("function", type(c.config.on_exit))
     local cap = H.capture_notify()
     -- our own child only: the bacon-ls process of THIS nvim
@@ -301,7 +301,7 @@ describe("bacon-ls config", function()
         end
       end
     end, 10000, "the restart notice")
-    H.eq(true, (vim.b[buf].xynovim_stopped or {}).bacon_ls, "marked stopped on the buffer")
+    H.eq(true, (vim.b[buf].xyno_rust_stopped or {}).bacon_ls, "marked stopped on the buffer")
     local new = H.wait_for(function()
       local n = H.clients(buf, "bacon_ls")[1]
       return n and n.id ~= c.id and n
@@ -403,7 +403,7 @@ describe("bacon-ls config", function()
 
   -- 14
   it("restarts with matching args when :RustContext changes the features", function()
-    local rc = require("config.rust_context")
+    local rc = require("xyno_rust.rust_context")
     local dir = H.fixture("workspace")
     vim.cmd.cd(vim.fn.fnameescape(dir))
     local buf = H.open(dir .. "/app/src/main.rs")

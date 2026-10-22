@@ -7,8 +7,8 @@
 -- needs rust-analyzer.
 local H = require("xynotest.helpers")
 local ma = require("config.macro_attrs")
-local cm = require("config.crate_meta")
-local ca = require("config.code_actions")
+local cm = require("xyno_rust.crate_meta")
+local ca = require("xyno_rust.code_actions")
 
 local restores = {}
 local function stub(t, k, v)

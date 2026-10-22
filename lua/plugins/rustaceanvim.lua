@@ -29,9 +29,9 @@ return {
   end,
   opts = {
     server = {
-      -- A crashed server is restarted (rust_restart.lua).
+      -- A crashed server is restarted (xyno_rust.rust_restart).
       on_exit = function(...)
-        return require("config.rust_restart").on_exit("rust-analyzer")(...)
+        return require("xyno_rust.rust_restart").on_exit("rust-analyzer")(...)
       end,
       -- Layer the per-project Cargo context (:RustContext) over the defaults.
       settings = function(root, default_settings)
@@ -39,7 +39,7 @@ return {
           root,
           { default_settings = vim.deepcopy(default_settings) }
         )
-        local ctx = require("config.rust_context")
+        local ctx = require("xyno_rust.rust_context")
         local cargo = ctx.ra_cargo(ctx.get(ctx.root(root and (root .. "/x"))))
         if cargo then
           local ra = settings["rust-analyzer"]

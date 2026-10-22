@@ -38,7 +38,7 @@ The website, <https://xynorash.github.io/xynovim/>, is published from the dedica
 - **A debugger and a test runner that look like the ones in an IDE**: breakpoints with Rust-aware variable views, a test summary tree, coverage in the gutter.
 - **A safety net**: every save is snapshotted as a git ref (a "Local History"), and the AI agent runs inside a sandbox.
 - **Treesitter everywhere**: sticky scope, text objects, SQL injected into `sqlx` strings, a live syntax-tree view.
-- **Tested**: 1659 passing checks across 37 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
+- **Tested**: 1659 passing checks across 36 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
 
 ## Guides
 
@@ -326,7 +326,7 @@ my-ws/
 ```
 
   The edition is whatever the installed cargo writes into a new project (read once per session from a throwaway `cargo new`, never hard-coded), the resolver is `3` for edition 2024 and newer, else `2`. The `crates/*` glob picks up later members without editing the manifest. `git init -b main` runs without a commit (skipped with a note when git is missing). Afterwards the command does `cd` to the workspace root, opens the member's source file and notifies the layout and the next steps (`cargo run -p <member>`, `<leader>rX` lists the cargo targets).
-- **`:RustNewMember`**: finds the workspace through `config.rust_context.root` (the current buffer, else the cwd), asks the kind and the name and creates `crates/<name>` (or the directory of the manifest's `dir/*` glob) with the same inheritance rewrite. It refuses outside a workspace that has a `members = [...]` list, and a name that collides with an existing member (`my-core` and `my_core` count as the same). An explicit list gets the new path added with its layout kept; keys the workspace's `[workspace.package]` lacks stay in the member.
+- **`:RustNewMember`**: finds the workspace through `xyno_rust.rust_context.root` (the current buffer, else the cwd), asks the kind and the name and creates `crates/<name>` (or the directory of the manifest's `dir/*` glob) with the same inheritance rewrite. It refuses outside a workspace that has a `members = [...]` list, and a name that collides with an existing member (`my-core` and `my_core` count as the same). An explicit list gets the new path added with its layout kept; keys the workspace's `[workspace.package]` lacks stay in the member.
 - **Failures**: everything is async with a progress notification. When cargo fails its first stderr line is shown and whatever the run created (the project, the whole workspace directory, parent directories it made) is removed again; a restored manifest for `:RustNewMember`. cargo missing is one clear message.
 - **Options**: `vim.g.xynovim_projects_dir`.
 - **Dashboard sizes**: the list has 14 entries now. The tall layout (blank line between the entries) needs `2n + 11` rows (39), consecutive lines with the header need `n + 12` (26), and below that the header is hidden, so every entry and its key stay visible from 80x18 up (80x24, 100x30 and 190x50 are tested in a real terminal).
@@ -369,7 +369,7 @@ Video: [14-egui-new.mp4](docs/media/14-egui-new.mp4)
 
 ## Tests: run them yourself
 
-The config ships with an automated suite: **37 spec files, 1659 checks passing, 25 skipped with a stated reason, 0 failing**, in about ten minutes. The passing and skipped counts depend on the machine (the figures are from my Linux machine (Arch), which has `debug = true` in `~/.cargo/config.toml`, a `~/.cargo/bin` and no `pwsh`; the Ubuntu CI run 39695896272 shows 1749 passed, 76 skipped, 0 failed). Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
+The config ships with an automated suite: **36 spec files, 1659 checks passing, 25 skipped with a stated reason, 0 failing**, in about ten minutes. The passing and skipped counts depend on the machine (the figures are from my Linux machine (Arch), which has `debug = true` in `~/.cargo/config.toml`, a `~/.cargo/bin` and no `pwsh`; the Ubuntu CI run 39695896272 shows 1749 passed, 76 skipped, 0 failed). Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
 
 ```sh
 scripts/test.sh                  # everything (or: make test)
@@ -418,11 +418,11 @@ Thank you to JetBrains for their amazing products. I am a full-in JetBrains user
 ## Layout
 
 ```
-lua/config/    options, keymaps, autocmds, statusline/UX helpers, rust_context/nav/tasks/routes/assist/restart, egui_new, rust_new, lsp_status, lazy, crate_meta/crate_add/crate_features/crate_import, import_engine, macro_attrs, macro_tools, code_actions
+lua/config/    options, keymaps, autocmds, statusline/UX helpers, rust_assist, egui_new, rust_new, lazy, crate_add/crate_features/crate_import, import_engine, macro_attrs, macro_tools
 lua/xynovim/   :checkhealth xynovim
 snippets/       rust.json (registered with blink)
 data/          macro_attrs/*.json: attribute schemas (serde, clap, thiserror, tokio, ...) for the completion inside `#[...(`
-lua/plugins/   one spec per concern (bacon-ls, rustaceanvim, ninety-nine, auto-save, dap, gitsigns, telescope, island-theme, xyno-history, xyno-sandbox, xyno-clipboard, xyno-guard, …)
+lua/plugins/   one spec per concern (bacon-ls, rustaceanvim, ninety-nine, auto-save, dap, gitsigns, telescope, island-theme, xyno-history, xyno-sandbox, xyno-clipboard, xyno-guard, xyno-rust, …)
 colors/        island-dark colourscheme entry point
 lua/island/    Island Dark: init.lua (mapping), palette.lua (generated)
 lua/lualine/   island-dark lualine theme

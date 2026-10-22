@@ -12,7 +12,7 @@ end
 
 --- `cargo metadata --no-deps` for the workspace holding `path`, or nil.
 local function metadata(path)
-  local root = require("config.rust_context").root(path)
+  local root = require("xyno_rust.rust_context").root(path)
   if not root then
     return nil
   end

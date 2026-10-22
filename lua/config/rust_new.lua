@@ -663,7 +663,7 @@ end
 --- Why a workspace `name` in `parent` would nest badly, or nil: an enclosing workspace whose
 --- members cover it (cargo then finds two workspace roots) or an enclosing git work tree.
 function M.nesting_warning(parent, name)
-  local dir = require("config.fsutil").slash(parent):gsub("/+$", "")
+  local dir = require("xyno_rust.fsutil").slash(parent):gsub("/+$", "")
   while dir ~= "" do
     local rel = (parent:sub(#dir + 1) .. "/" .. name):gsub("^/", "")
     local text = read_file(dir .. "/Cargo.toml")
@@ -828,7 +828,7 @@ local function current_workspace()
   if path == "" then
     path = vim.uv.cwd() .. "/x"
   end
-  local root = require("config.rust_context").root(path)
+  local root = require("xyno_rust.rust_context").root(path)
   if not root then
     return nil, "not inside a cargo project"
   end

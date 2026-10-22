@@ -157,7 +157,7 @@ describe("rustaceanvim spec", function()
 
     -- ... and the stored :RustContext cargo settings win over the cargo table
     vim.fn.writefile({ '[package]', 'name = "x"', 'version = "0.1.0"', 'edition = "2021"' }, root .. "/Cargo.toml")
-    local ctx = require("config.rust_context")
+    local ctx = require("xyno_rust.rust_context")
     local real_root = vim.uv.fs_realpath(root)
     local function with_ctx(c)
       local orig_get = ctx.get
@@ -249,7 +249,7 @@ describe("rustaceanvim spec", function()
       end
     end
     walk(ra_opts().default_settings["rust-analyzer"], "rust-analyzer")
-    -- Legacy names (set by LazyVim's rust extra and config.rust_context) that
+    -- Legacy names (set by LazyVim's rust extra and xyno_rust.rust_context) that
     -- the schema no longer lists but the server still honours: no warning is
     -- sent (7b) and allFeatures still switches the features on (the
     -- all-features test below).

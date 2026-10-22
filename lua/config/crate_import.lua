@@ -17,7 +17,7 @@
 -- reaches an argv or a path; the engine only accepts ident paths.
 local M = {}
 
-local cm = require("config.crate_meta")
+local cm = require("xyno_rust.crate_meta")
 
 M.config = {
   max_guesses = 3,
@@ -47,7 +47,7 @@ end
 --- path under the crate (the least surprising re-export).
 function M.wait_and_import(buf, mark_ns, mark, name, spec, cb)
   local engine = require("config.import_engine")
-  local ca = require("config.code_actions")
+  local ca = require("xyno_rust.code_actions")
   local started = vim.uv.now()
   local poll
   local function again()
