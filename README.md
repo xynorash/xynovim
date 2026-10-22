@@ -418,11 +418,11 @@ Thank you to JetBrains for their amazing products. I am a full-in JetBrains user
 ## Layout
 
 ```
-lua/config/    options, keymaps, autocmds, statusline/UX helpers, rust_assist, egui_new, rust_new, lazy, crate_add/crate_features/crate_import, import_engine, macro_attrs, macro_tools
+lua/config/    options, keymaps, autocmds, statusline/UX helpers, rust_assist, lazy, crate_add/crate_features/crate_import, import_engine, macro_attrs, macro_tools
 lua/xynovim/   :checkhealth xynovim
 snippets/       rust.json (registered with blink)
 data/          macro_attrs/*.json: attribute schemas (serde, clap, thiserror, tokio, ...) for the completion inside `#[...(`
-lua/plugins/   one spec per concern (bacon-ls, rustaceanvim, ninety-nine, auto-save, dap, gitsigns, telescope, island-theme, xyno-history, xyno-sandbox, xyno-clipboard, xyno-guard, xyno-rust, …)
+lua/plugins/   one spec per concern (bacon-ls, rustaceanvim, ninety-nine, auto-save, dap, gitsigns, telescope, island-theme, xyno-history, xyno-sandbox, xyno-clipboard, xyno-guard, xyno-rust, xyno-new, …)
 colors/        island-dark colourscheme entry point
 lua/island/    Island Dark: init.lua (mapping), palette.lua (generated)
 lua/lualine/   island-dark lualine theme
