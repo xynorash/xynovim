@@ -6,7 +6,7 @@
 
 [![ci](https://github.com/xynorash/xynovim/actions/workflows/ci.yml/badge.svg)](https://github.com/xynorash/xynovim/actions/workflows/ci.yml)
 ![neovim 0.12](https://img.shields.io/badge/neovim-0.12-57a143?logo=neovim&logoColor=white)
-![license](https://img.shields.io/badge/license-MIT-blue)
+![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![tests](https://img.shields.io/badge/tests-1795%20passing-brightgreen)
 
 Website: https://xynorash.github.io/xynovim/ (with [guides](https://xynorash.github.io/xynovim/#guides) to the workflows below)

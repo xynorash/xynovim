@@ -455,7 +455,7 @@ describe("the page says what the README says", function()
     H.ok(pitch)
     H.match(html, pitch, true)
     H.match(html, "Neovim <b>0.12</b>", true)
-    H.match(html, "MIT", true)
+    H.match(html, "Apache-2.0", true)
     for _, d in ipairs({ "docs/DETAILS.md", "docs/KNOWN_ISSUES.md", "docs/TESTING.md", "tests/COVERAGE.md", "docs/PLAN_MACROS_DEPS.md", "CHANGELOG.md" }) do
       H.ok(exists(repo .. "/" .. d), d)
       H.match(html, "https://github.com/xynorash/xynovim/blob/main/" .. d, true)
@@ -693,7 +693,7 @@ describe("every page: JSON-LD structured data", function()
     end
   end)
 
-  it("the home page says WebSite and SoftwareSourceCode (Lua, MIT, the repository, the author)", function()
+  it("the home page says WebSite and SoftwareSourceCode (Lua, Apache-2.0, the repository, the author)", function()
     local pg = all_pages()[1]
     H.eq("index.html", pg.path)
     local data = vim.json.decode(blocks(pg)[1])
@@ -706,11 +706,11 @@ describe("every page: JSON-LD structured data", function()
     local code = by_type.SoftwareSourceCode
     H.eq("Lua", code.programmingLanguage)
     H.eq("https://github.com/xynorash/xynovim", code.codeRepository)
-    H.eq("https://opensource.org/licenses/MIT", code.license)
+    H.eq("https://www.apache.org/licenses/LICENSE-2.0", code.license)
     H.eq("Xynorash", by_type.Person.name)
     H.eq("https://github.com/xynorash", by_type.Person.url)
     H.eq("https://github.com/xynorash", code.author["@id"])
-    H.match(readme_license(), "MIT", true)
+    H.match(readme_license(), "Apache License", true)
   end)
 
   it("every inner page has a BreadcrumbList that ends at its own canonical URL", function()
