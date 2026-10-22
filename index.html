@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
+<title>xynovim: a personal Neovim config for Rust</title>
+<meta name="description" content="A personal Neovim configuration for Rust on LazyVim: instant two-tier diagnostics, a debugger, a test UI with coverage and a git safety net.">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#1e1f22" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<link rel="canonical" href="https://xynorash.github.io/xynovim/">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="xynovim">
+<meta property="og:locale" content="en">
+<meta property="og:title" content="xynovim: a personal Neovim config for Rust">
+<meta property="og:description" content="A personal Neovim configuration for Rust on LazyVim: instant two-tier diagnostics, a debugger, a test UI with coverage and a git safety net.">
+<meta property="og:url" content="https://xynorash.github.io/xynovim/">
+<meta property="og:image" content="https://xynorash.github.io/xynovim/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="xynovim: a personal Neovim config for Rust, with a screenshot of the editor in the Island Dark theme">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="xynovim: a personal Neovim config for Rust">
+<meta name="twitter:description" content="A personal Neovim configuration for Rust on LazyVim: instant two-tier diagnostics, a debugger, a test UI with coverage and a git safety net.">
+<meta name="twitter:image" content="https://xynorash.github.io/xynovim/assets/og.png">
+<meta name="twitter:image:alt" content="xynovim: a personal Neovim config for Rust, with a screenshot of the editor in the Island Dark theme">
+<link rel="stylesheet" href="assets/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://xynorash.github.io/xynovim/#website",
+      "url": "https://xynorash.github.io/xynovim/",
+      "name": "xynovim",
+      "description": "A personal Neovim configuration for Rust on LazyVim: instant two-tier diagnostics, a debugger, a test UI with coverage and a git safety net.",
+      "inLanguage": "en",
+      "author": {"@id": "https://github.com/xynorash"}
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://xynorash.github.io/xynovim/#code",
+      "name": "xynovim",
+      "description": "A personal Neovim configuration for Rust on LazyVim: instant two-tier diagnostics, a debugger, a test UI with coverage and a git safety net.",
+      "url": "https://xynorash.github.io/xynovim/",
+      "codeRepository": "https://github.com/xynorash/xynovim",
+      "programmingLanguage": "Lua",
+      "runtimePlatform": "Neovim 0.12",
+      "license": "https://www.apache.org/licenses/LICENSE-2.0",
+      "author": {"@id": "https://github.com/xynorash"}
+    },
+    {
+      "@type": "Person",
+      "@id": "https://github.com/xynorash",
+      "name": "Xynorash",
+      "url": "https://github.com/xynorash"
+    }
+  ]
+}
+</script>
+<script src="assets/app.js" defer></script>
+</head>
+<body id="top">
+<svg width="0" height="0" hidden aria-hidden="true" focusable="false">
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></symbol>
+  <symbol id="i-bug" viewBox="0 0 24 24"><path d="M9 7a3 3 0 0 1 6 0M7 9h10v5a5 5 0 0 1-10 0zM12 9v10M3 11l4 1M21 11l-4 1M3 18l4-2M21 18l-4-2"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-tree" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/><path d="M12 7v4M12 11H6v5M12 11h6v5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></symbol>
+  <symbol id="i-branch" viewBox="0 0 24 24"><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 7v10M18 10c0 5-8 3-12 7"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></symbol>
+  <symbol id="i-tick" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+</svg>
+<a class="skip" href="#main">Skip to the content</a>
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="brand" href="#top"><img src="assets/favicon.svg" width="28" height="28" alt="">xynovim</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Show the section menu">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-menu"></use></svg></label>
+    <nav id="site-nav" aria-label="Sections">
+      <ul>
+        <li><a href="#why">Why</a></li>
+        <li><a href="#tour">Tour</a></li>
+        <li><a href="#plugins">Plugins</a></li>
+        <li><a href="#tested">Tested</a></li>
+        <li><a href="#install">Install</a></li>
+        <li><a href="#keys">Keys</a></li>
+        <li><a href="#limits">Limits</a></li>
+        <li><a href="#guides">Guides</a></li>
+        <li><a href="#docs">Docs</a></li>
+      </ul>
+    </nav>
+    <a class="btn" href="https://github.com/xynorash/xynovim"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-branch"></use></svg>GitHub</a>
+  </div>
+</header>
+
+<main id="main">
+<section class="hero" aria-labelledby="title">
+  <div class="wrap hero-grid">
+    <div>
+      <h1 id="title">xynovim<span class="cursor" aria-hidden="true"></span></h1>
+      <p class="pitch">A personal Neovim configuration for Rust, built on LazyVim and inspired by JetBrains' tools. Instant diagnostics, a debugger and test UI, a git safety net, and a test suite you can run yourself.</p>
+      <ul class="pills" aria-label="Project status">
+        <li><a class="pill" href="https://github.com/xynorash/xynovim/actions/workflows/ci.yml">CI <b>workflow</b></a></li>
+        <li><span class="pill">Neovim <b>0.12</b></span></li>
+        <li><span class="pill">license <b>Apache-2.0</b></span></li>
+        <li><span class="pill">tests <b>906 passing</b></span></li>
+      </ul>
+      <ul class="facts">
+        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-bolt"></use></svg><span>Two diagnostic tiers: rust-analyzer while you type, clippy about half a second later.</span></li>
+        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-shield"></use></svg><span>Every save is a git ref you can restore, and the AI agent runs inside a sandbox.</span></li>
+        <li><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-check"></use></svg><span>906 passing checks across 32 spec files, one command to run them.</span></li>
+      </ul>
+      <div class="install-box" id="hero-install">
+        <div class="label"><span>Install</span></div>
+        <pre data-copy><code id="install-cmd"><span class="ln">git clone https://github.com/xynorash/xynovim ~/.config/nvim</span>   <span class="cmt"># or ln -s &lt;checkout&gt; ~/.config/nvim</span>
+<span class="ln">~/.config/nvim/scripts/bootstrap.sh</span></code></pre>
+      </div>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="#tour">Take the tour <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-arrow"></use></svg></a>
+        <a class="btn" href="#install">Install details</a>
+      </div>
+    </div>
+    <div>
+      <figure class="term"><a href="media/01-hero.png"><img src="media/01-hero.png" width="1440" height="820" alt="xynovim editing the netwatch demo crate: Island Dark theme, inlay hints, sticky scope from treesitter-context, statusline with git branch, server state and clippy state" decoding="async" fetchpriority="high"></a><figcaption>The real config on the demo crate: Island Dark, inlay hints, the sticky scope, the statusline with git branch, server state and clippy state.</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="why" aria-labelledby="why-h">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="kicker">What you get</p>
+      <h2 id="why-h">Why xynovim</h2>
+      <p class="lead">Built on <a href="https://github.com/LazyVim/LazyVim">LazyVim</a>, developed on Linux (Arch) and also run in CI on Windows and macOS (see <a href="#platforms">Platforms</a>), with the <strong>Island Dark</strong> colour scheme generated from my own colour-scheme export. Everything on this page was recorded from the real config running on the small demo crate: nothing is mocked up.</p>
+    </div>
+    <ul class="cards">
+<li class="card"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-bolt"></use></svg><p><strong>Two diagnostic tiers</strong>: rust-analyzer answers while you type, clippy follows about half a second later, on every keystroke and before any save.</p></li>
+<li class="card"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-bug"></use></svg><p><strong>A debugger and a test runner that look like the ones in an IDE</strong>: breakpoints with Rust-aware variable views, a test summary tree, coverage in the gutter.</p></li>
+<li class="card"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-shield"></use></svg><p><strong>A safety net</strong>: every save is snapshotted as a git ref (a &ldquo;Local History&rdquo;), and the AI agent runs inside a sandbox.</p></li>
+<li class="card"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-tree"></use></svg><p><strong>Treesitter everywhere</strong>: sticky scope, text objects, SQL injected into <code>sqlx</code> strings, a live syntax-tree view.</p></li>
+<li class="card"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-check"></use></svg><p><strong>Tested</strong>: 906 passing checks across 32 spec files, one per feature area, runnable with one command after a clone (<a href="#tested">below</a>).</p></li>
+    </ul>
+  </div>
+</section>
+
+<section class="section" id="tour" aria-labelledby="tour-h">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="kicker">Feature tour</p>
+      <h2 id="tour-h">A tour, from the real config</h2>
+      <p class="lead">Each recording plays when it scrolls into view (and never with reduced motion enabled); click a screenshot for the full-size image.</p>
+      <ul class="chips" aria-label="Jump to a feature"><li><a href="#f-diagnostics"><code>Diagnostics</code></a></li><li><a href="#f-treesitter"><code>Treesitter</code></a></li><li><a href="#f-refactor"><code>Refactoring</code></a></li><li><a href="#f-tests"><code>Tests</code></a></li><li><a href="#f-debug"><code>Debugging</code></a></li><li><a href="#f-context"><code>:RustContext</code></a></li><li><a href="#f-git"><code>Git</code></a></li><li><a href="#f-theme"><code>Island Dark</code></a></li><li><a href="#f-macros"><code>Macros and dependencies</code></a></li><li><a href="#f-projects"><code>New projects</code></a></li><li><a href="#f-agent"><code>Agent</code></a></li></ul>
+    </div>
+<article class="feature" id="f-diagnostics">
+<div class="feature-text">
+<span class="tag">01 diagnostics</span>
+<h3>Two-tier diagnostics</h3>
+<p>rust-analyzer&rsquo;s own diagnostics appear as you type (type errors in about 0.01 to 0.15 s). <a href="https://github.com/crisidev/bacon-ls">bacon-ls</a> runs clippy against a hardlinked shadow of your workspace on every buffer change (about 0.56 s median), so lints show up before you save. Each message shows its first line plus the source; the full text is one <code>&lt;leader&gt;cd</code> away.</p>
+<ul class="keys"><li><code>&lt;leader&gt;cd</code></li></ul>
+</div>
+<div class="feature-media">
+<figure class="term"><video controls muted loop playsinline preload="none" poster="assets/posters/02.jpg" width="1440" height="820" aria-label="typing a type error, then a clippy lint, then the full message in a float."><source src="media/02-diagnostics.mp4" type="video/mp4">Your browser cannot play this video: <a href="media/02-diagnostics.mp4">download the MP4</a>.</video><figcaption>Recording: typing a type error, then a clippy lint, then the full message in a float. <a href="media/02-diagnostics.mp4">MP4</a></figcaption></figure><div class="shots"><figure class="term"><a href="media/02-diagnostics-type-error.png"><img src="media/02-diagnostics-type-error.png" width="1440" height="820" alt="A type error shown inline the moment it is typed" decoding="async" loading="lazy"></a><figcaption>rust-analyzer, while typing</figcaption></figure><figure class="term"><a href="media/02-diagnostics-float.png"><img src="media/02-diagnostics-float.png" width="1440" height="820" alt="Diagnostic float with the full clippy message and its help text" decoding="async" loading="lazy"></a><figcaption>the full message, with its suggestion</figcaption></figure></div>
+</div>
+</article>
+<article class="feature" id="f-treesitter">
+<div class="feature-text">
+<span class="tag">02 treesitter</span>
+<h3>Treesitter, visibly</h3>
+<p>Treesitter drives the highlighting, the sticky scope at the top of the window (the <code>for</code> / <code>match</code> / arm headers you have scrolled past stay pinned), the text objects and the <code>sqlx</code> SQL injection. Two built-in views make it concrete: <code>:Inspect</code> and <code>:InspectTree</code>.</p>
+<p><code>vaf</code> selects a whole function through the treesitter text objects.</p>
+<ul class="keys"><li><code>:Inspect</code></li><li><code>:InspectTree</code></li><li><code>vaf</code></li></ul>
+</div>
+<div class="feature-media">
+<figure class="term"><video controls muted loop playsinline preload="none" poster="assets/posters/04.jpg" width="1440" height="820" aria-label="the sticky scope, :Inspect, :InspectTree and the vaf text object."><source src="media/04-treesitter.mp4" type="video/mp4">Your browser cannot play this video: <a href="media/04-treesitter.mp4">download the MP4</a>.</video><figcaption>Recording: the sticky scope, :Inspect, :InspectTree and the vaf text object. <a href="media/04-treesitter.mp4">MP4</a></figcaption></figure><div class="shots"><figure class="term"><a href="media/04-treesitter-inspecttree.png"><img src="media/04-treesitter-inspecttree.png" width="1440" height="820" alt=":InspectTree split with the syntax tree following the cursor" decoding="async" loading="lazy"></a><figcaption>:InspectTree: the live syntax tree</figcaption></figure><figure class="term"><a href="media/04-treesitter-textobject.png"><img src="media/04-treesitter-textobject.png" width="1440" height="820" alt="vaf selecting the function parse_ports with its doc comment in visual mode" decoding="async" loading="lazy"></a><figcaption>vaf: the text object</figcaption></figure><figure class="term"><a href="media/04-treesitter-context.png"><img src="media/04-treesitter-context.png" width="1440" height="820" alt="treesitter-context pinning the enclosing for, match and arm headers at the top of the window" decoding="async" loading="lazy"></a><figcaption>the sticky scope</figcaption></figure></div>
+</div>
+</article>
+<article class="feature" id="f-refactor">
+<div class="feature-text">
+<span class="tag">03 refactoring</span>
+<h3>Refactoring and rust-analyzer commands</h3>
+<p>Every rust-analyzer command rustaceanvim offers has a key under <code>&lt;leader&gt;r</code>, discoverable through which-key: extract variable / function / constant / module, inline, structural search and replace, semantic join lines, move item, expand macro, view HIR / MIR, explain error code, workspace symbol including dependencies, go to super method, and more.</p>
+<ul class="keys"><li><code>&lt;leader&gt;rv</code></li><li><code>&lt;leader&gt;rf</code></li><li><code>&lt;leader&gt;rc</code></li><li><code>&lt;leader&gt;ri</code></li><li><code>&lt;leader&gt;rs</code></li></ul>
+</div>
+<div class="feature-media">
+<figure class="term"><video controls muted loop playsinline preload="none" poster="assets/posters/03.jpg" width="1440" height="820" aria-label="the &lt;leader&gt;r menu and a code action lookup on a selection."><source src="media/03-refactor.mp4" type="video/mp4">Your browser cannot play this video: <a href="media/03-refactor.mp4">download the MP4</a>.</video><figcaption>Recording: the &lt;leader&gt;r menu and a code action lookup on a selection. <a href="media/03-refactor.mp4">MP4</a></figcaption></figure><div class="shots"><figure class="term"><a href="media/03-refactor-menu.png"><img src="media/03-refactor-menu.png" width="1440" height="820" alt="which-key popup listing the leader r group of rust-analyzer commands" decoding="async" loading="lazy"></a><figcaption>which-key lists the &lt;leader&gt;r group</figcaption></figure><figure class="term"><a href="media/03-refactor-extract.png"><img src="media/03-refactor-extract.png" width="1440" height="820" alt="A selection in visual mode with a notification reading No code actions available" decoding="async" loading="lazy"></a><figcaption>no code action is offered for this selection</figcaption></figure></div>
+</div>
+</article>
+<article class="feature" id="f-tests">
+<div class="feature-text">
+<span class="tag">04 tests</span>
+<h3>Tests and coverage</h3>
+<p><a href="https://github.com/nvim-neotest/neotest">neotest</a> with the rustaceanvim adapter and <a href="https://nexte.st">cargo-nextest</a>: a summary tree with per-test results, and line coverage from cargo-llvm-cov shown in the gutter.</p>
+<ul class="keys"><li><code>&lt;leader&gt;ts</code></li><li><code>&lt;leader&gt;tt</code></li><li><code>&lt;leader&gt;tr</code></li><li><code>&lt;leader&gt;tc</code></li><li><code>&lt;leader&gt;tg</code></li></ul>
+</div>
+<div class="feature-media">
+<figure class="term"><video controls muted loop playsinline preload="none" poster="assets/posters/05.jpg" width="1440" height="820" aria-label="running tests from the summary tree and toggling the coverage signs."><source src="media/05-tests.mp4" type="video/mp4">Your browser cannot play this video: <a href="media/05-tests.mp4">download the MP4</a>.</video><figcaption>Recording: running tests from the summary tree and toggling the coverage signs. <a href="media/05-tests.mp4">MP4</a></figcaption></figure><div class="shots"><figure class="term"><a href="media/05-tests-summary.png"><img src="media/05-tests-summary.png" width="1440" height="820" alt="neotest summary tree: 5 tests, 3 passed, a tick per test" decoding="async" loading="lazy"></a><figcaption>the summary tree</figcaption></figure><figure class="term"><a href="media/05-tests-coverage.png"><img src="media/05-tests-coverage.png" width="1440" height="820" alt="Coverage bars in the gutter next to the covered lines of parse_ports" decoding="async" loading="lazy"></a><figcaption>coverage in the gutter</figcaption></figure></div>
+</div>
+</article>
+<article class="feature" id="f-debug">
+<div class="feature-text">
+<span class="tag">05 debugging</span>
+<h3>Debugging</h3>
+<p>nvim-dap with codelldb, a dap-ui layout sized for Rust&rsquo;s long type names, and lldb&rsquo;s Rust formatters loaded automatically (a <code>String</code> shows as text and a struct as <code>{host:"127.0.0.1", ...}</code>, not as raw memory). <code>&lt;leader&gt;db</code> sets a breakpoint, <code>&lt;leader&gt;dR</code> lists every debuggable target of the workspace, and a panic stops at the panicking frame.</p>
+<ul class="keys"><li><code>&lt;leader&gt;db</code></li><li><code>&lt;leader&gt;dc</code></li><li><code>&lt;leader&gt;dr</code></li><li><code>&lt;leader&gt;dR</code></li><li><code>&lt;leader&gt;du</code></li></ul>
+</div>
+<div class="feature-media">
+<figure class="term"><video controls muted loop playsinline preload="none" poster="assets/posters/06.jpg" width="1440" height="820" aria-label="setting a breakpoint, launching and inspecting variables."><source src="media/06-debug.mp4" type="video/mp4">Your browser cannot play this video: <a href="media/06-debug.mp4">download the MP4</a>.</video><figcaption>Recording: setting a breakpoint, launching and inspecting variables. <a href="media/06-debug.mp4">MP4</a></figcaption></figure><div class="shots"><figure class="term"><a href="media/06-debug-stopped.png"><img src="media/06-debug-stopped.png" width="1440" height="820" alt="dap-ui stopped at a breakpoint: locals, stack, console and inline values" decoding="async" loading="lazy"></a><figcaption>stopped at a breakpoint</figcaption></figure><figure class="term"><a href="media/06-debug-picker.png"><img src="media/06-debug-picker.png" width="1440" height="820" alt="Picker listing the debuggable targets of the workspace" decoding="async" loading="lazy"></a><figcaption>every debuggable target</figcaption></figure></div>
+</div>
+</article>
+<article class="feature" id="f-context">
+<div class="feature-text">
+<span class="tag">06 features and target</span>
+<h3>One feature set for both tiers: :RustContext</h3>
+<p>Cargo features and the build target are chosen per project and applied to <strong>both</strong> rust-analyzer and bacon-ls, so the two tiers never disagree. In the demo <code>ssr</code> and <code>csr</code> are mutually exclusive: with all features on, both tiers report the conflict; choosing only <code>ssr</code> makes it go away in both.</p>
+<p>The choice is stored per workspace and survives restarts. <code>:RustTargets</code> lists every bin / example / test / bench with run, test, build, profile and flamegraph actions; <code>:RustTools</code> covers cargo-deny, audit, machete, bloat and build timings.</p>
+<ul class="keys"><li><code>:RustContext</code></li><li><code>:RustTargets</code></li><li><code>:RustTools</code></li><li><code>&lt;leader&gt;rF</code></li><li><code>&lt;leader&gt;rX</code></li></ul>
+</div>
+<div class="feature-media">
+<figure class="term"><video controls muted loop playsinline preload="none" poster="assets/posters/07.jpg" width="1440" height="820" aria-label="choosing features and a target, and the conflict going away."><source src="media/07-context.mp4" type="video/mp4">Your browser cannot play this video: <a href="media/07-context.mp4">download the MP4</a>.</video><figcaption>Recording: choosing features and a target, and the conflict going away. <a href="media/07-context.mp4">MP4</a></figcaption></figure><div class="shots"><figure class="term"><a href="media/07-context-picker.png"><img src="media/07-context-picker.png" width="1440" height="820" alt="Feature picker listing all features, default only, no-default, csr, json and ssr" decoding="async" loading="lazy"></a><figcaption>choose features (Tab multi-selects)</figcaption></figure><figure class="term"><a href="media/07-context-target.png"><img src="media/07-context-target.png" width="1440" height="820" alt="Target picker: host default, wasm32, x86_64 linux" decoding="async" loading="lazy"></a><figcaption>choose the target</figcaption></figure><figure class="term"><a href="media/07-context-resolved.png"><img src="media/07-context-resolved.png" width="1440" height="820" alt="The csr side greyed out as inactive; the statusline is back to clippy ok" decoding="async" loading="lazy"></a><figcaption>resolved</figcaption></figure></div>
+</div>
+</article>
+<article class="feature" id="f-git">
+<div class="feature-text">
+<span class="tag">07 git</span>
+<h3>Git, and a safety net</h3>
+<p>lazygit (with <code>delta</code>), diffview for diffs, merge conflicts and file history, <code>mergiraf</code> as a syntax-aware merge driver, and <strong>Local History</strong>: every save (manual or auto-save, throttled) also writes the whole worktree, untracked files included, as a commit under <code>refs/lochist/</code> using a private index. Deleted files and <code>git reset --hard</code> become recoverable without touching your real index, stash or branches.</p>
+<p><code>:LocalHistory</code> browses and diffs, <code>:LocalHistoryRestore</code> restores, <code>:LocalHistoryPrune</code> cleans up.</p>
+<ul class="keys"><li><code>&lt;leader&gt;gg</code></li><li><code>&lt;leader&gt;gv</code></li><li><code>&lt;leader&gt;gH</code></li><li><code>:LocalHistory</code></li></ul>
+</div>
+<div class="feature-media">
+<figure class="term"><video controls muted loop playsinline preload="none" poster="assets/posters/08.jpg" width="1440" height="820" aria-label="lazygit, diffview and the local history picker."><source src="media/08-git.mp4" type="video/mp4">Your browser cannot play this video: <a href="media/08-git.mp4">download the MP4</a>.</video><figcaption>Recording: lazygit, diffview and the local history picker. <a href="media/08-git.mp4">MP4</a></figcaption></figure><div class="shots"><figure class="term"><a href="media/08-git-local-history.png"><img src="media/08-git-local-history.png" width="1440" height="820" alt="Local history picker listing the snapshots of src/lib.rs" decoding="async" loading="lazy"></a><figcaption>local history</figcaption></figure><figure class="term"><a href="media/08-git-diffview.png"><img src="media/08-git-diffview.png" width="1440" height="820" alt="diffview file panel and a side-by-side diff" decoding="async" loading="lazy"></a><figcaption>diffview</figcaption></figure></div>
+</div>
+</article>
+<article class="feature" id="f-theme">
+<div class="feature-text">
+<span class="tag">08 theme</span>
+<h3>Island Dark</h3>
+<p>The colour scheme is generated from my own colour-scheme export, which is not distributed (the generated palette is <a href="https://github.com/xynorash/xynovim/blob/main/lua/island/palette.lua">lua/island/palette.lua</a>), by <a href="https://github.com/xynorash/xynovim/blob/main/tools/icls2nvim.py">tools/icls2nvim.py</a>, which converts a scheme file you supply yourself: colours, italics, underlines and the <code>org.rust.*</code> entries that colour structs, enums, macros and lifetimes. Contrast was checked against WCAG targets and lifted where the export was too dim. Floats and the completion menu stay solid on a transparent editor (<code>&lt;leader&gt;uO</code> toggles the editor background).</p>
+<ul class="swatches" aria-label="The Island Dark palette"><li><i class="sw-bg"></i>background<br>#1e1f22</li><li><i class="sw-panel"></i>panel<br>#2b2d30</li><li><i class="sw-text"></i>text<br>#bcbec4</li><li><i class="sw-muted"></i>muted<br>#9da0a8</li><li><i class="sw-blue"></i>blue<br>#56a8f5</li><li><i class="sw-green"></i>green<br>#6aab73</li><li><i class="sw-orange"></i>orange<br>#cf8e6d</li><li><i class="sw-purple"></i>purple<br>#c77dbb</li><li><i class="sw-yellow"></i>yellow<br>#f2c55c</li><li><i class="sw-red"></i>red<br>#f75464</li></ul>
+</div>
+<div class="feature-media">
+<figure class="term"><video controls muted loop playsinline preload="none" poster="assets/posters/09.jpg" width="1440" height="820" aria-label="completion with documentation, hover and the picker in Island Dark."><source src="media/09-theme.mp4" type="video/mp4">Your browser cannot play this video: <a href="media/09-theme.mp4">download the MP4</a>.</video><figcaption>Recording: completion with documentation, hover and the picker in Island Dark. <a href="media/09-theme.mp4">MP4</a></figcaption></figure><div class="shots"><figure class="term"><a href="media/09-theme-picker.png"><img src="media/09-theme-picker.png" width="1440" height="820" alt="snacks file picker in Island Dark" decoding="async" loading="lazy"></a><figcaption>picker</figcaption></figure><figure class="term"><a href="media/09-theme-completion.png"><img src="media/09-theme-completion.png" width="1440" height="820" alt="blink.cmp menu next to a documentation window" decoding="async" loading="lazy"></a><figcaption>completion with documentation</figcaption></figure></div>
+</div>
+</article>
+<article class="feature intro" id="f-macros">
+<div class="feature-text">
+<span class="tag">09 macros and dependencies</span>
+<h3>Macros and dependencies</h3>
+<p>Adding a crate used to leave its macros and features half used: no completion inside <code>#[serde(</code>, no <code>use</code> for a crate that is not a dependency yet, a missing <code>derive</code> feature that nothing pointed at, a stale <code>cannot find crate</code> error after <code>cargo add</code>. Everything runs in nvim on top of rust-analyzer, <code>cargo</code> and treesitter; no extra language server.</p>
+<p>Attribute completion is data driven: one JSON file per crate in <a href="https://github.com/xynorash/xyno-macros.nvim/tree/main/data/macro_attrs"><code>data/macro_attrs/</code></a> of the xyno-macros.nvim plugin (serde, clap, thiserror, tokio, strum, derive_more, sqlx, utoipa, schemars, bon), and a project can add its own in <code>.xynovim/macro_attrs/</code>.</p>
+</div>
+</article>
+<article class="subfeature" id="f-add-crate">
+<div class="feature-text">
+<span class="tag">add a crate</span>
+<h4>Adding a crate that is no dependency yet</h4>
+<p><code>uuid::Uuid::new_v4()</code> without <code>uuid</code> in <code>Cargo.toml</code>: the code action offers &ldquo;Add crate <code>uuid</code>&rdquo;, the picker lists the crates.io results and the features of the chosen release (here <code>v4</code> toggled on), the target package is asked, then <code>cargo add</code> runs and the error goes away without waiting. Typing <code>Uuid</code> afterwards asks to import it.</p>
+<ul class="keys"><li><code>&lt;leader&gt;rA</code></li><li><code>:CrateAdd</code></li><li><code>:CrateFeatures</code></li><li><code>&lt;leader&gt;rI</code></li></ul>
+</div>
+<div class="feature-media">
+<figure class="term"><video controls muted loop playsinline preload="none" poster="assets/posters/11.jpg" width="1440" height="820" aria-label="the unknown crate uuid, the code action, the feature picker and the import."><source src="media/11-add-crate.mp4" type="video/mp4">Your browser cannot play this video: <a href="media/11-add-crate.mp4">download the MP4</a>.</video><figcaption>Recording: the unknown crate uuid, the code action, the feature picker and the import. <a href="media/11-add-crate.mp4">MP4</a></figcaption></figure><div class="shots"><figure class="term"><a href="media/11-add-crate-hint.png"><img src="media/11-add-crate-hint.png" width="1440" height="820" alt="The unknown crate uuid in a path, with the error" decoding="async" loading="lazy"></a><figcaption>the hint on the unknown crate</figcaption></figure><figure class="term"><a href="media/11-add-crate-search.png"><img src="media/11-add-crate-search.png" width="1440" height="820" alt="crates.io search results for uuid" decoding="async" loading="lazy"></a><figcaption>crates.io search</figcaption></figure><figure class="term"><a href="media/11-add-crate-cargo-toml.png"><img src="media/11-add-crate-cargo-toml.png" width="1440" height="820" alt="Cargo.toml with the new uuid dependency" decoding="async" loading="lazy"></a><figcaption>the new dependency</figcaption></figure></div>
+</div>
+</article>
+<article class="subfeature" id="f-attributes">
+<div class="feature-text">
+<span class="tag">attributes and derives</span>
+<h4>The missing feature, derive and attribute completion</h4>
+<p><code>serde</code> without its <code>derive</code> feature gives <code>cannot find derive macro Serialize</code>; <code>&lt;leader&gt;rG</code> enables the feature in <code>Cargo.toml</code>. <code>#[derive(Des</code> completes derive names with docs and adds the <code>use</code> on accept; <code>#[serde(</code> and <code>#[arg(</code> offer keys with their docs, and <code>rename_all = "</code> offers its values.</p>
+<ul class="keys"><li><code>&lt;leader&gt;rG</code></li><li><code>#[serde(</code></li><li><code>#[arg(</code></li><li><code>#[derive(</code></li></ul>
+</div>
+<div class="feature-media">
+<figure class="term"><video controls muted loop playsinline preload="none" poster="assets/posters/12.jpg" width="1440" height="820" aria-label="the missing derive feature, enabling it, and attribute completion."><source src="media/12-attributes.mp4" type="video/mp4">Your browser cannot play this video: <a href="media/12-attributes.mp4">download the MP4</a>.</video><figcaption>Recording: the missing derive feature, enabling it, and attribute completion. <a href="media/12-attributes.mp4">MP4</a></figcaption></figure><div class="shots"><figure class="term"><a href="media/12-attributes-missing-feature.png"><img src="media/12-attributes-missing-feature.png" width="1440" height="820" alt="Error: cannot find derive macro Serialize in this scope" decoding="async" loading="lazy"></a><figcaption>derive macro not found</figcaption></figure><figure class="term"><a href="media/12-attributes-serde-keys.png"><img src="media/12-attributes-serde-keys.png" width="1440" height="820" alt="serde attribute keys offered with their documentation" decoding="async" loading="lazy"></a><figcaption>serde keys</figcaption></figure><figure class="term"><a href="media/12-attributes-serde-values.png"><img src="media/12-attributes-serde-values.png" width="1440" height="820" alt="rename_all values offered inside the string" decoding="async" loading="lazy"></a><figcaption>rename_all values</figcaption></figure></div>
+</div>
+</article>
+<article class="subfeature" id="f-imports">
+<div class="feature-text">
+<span class="tag">imports and macros</span>
+<h4>Ranked imports, macro expansion and signature help</h4>
+<p><code>Error</code> exists in std, <code>std::io</code>, <code>std::fmt</code> and clap: <code>&lt;leader&gt;rI</code> ranks them with the reasons; the pick is remembered, so the next file offers it as the single import. <code>&lt;leader&gt;rx</code> shows the expansion of a derive, <code>gi</code> lists what it generated, and <code>&lt;C-k&gt;</code> shows the matcher arms of a <code>macro_rules!</code> call (the arm that fits the arguments typed so far is highlighted).</p>
+<ul class="keys"><li><code>&lt;leader&gt;rI</code></li><li><code>&lt;leader&gt;rO</code></li><li><code>&lt;leader&gt;rx</code></li><li><code>&lt;C-k&gt;</code></li></ul>
+</div>
+<div class="feature-media">
+<figure class="term"><video controls muted loop playsinline preload="none" poster="assets/posters/13.jpg" width="1440" height="820" aria-label="ranked Error imports, the macro expansion and the signature help."><source src="media/13-imports.mp4" type="video/mp4">Your browser cannot play this video: <a href="media/13-imports.mp4">download the MP4</a>.</video><figcaption>Recording: ranked Error imports, the macro expansion and the signature help. <a href="media/13-imports.mp4">MP4</a></figcaption></figure><div class="shots"><figure class="term"><a href="media/13-imports-remembered.png"><img src="media/13-imports-remembered.png" width="1440" height="820" alt="The remembered choice offered in another file" decoding="async" loading="lazy"></a><figcaption>the choice, remembered</figcaption></figure><figure class="term"><a href="media/13-imports-expand.png"><img src="media/13-imports-expand.png" width="1440" height="820" alt="Macro expansion of derive(Parser) in a read-only split" decoding="async" loading="lazy"></a><figcaption>macro expansion</figcaption></figure><figure class="term"><a href="media/13-imports-signature-arm.png"><img src="media/13-imports-signature-arm.png" width="1440" height="820" alt="Signature help on a macro_rules call with the matching arm highlighted" decoding="async" loading="lazy"></a><figcaption>signature help on a macro_rules call</figcaption></figure></div>
+</div>
+</article>
+<article class="feature intro" id="f-projects">
+<div class="feature-text">
+<span class="tag">10 new projects</span>
+<h3>New projects</h3>
+<p>Start an egui app, a binary, a library or a workspace from the dashboard or a command, with the prompts, the name rules and the failure cleanup done for you.</p>
+</div>
+</article>
+<article class="subfeature" id="f-egui">
+<div class="feature-text">
+<span class="tag">egui</span>
+<h4>New egui project</h4>
+<p>The dashboard has a <strong>New egui Project</strong> entry (<code>e</code>) and there is the command <code>:EguiNew [name]</code>. Both follow the steps of <a href="https://github.com/emilk/eframe_template">emilk/eframe_template</a> against the <strong>current</strong> template: the ZIP of its <code>main</code> branch is downloaded every time (never a copy kept in this config) and personalised, so a new egui or eframe release of the template is picked up without touching the config.</p>
+<p>It asks for the project name, author name and e-mail (prefilled from <code>git config</code>) and the parent directory; the template&rsquo;s toolchain pin is not copied, so your own Rust is used.</p>
+<ul class="keys"><li><code>:EguiNew</code></li><li><code>dashboard e</code></li></ul>
+</div>
+<div class="feature-media">
+<figure class="term"><video controls muted loop playsinline preload="none" poster="assets/posters/14.jpg" width="1440" height="820" aria-label="the dashboard entry, the prompts and the created project."><source src="media/14-egui-new.mp4" type="video/mp4">Your browser cannot play this video: <a href="media/14-egui-new.mp4">download the MP4</a>.</video><figcaption>Recording: the dashboard entry, the prompts and the created project. <a href="media/14-egui-new.mp4">MP4</a></figcaption></figure><div class="shots"><figure class="term"><a href="media/14-egui-new-dashboard.png"><img src="media/14-egui-new-dashboard.png" width="1440" height="820" alt="The dashboard with the New egui Project entry" decoding="async" loading="lazy"></a><figcaption>the dashboard entry</figcaption></figure><figure class="term"><a href="media/14-egui-new-author.png"><img src="media/14-egui-new-author.png" width="1440" height="820" alt="Author name prefilled, with crate name weather_panel shown" decoding="async" loading="lazy"></a><figcaption>prompts, prefilled from git config</figcaption></figure><figure class="term"><a href="media/14-egui-new-main-rs.png"><img src="media/14-egui-new-main-rs.png" width="1440" height="820" alt="src/main.rs using weather_panel::TemplateApp" decoding="async" loading="lazy"></a><figcaption>the personalised project</figcaption></figure></div>
+</div>
+</article>
+<article class="subfeature" id="f-rust-new">
+<div class="feature-text">
+<span class="tag">binary, library, workspace</span>
+<h4>New Rust binary, library and workspace</h4>
+<p>Three entries on the dashboard, <strong>New Rust Binary</strong> (<code>b</code>), <strong>New Rust Library</strong> (<code>i</code>) and <strong>New Rust Workspace</strong> (<code>w</code>), and the commands <code>:RustNewBin</code>, <code>:RustNewLib</code>, <code>:RustNewWorkspace</code> and <code>:RustNewMember</code>.</p>
+<p>A binary or library is <code>cargo new --vcs git</code> in a chosen parent directory. A workspace has no one-step cargo command, so it is built here: a root <code>Cargo.toml</code> with <code>members = ["crates/*"]</code>, <code>[workspace.package]</code> and an empty <code>[workspace.dependencies]</code>, a first member that inherits version and edition, and <code>git init -b main</code>. <code>:RustNewMember</code> adds a member to the workspace of the current buffer.</p>
+<ul class="keys"><li><code>:RustNewBin</code></li><li><code>:RustNewLib</code></li><li><code>:RustNewWorkspace</code></li><li><code>:RustNewMember</code></li></ul>
+</div>
+<div class="feature-media">
+<figure class="term"><video controls muted loop playsinline preload="none" poster="assets/posters/15.jpg" width="1440" height="820" aria-label="the workspace flow, its generated tree and manifests, then a binary."><source src="media/15-rust-new.mp4" type="video/mp4">Your browser cannot play this video: <a href="media/15-rust-new.mp4">download the MP4</a>.</video><figcaption>Recording: the workspace flow, its generated tree and manifests, then a binary. <a href="media/15-rust-new.mp4">MP4</a></figcaption></figure><div class="shots"><figure class="term"><a href="media/15-rust-new-dashboard.png"><img src="media/15-rust-new-dashboard.png" width="1440" height="820" alt="The dashboard with the three Rust entries and New egui Project" decoding="async" loading="lazy"></a><figcaption>the dashboard entries</figcaption></figure><figure class="term"><a href="media/15-rust-new-workspace-cargo-toml.png"><img src="media/15-rust-new-workspace-cargo-toml.png" width="1440" height="820" alt="Root Cargo.toml with workspace, resolver and workspace.package" decoding="async" loading="lazy"></a><figcaption>the root manifest</figcaption></figure></div>
+</div>
+</article>
+<article class="feature" id="f-agent">
+<div class="feature-text">
+<span class="tag">11 agent</span>
+<h3>The AI agent, sandboxed</h3>
+</div>
+<div class="feature-media"><div class="note"><p><a href="https://github.com/ThePrimeagen/99">99</a> with the Claude Code provider is wired in (<code>&lt;leader&gt;9</code>), and its <code>claude --dangerously-skip-permissions</code> runs inside <strong>bubblewrap</strong>, which exists only on Linux, so the agent only runs where a sandbox exists (Linux with <code>bwrap</code>); without one, 99 refuses to start a request unless you opt out explicitly (<code>vim.g.xynovim_99_sandbox = false</code>, or <code>vim.g.xynovim_99_allow_unsandboxed = true</code> when there is no sandbox backend), and every unsandboxed request warns. Where <code>bwrap</code> works: the filesystem is read-only except the project and Claude&rsquo;s own state, credentials and agent sockets are hidden, <code>.git/hooks</code>, <code>.git/config</code> and Claude&rsquo;s settings are locked read-only, the environment is scrubbed of tokens, and every request is preceded by a Local History snapshot with auto-save paused. It is a seatbelt, not a jail: the network stays open (details in <a href="https://github.com/xynorash/xynovim/blob/main/docs/DETAILS.md">docs/DETAILS.md</a>). There are no screenshots: the sandbox has no UI, and a real request needs an account.</p></div></div>
+</article>
+  </div>
+</section>
+
+<section class="section" id="plugins" aria-labelledby="plugins-h">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="kicker">Use the parts on their own</p>
+      <h2 id="plugins-h">Plugins</h2>
+      <p class="lead">These are the original parts of my config that I extracted into standalone plugins, so anyone can use them without the rest of xynovim. There are nine, all public, tagged <code>v0.1.0</code> with a release on GitHub (xyno-sandbox is at <code>v0.1.1</code>). The plugins are MIT licensed and install with lazy.nvim; xynovim itself stays Apache-2.0. Linux is the tested platform, and each card says what is and is not verified elsewhere. <a href="plugins/">The plugins page</a> has the details, the install order and the questions I expect.</p>
+    </div>
+<figure class="dep">
+<ul class="dep-stack" aria-label="The Rust toolkit, each plugin above what it needs">
+<li class="dg dg-rust"><a href="#plugin-rust">xyno-rust.nvim</a><span>the shared base</span></li>
+<li class="dg dg-new"><a href="#plugin-new">xyno-new.nvim</a><span>needs xyno-rust</span></li>
+<li class="dg dg-imports"><a href="#plugin-imports">xyno-imports.nvim</a><span>needs xyno-rust</span></li>
+<li class="dg dg-crates"><a href="#plugin-crates">xyno-crates.nvim</a><span>needs xyno-rust and xyno-imports</span></li>
+<li class="dg dg-macros"><a href="#plugin-macros">xyno-macros.nvim</a><span>needs xyno-rust and xyno-imports</span></li>
+</ul>
+<div class="dep-solo"><p><b>Standalone</b>: no other xyno plugin needed</p><ul aria-label="Standalone plugins">
+<li><a href="#plugin-history">xyno-history.nvim</a></li>
+<li><a href="#plugin-sandbox">xyno-sandbox.nvim</a></li>
+<li><a href="#plugin-clipboard">xyno-clipboard.nvim</a></li>
+<li><a href="#plugin-guard">xyno-guard.nvim</a></li>
+</ul></div>
+<figcaption>Which plugin needs which. In the Rust toolkit each block stands on what it needs: xyno-rust.nvim is the base, xyno-new.nvim and xyno-imports.nvim need only it, and xyno-crates.nvim and xyno-macros.nvim need both xyno-rust.nvim and xyno-imports.nvim.</figcaption>
+</figure>
+    <h3 class="sub" id="plugins-standalone">Standalone</h3>
+    <ul class="plugins">
+<li class="plugin" id="plugin-history">
+<h4><a href="plugins/#xyno-history">xyno-history.nvim</a></h4>
+<p>Local History for Neovim: every throttled save is snapshotted into private git refs, so deletions, resets and bad edits can be recovered.</p>
+<p class="plug-needs"><b>Needs</b> Neovim 0.12+, git; no other plugin</p>
+<p class="plug-badge"><span class="badge">Linux tested; Windows and macOS not verified</span></p>
+<div class="block"><pre data-copy class="lua"><code>{ "xynorash/xyno-history.nvim", event = "VeryLazy", opts = {} }</code></pre></div>
+<p class="plug-links"><a href="https://github.com/xynorash/xyno-history.nvim" rel="noopener">Repository<span class="vh"> of xyno-history.nvim</span></a> <a href="https://github.com/xynorash/xyno-history.nvim/releases/tag/v0.1.0" rel="noopener">Release v0.1.0<span class="vh"> of xyno-history.nvim</span></a></p>
+</li>
+<li class="plugin" id="plugin-sandbox">
+<h4><a href="plugins/#xyno-sandbox">xyno-sandbox.nvim</a></h4>
+<p>Runs a command-line coding agent inside a bubblewrap sandbox and refuses to start it without one. Linux only.</p>
+<p class="plug-needs"><b>Needs</b> Neovim 0.12+, Linux with bubblewrap (bwrap); no other plugin</p>
+<p class="plug-badge"><span class="badge">Linux only</span></p>
+<div class="block"><pre data-copy class="lua"><code>{
+  "xynorash/xyno-sandbox.nvim",
+  cmd = { "XynoSandboxStatus", "XynoSandboxRun" },
+  opts = {},
+}</code></pre></div>
+<p class="plug-links"><a href="https://github.com/xynorash/xyno-sandbox.nvim" rel="noopener">Repository<span class="vh"> of xyno-sandbox.nvim</span></a> <a href="https://github.com/xynorash/xyno-sandbox.nvim/releases/tag/v0.1.1" rel="noopener">Release v0.1.1<span class="vh"> of xyno-sandbox.nvim</span></a></p>
+</li>
+<li class="plugin" id="plugin-clipboard">
+<h4><a href="plugins/#xyno-clipboard">xyno-clipboard.nvim</a></h4>
+<p>A clipboard provider for sessions whose yanks must reach another machine: tmux, SSH and herdr panes get OSC 52 copy, with no change anywhere else.</p>
+<p class="plug-needs"><b>Needs</b> Neovim 0.12+, Linux; wl-copy and wl-paste optional</p>
+<p class="plug-badge"><span class="badge">Linux only</span></p>
+<div class="block"><pre data-copy class="lua"><code>{
+  "xynorash/xyno-clipboard.nvim",
+  lazy = false, -- the provider should exist before the first yank
+  opts = {},
+}</code></pre></div>
+<p class="plug-links"><a href="https://github.com/xynorash/xyno-clipboard.nvim" rel="noopener">Repository<span class="vh"> of xyno-clipboard.nvim</span></a> <a href="https://github.com/xynorash/xyno-clipboard.nvim/releases/tag/v0.1.0" rel="noopener">Release v0.1.0<span class="vh"> of xyno-clipboard.nvim</span></a></p>
+</li>
+<li class="plugin" id="plugin-guard">
+<h4><a href="plugins/#xyno-guard">xyno-guard.nvim</a></h4>
+<p>Keeps auto-save away from files it must never write: dependency and standard-library sources, files changed on disk, and similar. Works with any auto-save plugin.</p>
+<p class="plug-needs"><b>Needs</b> Neovim 0.12+; an auto-save plugin with a condition function (I use okuuva/auto-save.nvim)</p>
+<p class="plug-badge"><span class="badge">Linux tested; Windows and macOS not verified</span></p>
+<div class="block"><pre data-copy class="lua"><code>{
+  "okuuva/auto-save.nvim",
+  event = { "InsertLeave", "TextChanged", "TextChangedI" },
+  dependencies = { "xynorash/xyno-guard.nvim" },
+  opts = function()
+    require("xyno_guard").setup()
+    return { condition = require("xyno_guard").can_save }
+  end,
+}</code></pre></div>
+<p class="plug-links"><a href="https://github.com/xynorash/xyno-guard.nvim" rel="noopener">Repository<span class="vh"> of xyno-guard.nvim</span></a> <a href="https://github.com/xynorash/xyno-guard.nvim/releases/tag/v0.1.0" rel="noopener">Release v0.1.0<span class="vh"> of xyno-guard.nvim</span></a></p>
+</li>
+    </ul>
+    <h3 class="sub" id="plugins-toolkit">Rust toolkit</h3>
+    <ul class="plugins">
+<li class="plugin" id="plugin-rust">
+<h4><a href="plugins/#xyno-rust">xyno-rust.nvim</a></h4>
+<p>Rust project plumbing for Neovim: a per-project Cargo context, a targets picker, an HTTP route picker, navigation helpers, language-server restart handling and a statusline readiness indicator.</p>
+<p class="plug-needs"><b>Needs</b> Neovim 0.12+, cargo, snacks.nvim for the pickers; rust-analyzer for the navigation helpers</p>
+<p class="plug-badge"><span class="badge">Linux tested; Windows and macOS not verified</span></p>
+<div class="block"><pre data-copy class="lua"><code>{
+  "xynorash/xyno-rust.nvim",
+  dependencies = { "folke/snacks.nvim" }, -- pickers and terminals
+  ft = "rust",
+  cmd = { "RustContext", "RustTargets", "RustTools", "RustRoutes", "RustNew", "RustRestart", "ActJob" },
+  opts = {},
+}</code></pre></div>
+<p class="plug-links"><a href="https://github.com/xynorash/xyno-rust.nvim" rel="noopener">Repository<span class="vh"> of xyno-rust.nvim</span></a> <a href="https://github.com/xynorash/xyno-rust.nvim/releases/tag/v0.1.0" rel="noopener">Release v0.1.0<span class="vh"> of xyno-rust.nvim</span></a></p>
+</li>
+<li class="plugin" id="plugin-new">
+<h4><a href="plugins/#xyno-new">xyno-new.nvim</a></h4>
+<p>New Rust projects from inside Neovim: a binary, a library, a workspace or an egui app, each behind a few guarded prompts.</p>
+<p class="plug-needs"><b>Needs</b> xyno-rust.nvim, Neovim 0.12+, cargo; git optional; curl and unzip for :EguiNew</p>
+<p class="plug-badge"><span class="badge">Linux tested; Windows and macOS not verified</span></p>
+<div class="block"><pre data-copy class="lua"><code>{
+  "xynorash/xyno-new.nvim",
+  dependencies = { "xynorash/xyno-rust.nvim" },
+  cmd = { "RustNewBin", "RustNewLib", "RustNewWorkspace", "RustNewMember", "EguiNew" },
+  opts = {},
+}</code></pre></div>
+<p class="plug-links"><a href="https://github.com/xynorash/xyno-new.nvim" rel="noopener">Repository<span class="vh"> of xyno-new.nvim</span></a> <a href="https://github.com/xynorash/xyno-new.nvim/releases/tag/v0.1.0" rel="noopener">Release v0.1.0<span class="vh"> of xyno-new.nvim</span></a></p>
+</li>
+<li class="plugin" id="plugin-imports">
+<h4><a href="plugins/#xyno-imports">xyno-imports.nvim</a></h4>
+<p>Imports without the menu for Rust: auto-import of unresolved names, ranked disambiguation with a per-project memory, and organize imports, on top of rust-analyzer code actions.</p>
+<p class="plug-needs"><b>Needs</b> xyno-rust.nvim, Neovim 0.12+, cargo, rust-analyzer, tree-sitter rust parser</p>
+<p class="plug-badge"><span class="badge">Linux tested; Windows and macOS not verified</span></p>
+<div class="block"><pre data-copy class="lua"><code>{
+  "xynorash/xyno-imports.nvim",
+  dependencies = { "xynorash/xyno-rust.nvim" },
+  ft = "rust",
+  cmd = { "ImportName", "ImportForget", "ImportOrganize" },
+  opts = {},
+}</code></pre></div>
+<p class="plug-links"><a href="https://github.com/xynorash/xyno-imports.nvim" rel="noopener">Repository<span class="vh"> of xyno-imports.nvim</span></a> <a href="https://github.com/xynorash/xyno-imports.nvim/releases/tag/v0.1.0" rel="noopener">Release v0.1.0<span class="vh"> of xyno-imports.nvim</span></a></p>
+</li>
+<li class="plugin" id="plugin-crates">
+<h4><a href="plugins/#xyno-crates">xyno-crates.nvim</a></h4>
+<p>Cargo dependencies from inside Neovim: search crates.io, add crates with their features, enable a missing feature from a code action, and import from crates that are not dependencies yet.</p>
+<p class="plug-needs"><b>Needs</b> xyno-rust.nvim, xyno-imports.nvim, snacks.nvim, Neovim 0.12+, cargo, network for crates.io</p>
+<p class="plug-badge"><span class="badge">Linux tested; Windows and macOS not verified</span></p>
+<div class="block"><pre data-copy class="lua"><code>{
+  "xynorash/xyno-crates.nvim",
+  dependencies = {
+    "xynorash/xyno-rust.nvim",
+    "xynorash/xyno-imports.nvim",
+    "folke/snacks.nvim", -- pickers
+  },
+  ft = "rust",
+  cmd = { "CrateAdd", "CrateFeatures" },
+  opts = {},
+}</code></pre></div>
+<p class="plug-links"><a href="https://github.com/xynorash/xyno-crates.nvim" rel="noopener">Repository<span class="vh"> of xyno-crates.nvim</span></a> <a href="https://github.com/xynorash/xyno-crates.nvim/releases/tag/v0.1.0" rel="noopener">Release v0.1.0<span class="vh"> of xyno-crates.nvim</span></a></p>
+</li>
+<li class="plugin" id="plugin-macros">
+<h4><a href="plugins/#xyno-macros">xyno-macros.nvim</a></h4>
+<p>Rust macro help in Neovim: completion inside helper attributes and derives (serde, clap, tokio, sqlx and more), macro_rules! signature help, :MacroExpand and proc-macro status.</p>
+<p class="plug-needs"><b>Needs</b> xyno-rust.nvim, xyno-imports.nvim, Neovim 0.12+, cargo, rust-analyzer; blink.cmp optional</p>
+<p class="plug-badge"><span class="badge">Linux tested; Windows and macOS not verified</span></p>
+<div class="block"><pre data-copy class="lua"><code>{
+  "xynorash/xyno-macros.nvim",
+  dependencies = { "xynorash/xyno-rust.nvim", "xynorash/xyno-imports.nvim" },
+  ft = "rust",
+  cmd = { "MacroExpand", "MacroFormatFix", "MacroSignature", "ProcMacroStatus", "MacroAttrs" },
+  opts = {},
+}</code></pre></div>
+<p class="plug-links"><a href="https://github.com/xynorash/xyno-macros.nvim" rel="noopener">Repository<span class="vh"> of xyno-macros.nvim</span></a> <a href="https://github.com/xynorash/xyno-macros.nvim/releases/tag/v0.1.0" rel="noopener">Release v0.1.0<span class="vh"> of xyno-macros.nvim</span></a></p>
+</li>
+    </ul>
+    <p><a class="btn btn-primary" href="plugins/">All nine plugins, the full install spec and the FAQ</a></p>
+  </div>
+</section>
+
+<section class="section" id="tested" aria-labelledby="tested-h">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="kicker">Run them yourself</p>
+      <h2 id="tested-h">Tested</h2>
+      <p class="lead">The config ships with an automated suite. Each spec file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest.</p>
+    </div>
+    <ul class="stats">
+      <li class="stat"><b>32</b><span>spec files</span></li>
+      <li class="stat"><b>906</b><span>checks passing</span></li>
+      <li class="stat"><b>35</b><span>skipped with a stated reason</span></li>
+      <li class="stat"><b>0</b><span>failing</span></li>
+    </ul>
+    <div class="two">
+      <div>
+        <div class="block"><pre data-copy><code><span class="ln">scripts/test.sh</span>                  <span class="cmt"># everything (or: make test)</span>
+<span class="ln">scripts/test.sh routes smoke</span>     <span class="cmt"># only spec files whose path contains one of the words</span>
+<span class="ln">scripts/test.sh --list</span>           <span class="cmt"># the spec files, nothing run</span>
+<span class="ln">scripts/test.sh --coverage</span>       <span class="cmt"># also a per-file line-coverage report</span></code></pre></div>
+        <ul>
+          <li><strong>Nothing of yours is touched</strong>: the specs run against a temp config / state / cache. Missing tools (rust-analyzer, tmux, bubblewrap, lazygit, ...) make their specs <strong>skip with a message</strong>, never fail.</li>
+          <li><strong>One spec per feature area</strong>: <a href="https://github.com/xynorash/xynovim/blob/main/tests/COVERAGE.md">tests/COVERAGE.md</a> maps every feature to the spec that tests it and lists what has no test and why.</li>
+          <li><strong>CI</strong>: the <a href="https://github.com/xynorash/xynovim/blob/main/.github/workflows/ci.yml">ci workflow</a> bootstraps the plugins on their locked commits, runs a startup smoke test and the whole suite on a clean Ubuntu machine for every push.</li>
+          <li>How the harness works and how to write a spec: <a href="https://github.com/xynorash/xynovim/blob/main/docs/TESTING.md">docs/TESTING.md</a>.</li>
+        </ul>
+      </div>
+      <div>
+        <figure class="term"><a href="media/10-test-suite.png"><img src="media/10-test-suite.png" width="1300" height="760" alt="The test runner finishing four spec files: 129 passed, 0 failed" decoding="async" loading="lazy"></a><figcaption>The runner finishing four spec files: 129 passed, 0 failed.</figcaption></figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="install" aria-labelledby="install-h">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="kicker">Get it</p>
+      <h2 id="install-h">Install</h2>
+      <p class="lead">Two commands. <code>scripts/bootstrap.sh</code> checks the prerequisites it needs and prints what is missing; <code>:checkhealth xynovim</code> checks the rest later, with what each one is for.</p>
+    </div>
+    <div class="two">
+      <div>
+        <div class="block"><pre data-copy><code id="install-cmd-2"><span class="ln">git clone https://github.com/xynorash/xynovim ~/.config/nvim</span>   <span class="cmt"># or ln -s &lt;checkout&gt; ~/.config/nvim</span>
+<span class="ln">~/.config/nvim/scripts/bootstrap.sh</span></code></pre></div>
+        <p>A plain <code>nvim --headless '+Lazy! restore' +qa</code> on an empty plugin directory makes lazy.nvim install in several rounds and rewrite <code>lazy-lock.json</code> after every one, so the pins of the plugins found later are dropped and those land on their newest commit. The script runs <code>Lazy! install</code>, puts the original lockfile back, runs <code>Lazy! restore</code> and fails if <code>lazy-lock.json</code> differs afterwards; CI runs it too.</p>
+        <p><a href="https://github.com/xynorash/xynovim#install">Full prerequisites and details in the README</a></p>
+      </div>
+      <div>
+        <h3>Prerequisites, in short</h3>
+        <ul>
+          <li><strong>To bring the config up</strong>: <code>nvim</code> 0.12, <code>git</code>, <code>curl</code>, <code>tar</code>, <code>unzip</code>, <code>gzip</code>, <code>gcc</code>, the <code>tree-sitter</code> CLI, <code>node</code> and <code>npm</code>.</li>
+          <li><strong>For the Rust workflow</strong>: <code>cargo</code>, <code>rustup</code> (with the <code>stable</code> toolchain, its <code>clippy</code> and <code>llvm-tools</code> components) and <code>rust-analyzer</code> on PATH.</li>
+          <li><strong>Installed by Mason</strong>: bacon-ls, codelldb, taplo, marksman, lua-language-server, stylua and the other language servers and tools.</li>
+          <li><strong>Optional</strong>, each one only costs its feature: <code>mold</code> + <code>clang</code>, <code>cargo-nextest</code>, <code>cargo-deny</code>, <code>cargo-expand</code>, <code>lazygit</code>, <code>delta</code>, <code>bwrap</code> (the 99 sandbox, Linux only; without it 99 refuses to run).</li>
+        </ul>
+      </div>
+    </div>
+    <h3 class="sub" id="platforms">Platforms</h3>
+    <p>The shell scripts are bash conveniences for Linux and macOS, with PowerShell counterparts for Windows (<code>scripts/bootstrap.ps1</code>). The config itself is Lua and is meant to run wherever Neovim 0.12 runs with the prerequisites. What CI shows, and no more:</p>
+    <ul class="limits">
+      <li><strong>Linux</strong>: developed on (Arch), fully tested. Ubuntu <code>ci</code> run 39695896272: 1749 passed, 0 failed, 76 skipped.</li>
+      <li><strong>Windows</strong>: the plugin restore from the lockfile, a silent headless start and the specs that are not Linux-only pass. <code>platforms</code> run 39673715062: 1077 passed, 0 failed, 87 skipped; 10 of the 38 spec files are skipped whole there and not demonstrated. Green in 5 of the 6 runs from 39660597368 on (the one red run was a spec path assertion, fixed afterwards).</li>
+      <li><strong>macOS</strong>: not reliably green. Neovim starts and most specs pass, but the job did not pass in 4 of the 5 runs that finished from 39660597368 on (green once: run 39663956677, 1431 passed, 0 failed, 73 skipped).</li>
+      <li><strong>Linux only by design</strong>: the 99 agent sandbox (bubblewrap; without it 99 refuses to run), the remote clipboard, the tmux-based and bash-stub test tooling (<code>scripts/test.sh</code>) and the mold linker setup.</li>
+      <li><strong>Not demonstrated on Windows or macOS</strong>: Local History, startup options, new Rust and egui project creation, live rust-analyzer flows on Windows, and debugging through codelldb. <a href="https://github.com/xynorash/xynovim/blob/main/docs/KNOWN_ISSUES.md">docs/KNOWN_ISSUES.md</a> has the list.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="section" id="keys" aria-labelledby="keys-h">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="kicker">Reference</p>
+      <h2 id="keys-h">Keys and commands</h2>
+      <p class="lead"><code>&lt;leader&gt;</code> is Space; which-key shows the menu of every prefix.</p>
+    </div>
+    <h3>Keys you will use</h3>
+    <table>
+      <thead><tr><th scope="col">Keys</th><th scope="col">What</th></tr></thead>
+      <tbody>
+<tr><td><code>&lt;leader&gt;r…</code></td><td>rust-analyzer: <code>rv</code> extract variable, <code>rf</code> function, <code>rc</code> constant, <code>ri</code> inline, <code>rs</code> structural search / replace, <code>rm</code> expand macro, <code>rh</code> / <code>rH</code> HIR / MIR, <code>re</code> explain error code, <code>rw</code> / <code>rW</code> workspace symbol (+ dependencies), <code>rF</code> features / target, <code>rX</code> targets, <code>rZ</code> cargo tools; dependencies and macros: <code>rA</code> add crate, <code>rG</code> enable the missing feature, <code>rI</code> import name (ranked), <code>rO</code> organize imports, <code>rx</code> expand macro (lens); <code>&lt;A-j&gt;</code> / <code>&lt;A-k&gt;</code> move item</td></tr>
+<tr><td><code>&lt;leader&gt;d…</code></td><td>debugger: <code>db</code> breakpoint, <code>dc</code> continue, <code>dr</code> / <code>dR</code> debuggables (file / workspace), <code>du</code> dap-ui</td></tr>
+<tr><td><code>&lt;leader&gt;t…</code></td><td>tests: <code>tt</code> file, <code>tr</code> nearest, <code>tT</code> all, <code>ts</code> summary, <code>to</code> output, <code>tw</code> watch, <code>tD</code> doc-tests, <code>tc</code> run coverage, <code>tg</code> toggle coverage signs</td></tr>
+<tr><td><code>&lt;leader&gt;g…</code></td><td>git: <code>gg</code> lazygit, <code>gv</code> diffview, <code>gV</code> branch vs origin, <code>gF</code> file history, <code>gH</code> local history</td></tr>
+<tr><td><code>&lt;leader&gt;c…</code></td><td><code>cd</code> diagnostic float, <code>cj</code> split / join (treesj), <code>cI</code> / <code>cO</code> incoming / outgoing call trees, <code>cn</code> doc comment stub</td></tr>
+<tr><td><code>&lt;leader&gt;9…</code></td><td>the 99 agent: <code>9v</code> vibe, <code>9s</code> search, <code>9o</code> last interaction, <code>9x</code> stop</td></tr>
+<tr><td><code>&lt;leader&gt;H, &lt;C-e&gt;, &lt;M-1..4&gt;</code></td><td>harpoon: add file, menu, jump</td></tr>
+<tr><td><code>&lt;leader&gt;uO, uB, uu</code></td><td>toggle editor transparency, colour-blind diagnostics, undotree</td></tr>
+<tr><td><code>dashboard b, i, w, e</code></td><td>new Rust binary, library, workspace, egui project</td></tr>
+      </tbody>
+    </table>
+    <h3 class="sub">Commands</h3>
+    <ul class="chips"><li><code>:RustContext</code></li><li><code>:RustTargets</code></li><li><code>:RustTools</code></li><li><code>:RustNew</code></li><li><code>:RustNewBin</code></li><li><code>:RustNewLib</code></li><li><code>:RustNewWorkspace</code></li><li><code>:RustNewMember</code></li><li><code>:EguiNew</code></li><li><code>:RustRoutes</code></li><li><code>:RustRestart</code></li><li><code>:CrateAdd</code></li><li><code>:CrateFeatures</code></li><li><code>:ImportName</code></li><li><code>:ImportForget</code></li><li><code>:ImportOrganize</code></li><li><code>:MacroAttrs</code></li><li><code>:MacroExpand</code></li><li><code>:MacroSignature</code></li><li><code>:MacroFormatFix</code></li><li><code>:ProcMacroStatus</code></li><li><code>:ActJob</code></li><li><code>:LocalHistory</code></li><li><code>:LocalHistoryRestore</code></li><li><code>:LocalHistoryPrune</code></li><li><code>:ColorblindDiagnostics</code></li><li><code>:checkhealth xynovim</code></li></ul>
+    <p>Plugin management is stock LazyVim: <code>:Lazy sync</code> updates (the update checker is off), <code>:LazyExtras</code> toggles extras, <code>:Mason</code> manages language servers.</p>
+  </div>
+</section>
+
+<section class="section" id="limits" aria-labelledby="limits-h">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="kicker">Honest edges</p>
+      <h2 id="limits-h">Known limitations</h2>
+    </div>
+    <ul class="limits">
+      <li><strong>Neovim 0.12; developed on Linux.</strong> Windows is exercised in CI and macOS is not reliably green (<a href="#platforms">Platforms</a>). The previous from-scratch Windows config lives on the <a href="https://github.com/xynorash/xynovim/tree/windows-legacy">windows-legacy</a> branch.</li>
+      <li><strong>The agent sandbox is a seatbelt, not a jail.</strong> The network stays open, and no real request to the agent was driven in the test suite.</li>
+      <li><strong>The macros and dependencies work is tested headless.</strong> The suite uses real cargo and rust-analyzer, but the pickers and key presses were not driven in a real terminal; the unknown-crate hint is deliberately conservative (a miss is better than a false hint), and a &ldquo;(guess)&rdquo; import can miss.</li>
+      <li><strong>Two Neovim instances on the same workspace share bacon-ls&rsquo;s shadow</strong>, so one&rsquo;s unsaved text can show up as clippy errors in the other (upstream; open one Neovim per workspace). A multi-file rename is undone per buffer: use <code>&lt;leader&gt;gH</code> local history to revert it.</li>
+    </ul>
+    <p>The complete list, with what was decided and why: <a href="https://github.com/xynorash/xynovim/blob/main/docs/KNOWN_ISSUES.md">docs/KNOWN_ISSUES.md</a>.</p>
+  </div>
+</section>
+
+<section class="section" id="guides" aria-labelledby="guides-h">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="kicker">Learn the workflows</p>
+      <h2 id="guides-h">Guides</h2>
+      <p class="lead">Six short guides to the parts of the configuration people ask about most: what each one does, the keys, why it is set up that way and where it stops.</p>
+    </div>
+    <ul class="doc-links">
+<li><a href="guides/neovim-rust-diagnostics/"><b>Rust diagnostics</b>How xynovim gets Rust errors on screen while you type: rust-analyzer for instant type errors, clippy through bacon-ls half a second later, before any save.</a></li>
+<li><a href="guides/neovim-rust-debugging/"><b>Rust debugging</b>Set breakpoints, read Rust values and stop at panics in Neovim: the nvim-dap and codelldb setup of xynovim, with the debuginfo setting that makes locals work.</a></li>
+<li><a href="guides/neovim-rust-tests-coverage/"><b>Tests and coverage</b>Run Rust tests from Neovim with neotest and cargo-nextest, read a summary tree, and see line coverage from cargo-llvm-cov in the gutter, on demand.</a></li>
+<li><a href="guides/neovim-cargo-workspaces/"><b>Workspaces, features, crates</b>Create Rust binaries, libraries and workspaces, add crates with their features and fix missing derive features from Neovim: :CrateAdd, :CrateFeatures and more.</a></li>
+<li><a href="guides/neovim-git-local-history/"><b>Git safety net</b>Every save in Neovim written as a git ref you can restore, plus lazygit and diffview: how xynovim recovers deleted files and edits that undo cannot bring back.</a></li>
+<li><a href="guides/neovim-island-dark-theme/"><b>Island Dark theme</b>Island Dark is the dark colour scheme of xynovim: a generated palette mapped to Treesitter captures, LSP tokens and the plugins in use, tuned for contrast.</a></li>
+    </ul>
+  </div>
+</section>
+
+<section class="section" id="docs" aria-labelledby="docs-h">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="kicker">Read on</p>
+      <h2 id="docs-h">Documentation</h2>
+      <p class="lead">The documentation lives in the repository, next to the code.</p>
+    </div>
+    <ul class="doc-links">
+<li><a href="https://github.com/xynorash/xynovim/blob/main/README.md"><b>README.md</b>the overview this site is built from</a></li>
+<li><a href="https://github.com/xynorash/xynovim/blob/main/docs/DETAILS.md"><b>docs/DETAILS.md</b>the engineering notes behind each setting, what was measured and what was not verified</a></li>
+<li><a href="https://github.com/xynorash/xynovim/blob/main/docs/KNOWN_ISSUES.md"><b>docs/KNOWN_ISSUES.md</b>limitations that were found and deliberately left alone</a></li>
+<li><a href="https://github.com/xynorash/xynovim/blob/main/docs/TESTING.md"><b>docs/TESTING.md</b>how the test harness works and how to write a spec</a></li>
+<li><a href="https://github.com/xynorash/xynovim/blob/main/tests/COVERAGE.md"><b>tests/COVERAGE.md</b>which spec tests which feature, and what has no test and why</a></li>
+<li><a href="https://github.com/xynorash/xynovim/blob/main/docs/PLAN_MACROS_DEPS.md"><b>docs/PLAN_MACROS_DEPS.md</b>the assessment behind the macros and dependencies work and what of the plan is done</a></li>
+<li><a href="https://github.com/xynorash/xynovim/blob/main/CHANGELOG.md"><b>CHANGELOG.md</b>every notable change</a></li>
+    </ul>
+  </div>
+</section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p id="thanks"><strong>Acknowledgements.</strong> Thank you to JetBrains for their amazing products. I am a full-in JetBrains user and consider JetBrains&rsquo; products, the whole suite of IDEs and tools, the best I have ever used. RustRover, one IDE of that suite, is the specific source of inspiration for xynovim: I was so satisfied with those tools that I wanted to build my own dream configuration from that inspiration, and I still use JetBrains tools. The Island Dark colour scheme is derived from JetBrains&rsquo; Islands Dark scheme. xynovim is my own independent personal project, not affiliated with or endorsed by JetBrains, not competing with them and not an alternative to their products.</p>
+    <p>xynovim is licensed under <a href="https://github.com/xynorash/xynovim/blob/main/LICENSE">Apache-2.0</a>. Source: <a href="https://github.com/xynorash/xynovim">github.com/xynorash/xynovim</a>. Every screenshot and video was recorded on <a href="https://github.com/xynorash/xynovim/tree/main/demo/netwatch">the demo crate</a>.</p>
+    <p>Built from commit <a href="https://github.com/xynorash/xynovim/commit/6a3516f"><code>6a3516f</code></a> on 2026-10-22. This site makes no external requests: no CDN, no web fonts, no analytics.</p>
+  </div>
+</footer>
+</body>
+</html>

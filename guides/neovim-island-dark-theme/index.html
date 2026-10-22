@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
+<title>The Island Dark colour scheme for Neovim | xynovim</title>
+<meta name="description" content="Island Dark is the dark colour scheme of xynovim: a generated palette mapped to Treesitter captures, LSP tokens and the plugins in use, tuned for contrast.">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#1e1f22" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<link rel="canonical" href="https://xynorash.github.io/xynovim/guides/neovim-island-dark-theme/">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="xynovim">
+<meta property="og:locale" content="en">
+<meta property="og:title" content="The Island Dark colour scheme for Neovim | xynovim">
+<meta property="og:description" content="Island Dark is the dark colour scheme of xynovim: a generated palette mapped to Treesitter captures, LSP tokens and the plugins in use, tuned for contrast.">
+<meta property="og:url" content="https://xynorash.github.io/xynovim/guides/neovim-island-dark-theme/">
+<meta property="og:image" content="https://xynorash.github.io/xynovim/assets/og/neovim-island-dark-theme.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="xynovim guide: the Island Dark colour scheme for Neovim, a completion menu next to a documentation window">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The Island Dark colour scheme for Neovim | xynovim">
+<meta name="twitter:description" content="Island Dark is the dark colour scheme of xynovim: a generated palette mapped to Treesitter captures, LSP tokens and the plugins in use, tuned for contrast.">
+<meta name="twitter:image" content="https://xynorash.github.io/xynovim/assets/og/neovim-island-dark-theme.png">
+<meta name="twitter:image:alt" content="xynovim guide: the Island Dark colour scheme for Neovim, a completion menu next to a documentation window">
+<link rel="stylesheet" href="../../assets/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://xynorash.github.io/xynovim/guides/neovim-island-dark-theme/#article",
+      "headline": "The Island Dark colour scheme for Neovim",
+      "description": "Island Dark is the dark colour scheme of xynovim: a generated palette mapped to Treesitter captures, LSP tokens and the plugins in use, tuned for contrast.",
+      "url": "https://xynorash.github.io/xynovim/guides/neovim-island-dark-theme/",
+      "mainEntityOfPage": "https://xynorash.github.io/xynovim/guides/neovim-island-dark-theme/",
+      "inLanguage": "en",
+      "image": "https://xynorash.github.io/xynovim/assets/og/neovim-island-dark-theme.png",
+      "author": {
+        "@id": "https://github.com/xynorash"
+      },
+      "isPartOf": {
+        "@id": "https://xynorash.github.io/xynovim/#website"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "xynovim",
+          "item": "https://xynorash.github.io/xynovim/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Island Dark theme",
+          "item": "https://xynorash.github.io/xynovim/guides/neovim-island-dark-theme/"
+        }
+      ]
+    },
+    {
+      "@type": "Person",
+      "@id": "https://github.com/xynorash",
+      "name": "Xynorash",
+      "url": "https://github.com/xynorash"
+    }
+  ]
+}
+</script>
+<script src="../../assets/app.js" defer></script>
+</head>
+<body id="top">
+<svg width="0" height="0" hidden aria-hidden="true" focusable="false">
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></symbol>
+  <symbol id="i-tick" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-branch" viewBox="0 0 24 24"><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 7v10M18 10c0 5-8 3-12 7"/></symbol>
+</svg>
+<a class="skip" href="#main">Skip to the content</a>
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="brand" href="../../"><img src="../../assets/favicon.svg" width="28" height="28" alt="">xynovim</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Show the menu">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-menu"></use></svg></label>
+    <nav id="site-nav" aria-label="Sections">
+      <ul>
+        <li><a href="../../#why">Why</a></li>
+        <li><a href="../../#tour">Tour</a></li>
+        <li><a href="../../plugins/">Plugins</a></li>
+        <li><a href="../../#guides">Guides</a></li>
+        <li><a href="../../#install">Install</a></li>
+        <li><a href="../../#docs">Docs</a></li>
+      </ul>
+    </nav>
+    <a class="btn" href="https://github.com/xynorash/xynovim"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-branch"></use></svg>GitHub</a>
+  </div>
+</header>
+
+<main id="main">
+<article class="prose">
+  <div class="wrap">
+    <div class="prose-body">
+    <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="../../">xynovim</a></li><li><a href="../../#guides">Guides</a></li><li aria-current="page">Island Dark theme</li></ol></nav>
+    <p class="kicker">xynovim guide</p>
+    <h1>The Island Dark colour scheme for Neovim</h1>
+    <p class="lead">Island Dark is the colour scheme of xynovim, a personal Neovim configuration for Rust. It is a dark scheme with a blue accent and a muted grey for secondary text, mapped to Treesitter captures, LSP semantic tokens and the plugins in this configuration. This guide explains how it is built, how to use and tweak it, and what was adjusted for legibility. It does not claim to be the best dark theme: it is the one I wanted to look at all day.</p>
+<figure class="term"><a href="../../media/09-theme-completion.png"><img src="../../media/09-theme-completion.png" width="1440" height="820" alt="Island Dark in Neovim: the completion menu next to a documentation window over Rust code" loading="lazy" decoding="async"></a><figcaption>Recorded from the real configuration on the demo crate.</figcaption></figure>
+<h2 id="use">Using it</h2>
+<p>Island Dark is set unconditionally in <code>lua/plugins/island-theme.lua</code>, so it is what you get after installing the configuration: <code>:colorscheme island-dark</code> and <code>vim.g.colors_name == "island-dark"</code>. The entry point is <code>colors/island-dark.lua</code>, the highlight mapping is <code>lua/island/init.lua</code> and the statusline theme is <code>lua/lualine/themes/island-dark.lua</code>. Only the plugins that LazyVim itself specifies as install fallbacks (tokyonight and catppuccin) remain besides it; there is no theme-switching machinery. Whether the pieces work outside this configuration was not tested.</p>
+
+<h2 id="palette">The palette</h2>
+<p>The core colours are the same ones this website uses.</p>
+<ul class="swatches" aria-label="Island Dark core colours">
+<li><i class="sw-bg"></i>#1e1f22 background</li>
+<li><i class="sw-panel"></i>#2b2d30 popups</li>
+<li><i class="sw-text"></i>#bcbec4 text</li>
+<li><i class="sw-muted"></i>#9da0a8 secondary</li>
+<li><i class="sw-blue"></i>#56a8f5 blue</li>
+<li><i class="sw-green"></i>#6aab73 green</li>
+<li><i class="sw-orange"></i>#cf8e6d orange</li>
+<li><i class="sw-purple"></i>#c77dbb purple</li>
+<li><i class="sw-yellow"></i>#f2c55c yellow</li>
+</ul>
+
+<h2 id="generated">Generated, not hand-copied</h2>
+<p>The palette in <code>lua/island/palette.lua</code> is generated from my own colour-scheme export by <code>tools/icls2nvim.py</code>. The export is not distributed, so the script needs a scheme file that you supply yourself; it is standard-library Python and reads colours, bold and italic, underline and undercurl effects and attribute inheritance. The generator also carries the Rust-specific entries that colour structs, enums, macros and lifetimes. Where the export had no value, the mapping derives one: the selection colour comes from a blue entry of the scheme, lifetimes take the type-parameter colour and traits take the struct colour. These derived choices are listed in <a href="https://github.com/xynorash/xynovim/blob/main/docs/DETAILS.md#theme">docs/DETAILS.md</a>. The origin of the scheme is credited in the <a href="../../#thanks">acknowledgements</a>.</p>
+
+<h2 id="coverage">What it colours</h2>
+<p>Beyond the classic syntax groups, the mapping covers the Treesitter captures, LSP semantic tokens (<code>@lsp.type</code>, <code>@lsp.mod</code> and <code>@lsp.typemod</code>) and these plugins: blink.cmp, snacks, which-key, neo-tree, trouble, gitsigns, diffview, dap and dap-ui, neotest, treesitter-context, navic, flash, noice, mini, harpoon, render-markdown, coverage signs, inlay hints and code lenses. <code>:Inspect</code> shows exactly which captures, semantic tokens and extmarks apply under the cursor, which is the fastest way to change one colour.</p>
+<figure class="term"><a href="../../media/04-treesitter-inspect.png"><img src="../../media/04-treesitter-inspect.png" width="1440" height="820" alt="the :Inspect floating window listing treesitter captures, LSP semantic tokens and extmarks" loading="lazy" decoding="async"></a><figcaption><code>:Inspect</code> lists the captures and tokens under the cursor.</figcaption></figure>
+
+<h2 id="contrast">Legibility lifts</h2>
+<p>I ran a contrast review with WCAG ratios computed from the loaded highlight groups, with targets of 4.5:1 for body text and 3:1 for secondary text. Where the exported colour was too dim, it was lifted just far enough to pass: comments went from 4.0:1 to 4.5:1, doc comments from 3.8:1, error virtual text to 4.5:1, and line numbers from 2.0:1 to 3.5:1. The cursorline is deliberately subtle (1.20:1 on the background). Known gaps are listed too: <code>PmenuMatchSel</code> is 4.0:1, and the ratios assume the <code>#1e1f22</code> background, so a terminal with another background changes them.</p>
+<figure class="term"><a href="../../media/09-theme-picker.png"><img src="../../media/09-theme-picker.png" width="1440" height="820" alt="the snacks file picker in Neovim rendered in the Island Dark colours" loading="lazy" decoding="async"></a><figcaption>The snacks file picker in Island Dark.</figcaption></figure>
+
+<h2 id="transparency">Transparency and colour-blind mode</h2>
+<ul>
+<li>The editor surface (normal text, gutter, line numbers, the file tree) is transparent by default, while floats, the completion menu and which-key keep the solid <code>#2b2d30</code> popup background so they stay readable over code. <code>&lt;leader&gt;uO</code> toggles the editor background, and <code>vim.g.xynovim_transparent = false</code> starts solid.</li>
+<li><code>&lt;leader&gt;uB</code> toggles colour-blind friendly diagnostics.</li>
+</ul>
+
+<h2 id="limits">Limits</h2>
+<ul>
+<li>Not verified: the look in other terminals or with their own background, and plugins whose groups were defined from their documentation but were not on screen (trouble, diffview, dap-ui, neotest, satellite, render-markdown, flash).</li>
+<li>There is no light variant.</li>
+</ul>
+
+<h2 id="try">Try it</h2>
+<p>Install the configuration and run <code>:Inspect</code> on a struct name in a Rust file.</p>
+    <div class="install-box" id="hero-install">
+      <div class="label"><span>Install</span></div>
+      <pre data-copy><code id="install-cmd"><span class="ln">git clone https://github.com/xynorash/xynovim ~/.config/nvim</span>   <span class="cmt"># or ln -s &lt;checkout&gt; ~/.config/nvim</span>
+<span class="ln">~/.config/nvim/scripts/bootstrap.sh</span></code></pre>
+    </div>
+    <p>xynovim is a personal project: <a href="../../">the home page</a> has the tour, the install details and the platform status.</p>
+
+    <h2 id="related">Related guides</h2>
+    <ul class="related">
+<li><a href="../neovim-rust-diagnostics/"><b>Rust diagnostics</b>Instant Rust diagnostics in Neovim with rust-analyzer and clippy</a></li>
+<li><a href="../neovim-git-local-history/"><b>Git safety net</b>A git safety net for Neovim: Local History, lazygit and diffview</a></li>
+<li><a href="../neovim-rust-debugging/"><b>Rust debugging</b>Debugging Rust in Neovim with nvim-dap and codelldb</a></li>
+    </ul>
+
+    <h2 id="source">In the repository</h2>
+    <ul class="guide-links">
+<li><a href="https://github.com/xynorash/xynovim/blob/main/README.md#island-dark">README: Island Dark</a></li>
+<li><a href="https://github.com/xynorash/xynovim/blob/main/docs/DETAILS.md#theme">DETAILS: Theme</a></li>
+    </ul>
+    </div>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>xynovim is an independent personal project, inspired by JetBrains&rsquo; tools and not affiliated with or endorsed by JetBrains. See the <a href="../../#thanks">acknowledgements</a>. It is licensed under <a href="https://github.com/xynorash/xynovim/blob/main/LICENSE">Apache-2.0</a>; the source is at <a href="https://github.com/xynorash/xynovim">github.com/xynorash/xynovim</a>.</p>
+    <p>Built from commit <a href="https://github.com/xynorash/xynovim/commit/6a3516f"><code>6a3516f</code></a> on 2026-10-22. This site makes no external requests: no CDN, no web fonts, no analytics.</p>
+  </div>
+</footer>
+</body>
+</html>

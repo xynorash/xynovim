@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
+<title>Rust tests and coverage in Neovim with neotest | xynovim</title>
+<meta name="description" content="Run Rust tests from Neovim with neotest and cargo-nextest, read a summary tree, and see line coverage from cargo-llvm-cov in the gutter, on demand.">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#1e1f22" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<link rel="canonical" href="https://xynorash.github.io/xynovim/guides/neovim-rust-tests-coverage/">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="xynovim">
+<meta property="og:locale" content="en">
+<meta property="og:title" content="Rust tests and coverage in Neovim with neotest | xynovim">
+<meta property="og:description" content="Run Rust tests from Neovim with neotest and cargo-nextest, read a summary tree, and see line coverage from cargo-llvm-cov in the gutter, on demand.">
+<meta property="og:url" content="https://xynorash.github.io/xynovim/guides/neovim-rust-tests-coverage/">
+<meta property="og:image" content="https://xynorash.github.io/xynovim/assets/og/neovim-rust-tests-coverage.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="xynovim guide: Rust tests and coverage in Neovim, coverage bars in the gutter next to covered lines">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Rust tests and coverage in Neovim with neotest | xynovim">
+<meta name="twitter:description" content="Run Rust tests from Neovim with neotest and cargo-nextest, read a summary tree, and see line coverage from cargo-llvm-cov in the gutter, on demand.">
+<meta name="twitter:image" content="https://xynorash.github.io/xynovim/assets/og/neovim-rust-tests-coverage.png">
+<meta name="twitter:image:alt" content="xynovim guide: Rust tests and coverage in Neovim, coverage bars in the gutter next to covered lines">
+<link rel="stylesheet" href="../../assets/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://xynorash.github.io/xynovim/guides/neovim-rust-tests-coverage/#article",
+      "headline": "Running Rust tests with coverage in Neovim",
+      "description": "Run Rust tests from Neovim with neotest and cargo-nextest, read a summary tree, and see line coverage from cargo-llvm-cov in the gutter, on demand.",
+      "url": "https://xynorash.github.io/xynovim/guides/neovim-rust-tests-coverage/",
+      "mainEntityOfPage": "https://xynorash.github.io/xynovim/guides/neovim-rust-tests-coverage/",
+      "inLanguage": "en",
+      "image": "https://xynorash.github.io/xynovim/assets/og/neovim-rust-tests-coverage.png",
+      "author": {
+        "@id": "https://github.com/xynorash"
+      },
+      "isPartOf": {
+        "@id": "https://xynorash.github.io/xynovim/#website"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "xynovim",
+          "item": "https://xynorash.github.io/xynovim/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Tests and coverage",
+          "item": "https://xynorash.github.io/xynovim/guides/neovim-rust-tests-coverage/"
+        }
+      ]
+    },
+    {
+      "@type": "Person",
+      "@id": "https://github.com/xynorash",
+      "name": "Xynorash",
+      "url": "https://github.com/xynorash"
+    }
+  ]
+}
+</script>
+<script src="../../assets/app.js" defer></script>
+</head>
+<body id="top">
+<svg width="0" height="0" hidden aria-hidden="true" focusable="false">
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></symbol>
+  <symbol id="i-tick" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-branch" viewBox="0 0 24 24"><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 7v10M18 10c0 5-8 3-12 7"/></symbol>
+</svg>
+<a class="skip" href="#main">Skip to the content</a>
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="brand" href="../../"><img src="../../assets/favicon.svg" width="28" height="28" alt="">xynovim</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Show the menu">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-menu"></use></svg></label>
+    <nav id="site-nav" aria-label="Sections">
+      <ul>
+        <li><a href="../../#why">Why</a></li>
+        <li><a href="../../#tour">Tour</a></li>
+        <li><a href="../../plugins/">Plugins</a></li>
+        <li><a href="../../#guides">Guides</a></li>
+        <li><a href="../../#install">Install</a></li>
+        <li><a href="../../#docs">Docs</a></li>
+      </ul>
+    </nav>
+    <a class="btn" href="https://github.com/xynorash/xynovim"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-branch"></use></svg>GitHub</a>
+  </div>
+</header>
+
+<main id="main">
+<article class="prose">
+  <div class="wrap">
+    <div class="prose-body">
+    <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="../../">xynovim</a></li><li><a href="../../#guides">Guides</a></li><li aria-current="page">Tests and coverage</li></ol></nav>
+    <p class="kicker">xynovim guide</p>
+    <h1>Running Rust tests with coverage in Neovim</h1>
+    <p class="lead">Running tests should not mean leaving the editor, and coverage should be a thing you look at, not a report you generate once a quarter. This guide shows the test workflow in xynovim, a personal Neovim configuration for Rust: neotest with the rustaceanvim adapter and cargo-nextest for results, and cargo-llvm-cov for line coverage in the gutter. It lists the keys, what each command actually runs, and where the setup has limits.</p>
+<figure class="term"><a href="../../media/05-tests-coverage.png"><img src="../../media/05-tests-coverage.png" width="1440" height="820" alt="coverage bars next to the covered lines of a Rust function in Neovim" loading="lazy" decoding="async"></a><figcaption>Recorded from the real configuration on the demo crate.</figcaption></figure>
+<h2 id="tools">The pieces</h2>
+<ul>
+<li><a href="https://github.com/nvim-neotest/neotest">neotest</a> with the rustaceanvim adapter provides the summary tree and per-test results.</li>
+<li><a href="https://nexte.st">cargo-nextest</a> is the runner behind it. It is optional, and its absence only costs this feature.</li>
+<li>cargo-llvm-cov and the <code>llvm-tools</code> rustup component produce coverage. <code>:checkhealth xynovim</code> checks the component and names the keys that need each tool.</li>
+</ul>
+<p>Install the two cargo tools with cargo, for example <code>cargo install cargo-nextest cargo-llvm-cov --locked</code>, and the component with <code>rustup component add llvm-tools</code>.</p>
+
+<h2 id="keys">Keys</h2>
+<table>
+<thead><tr><th>Keys</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>&lt;leader&gt;tr</code></td><td>run the nearest test</td></tr>
+<tr><td><code>&lt;leader&gt;tt</code></td><td>run the tests of the current file</td></tr>
+<tr><td><code>&lt;leader&gt;tT</code></td><td>run all tests</td></tr>
+<tr><td><code>&lt;leader&gt;ts</code></td><td>toggle the summary tree</td></tr>
+<tr><td><code>&lt;leader&gt;to</code></td><td>show the output of a test</td></tr>
+<tr><td><code>&lt;leader&gt;tw</code></td><td>watch: rerun on change</td></tr>
+<tr><td><code>&lt;leader&gt;tD</code></td><td>run the doc-tests</td></tr>
+<tr><td><code>&lt;leader&gt;tc</code></td><td>run with coverage and show it</td></tr>
+<tr><td><code>&lt;leader&gt;tg</code>, <code>&lt;leader&gt;tG</code></td><td>toggle the coverage signs, open the coverage summary</td></tr>
+</tbody>
+</table>
+<figure class="term"><a href="../../media/05-tests-summary.png"><img src="../../media/05-tests-summary.png" width="1440" height="820" alt="the neotest summary in Neovim: five tests, three passed, a tick per test" loading="lazy" decoding="async"></a><figcaption>The summary tree after a run: one line per test, a tick or a cross for each.</figcaption></figure>
+
+<h2 id="notes">Details that save time</h2>
+<ul>
+<li><strong>Doc-tests are separate.</strong> neotest cannot run doc-tests through nextest, so <code>&lt;leader&gt;tD</code> runs plain <code>cargo test --doc</code>.</li>
+<li><strong>No progress bar noise.</strong> neotest runs nextest in a pseudo-terminal, where nextest drew its live progress bar and the redraws buried the failure text. The configuration sets <code>NEXTEST_HIDE_PROGRESS_BAR=1</code> for nextest runs started from Neovim.</li>
+<li><strong>The same features as the diagnostics.</strong> The test and coverage runs use the Cargo features and target you chose with <code>:RustContext</code>, so a test run does not rebuild with a different feature set than the one your diagnostics use.</li>
+<li><strong><code>:RustTargets</code></strong> (<code>&lt;leader&gt;rX</code>) lists every binary, example, test and bench target of the workspace with run, test and build actions.</li>
+</ul>
+
+<h2 id="coverage">Coverage, on demand</h2>
+<p><code>&lt;leader&gt;tc</code> runs <code>cargo llvm-cov nextest --workspace --ignore-run-fail --lcov --output-path target/lcov.info</code> in the workspace root, or plain <code>cargo llvm-cov</code> when nextest is not installed. It then loads the lcov file into <a href="https://github.com/andythigpen/nvim-coverage">nvim-coverage</a> and shows the signs. Two choices are deliberate. The run is on demand only, never per auto-save, because an instrumented build is a separate target tree and takes as long as a full test run. And <code>--ignore-run-fail</code> is there because without it a single failing test aborts the run and no report is written. If tests did fail, you get a warning, and the report is still loaded.</p>
+<p>Once loaded, the covered and uncovered lines are marked in the gutter. <code>&lt;leader&gt;tg</code> toggles the signs, and <code>&lt;leader&gt;tG</code> opens a summary table in an opaque float sized at 60 by 40 percent of the screen. The lcov file is reloaded automatically when it changes.</p>
+
+<h2 id="suite">The configuration tests itself</h2>
+<p>The repository carries its own spec suite, one spec file per feature area, runnable with <code>scripts/test.sh</code> after a clone. It is the same idea turned inward: most of what this guide describes is covered by a spec (<code>tests/COVERAGE.md</code> lists what is not), and the specs that need cargo or rust-analyzer skip with a message when those are missing. The README has the current counts and the platform evidence.</p>
+
+<h2 id="limits">Limits</h2>
+<ul>
+<li>Coverage needs a full instrumented build, so the first <code>&lt;leader&gt;tc</code> in a large workspace takes a while.</li>
+<li>Line coverage only: there is no branch or region view in the gutter.</li>
+<li>Developed on Linux. The Windows and macOS CI runs skip the Rust-tool specs that need a full toolchain, so the test workflow is not demonstrated there.</li>
+</ul>
+
+<h2 id="try">Try it</h2>
+<p>Install the configuration, open the demo crate, press <code>&lt;leader&gt;tT</code> and then <code>&lt;leader&gt;ts</code>; after that try <code>&lt;leader&gt;tc</code>.</p>
+    <div class="install-box" id="hero-install">
+      <div class="label"><span>Install</span></div>
+      <pre data-copy><code id="install-cmd"><span class="ln">git clone https://github.com/xynorash/xynovim ~/.config/nvim</span>   <span class="cmt"># or ln -s &lt;checkout&gt; ~/.config/nvim</span>
+<span class="ln">~/.config/nvim/scripts/bootstrap.sh</span></code></pre>
+    </div>
+    <p>xynovim is a personal project: <a href="../../">the home page</a> has the tour, the install details and the platform status.</p>
+
+    <h2 id="related">Related guides</h2>
+    <ul class="related">
+<li><a href="../neovim-rust-debugging/"><b>Rust debugging</b>Debugging Rust in Neovim with nvim-dap and codelldb</a></li>
+<li><a href="../neovim-rust-diagnostics/"><b>Rust diagnostics</b>Instant Rust diagnostics in Neovim with rust-analyzer and clippy</a></li>
+<li><a href="../neovim-cargo-workspaces/"><b>Workspaces, features, crates</b>Cargo workspaces, features and dependencies in Neovim</a></li>
+    </ul>
+
+    <h2 id="source">In the repository</h2>
+    <ul class="guide-links">
+<li><a href="https://github.com/xynorash/xynovim/blob/main/README.md#tests-and-coverage">README: Tests and coverage</a></li>
+<li><a href="https://github.com/xynorash/xynovim/blob/main/docs/TESTING.md">docs/TESTING.md</a></li>
+    </ul>
+    </div>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>xynovim is an independent personal project, inspired by JetBrains&rsquo; tools and not affiliated with or endorsed by JetBrains. See the <a href="../../#thanks">acknowledgements</a>. It is licensed under <a href="https://github.com/xynorash/xynovim/blob/main/LICENSE">Apache-2.0</a>; the source is at <a href="https://github.com/xynorash/xynovim">github.com/xynorash/xynovim</a>.</p>
+    <p>Built from commit <a href="https://github.com/xynorash/xynovim/commit/6a3516f"><code>6a3516f</code></a> on 2026-10-22. This site makes no external requests: no CDN, no web fonts, no analytics.</p>
+  </div>
+</footer>
+</body>
+</html>

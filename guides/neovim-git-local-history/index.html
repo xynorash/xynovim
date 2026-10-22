@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
+<title>A git safety net for Neovim: Local History | xynovim</title>
+<meta name="description" content="Every save in Neovim written as a git ref you can restore, plus lazygit and diffview: how xynovim recovers deleted files and edits that undo cannot bring back.">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#1e1f22" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<link rel="canonical" href="https://xynorash.github.io/xynovim/guides/neovim-git-local-history/">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="xynovim">
+<meta property="og:locale" content="en">
+<meta property="og:title" content="A git safety net for Neovim: Local History | xynovim">
+<meta property="og:description" content="Every save in Neovim written as a git ref you can restore, plus lazygit and diffview: how xynovim recovers deleted files and edits that undo cannot bring back.">
+<meta property="og:url" content="https://xynorash.github.io/xynovim/guides/neovim-git-local-history/">
+<meta property="og:image" content="https://xynorash.github.io/xynovim/assets/og/neovim-git-local-history.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="xynovim guide: a git safety net for Neovim, the Local History picker listing snapshots of a Rust file">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="A git safety net for Neovim: Local History | xynovim">
+<meta name="twitter:description" content="Every save in Neovim written as a git ref you can restore, plus lazygit and diffview: how xynovim recovers deleted files and edits that undo cannot bring back.">
+<meta name="twitter:image" content="https://xynorash.github.io/xynovim/assets/og/neovim-git-local-history.png">
+<meta name="twitter:image:alt" content="xynovim guide: a git safety net for Neovim, the Local History picker listing snapshots of a Rust file">
+<link rel="stylesheet" href="../../assets/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://xynorash.github.io/xynovim/guides/neovim-git-local-history/#article",
+      "headline": "A git safety net for Neovim: Local History, lazygit and diffview",
+      "description": "Every save in Neovim written as a git ref you can restore, plus lazygit and diffview: how xynovim recovers deleted files and edits that undo cannot bring back.",
+      "url": "https://xynorash.github.io/xynovim/guides/neovim-git-local-history/",
+      "mainEntityOfPage": "https://xynorash.github.io/xynovim/guides/neovim-git-local-history/",
+      "inLanguage": "en",
+      "image": "https://xynorash.github.io/xynovim/assets/og/neovim-git-local-history.png",
+      "author": {
+        "@id": "https://github.com/xynorash"
+      },
+      "isPartOf": {
+        "@id": "https://xynorash.github.io/xynovim/#website"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "xynovim",
+          "item": "https://xynorash.github.io/xynovim/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Git safety net",
+          "item": "https://xynorash.github.io/xynovim/guides/neovim-git-local-history/"
+        }
+      ]
+    },
+    {
+      "@type": "Person",
+      "@id": "https://github.com/xynorash",
+      "name": "Xynorash",
+      "url": "https://github.com/xynorash"
+    }
+  ]
+}
+</script>
+<script src="../../assets/app.js" defer></script>
+</head>
+<body id="top">
+<svg width="0" height="0" hidden aria-hidden="true" focusable="false">
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></symbol>
+  <symbol id="i-tick" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-branch" viewBox="0 0 24 24"><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 7v10M18 10c0 5-8 3-12 7"/></symbol>
+</svg>
+<a class="skip" href="#main">Skip to the content</a>
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="brand" href="../../"><img src="../../assets/favicon.svg" width="28" height="28" alt="">xynovim</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Show the menu">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-menu"></use></svg></label>
+    <nav id="site-nav" aria-label="Sections">
+      <ul>
+        <li><a href="../../#why">Why</a></li>
+        <li><a href="../../#tour">Tour</a></li>
+        <li><a href="../../plugins/">Plugins</a></li>
+        <li><a href="../../#guides">Guides</a></li>
+        <li><a href="../../#install">Install</a></li>
+        <li><a href="../../#docs">Docs</a></li>
+      </ul>
+    </nav>
+    <a class="btn" href="https://github.com/xynorash/xynovim"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-branch"></use></svg>GitHub</a>
+  </div>
+</header>
+
+<main id="main">
+<article class="prose">
+  <div class="wrap">
+    <div class="prose-body">
+    <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="../../">xynovim</a></li><li><a href="../../#guides">Guides</a></li><li aria-current="page">Git safety net</li></ol></nav>
+    <p class="kicker">xynovim guide</p>
+    <h1>A git safety net for Neovim: Local History, lazygit and diffview</h1>
+    <p class="lead">The undo file brings back your last edits, but not a file you deleted, a directory an agent rewrote, or the commit you lost to a <code>git reset --hard</code>. This guide describes the safety net in xynovim, a personal Neovim configuration: Local History, which records each save as a commit under a private git ref, and the git tools around it, lazygit and diffview. The idea is the familiar IDE feature of the same name, built on plain git.</p>
+<figure class="term"><a href="../../media/08-git-local-history.png"><img src="../../media/08-git-local-history.png" width="1440" height="820" alt="the Local History picker in Neovim showing a snapshot of src/lib.rs" loading="lazy" decoding="async"></a><figcaption>Recorded from the real configuration on the demo crate.</figcaption></figure>
+<h2 id="how">How Local History works</h2>
+<p>On every save, manual or auto-save, xynovim also writes the whole worktree as a commit under <code>refs/lochist/&lt;branch&gt;</code>. It does this with a private index file, so your real index, your stash and your branches are never touched. Untracked files are included, <code>.gitignore</code> is respected and <code>target/</code> is left out. A detached HEAD gets <code>refs/lochist/%detached-&lt;short sha&gt;</code>.</p>
+<ul>
+<li><strong>Throttled.</strong> At most one snapshot a minute per repository. A save inside the window is not lost: one trailing snapshot is scheduled for the end of it, and one more runs on exit if needed.</li>
+<li><strong>Bounded.</strong> Untracked files over 10 MB are left out, and so are the largest files of a snapshot beyond 200 MB in total. Both limits are options (<code>vim.g.xynovim_lochist_max_bytes</code> and <code>vim.g.xynovim_lochist_max_total_bytes</code>).</li>
+<li><strong>Safe with several editors.</strong> Each Neovim process has its own index file, so concurrent instances do not fight over <code>index.lock</code>.</li>
+</ul>
+<p>Because the refs live inside <code>.git</code>, they survive what the undo file cannot: deleted files, <code>git reset --hard</code>, and edits made by another program while Neovim was open.</p>
+
+<h2 id="use">Using it</h2>
+<table>
+<thead><tr><th>Command or key</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>:LocalHistory</code>, <code>&lt;leader&gt;gH</code></td><td>browse the snapshots of the current file and diff against them</td></tr>
+<tr><td><code>:LocalHistoryRestore</code></td><td>restore a snapshot</td></tr>
+<tr><td><code>:LocalHistoryPrune</code></td><td>trim old snapshots</td></tr>
+</tbody>
+</table>
+<p>Outside the editor it is plain git. <code>git for-each-ref refs/lochist/</code> lists the refs and <code>git log refs/lochist/main</code> lists the snapshots of <code>main</code>, so you can recover a file with ordinary tools even without Neovim. Branch names are encoded (a <code>/</code> becomes <code>%2F</code>) so that two branches can never collide as a file and a directory.</p>
+<figure class="term"><a href="../../media/08-git-local-history.png"><img src="../../media/08-git-local-history.png" width="1440" height="820" alt="the Local History picker in Neovim showing a snapshot of src/lib.rs with its age" loading="lazy" decoding="async"></a><figcaption>The picker of <code>:LocalHistory</code> for a Rust file.</figcaption></figure>
+
+<h2 id="autosave">Auto-save and its guards</h2>
+<p>Auto-save writes after about one second, including while typing, and skips format-on-save, which is off globally anyway. It has guards: it never writes into dependency or standard-library sources (<code>~/.cargo/registry</code>, <code>~/.cargo/git</code>, <code>~/.rustup</code> buffers are not modifiable), and it never overwrites a file that changed on disk since Neovim read it. The snapshot throttle above is what keeps one-second saves from producing a commit each time.</p>
+
+<h2 id="lazygit">lazygit and diffview</h2>
+<ul>
+<li><code>&lt;leader&gt;gg</code> opens <a href="https://github.com/jesseduffield/lazygit">lazygit</a> inside Neovim, with <code>delta</code> rendering the diffs when it is installed.</li>
+<li><code>&lt;leader&gt;gv</code> opens <a href="https://github.com/sindrets/diffview.nvim">diffview</a> for the working tree, <code>&lt;leader&gt;gV</code> compares the branch against <code>origin</code>, and <code>&lt;leader&gt;gF</code> shows the history of the current file.</li>
+<li>diffview also handles merge conflicts, and <code>mergiraf</code> is configured as a syntax-aware merge driver.</li>
+</ul>
+<figure class="term"><a href="../../media/08-git-diffview.png"><img src="../../media/08-git-diffview.png" width="1440" height="820" alt="diffview in Neovim with the file panel on the left and a side-by-side diff" loading="lazy" decoding="async"></a><figcaption>diffview: the file panel and a side-by-side diff.</figcaption></figure>
+
+<h2 id="agent">The agent runs in a sandbox</h2>
+<p>The AI agent integration (the 99 plugin with the Claude Code provider, on <code>&lt;leader&gt;9</code>) starts its command inside bubblewrap, which exists only on Linux. Where no sandbox exists it refuses to start a request and says why. This belongs next to Local History for a reason: an agent that rewrites files is exactly the case a snapshot per save protects against. The README describes the two explicit switches that turn the sandbox off, and each one warns on every request.</p>
+
+<h2 id="limits">Limits</h2>
+<ul>
+<li>Local History has no Windows evidence at all: its specs are skipped there. Treat it as a Linux feature, and macOS as not reliably green.</li>
+<li>Snapshots cost disk space inside <code>.git</code>; <code>:LocalHistoryPrune</code> is the way to trim them.</li>
+<li>It is a safety net, not a backup: it lives in the same repository directory as your work.</li>
+</ul>
+
+<h2 id="try">Try it</h2>
+<p>Install the configuration in a git repository, edit and save a file twice, then press <code>&lt;leader&gt;gH</code>.</p>
+    <div class="install-box" id="hero-install">
+      <div class="label"><span>Install</span></div>
+      <pre data-copy><code id="install-cmd"><span class="ln">git clone https://github.com/xynorash/xynovim ~/.config/nvim</span>   <span class="cmt"># or ln -s &lt;checkout&gt; ~/.config/nvim</span>
+<span class="ln">~/.config/nvim/scripts/bootstrap.sh</span></code></pre>
+    </div>
+    <p>xynovim is a personal project: <a href="../../">the home page</a> has the tour, the install details and the platform status.</p>
+
+    <h2 id="related">Related guides</h2>
+    <ul class="related">
+<li><a href="../neovim-rust-tests-coverage/"><b>Tests and coverage</b>Running Rust tests with coverage in Neovim</a></li>
+<li><a href="../neovim-cargo-workspaces/"><b>Workspaces, features, crates</b>Cargo workspaces, features and dependencies in Neovim</a></li>
+<li><a href="../neovim-island-dark-theme/"><b>Island Dark theme</b>The Island Dark colour scheme for Neovim</a></li>
+    </ul>
+
+    <h2 id="source">In the repository</h2>
+    <ul class="guide-links">
+<li><a href="https://github.com/xynorash/xynovim/blob/main/README.md#git-and-a-safety-net">README: Git and a safety net</a></li>
+<li><a href="https://github.com/xynorash/xynovim/blob/main/docs/DETAILS.md#editor-behavior">DETAILS: Editor behavior</a></li>
+    </ul>
+    </div>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>xynovim is an independent personal project, inspired by JetBrains&rsquo; tools and not affiliated with or endorsed by JetBrains. See the <a href="../../#thanks">acknowledgements</a>. It is licensed under <a href="https://github.com/xynorash/xynovim/blob/main/LICENSE">Apache-2.0</a>; the source is at <a href="https://github.com/xynorash/xynovim">github.com/xynorash/xynovim</a>.</p>
+    <p>Built from commit <a href="https://github.com/xynorash/xynovim/commit/6a3516f"><code>6a3516f</code></a> on 2026-10-22. This site makes no external requests: no CDN, no web fonts, no analytics.</p>
+  </div>
+</footer>
+</body>
+</html>

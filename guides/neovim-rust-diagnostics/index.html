@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
+<title>Instant Rust diagnostics in Neovim | xynovim</title>
+<meta name="description" content="How xynovim gets Rust errors on screen while you type: rust-analyzer for instant type errors, clippy through bacon-ls half a second later, before any save.">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#1e1f22" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<link rel="canonical" href="https://xynorash.github.io/xynovim/guides/neovim-rust-diagnostics/">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="xynovim">
+<meta property="og:locale" content="en">
+<meta property="og:title" content="Instant Rust diagnostics in Neovim | xynovim">
+<meta property="og:description" content="How xynovim gets Rust errors on screen while you type: rust-analyzer for instant type errors, clippy through bacon-ls half a second later, before any save.">
+<meta property="og:url" content="https://xynorash.github.io/xynovim/guides/neovim-rust-diagnostics/">
+<meta property="og:image" content="https://xynorash.github.io/xynovim/assets/og/neovim-rust-diagnostics.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="xynovim guide: instant Rust diagnostics in Neovim, a clippy lint shown inline in the editor">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Instant Rust diagnostics in Neovim | xynovim">
+<meta name="twitter:description" content="How xynovim gets Rust errors on screen while you type: rust-analyzer for instant type errors, clippy through bacon-ls half a second later, before any save.">
+<meta name="twitter:image" content="https://xynorash.github.io/xynovim/assets/og/neovim-rust-diagnostics.png">
+<meta name="twitter:image:alt" content="xynovim guide: instant Rust diagnostics in Neovim, a clippy lint shown inline in the editor">
+<link rel="stylesheet" href="../../assets/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://xynorash.github.io/xynovim/guides/neovim-rust-diagnostics/#article",
+      "headline": "Instant Rust diagnostics in Neovim with rust-analyzer and clippy",
+      "description": "How xynovim gets Rust errors on screen while you type: rust-analyzer for instant type errors, clippy through bacon-ls half a second later, before any save.",
+      "url": "https://xynorash.github.io/xynovim/guides/neovim-rust-diagnostics/",
+      "mainEntityOfPage": "https://xynorash.github.io/xynovim/guides/neovim-rust-diagnostics/",
+      "inLanguage": "en",
+      "image": "https://xynorash.github.io/xynovim/assets/og/neovim-rust-diagnostics.png",
+      "author": {
+        "@id": "https://github.com/xynorash"
+      },
+      "isPartOf": {
+        "@id": "https://xynorash.github.io/xynovim/#website"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "xynovim",
+          "item": "https://xynorash.github.io/xynovim/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Rust diagnostics",
+          "item": "https://xynorash.github.io/xynovim/guides/neovim-rust-diagnostics/"
+        }
+      ]
+    },
+    {
+      "@type": "Person",
+      "@id": "https://github.com/xynorash",
+      "name": "Xynorash",
+      "url": "https://github.com/xynorash"
+    }
+  ]
+}
+</script>
+<script src="../../assets/app.js" defer></script>
+</head>
+<body id="top">
+<svg width="0" height="0" hidden aria-hidden="true" focusable="false">
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></symbol>
+  <symbol id="i-tick" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-branch" viewBox="0 0 24 24"><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 7v10M18 10c0 5-8 3-12 7"/></symbol>
+</svg>
+<a class="skip" href="#main">Skip to the content</a>
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="brand" href="../../"><img src="../../assets/favicon.svg" width="28" height="28" alt="">xynovim</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Show the menu">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-menu"></use></svg></label>
+    <nav id="site-nav" aria-label="Sections">
+      <ul>
+        <li><a href="../../#why">Why</a></li>
+        <li><a href="../../#tour">Tour</a></li>
+        <li><a href="../../plugins/">Plugins</a></li>
+        <li><a href="../../#guides">Guides</a></li>
+        <li><a href="../../#install">Install</a></li>
+        <li><a href="../../#docs">Docs</a></li>
+      </ul>
+    </nav>
+    <a class="btn" href="https://github.com/xynorash/xynovim"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-branch"></use></svg>GitHub</a>
+  </div>
+</header>
+
+<main id="main">
+<article class="prose">
+  <div class="wrap">
+    <div class="prose-body">
+    <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="../../">xynovim</a></li><li><a href="../../#guides">Guides</a></li><li aria-current="page">Rust diagnostics</li></ol></nav>
+    <p class="kicker">xynovim guide</p>
+    <h1>Instant Rust diagnostics in Neovim with rust-analyzer and clippy</h1>
+    <p class="lead">A Rust file in Neovim is only as responsive as its diagnostics. This guide describes the two-tier setup in xynovim, a personal Neovim configuration: rust-analyzer answers while you type, and clippy follows about half a second later, on every change and before you save. It explains why there are two tiers, what each one reports, how to read the result, and what is deliberately not covered. The timings are my own measurements on a warm session, not a promise for your machine.</p>
+<figure class="term"><a href="../../media/02-diagnostics-clippy.png"><img src="../../media/02-diagnostics-clippy.png" width="1440" height="820" alt="a clippy lint shown inline in Neovim: length comparison to zero, with the source bacon-ls" loading="lazy" decoding="async"></a><figcaption>Recorded from the real configuration on the demo crate.</figcaption></figure>
+<h2 id="two-tiers">Why two tiers</h2>
+<p>rust-analyzer reports some errors from memory, without running cargo. That tier is fast: type errors such as a mismatched type (<code>E0308</code>) appeared in about 0.01 to 0.15 seconds in my measurements. It is also narrow. Unresolved names, methods, types and imports (<code>E0425</code>, <code>E0599</code>, <code>E0432</code>) are only reported by rust-analyzer with <code>diagnostics.experimental.enable</code>, and I measured that setting on a copy of a real 196-file axum and sqlx workspace: off gave no rust-analyzer diagnostics, on gave 82 false errors. So it stays off, and those errors come from the second tier.</p>
+<p>The second tier runs clippy. It is slower, about 0.56 seconds median when warm, but it sees everything cargo sees, plus lints. Together the two give an instant answer for type errors and a deeper answer shortly after.</p>
+<figure class="term"><a href="../../media/02-diagnostics-type-error.png"><img src="../../media/02-diagnostics-type-error.png" width="1440" height="820" alt="a type error shown in Neovim the moment it is typed, reported by rust-analyzer" loading="lazy" decoding="async"></a><figcaption>The first tier: a type error from rust-analyzer, shown while typing.</figcaption></figure>
+
+<h2 id="how-clippy">How the clippy tier works</h2>
+<p>The depth tier is <a href="https://github.com/crisidev/bacon-ls">bacon-ls</a> with its native cargo backend (version 0.31.0 or newer, installed by Mason). It mirrors your workspace into a hardlinked shadow under <code>target/bacon-ls-live/</code> and re-runs <code>clippy --workspace --all-features --no-deps --keep-going</code> after a 500 ms debounce on every buffer change. Because it works on the shadow, the result reflects what is in the buffer, not only what is on disk.</p>
+<p>Two settings matter and both look backwards. <code>checkOnSave</code> is off: with an auto-save of about one second it became a second cargo pipeline racing the live one, and the runs cancelled each other. <code>updateOnInsert</code> is on: without it bacon-ls advertises no document sync and its diagnostics never refresh. The reasoning and the measurements are in <a href="https://github.com/xynorash/xynovim/blob/main/docs/DETAILS.md">docs/DETAILS.md</a>.</p>
+
+<h2 id="reading">Reading the diagnostics</h2>
+<ul>
+<li>The virtual text shows the first line of the message plus the source in brackets, for example <code>[bacon-ls]</code>. Clippy sends about fourteen lines per lint, so the full text is one key away: <code>&lt;leader&gt;cd</code> opens the diagnostic float.</li>
+<li>A problem that both tiers report on the same line (same rustc error code, or the same first line) is shown once, preferring rust-analyzer's text.</li>
+<li>The statusline has a rust-analyzer part (<code>RA ready</code>, <code>RA loading</code>, <code>RA stopped</code>) and a clippy part: <code>clippy running</code>, <code>clippy stale</code> while you have typed since the last run, <code>clippy ok</code> when there are no errors, <code>clippy 2E</code> (the error count) when there are some, and <code>clippy failed</code> when cargo cannot run at all, for instance with a broken manifest.</li>
+</ul>
+<figure class="term"><a href="../../media/02-diagnostics-float.png"><img src="../../media/02-diagnostics-float.png" width="1440" height="820" alt="the diagnostic float with the full clippy message and its suggestion" loading="lazy" decoding="async"></a><figcaption>The full clippy message and its suggestion, opened with the diagnostic float key.</figcaption></figure>
+
+<h2 id="features">One feature set for both tiers</h2>
+<p>A crate with mutually exclusive features is where two checkers disagree. <code>:RustContext</code> (also <code>&lt;leader&gt;rF</code>) lets you choose the Cargo features and the build target per project, and applies the choice to rust-analyzer and bacon-ls together. The choice is stored per workspace and survives restarts. In the demo crate, <code>ssr</code> and <code>csr</code> are mutually exclusive: with all features on, the conflict is reported (once, as rust-analyzer's message, with clippy's identical report merged into it), and choosing only <code>ssr</code> makes it go away.</p>
+<figure class="term"><a href="../../media/07-context-conflict.png"><img src="../../media/07-context-conflict.png" width="1440" height="820" alt="a compile_error from rust-analyzer shown inline, with clippy 1E in the statusline" loading="lazy" decoding="async"></a><figcaption>The feature conflict is shown once, from rust-analyzer, with clippy 1E in the statusline, until a feature set is chosen with <code>:RustContext</code>.</figcaption></figure>
+
+<h2 id="robust">Keeping the servers alive</h2>
+<p>A language server that dies stays dead in a stock setup, and the editor looks fine while showing stale errors. Here the statusline shows <code>RA stopped</code> or <code>clippy stopped</code>, and the server is restarted automatically after half a second, at most three times a minute, then it gives up with an error message. <code>:RustRestart</code> restarts both by hand. Saving <code>Cargo.toml</code> or <code>Cargo.lock</code> from Neovim restarts bacon-ls 500 ms after the last save, so a stale <code>cannot find crate</code> error does not linger, and the statusline shows <code>deps resolving</code> until rust-analyzer has reloaded. When an open <code>.rs</code>, <code>.toml</code> or <code>.lock</code> file is reloaded from disk after a change made outside Neovim (a <code>git checkout</code>, a script), or the git HEAD of the workspace moves, bacon-ls is restarted on the next focus event so it does not keep checking old content.</p>
+<p>In a Cargo workspace, bacon-ls is rooted at the workspace, not at the member crate you happen to open, so there is one client per workspace. It does not start for a loose <code>.rs</code> file without a crate, nor for sources under <code>~/.cargo/registry</code> or <code>~/.rustup</code>.</p>
+
+<h2 id="limits">What it does not cover</h2>
+<ul>
+<li>Clippy runs without <code>--all-targets</code>, so test modules, <code>tests/</code>, examples and benches get rust-analyzer's type errors but no live unresolved-name errors. <code>cargo clippy --all-targets</code> or <code>&lt;leader&gt;tr</code> reports them.</li>
+<li>The two tiers can briefly show the same type error twice.</li>
+<li><code>rust-project.json</code> projects were not tested.</li>
+</ul>
+
+<h2 id="try">Try it</h2>
+<p>Install the configuration, open <a href="https://github.com/xynorash/xynovim/tree/main/demo/netwatch">demo/netwatch</a> or any Cargo project, type a wrong type into a function and watch the statusline. <code>:checkhealth xynovim</code> lists what is missing.</p>
+    <div class="install-box" id="hero-install">
+      <div class="label"><span>Install</span></div>
+      <pre data-copy><code id="install-cmd"><span class="ln">git clone https://github.com/xynorash/xynovim ~/.config/nvim</span>   <span class="cmt"># or ln -s &lt;checkout&gt; ~/.config/nvim</span>
+<span class="ln">~/.config/nvim/scripts/bootstrap.sh</span></code></pre>
+    </div>
+    <p>xynovim is a personal project: <a href="../../">the home page</a> has the tour, the install details and the platform status.</p>
+
+    <h2 id="related">Related guides</h2>
+    <ul class="related">
+<li><a href="../neovim-cargo-workspaces/"><b>Workspaces, features, crates</b>Cargo workspaces, features and dependencies in Neovim</a></li>
+<li><a href="../neovim-rust-debugging/"><b>Rust debugging</b>Debugging Rust in Neovim with nvim-dap and codelldb</a></li>
+<li><a href="../neovim-rust-tests-coverage/"><b>Tests and coverage</b>Running Rust tests with coverage in Neovim</a></li>
+    </ul>
+
+    <h2 id="source">In the repository</h2>
+    <ul class="guide-links">
+<li><a href="https://github.com/xynorash/xynovim/blob/main/README.md#two-tier-diagnostics">README: Two-tier diagnostics</a></li>
+<li><a href="https://github.com/xynorash/xynovim/blob/main/docs/DETAILS.md#rust">DETAILS: Rust</a></li>
+    </ul>
+    </div>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>xynovim is an independent personal project, inspired by JetBrains&rsquo; tools and not affiliated with or endorsed by JetBrains. See the <a href="../../#thanks">acknowledgements</a>. It is licensed under <a href="https://github.com/xynorash/xynovim/blob/main/LICENSE">Apache-2.0</a>; the source is at <a href="https://github.com/xynorash/xynovim">github.com/xynorash/xynovim</a>.</p>
+    <p>Built from commit <a href="https://github.com/xynorash/xynovim/commit/6a3516f"><code>6a3516f</code></a> on 2026-10-22. This site makes no external requests: no CDN, no web fonts, no analytics.</p>
+  </div>
+</footer>
+</body>
+</html>

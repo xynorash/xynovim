@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; base-uri 'none'; form-action 'none'">
+<title>Debug Rust in Neovim: nvim-dap and codelldb | xynovim</title>
+<meta name="description" content="Set breakpoints, read Rust values and stop at panics in Neovim: the nvim-dap and codelldb setup of xynovim, with the debuginfo setting that makes locals work.">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#1e1f22" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<link rel="canonical" href="https://xynorash.github.io/xynovim/guides/neovim-rust-debugging/">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="xynovim">
+<meta property="og:locale" content="en">
+<meta property="og:title" content="Debug Rust in Neovim: nvim-dap and codelldb | xynovim">
+<meta property="og:description" content="Set breakpoints, read Rust values and stop at panics in Neovim: the nvim-dap and codelldb setup of xynovim, with the debuginfo setting that makes locals work.">
+<meta property="og:url" content="https://xynorash.github.io/xynovim/guides/neovim-rust-debugging/">
+<meta property="og:image" content="https://xynorash.github.io/xynovim/assets/og/neovim-rust-debugging.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="xynovim guide: debugging Rust in Neovim, dap-ui stopped at a breakpoint with locals and the call stack">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Debug Rust in Neovim: nvim-dap and codelldb | xynovim">
+<meta name="twitter:description" content="Set breakpoints, read Rust values and stop at panics in Neovim: the nvim-dap and codelldb setup of xynovim, with the debuginfo setting that makes locals work.">
+<meta name="twitter:image" content="https://xynorash.github.io/xynovim/assets/og/neovim-rust-debugging.png">
+<meta name="twitter:image:alt" content="xynovim guide: debugging Rust in Neovim, dap-ui stopped at a breakpoint with locals and the call stack">
+<link rel="stylesheet" href="../../assets/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://xynorash.github.io/xynovim/guides/neovim-rust-debugging/#article",
+      "headline": "Debugging Rust in Neovim with nvim-dap and codelldb",
+      "description": "Set breakpoints, read Rust values and stop at panics in Neovim: the nvim-dap and codelldb setup of xynovim, with the debuginfo setting that makes locals work.",
+      "url": "https://xynorash.github.io/xynovim/guides/neovim-rust-debugging/",
+      "mainEntityOfPage": "https://xynorash.github.io/xynovim/guides/neovim-rust-debugging/",
+      "inLanguage": "en",
+      "image": "https://xynorash.github.io/xynovim/assets/og/neovim-rust-debugging.png",
+      "author": {
+        "@id": "https://github.com/xynorash"
+      },
+      "isPartOf": {
+        "@id": "https://xynorash.github.io/xynovim/#website"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "xynovim",
+          "item": "https://xynorash.github.io/xynovim/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Rust debugging",
+          "item": "https://xynorash.github.io/xynovim/guides/neovim-rust-debugging/"
+        }
+      ]
+    },
+    {
+      "@type": "Person",
+      "@id": "https://github.com/xynorash",
+      "name": "Xynorash",
+      "url": "https://github.com/xynorash"
+    }
+  ]
+}
+</script>
+<script src="../../assets/app.js" defer></script>
+</head>
+<body id="top">
+<svg width="0" height="0" hidden aria-hidden="true" focusable="false">
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></symbol>
+  <symbol id="i-tick" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-branch" viewBox="0 0 24 24"><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 7v10M18 10c0 5-8 3-12 7"/></symbol>
+</svg>
+<a class="skip" href="#main">Skip to the content</a>
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="brand" href="../../"><img src="../../assets/favicon.svg" width="28" height="28" alt="">xynovim</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Show the menu">
+    <label for="nav-toggle" class="nav-burger" aria-hidden="true"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-menu"></use></svg></label>
+    <nav id="site-nav" aria-label="Sections">
+      <ul>
+        <li><a href="../../#why">Why</a></li>
+        <li><a href="../../#tour">Tour</a></li>
+        <li><a href="../../plugins/">Plugins</a></li>
+        <li><a href="../../#guides">Guides</a></li>
+        <li><a href="../../#install">Install</a></li>
+        <li><a href="../../#docs">Docs</a></li>
+      </ul>
+    </nav>
+    <a class="btn" href="https://github.com/xynorash/xynovim"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-branch"></use></svg>GitHub</a>
+  </div>
+</header>
+
+<main id="main">
+<article class="prose">
+  <div class="wrap">
+    <div class="prose-body">
+    <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="../../">xynovim</a></li><li><a href="../../#guides">Guides</a></li><li aria-current="page">Rust debugging</li></ol></nav>
+    <p class="kicker">xynovim guide</p>
+    <h1>Debugging Rust in Neovim with nvim-dap and codelldb</h1>
+    <p class="lead">Debugging Rust in Neovim works with nvim-dap and the codelldb adapter, but the defaults leave you with raw memory instead of readable values, or with no locals at all. This guide covers the debugger setup in xynovim, a personal Neovim configuration for Rust: the keys, the launch configurations, why strings and options print as text, why a panic stops at the right frame, and the one Cargo setting that decides whether you see local variables.</p>
+<figure class="term"><a href="../../media/06-debug-stopped.png"><img src="../../media/06-debug-stopped.png" width="1440" height="820" alt="dap-ui in Neovim stopped at a breakpoint in a Rust program: locals, stack, console and inline values" loading="lazy" decoding="async"></a><figcaption>Recorded from the real configuration on the demo crate.</figcaption></figure>
+<h2 id="prerequisites">What you need</h2>
+<ul>
+<li><code>codelldb</code>, which <code>scripts/bootstrap.sh</code> installs through Mason on Linux, and <code>cargo</code> with <code>rustc</code> from <code>rustup</code>.</li>
+<li>Full debuginfo in the dev profile. This is the setting people miss. I keep <code>profile.dev.debug = true</code> in <code>~/.cargo/config.toml</code>, because with <code>line-tables-only</code> or <code>limited</code> the Locals scope is empty. A user-level profile overrides a project's <code>Cargo.toml</code>, so a project can only change it through its own <code>.cargo/config.toml</code> or the <code>CARGO_PROFILE_DEV_DEBUG</code> environment variable. Do not use <code>split-debuginfo</code>: packed and unpacked both left codelldb without locals. The cost measured on two small fixtures (single, noisy runs): a clean build about 14 percent slower and <code>target/debug</code> about 28 percent larger than with <code>line-tables-only</code>.</li>
+</ul>
+
+<h2 id="keys">Keys</h2>
+<p>The keys come from LazyVim's <code>dap.core</code> extra plus two additions. Press <code>&lt;leader&gt;d</code> and which-key lists them.</p>
+<table>
+<thead><tr><th>Keys</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>&lt;leader&gt;db</code></td><td>toggle a breakpoint on the current line</td></tr>
+<tr><td><code>&lt;leader&gt;dc</code></td><td>continue (or start, when nothing runs)</td></tr>
+<tr><td><code>&lt;leader&gt;dr</code></td><td>debuggables of the current file, asked from rust-analyzer</td></tr>
+<tr><td><code>&lt;leader&gt;dR</code></td><td>debuggables of the whole workspace: binaries, examples and the file's runnables</td></tr>
+<tr><td><code>&lt;leader&gt;du</code></td><td>show or hide the dap-ui panels</td></tr>
+<tr><td><code>&lt;leader&gt;di</code>, <code>&lt;leader&gt;dO</code>, <code>&lt;leader&gt;do</code></td><td>step into, step over, step out</td></tr>
+<tr><td><code>&lt;leader&gt;dt</code></td><td>terminate the session</td></tr>
+</tbody>
+</table>
+<p><code>&lt;leader&gt;dr</code> from a <code>lib.rs</code> lists only that file's tests, which is why <code>&lt;leader&gt;dR</code> exists: it reads the binary and example targets from <code>cargo metadata</code> and adds the runnables of the current file. Each entry builds first and then launches.</p>
+<figure class="term"><a href="../../media/06-debug-picker.png"><img src="../../media/06-debug-picker.png" width="1440" height="820" alt="src/main.rs in Neovim with a breakpoint set on line 22" loading="lazy" decoding="async"></a><figcaption>A breakpoint set on line 22 of <code>src/main.rs</code>, before a debug run.</figcaption></figure>
+
+<h2 id="configs">Launch configurations</h2>
+<p>Three Rust configurations replace the generic ones. <strong>LLDB: Launch</strong> and <strong>LLDB: Launch (args)</strong> ask for the executable, prefilled with <code>&lt;cargo target_directory&gt;/debug/&lt;bin&gt;</code>. The binary comes from <code>cargo metadata</code>: the package that holds the buffer, else the root package, else the first package with a binary. <strong>Rust: run current package binary (args prompt)</strong> builds with <code>cargo build --package P --bin B</code> without blocking the editor and launches in the package directory. A <code>launch.json</code> still works.</p>
+
+<h2 id="values">Readable values and panics</h2>
+<p>Every Rust launch through codelldb gets two additions. First, Rust's own LLDB formatters (<code>lldb_lookup.py</code> from the toolchain's sysroot) are imported, so a <code>String</code> shows as text, a <code>Vec</code> as <code>size=4</code>, an enum as <code>B(7)</code>, and a struct as <code>{host:"127.0.0.1", ...}</code> instead of raw fields. Second, a breakpoint on <code>rust_panic</code> is set, so a panic stops at the panicking frame instead of the session ending with exit code 101. A <code>#[should_panic]</code> test stops there too. Both are added in a listener, because rustaceanvim overwrites <code>initCommands</code> on its own launches.</p>
+<p>The dap-ui sidebar is wider than the default (35 percent of the columns, clamped between 40 and 60) and wraps, so a type such as <code>alloc::vec::Vec&lt;alloc::string::String, alloc::alloc::Global&gt;</code> stays readable.</p>
+
+<h2 id="startup">A quiet startup</h2>
+<p>The upstream default loads debug configurations by running <code>cargo test --no-run --all-targets</code> every time rust-analyzer attaches, which competes with your own cargo for the build-directory lock. That autoload is off here. The picker keys ask rust-analyzer on demand, and <code>:RustLsp debuggables</code> still works.</p>
+
+<h2 id="limits">Limits</h2>
+<ul>
+<li>Developed and tested on Linux. On Windows and macOS codelldb does not install through Mason, so debugging is not demonstrated there.</li>
+<li>The interactive prompts were stubbed in the tests, and multi-binary workspaces and very narrow terminals were not verified.</li>
+<li><code>&lt;leader&gt;dR</code> uses rustaceanvim internals that an update could break.</li>
+</ul>
+
+<h2 id="try">Try it</h2>
+<p>Install the configuration, open the demo crate, put a breakpoint with <code>&lt;leader&gt;db</code> in <code>main</code> and start it with <code>&lt;leader&gt;dR</code>.</p>
+    <div class="install-box" id="hero-install">
+      <div class="label"><span>Install</span></div>
+      <pre data-copy><code id="install-cmd"><span class="ln">git clone https://github.com/xynorash/xynovim ~/.config/nvim</span>   <span class="cmt"># or ln -s &lt;checkout&gt; ~/.config/nvim</span>
+<span class="ln">~/.config/nvim/scripts/bootstrap.sh</span></code></pre>
+    </div>
+    <p>xynovim is a personal project: <a href="../../">the home page</a> has the tour, the install details and the platform status.</p>
+
+    <h2 id="related">Related guides</h2>
+    <ul class="related">
+<li><a href="../neovim-rust-tests-coverage/"><b>Tests and coverage</b>Running Rust tests with coverage in Neovim</a></li>
+<li><a href="../neovim-rust-diagnostics/"><b>Rust diagnostics</b>Instant Rust diagnostics in Neovim with rust-analyzer and clippy</a></li>
+<li><a href="../neovim-cargo-workspaces/"><b>Workspaces, features, crates</b>Cargo workspaces, features and dependencies in Neovim</a></li>
+    </ul>
+
+    <h2 id="source">In the repository</h2>
+    <ul class="guide-links">
+<li><a href="https://github.com/xynorash/xynovim/blob/main/README.md#debugging">README: Debugging</a></li>
+<li><a href="https://github.com/xynorash/xynovim/blob/main/docs/DETAILS.md#rust">DETAILS: Debugger</a></li>
+    </ul>
+    </div>
+  </div>
+</article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>xynovim is an independent personal project, inspired by JetBrains&rsquo; tools and not affiliated with or endorsed by JetBrains. See the <a href="../../#thanks">acknowledgements</a>. It is licensed under <a href="https://github.com/xynorash/xynovim/blob/main/LICENSE">Apache-2.0</a>; the source is at <a href="https://github.com/xynorash/xynovim">github.com/xynorash/xynovim</a>.</p>
+    <p>Built from commit <a href="https://github.com/xynorash/xynovim/commit/6a3516f"><code>6a3516f</code></a> on 2026-10-22. This site makes no external requests: no CDN, no web fonts, no analytics.</p>
+  </div>
+</footer>
+</body>
+</html>

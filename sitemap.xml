@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://xynorash.github.io/xynovim/</loc>
+    <lastmod>2026-10-22</lastmod>
+  </url>
+  <url>
+    <loc>https://xynorash.github.io/xynovim/guides/neovim-cargo-workspaces/</loc>
+    <lastmod>2026-10-22</lastmod>
+  </url>
+  <url>
+    <loc>https://xynorash.github.io/xynovim/guides/neovim-git-local-history/</loc>
+    <lastmod>2026-10-22</lastmod>
+  </url>
+  <url>
+    <loc>https://xynorash.github.io/xynovim/guides/neovim-island-dark-theme/</loc>
+    <lastmod>2026-10-22</lastmod>
+  </url>
+  <url>
+    <loc>https://xynorash.github.io/xynovim/guides/neovim-rust-debugging/</loc>
+    <lastmod>2026-10-22</lastmod>
+  </url>
+  <url>
+    <loc>https://xynorash.github.io/xynovim/guides/neovim-rust-diagnostics/</loc>
+    <lastmod>2026-10-22</lastmod>
+  </url>
+  <url>
+    <loc>https://xynorash.github.io/xynovim/guides/neovim-rust-tests-coverage/</loc>
+    <lastmod>2026-10-22</lastmod>
+  </url>
+  <url>
+    <loc>https://xynorash.github.io/xynovim/plugins/</loc>
+    <lastmod>2026-10-22</lastmod>
+  </url>
+</urlset>
