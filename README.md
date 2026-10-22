@@ -38,7 +38,7 @@ The website, <https://xynorash.github.io/xynovim/>, is published from the dedica
 - **A debugger and a test runner that look like the ones in an IDE**: breakpoints with Rust-aware variable views, a test summary tree, coverage in the gutter.
 - **A safety net**: every save is snapshotted as a git ref (a "Local History"), and the AI agent runs inside a sandbox.
 - **Treesitter everywhere**: sticky scope, text objects, SQL injected into `sqlx` strings, a live syntax-tree view.
-- **Tested**: 1659 passing checks across 33 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
+- **Tested**: 1659 passing checks across 32 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
 
 ## Guides
 
@@ -258,7 +258,7 @@ Adding a crate used to leave its macros and features half used: no completion in
 
 **Import from crates that are not dependencies yet.** When rust-analyzer offers no import for a name, `:ImportName` also lists crates.io candidates, marked "(adds the crate)". A lowercase name gets the crate of exactly that name. Other names (`Uuid`, `Utc`) get crates whose name equals or contains it, top 3 by downloads, labelled "(guess)", because crates.io is searched by crate name, not by exported items. Choosing one runs `cargo add` (newest release, default features, into the file's package; dev-dependencies for tests, benches and examples), then waits up to 60 s for rust-analyzer to load the crate and applies the import it offers from that crate. A crate that is already a dependency is never suggested, nothing is added or imported automatically, and a chosen guess is not remembered. Offline there are no candidates. The same add path serves the "Add crate" action. In Lua: `require("xyno_imports.engine").register_source(fn, {async = true})`, with `fn(name, ctx, cb)`. Accepting a derive from `#[derive(` completion imports it through the same engine: the remembered or only candidate, otherwise the one from the derive's own crate.
 
-**Attribute schemas.** The completion is data driven: one JSON file per crate in [`data/macro_attrs/`](data/macro_attrs) (serde, clap, thiserror, tokio, strum, derive_more, sqlx, utoipa, schemars, bon), used only when the package depends on the crate within the file's version range and the attribute is in scope (a derive that provides it is on the item). A project adds or overrides schemas with `.xynovim/macro_attrs/<anything>.json` in the workspace root (same format, see [data/macro_attrs/README.md](data/macro_attrs/README.md); an attribute of the same name replaces the shipped one, a broken file is skipped and listed by `:MacroAttrs`). A dependency attribute without a schema offers the keys the workspace and the crate's own sources already write inside it, most frequent first.
+**Attribute schemas.** The completion is data driven: one JSON file per crate in [`data/macro_attrs/`](https://github.com/xynorash/xyno-macros.nvim/tree/main/data/macro_attrs) of the xyno-macros.nvim plugin (serde, clap, thiserror, tokio, strum, derive_more, sqlx, utoipa, schemars, bon), used only when the package depends on the crate within the file's version range and the attribute is in scope (a derive that provides it is on the item). A project adds or overrides schemas with `.xynovim/macro_attrs/<anything>.json` in the workspace root (same format, see [data/macro_attrs/README.md](https://github.com/xynorash/xyno-macros.nvim/blob/main/data/macro_attrs/README.md) of the plugin, whose own project directory `.xyno-macros/attrs` xynovim replaces by this one; an attribute of the same name replaces the shipped one, a broken file is skipped and listed by `:MacroAttrs`). A dependency attribute without a schema offers the keys the workspace and the crate's own sources already write inside it, most frequent first.
 
 **Limits.** The unknown-crate hint is deliberately conservative (a miss is better than a false hint): a file with a glob import from a dependency (`use predicates::prelude::*`, which brings modules such as `predicate`) gets no hint, nor does one over 20000 lines (`require('xyno_crates.crate_add').config.max_lines`; the import engine's syntax scan has the same cap). `#[serde(` keys are offered while serde's `derive` feature is off, because the schema is chosen by dependency and derive, not by features. A "(guess)" can miss: if the crate has no item of that name, the import step gives up after 60 s with a message, the crate stays added. Plain `Import X` and `Import X as Y` count as one candidate, whichever rust-analyzer lists first. Network access is optional: crates.io answers are cached and everything degrades to the local registry and a message. Tested in the headless suite with real `cargo` and rust-analyzer (no field-test round yet); the pickers and key presses were not driven in a real terminal (see [docs/DETAILS.md](docs/DETAILS.md#macros-and-dependencies)).
 
@@ -369,7 +369,7 @@ Video: [14-egui-new.mp4](docs/media/14-egui-new.mp4)
 
 ## Tests: run them yourself
 
-The config ships with an automated suite: **33 spec files, 1659 checks passing, 25 skipped with a stated reason, 0 failing**, in about ten minutes. The passing and skipped counts depend on the machine (the figures are from my Linux machine (Arch), which has `debug = true` in `~/.cargo/config.toml`, a `~/.cargo/bin` and no `pwsh`; the Ubuntu CI run 39695896272 shows 1749 passed, 76 skipped, 0 failed). Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
+The config ships with an automated suite: **32 spec files, 1659 checks passing, 25 skipped with a stated reason, 0 failing**, in about ten minutes. The passing and skipped counts depend on the machine (the figures are from my Linux machine (Arch), which has `debug = true` in `~/.cargo/config.toml`, a `~/.cargo/bin` and no `pwsh`; the Ubuntu CI run 39695896272 shows 1749 passed, 76 skipped, 0 failed). Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
 
 ```sh
 scripts/test.sh                  # everything (or: make test)
@@ -418,11 +418,10 @@ Thank you to JetBrains for their amazing products. I am a full-in JetBrains user
 ## Layout
 
 ```
-lua/config/    options, keymaps, autocmds, statusline/UX helpers, rust_assist, lazy, macro_attrs, macro_tools
+lua/config/    options, keymaps, autocmds, statusline/UX helpers, rust_assist, lazy
 lua/xynovim/   :checkhealth xynovim
 snippets/       rust.json (registered with blink)
-data/          macro_attrs/*.json: attribute schemas (serde, clap, thiserror, tokio, ...) for the completion inside `#[...(`
-lua/plugins/   one spec per concern (bacon-ls, rustaceanvim, ninety-nine, auto-save, dap, gitsigns, telescope, island-theme, xyno-history, xyno-sandbox, xyno-clipboard, xyno-guard, xyno-rust, xyno-new, xyno-imports, xyno-crates, …)
+lua/plugins/   one spec per concern (bacon-ls, rustaceanvim, ninety-nine, auto-save, dap, gitsigns, telescope, island-theme, xyno-history, xyno-sandbox, xyno-clipboard, xyno-guard, xyno-rust, xyno-new, xyno-imports, xyno-crates, xyno-macros, …)
 colors/        island-dark colourscheme entry point
 lua/island/    Island Dark: init.lua (mapping), palette.lua (generated)
 lua/lualine/   island-dark lualine theme

@@ -296,8 +296,8 @@ describe("health: xyno plugins", function()
   it("lists the plugins xynovim uses as installed", function()
     local rec = run_check(stubdir({}), nil)
     local sec = section(rec, "xynovim: xyno plugins")
-    H.eq(8, #sec)
-    for _, name in ipairs({ "xyno-history.nvim", "xyno-sandbox.nvim", "xyno-clipboard.nvim", "xyno-guard.nvim", "xyno-rust.nvim", "xyno-new.nvim", "xyno-imports.nvim", "xyno-crates.nvim" }) do
+    H.eq(9, #sec)
+    for _, name in ipairs({ "xyno-history.nvim", "xyno-sandbox.nvim", "xyno-clipboard.nvim", "xyno-guard.nvim", "xyno-rust.nvim", "xyno-new.nvim", "xyno-imports.nvim", "xyno-crates.nvim", "xyno-macros.nvim" }) do
       local found
       for _, r in ipairs(sec) do
         if r.msg:find(name, 1, true) then

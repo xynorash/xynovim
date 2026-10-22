@@ -253,7 +253,7 @@
 <span class="tag">09 macros and dependencies</span>
 <h3>Macros and dependencies</h3>
 <p>Adding a crate used to leave its macros and features half used: no completion inside <code>#[serde(</code>, no <code>use</code> for a crate that is not a dependency yet, a missing <code>derive</code> feature that nothing pointed at, a stale <code>cannot find crate</code> error after <code>cargo add</code>. Everything runs in nvim on top of rust-analyzer, <code>cargo</code> and treesitter; no extra language server.</p>
-<p>Attribute completion is data driven: one JSON file per crate in <a href="https://github.com/xynorash/xynovim/tree/main/data/macro_attrs"><code>data/macro_attrs/</code></a> (serde, clap, thiserror, tokio, strum, derive_more, sqlx, utoipa, schemars, bon), and a project can add its own in <code>.xynovim/macro_attrs/</code>.</p>
+<p>Attribute completion is data driven: one JSON file per crate in <a href="https://github.com/xynorash/xyno-macros.nvim/tree/main/data/macro_attrs"><code>data/macro_attrs/</code></a> of the xyno-macros.nvim plugin (serde, clap, thiserror, tokio, strum, derive_more, sqlx, utoipa, schemars, bon), and a project can add its own in <code>.xynovim/macro_attrs/</code>.</p>
 </div>
 </article>
 <article class="subfeature" id="f-add-crate">

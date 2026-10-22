@@ -1395,9 +1395,9 @@ describe("README layout and path claims", function()
       H.ok(exists(repo .. "/" .. rel), "layout entry " .. first)
       n = n + 1
     end
-    H.eq(18, n, "layout lists 18 entries")
+    H.eq(17, n, "layout lists 17 entries")
     for _, want in ipairs({
-      "lua/config/", "lua/xynovim/", "snippets/", "data/", "lua/plugins/", "colors/", "lua/island/", "lua/lualine/", "tools/",
+      "lua/config/", "lua/xynovim/", "snippets/", "lua/plugins/", "colors/", "lua/island/", "lua/lualine/", "tools/",
       "scripts/", "tests/", "Makefile", "plugin/after/", "after/ftplugin/", "queries/", "after/queries/", ".github/", "site/",
     }) do
       H.match("\n" .. layout, "\n" .. want, true, want)
