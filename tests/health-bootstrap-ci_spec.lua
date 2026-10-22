@@ -896,12 +896,11 @@ describe(".gitignore and LICENSE", function()
     end
   end)
 
-  it("LICENSE is the Apache License 2.0", function()
+  it("LICENSE is the MIT License", function()
     local l = read("LICENSE")
-    H.has(l, "Apache License\n")
-    H.has(l, "Version 2.0, January 2004")
-    H.has(l, "http://www.apache.org/licenses/")
-    H.has(l, "TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION")
+    H.has(l, "MIT License\n")
+    H.has(l, "Copyright (c) 2026 Xynorash")
+    H.has(l, "Permission is hereby granted, free of charge")
   end)
 end)
 
