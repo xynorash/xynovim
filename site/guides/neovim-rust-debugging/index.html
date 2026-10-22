@@ -131,7 +131,7 @@
 </tbody>
 </table>
 <p><code>&lt;leader&gt;dr</code> from a <code>lib.rs</code> lists only that file's tests, which is why <code>&lt;leader&gt;dR</code> exists: it reads the binary and example targets from <code>cargo metadata</code> and adds the runnables of the current file. Each entry builds first and then launches.</p>
-<figure class="term"><a href="../../media/06-debug-picker.png"><img src="../../media/06-debug-picker.png" width="1440" height="820" alt="the picker listing the debuggable targets of the Rust workspace" loading="lazy" decoding="async"></a><figcaption>The workspace picker of <code>&lt;leader&gt;dR</code>.</figcaption></figure>
+<figure class="term"><a href="../../media/06-debug-picker.png"><img src="../../media/06-debug-picker.png" width="1440" height="820" alt="src/main.rs in Neovim with a breakpoint set on line 22" loading="lazy" decoding="async"></a><figcaption>A breakpoint set on line 22 of <code>src/main.rs</code>, before a debug run.</figcaption></figure>
 
 <h2 id="configs">Launch configurations</h2>
 <p>Three Rust configurations replace the generic ones. <strong>LLDB: Launch</strong> and <strong>LLDB: Launch (args)</strong> ask for the executable, prefilled with <code>&lt;cargo target_directory&gt;/debug/&lt;bin&gt;</code>. The binary comes from <code>cargo metadata</code>: the package that holds the buffer, else the root package, else the first package with a binary. <strong>Rust: run current package binary (args prompt)</strong> builds with <code>cargo build --package P --bin B</code> without blocking the editor and launches in the package directory. A <code>launch.json</code> still works.</p>

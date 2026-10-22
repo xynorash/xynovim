@@ -470,11 +470,11 @@ describe("the page says what the README says", function()
     H.match(html, 'id="platforms"', true)
     local plat = readme:match("### Platforms\n(.-)\n## ")
     H.ok(plat, "README Platforms section")
-    for _, run in ipairs({ "39673715029", "39673715062", "39663956677" }) do
+    for _, run in ipairs({ "39695896272", "39673715062", "39663956677" }) do
       H.match(html, run, true, run)
       H.match(plat, run, true, run)
     end
-    for _, fact in ipairs({ "1724 passed, 0 failed, 76 skipped", "1077 passed, 0 failed, 87 skipped", "1431 passed, 0 failed, 73 skipped" }) do
+    for _, fact in ipairs({ "1749 passed, 0 failed, 76 skipped", "1077 passed, 0 failed, 87 skipped", "1431 passed, 0 failed, 73 skipped" }) do
       H.match(html, fact, true, fact)
       H.match(plat, fact, true, fact)
     end

@@ -109,7 +109,7 @@
     <p class="kicker">xynovim guide</p>
     <h1>A git safety net for Neovim: Local History, lazygit and diffview</h1>
     <p class="lead">The undo file brings back your last edits, but not a file you deleted, a directory an agent rewrote, or the commit you lost to a <code>git reset --hard</code>. This guide describes the safety net in xynovim, a personal Neovim configuration: Local History, which records each save as a commit under a private git ref, and the git tools around it, lazygit and diffview. The idea is the familiar IDE feature of the same name, built on plain git.</p>
-<figure class="term"><a href="../../media/08-git-local-history.png"><img src="../../media/08-git-local-history.png" width="1440" height="820" alt="the Local History picker in Neovim listing earlier snapshots of src/lib.rs" loading="lazy" decoding="async"></a><figcaption>Recorded from the real configuration on the demo crate.</figcaption></figure>
+<figure class="term"><a href="../../media/08-git-local-history.png"><img src="../../media/08-git-local-history.png" width="1440" height="820" alt="the Local History picker in Neovim showing a snapshot of src/lib.rs" loading="lazy" decoding="async"></a><figcaption>Recorded from the real configuration on the demo crate.</figcaption></figure>
 <h2 id="how">How Local History works</h2>
 <p>On every save, manual or auto-save, xynovim also writes the whole worktree as a commit under <code>refs/lochist/&lt;branch&gt;</code>. It does this with a private index file, so your real index, your stash and your branches are never touched. Untracked files are included, <code>.gitignore</code> is respected and <code>target/</code> is left out. A detached HEAD gets <code>refs/lochist/%detached-&lt;short sha&gt;</code>.</p>
 <ul>
@@ -129,7 +129,7 @@
 </tbody>
 </table>
 <p>Outside the editor it is plain git. <code>git for-each-ref refs/lochist/</code> lists the refs and <code>git log refs/lochist/main</code> lists the snapshots of <code>main</code>, so you can recover a file with ordinary tools even without Neovim. Branch names are encoded (a <code>/</code> becomes <code>%2F</code>) so that two branches can never collide as a file and a directory.</p>
-<figure class="term"><a href="../../media/08-git-local-history.png"><img src="../../media/08-git-local-history.png" width="1440" height="820" alt="the Local History picker in Neovim listing snapshots of src/lib.rs with their times" loading="lazy" decoding="async"></a><figcaption>The picker of <code>:LocalHistory</code> for a Rust file.</figcaption></figure>
+<figure class="term"><a href="../../media/08-git-local-history.png"><img src="../../media/08-git-local-history.png" width="1440" height="820" alt="the Local History picker in Neovim showing a snapshot of src/lib.rs with its age" loading="lazy" decoding="async"></a><figcaption>The picker of <code>:LocalHistory</code> for a Rust file.</figcaption></figure>
 
 <h2 id="autosave">Auto-save and its guards</h2>
 <p>Auto-save writes after about one second, including while typing, and skips format-on-save, which is off globally anyway. It has guards: it never writes into dependency or standard-library sources (<code>~/.cargo/registry</code>, <code>~/.cargo/git</code>, <code>~/.rustup</code> buffers are not modifiable), and it never overwrites a file that changed on disk since Neovim read it. The snapshot throttle above is what keeps one-second saves from producing a commit each time.</p>

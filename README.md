@@ -161,7 +161,7 @@ The shell scripts (`scripts/bootstrap.sh`, `scripts/test.sh`) are bash convenien
 
 | Platform | Status | Evidence (GitHub Actions) |
 | --- | --- | --- |
-| Linux | Developed on (Arch); fully tested. | Ubuntu, `ci` run 39673715029: bootstrap, startup and the whole suite: 1724 passed, 0 failed, 76 skipped. |
+| Linux | Developed on (Arch); fully tested. | Ubuntu, `ci` run 39695896272: bootstrap, startup and the whole suite: 1749 passed, 0 failed, 76 skipped. |
 | Windows | Works in CI: the plugin restore from the lockfile (`scripts/bootstrap.ps1`), a silent headless start, and the specs that are not Linux-only. 10 of the 38 spec files are skipped whole there and not demonstrated. | `platforms` run 39673715062: 1077 passed, 0 failed, 87 skipped. Green in 5 of the 6 runs from 39660597368 on (39660597368, 39663956677, 39673715062, 39679589563, 39679743409); the one red run (39668277143) was a path assertion in a spec, fixed afterwards. |
 | macOS | **Not reliably green.** Neovim starts and most specs pass, but the job did not pass in 4 of the 5 runs that finished from 39660597368 on (39679589563 was cancelled). | Green once: run 39663956677 (1431 passed, 0 failed, 73 skipped). Red in 39660597368 (2 timing specs failed), 39668277143 (a live `:MacroExpand` spec timed out), 39673715062 (a treesitter parser would not compile during the plugin restore, so nothing after it ran) and 39679743409 (an auto-import timing spec failed). |
 
@@ -348,7 +348,7 @@ Video: [14-egui-new.mp4](docs/media/14-egui-new.mp4)
 
 ## Tests: run them yourself
 
-The config ships with an automated suite: **38 spec files, 1771 checks passing, 26 skipped with a stated reason, 0 failing**, in about twelve minutes. The passing and skipped counts depend on the machine (the figures are from the author's setup, which has `debug = true` in `~/.cargo/config.toml`, a `~/.cargo/bin` and no `pwsh`; the Ubuntu CI run 39660597409 shows 1721 passed, 76 skipped, 0 failed). Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
+The config ships with an automated suite: **38 spec files, 1771 checks passing, 26 skipped with a stated reason, 0 failing**, in about twelve minutes. The passing and skipped counts depend on the machine (the figures are from the author's setup, which has `debug = true` in `~/.cargo/config.toml`, a `~/.cargo/bin` and no `pwsh`; the Ubuntu CI run 39695896272 shows 1749 passed, 76 skipped, 0 failed). Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
 
 ```sh
 scripts/test.sh                  # everything (or: make test)
