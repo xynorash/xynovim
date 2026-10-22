@@ -51,6 +51,27 @@ Short guides on the website, one per workflow, each with the keys, the reasoning
 - [A git safety net for Neovim: Local History, lazygit and diffview](https://xynorash.github.io/xynovim/guides/neovim-git-local-history/): Every save in Neovim written as a git ref you can restore, plus lazygit and diffview: how xynovim recovers deleted files and edits that undo cannot bring back.
 - [The Island Dark colour scheme for Neovim](https://xynorash.github.io/xynovim/guides/neovim-island-dark-theme/): Island Dark is the dark colour scheme of xynovim: a generated palette mapped to Treesitter captures, LSP tokens and the plugins in use, tuned for contrast.
 
+## Plugins
+
+These are the original parts of my config that I extracted into standalone plugins, so anyone can use them without the rest of xynovim. All nine are public, tagged `v0.1.0` with a release, and install with lazy.nvim. The plugins are MIT licensed; xynovim itself stays Apache-2.0. Linux is the platform I test on; each README states what is and is not verified on Windows and macOS. The [plugins page](https://xynorash.github.io/xynovim/plugins/) has the install order, one complete lazy.nvim spec for the Rust toolkit and the questions I expect.
+
+Standalone:
+
+- [xyno-history.nvim](https://github.com/xynorash/xyno-history.nvim): Local History, every throttled save snapshotted into private git refs.
+- [xyno-sandbox.nvim](https://github.com/xynorash/xyno-sandbox.nvim): runs a command-line coding agent in bubblewrap and refuses to start it without one (Linux only).
+- [xyno-clipboard.nvim](https://github.com/xynorash/xyno-clipboard.nvim): an OSC 52 clipboard provider for tmux, SSH and herdr (Linux only).
+- [xyno-guard.nvim](https://github.com/xynorash/xyno-guard.nvim): keeps auto-save away from dependency sources and files changed on disk.
+
+Rust toolkit (xyno-rust.nvim is the base):
+
+- [xyno-rust.nvim](https://github.com/xynorash/xyno-rust.nvim): Cargo context, targets, routes, navigation, server restart handling and a statusline indicator.
+- [xyno-new.nvim](https://github.com/xynorash/xyno-new.nvim): new Rust binary, library, workspace and egui projects; needs xyno-rust.nvim.
+- [xyno-imports.nvim](https://github.com/xynorash/xyno-imports.nvim): auto-import, ranked choice and organize imports; needs xyno-rust.nvim.
+- [xyno-crates.nvim](https://github.com/xynorash/xyno-crates.nvim): crates.io search, crate add, features and crate import; needs xyno-rust.nvim and xyno-imports.nvim.
+- [xyno-macros.nvim](https://github.com/xynorash/xyno-macros.nvim): macro attribute completion, signature help and `:MacroExpand`; needs xyno-rust.nvim and xyno-imports.nvim.
+
+xynovim still carries its own in-tree copies of this code; the plugins are the same code under another namespace.
+
 ## Tour
 
 ### Two-tier diagnostics
