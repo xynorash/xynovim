@@ -260,7 +260,7 @@ end)
 -- --------------------------------------------------------- guarded: sandbox
 
 describe("Guarded._build_command", function()
-  local sandbox = require("config.agent_sandbox")
+  local sandbox = require("xyno_sandbox")
 
   local function with_wrap_spy()
     local seen = {}
@@ -340,7 +340,7 @@ describe("Guarded._build_command", function()
     local saved = vim.g.xynovim_99_sandbox
     vim.g.xynovim_99_sandbox = nil
     vim.env.GITHUB_TOKEN = "s3cret"
-    local cmd = require("config.agent_sandbox").wrap({ "bash", "-c", 'echo "[${GITHUB_TOKEN-unset}]"' }, dir, tmp_dir)
+    local cmd = require("xyno_sandbox").wrap({ "bash", "-c", 'echo "[${GITHUB_TOKEN-unset}]"' }, dir, tmp_dir)
     vim.g.xynovim_99_sandbox = saved
     local r = vim.system(cmd, { cwd = dir, text = true }):wait(10000)
     vim.env.GITHUB_TOKEN = nil

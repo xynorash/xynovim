@@ -1,10 +1,10 @@
 -- The 99 agent sandbox fails closed, on EVERY platform. This is the spec that
 -- runs on Windows and macOS in the platforms workflow (bubblewrap exists only
--- on Linux, so there the answer must be "refused"); agent-sandbox_spec.lua
+-- on Linux, so there the answer must be "refused"); the plugin's own sandbox_spec
 -- (Linux only) tests the bwrap command itself.
 local H = require("xynotest.helpers")
 
-local sandbox = require("config.agent_sandbox")
+local sandbox = require("xyno_sandbox")
 
 local function with_g(name, value, fn)
   local old = vim.g[name]
@@ -36,7 +36,7 @@ describe("agent_sandbox without a backend", function()
 
   it("a platform without a backend refuses and wrap() returns nil plus a reason", function()
     if native_backend then
-      return skip("a bwrap backend exists here (the has('linux') = 0 case is in agent-sandbox_spec)")
+      return skip("a bwrap backend exists here (the has('linux') = 0 case is in the plugin's sandbox_spec)")
     end
     neutral(function()
       local cmd = { "claude", "--dangerously-skip-permissions" }

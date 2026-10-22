@@ -24,7 +24,7 @@ found so far are fixed (listed at the end).
 | DAP, neotest, overseer, dap-ui (`plugins/dap.lua`, `plugins/rustaceanvim.lua`) | `dap-neotest-coverage` | real codelldb sessions |
 | Auto-save and disk guard (`plugins/auto-save.lua`, `disk_guard.lua`) | `auto-save-disk-guard` | typing test runs in tmux |
 | 99 agent plugin and Guarded provider (`plugins/ninety-nine.lua`) | `agent-99-guard` | no real claude request |
-| Agent sandbox (`agent_sandbox.lua`) | `agent-sandbox` | real bwrap |
+| Agent sandbox through `xyno-sandbox.nvim` (`plugins/xyno-sandbox.lua`; the bwrap command itself is covered in the plugin repository) | `agent-99-guard`, `agent-failclosed` | real bwrap |
 | Agent sandbox fails closed, the guarded provider refuses without a backend, on every OS | `agent-failclosed` | |
 | Provider picker `<leader>9P` cannot leave the guarded provider | `agent-99-guard` | no real provider CLI |
 | Portable runner (`scripts/test.lua`, `scripts/test.ps1`), `xyno-os` headers, `scripts/bootstrap.ps1`, `platforms.yml` | `scripts-portable` | the PowerShell scripts and the workflow only run in the platforms workflow (Windows, macOS) |
@@ -80,7 +80,7 @@ All of them are fixed (final loop round 1) and their specs assert the correct be
 | 1 | `rust_nav.goto_super`: an empty definition list gave no WARN | `keymaps-rust` |
 | 2 | `rust_routes.collect` skipped `target`, `.git`, ... only at the root | `rust-routes` |
 | 3 | `rust_context.apply` for a second workspace reached no client | `rust-context` |
-| 4 | `agent_sandbox`: renaming the parent of the masked memory dir; `wrap` without `~/.claude` | `agent-sandbox` |
+| 4 | `xyno_sandbox`: renaming the parent of the masked memory dir; `wrap` without `~/.claude` | `sandbox` (xyno-sandbox.nvim repository) |
 | 5 | cargo-deny diagnostics on `Cargo.lock` on the wrong line | `git-lint-supply-chain` |
 | 6 | `lsp_status`: dead `b:xynovim_bacon` test; the edit counter restarted after `:edit!` | `server-supervision-statusline` |
 | 7 | `scripts/test.sh --timeout` without a value exited 1, not 2 | `test-infra-readme-claims` |

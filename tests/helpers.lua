@@ -259,7 +259,7 @@ function H.sandbox_available()
   end
   local dir = H.tmpdir()
   local prev = vim.fn.chdir(dir)
-  local cmd, err = require("config.agent_sandbox").wrap({ "true" }, dir, dir)
+  local cmd, err = require("xyno_sandbox").wrap({ "true" }, dir, dir)
   vim.fn.chdir(prev)
   if not cmd then
     return false, err
@@ -451,14 +451,14 @@ function H.open_fixture(name, rel, opts)
   return vim.fs.dirname(dest), H.open(dest)
 end
 
---- Run a bash script inside the 99 sandbox wrapper (config.agent_sandbox)
+--- Run a bash script inside the 99 sandbox wrapper (xyno_sandbox)
 --- with `project` writable. Returns vim.system's result {code, stdout, stderr}.
 function H.sandbox_sh(script, project, opts)
   H.need_sandbox()
   local tmp = H.tmpdir()
   -- wrap() runs the command in nvim's cwd, which 99 sets to the project
   local prev = vim.fn.chdir(project)
-  local cmd = assert(require("config.agent_sandbox").wrap({ "bash", "-c", script }, project, tmp))
+  local cmd = assert(require("xyno_sandbox").wrap({ "bash", "-c", script }, project, tmp))
   vim.fn.chdir(prev)
   return run(cmd, vim.tbl_extend("force", { cwd = project }, opts or {}))
 end
@@ -520,7 +520,7 @@ function H.cleanup()
   pcall(vim.cmd, "silent! %bwipeout!")
   pcall(vim.cmd, "cd " .. vim.fn.fnameescape(vim.env.HOME or "/"))
   for _, d in ipairs(H._dirs) do
-    -- agent_sandbox.wrap() leaves an empty ~/.claude/projects/<dir>/memory
+    -- xyno_sandbox.wrap() leaves an empty ~/.claude/projects/<dir>/memory
     -- behind (the mask's mount point): remove what a spec's temp dir caused
     -- (rmdir only: a directory with anything in it stays)
     local name = (vim.uv.fs_realpath(d) or d):gsub("[^%w]", "-")

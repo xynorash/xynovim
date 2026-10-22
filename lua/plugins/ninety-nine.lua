@@ -6,6 +6,8 @@ return {
     { "saghen/blink.compat", version = "2.*" },
     -- the pre-request checkpoint (not lazy itself, see plugins/xyno-history.lua)
     "xynorash/xyno-history.nvim",
+    -- the sandbox policy and wrapper (fail closed)
+    "xynorash/xyno-sandbox.nvim",
   },
   -- Everything is reached through these keymaps, so lazy-load on them
   -- instead of eager-loading 99 + telescope + blink.compat at startup.
@@ -104,7 +106,7 @@ return {
     function Guarded._build_command(self, query, context)
       local cmd = Claude._build_command(self, query, context)
       local project = vim.fs.root(0, ".git") or vim.uv.cwd()
-      local wrapped, err = require("config.agent_sandbox").wrap(cmd, project, tmp_dir)
+      local wrapped, err = require("xyno_sandbox").wrap(cmd, project, tmp_dir)
       if not wrapped then
         error("99 sandbox: " .. tostring(err), 0)
       end
@@ -114,7 +116,7 @@ return {
     function Guarded.make_request(self, query, context, observer)
       -- Fail closed before anything else happens (no snapshot, no auto-save
       -- toggle, no process): claude runs with --dangerously-skip-permissions.
-      local st = require("config.agent_sandbox").status()
+      local st = require("xyno_sandbox").status()
       if st.mode == "refused" then
         local msg = "99 refused to start: "
           .. st.reason
@@ -223,7 +225,7 @@ return {
       if provider == Guarded or vim.g.xynovim_99_sandbox == false then
         return true
       end
-      local st = require("config.agent_sandbox").status()
+      local st = require("xyno_sandbox").status()
       return st.mode == "unsandboxed" and st.via == "allow_unsandboxed"
     end
     -- The opt-in is re-checked on EVERY request, not only at selection: a
