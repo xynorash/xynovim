@@ -1,10 +1,10 @@
 # Build-out history
 
-The step-by-step plan this config was built from (the author's wish list of features missed from the JetBrains workflow, written while using RustRover 2026.2, then eleven steps and several rounds of field testing), kept as an archive: what was done, how it was verified and what was not. The current state is described in the [README](../README.md) and [DETAILS.md](DETAILS.md); the rounds of fixes are in the [CHANGELOG](../CHANGELOG.md).
+The step-by-step plan this config was built from (my wish list of features missed from the JetBrains workflow, written while using RustRover 2026.2, then eleven steps and several rounds of field testing), kept as an archive: what was done, how it was verified and what was not. The current state is described in the [README](../README.md) and [DETAILS.md](DETAILS.md); the rounds of fixes are in the [CHANGELOG](../CHANGELOG.md).
 
 ## Roadmap: the wish list
 
-The author's wish list, written while using RustRover 2026.2 (researched 2026-10-08: 15 dimensions, each adversarially verified): features missed from the JetBrains workflow. The editor already did well on diagnostics latency, startup/footprint, raw rust-analyzer access and scriptability; the items below are mostly **tooling that is installed but inert** or unbound. Steps are in recommended order; each is verifiable (`:checkhealth`, a headless `nvim --headless` smoke run, or one real crate). Items marked *(unverified)* come from research that was not tested on this machine; test them before building on them.
+My wish list, written while using RustRover 2026.2 (researched 2026-10-08: 15 dimensions, each adversarially verified): features missed from the JetBrains workflow. The editor already did well on diagnostics latency, startup/footprint, raw rust-analyzer access and scriptability; the items below are mostly **tooling that is installed but inert** or unbound. Steps are in recommended order; each is verifiable (`:checkhealth`, a headless `nvim --headless` smoke run, or one real crate). Items marked *(unverified)* come from research that was not tested on this machine; test them before building on them.
 
 ### 1. Reality check: done 2026-10-09
 Findings on this machine and what was done:

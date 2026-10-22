@@ -6,7 +6,7 @@ Usage:
 SCHEME.icls is a scheme file you supply (an export from your own IDE); none is
 committed to this repo. Without it the script prints a message and exits 1.
 Default OUT.lua: lua/island/palette.lua (relative to the repo). The committed
-palette was generated from the author's own export, which is not distributed;
+palette was generated from my own export, which is not distributed;
 you only need this script to regenerate the palette from your own export.
 
 Stdlib only. The output is a table of fully resolved values:

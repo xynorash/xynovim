@@ -331,7 +331,7 @@ H._dirs, H._jobs, H._restore, H._tmux = {}, {}, {}, {}
 
 --- Write a small synthetic JetBrains .icls to `path`, built from the committed
 --- palette (lua/island/palette.lua): same colours and attributes, in the file
---- format the converter reads. The author's real export is not distributed.
+--- format the converter reads. My real export is not distributed.
 function H.write_icls(path)
   local P = dofile(H.repo .. "/lua/island/palette.lua")
   local function raw(h)

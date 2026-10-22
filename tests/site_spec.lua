@@ -489,12 +489,29 @@ describe("the page says what the README says", function()
     H.ok(ack, "README Acknowledgements section")
     local foot = html:match('<footer class="site%-footer">(.-)</footer>')
     H.ok(foot, "footer")
-    for _, w in ipairs({ "amazing products", "RustRover, one IDE of that suite", "derived from", "not affiliated with or endorsed by JetBrains", "still uses JetBrains tools", "not an alternative" }) do
+    for _, w in ipairs({ "amazing products", "RustRover, one IDE of that suite", "derived from", "not affiliated with or endorsed by JetBrains", "I still use JetBrains tools", "I am a full-in JetBrains user", "I wanted to build my own dream configuration", "not an alternative" }) do
       H.match(ack, w, true, w)
       H.match(foot, w, true, w)
     end
     H.no_match(foot:lower(), "<img", true)
     H.no_match(ack:lower(), "![", true)
+    H.no_match(ack:lower(), "the author", true)
+    H.no_match(foot:lower(), "the author", true)
+  end)
+
+  it("the public prose speaks as the owner: no third-person 'the author' in the README or any page", function()
+    built()
+    -- "the author name" is the Cargo.toml authors prompt of the egui project work
+    H.no_match(readme:lower():gsub("the author name", ""), "the author", true)
+    H.no_match(readme:lower(), "author's", true)
+    local pages = vim.fn.glob(out .. "/**/index.html", false, true)
+    H.ok(#pages >= 7, "pages built")
+    for _, f in ipairs(pages) do
+      local t = read(f):lower():gsub("the author name", "")
+      H.no_match(t, "the author", true, f)
+      H.no_match(t, "author&rsquo;s", true, f)
+      H.no_match(t, "author's", true, f)
+    end
   end)
 
   it("the README links to the site and says where it is published from", function()

@@ -4,10 +4,11 @@ All notable changes to this config are documented here.
 
 ## [Unreleased]
 
+- Voice, 2026-10-22: the README, the site and its guides, the docs, the tape comments, code comments and the launch-kit drafts now speak in the first person, as Xynorash ("my own colour-scheme export", "I still use JetBrains tools"), instead of "the author"; the historical entries below keep their facts and switch to "I" where the subject was me. Wording only: no behaviour, no data and no number changed. `tests/site_spec.lua` checks the new Acknowledgements wording and that no page or the README says "the author" in the third person.
 - Website discoverability, 2026-10-22 (commits b989c1f, ca84675, 1578d94, 9808b95, 2a66abd, fd6f6b2, 09bc3ea): technical SEO (canonical and Open Graph URLs, JSON-LD, sitemap.xml, robots.txt), per-page share images (1200x630 PNG), six guides under `/guides/`, an IndexNow key file, and a README with clearer discoverability. No competitor keywords are targeted. Checked live after the push of 09bc3ea (pages run 39701795193, pages-build-deployment 39701821871): every page returns 200, the served HTML equals the local build, and the IndexNow ping to api.indexnow.org returned 202. CI on that commit passed (run 39701794138); the `platforms` run 39701794116 passed on Windows and failed on macOS, as documented in the README.
-- Removed `tools/Dark.icls`: the author's scheme export is no longer distributed, only the palette generated from it (`lua/island/palette.lua`, same content). `tools/icls2nvim.py` stays as a converter for a scheme file you supply (without an input it prints a message and exits 1). The specs use a small synthetic `.icls` rebuilt from the palette.
-- Acknowledgements, aligned with the positioning: JetBrains' products are thanked as the whole suite, RustRover named as the one IDE that inspired xynovim, the author still uses them, and xynovim is an independent personal project (no affiliation, no competition, no alternative). Text only.
-- Positioning: xynovim is a personal project inspired by JetBrains' tools, which the author still uses; it is not a competitor to them. The pitch, page title, meta descriptions, history headings and code comments no longer read as a comparison or a race ("goes after", "closing the gap", "matches or beats", "poor man's", "clone"); the facts and the history stay as they were.
+- Removed `tools/Dark.icls`: my scheme export is no longer distributed, only the palette generated from it (`lua/island/palette.lua`, same content). `tools/icls2nvim.py` stays as a converter for a scheme file you supply (without an input it prints a message and exits 1). The specs use a small synthetic `.icls` rebuilt from the palette.
+- Acknowledgements, aligned with the positioning: JetBrains' products are thanked as the whole suite, RustRover named as the one IDE that inspired xynovim, I still use them, and xynovim is an independent personal project (no affiliation, no competition, no alternative). Text only.
+- Positioning: xynovim is a personal project inspired by JetBrains' tools, which I still use; it is not a competitor to them. The pitch, page title, meta descriptions, history headings and code comments no longer read as a comparison or a race ("goes after", "closing the gap", "matches or beats", "poor man's", "clone"); the facts and the history stay as they were.
 - Acknowledgements: README section and a website footer paragraph thanking JetBrains (RustRover as the inspiration, Island Dark derived from the Islands Dark scheme, no affiliation). Text only.
 - Platforms, wording: README (Install, Platforms), the website (install section, limitations) and the repository description now say only what the `platforms` and `ci` runs show. Windows: run 39673715062 green (bootstrap.ps1, headless start, 1077 passed, 0 failed, 87 skipped; 10 of 38 spec files skipped whole), green in 3 of the last 4 runs (39660597368, 39663956677, 39673715062; 39668277143 failed on spec path assertions, fixed). macOS: not reliably green, green once (39663956677: 1431 passed, 0 failed, 73 skipped), red in 39660597368, 39668277143 and 39673715062 (a treesitter parser failed to compile during the plugin restore). Linux: `ci` run 39673715029, 1724 passed, 0 failed, 76 skipped. Still unverified: Local History, startup options, project creation and live rust-analyzer flows on Windows, codelldb on both, everything the 99 sandbox does off Linux (it refuses to start).
 - Windows and macOS, last iteration of the first pass: `crate_meta.member_of` compares one path spelling (drive-letter case, slashes) so members are found on Windows; the specs that fail on `windows-latest` / `macos-latest` in run 39647013043 for causes not found yet skip with a printed reason (`H.known_issue`) and are listed in docs/KNOWN_ISSUES.md.
@@ -286,7 +287,7 @@ All notable changes to this config are documented here.
 ## [1.6.0] — 2026-10-12
 
 ### Changed
-- Theme: Island Dark (the author's own "Dark" scheme, parent Darcula) is now
+- Theme: Island Dark (my own "Dark" scheme, parent Darcula) is now
   the permanent colourscheme. `tools/icls2nvim.py` converts `tools/Dark.icls` to
   `lua/island/palette.lua`; `lua/island/init.lua`, `colors/island-dark.lua` and a
   lualine theme map it to UI, Treesitter, LSP semantic (`org.rust.*`) and plugin
@@ -472,7 +473,7 @@ All notable changes to this config are documented here.
 
 ### Docs
 - README: added a "Roadmap" section with the 11-step, ordered plan from the
-  author's wish list of features missed from the JetBrains workflow (researched
+  my wish list of features missed from the JetBrains workflow (researched
   while using RustRover 2026.2)
   (research only; no config changes). Items not tested on this machine are
   marked *(unverified)*.
@@ -777,7 +778,7 @@ All notable changes to this config are documented here.
   physical location.
 
 ### Changed
-- **Colorscheme: `rose-pine` → `islands-dark`, ported directly from the user's real
+- **Colorscheme: `rose-pine` → `islands-dark`, ported directly from my real
   RustRover "Islands Dark" scheme.** "Islands" itself is JetBrains' 2025 UI-chrome
   redesign (rounded corners, panel spacing) — not a distinct syntax palette — confirmed
   by checking JetBrains' own announcement post, which describes only layout changes and
@@ -800,7 +801,7 @@ All notable changes to this config are documented here.
 
 ### Added
 - `lualine.nvim` for a real statusline mode indicator. Previously there was no statusline
-  plugin at all — the "mode name at the bottom" the user was seeing was Neovim's own
+  plugin at all — the "mode name at the bottom" I was seeing was Neovim's own
   `showmode` echo-area message (`-- INSERT --`), which isn't colored and only redraws on
   certain events, reading as "stuck." Configured with `theme = "auto"` (derives colors
   from the active colorscheme's highlight groups, so it follows rose-pine without a
