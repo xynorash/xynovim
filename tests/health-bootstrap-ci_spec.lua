@@ -292,6 +292,25 @@ describe("health: minimal PATH", function()
   end)
 end)
 
+describe("health: xyno plugins", function()
+  it("lists the four plugins xynovim uses as installed", function()
+    local rec = run_check(stubdir({}), nil)
+    local sec = section(rec, "xynovim: xyno plugins")
+    H.eq(4, #sec)
+    for _, name in ipairs({ "xyno-history.nvim", "xyno-sandbox.nvim", "xyno-clipboard.nvim", "xyno-guard.nvim" }) do
+      local found
+      for _, r in ipairs(sec) do
+        if r.msg:find(name, 1, true) then
+          found = r
+        end
+      end
+      H.ok(found, name .. " has no line")
+      H.eq("ok", found.kind, name)
+      H.match(found.msg, "^" .. vim.pesc(name) .. " installed %(xynorash/" .. vim.pesc(name) .. "%)$")
+    end
+  end)
+end)
+
 describe("health: rust toolchain", function()
   local function toolchain(rustup)
     local rec = run_check(stubdir(all_stubs({ rustup = rustup })))

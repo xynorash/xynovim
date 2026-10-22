@@ -99,6 +99,18 @@ function M.check()
     ::continue::
   end
 
+  -- the parts of the config that are plugins of their own (lua/plugins/xyno-*.lua), restored from the lockfile
+  vim.health.start("xynovim: xyno plugins")
+  local plugins = require("lazy.core.config").plugins
+  for _, name in ipairs({ "xyno-history.nvim", "xyno-sandbox.nvim", "xyno-clipboard.nvim", "xyno-guard.nvim" }) do
+    local plugin = plugins[name]
+    if plugin and plugin._.installed then
+      vim.health.ok(name .. " installed (" .. plugin[1] .. ")")
+    else
+      vim.health.error(name .. " is not installed", "run scripts/bootstrap.sh (or :Lazy restore)")
+    end
+  end
+
   vim.health.start("xynovim: rust toolchain")
   if vim.fn.executable("rustup") == 0 then
     vim.health.warn("rustup not found", "components cannot be checked; install rustup")
