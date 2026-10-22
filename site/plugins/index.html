@@ -87,7 +87,7 @@
             "license": "https://opensource.org/licenses/MIT",
             "programmingLanguage": "Lua",
             "runtimePlatform": "Neovim 0.12",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "author": {
               "@id": "https://github.com/xynorash"
             }
@@ -290,7 +290,7 @@
     <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="../">xynovim</a></li><li aria-current="page">Plugins</li></ol></nav>
     <p class="kicker">xynovim plugins</p>
     <h1>The xyno plugins: nine Neovim plugins extracted from xynovim</h1>
-    <p class="lead">These are the original parts of my Neovim config that I extracted into standalone plugins, so anyone can use them without the rest of xynovim. There are nine: four standalone plugins (Local History, an agent sandbox, a remote clipboard provider and an auto-save guard) and a Rust toolkit of five that share one base. All nine are public, tagged <code>v0.1.0</code> with a GitHub release, and install with lazy.nvim.</p>
+    <p class="lead">These are the original parts of my Neovim config that I extracted into standalone plugins, so anyone can use them without the rest of xynovim. There are nine: four standalone plugins (Local History, an agent sandbox, a remote clipboard provider and an auto-save guard) and a Rust toolkit of five that share one base. All nine are public, tagged <code>v0.1.0</code> with a GitHub release (xyno-sandbox is at <code>v0.1.1</code>), and install with lazy.nvim.</p>
     <p>The plugins are MIT licensed. xynovim itself, the configuration they come from, stays Apache-2.0. Linux is the platform I test on; for Windows and macOS each section below copies what its README says, and where nothing was run I say so. They are my own independent projects.</p>
 
     <h2 id="overview">The nine at a glance</h2>
@@ -459,7 +459,7 @@
 <li>Linux: the specs in the plugin repository run on Linux; that is the only platform where the sandbox works and the only one I claim.</li>
 <li>Windows and macOS: there is no bubblewrap, so <code>wrap()</code> refuses and nothing starts. In the original xynovim CI the sandbox spec is skipped on both by design.</li>
 </ul>
-<p><strong>License.</strong> MIT, Copyright (c) 2026 Xynorash (<a href="https://github.com/xynorash/xyno-sandbox.nvim/blob/main/LICENSE" rel="noopener">LICENSE<span class="vh"> of xyno-sandbox.nvim</span></a>). <strong>Links.</strong> <a href="https://github.com/xynorash/xyno-sandbox.nvim" rel="noopener">Repository and README<span class="vh"> of xyno-sandbox.nvim</span></a>, <a href="https://github.com/xynorash/xyno-sandbox.nvim/releases/tag/v0.1.0" rel="noopener">release v0.1.0<span class="vh"> of xyno-sandbox.nvim</span></a>.</p>
+<p><strong>License.</strong> MIT, Copyright (c) 2026 Xynorash (<a href="https://github.com/xynorash/xyno-sandbox.nvim/blob/main/LICENSE" rel="noopener">LICENSE<span class="vh"> of xyno-sandbox.nvim</span></a>). <strong>Links.</strong> <a href="https://github.com/xynorash/xyno-sandbox.nvim" rel="noopener">Repository and README<span class="vh"> of xyno-sandbox.nvim</span></a>, <a href="https://github.com/xynorash/xyno-sandbox.nvim/releases/tag/v0.1.1" rel="noopener">release v0.1.1<span class="vh"> of xyno-sandbox.nvim</span></a>.</p>
 <h3 id="xyno-clipboard">xyno-clipboard.nvim</h3>
 <p>A clipboard provider for sessions whose yanks must reach another machine: tmux, SSH and herdr panes get OSC 52 copy, with no change anywhere else.</p>
 <p>I work in tmux over SSH a lot. The default clipboard detection picks nothing useful there, and a plain OSC 52 provider breaks pasting from other applications on my Wayland desktop. This one copies through OSC 52 (inside tmux that becomes a tmux buffer shared by every attached client) and, when a local Wayland clipboard exists, also keeps it in sync and pastes from it.</p>
@@ -705,7 +705,7 @@
 <h3 id="faq-5">Where do I report issues?</h3>
 <p>On the Issues tab of the repository of the plugin concerned: <a href="https://github.com/xynorash/xyno-history.nvim/issues" rel="noopener">xyno-history.nvim<span class="vh"> issues</span></a>, <a href="https://github.com/xynorash/xyno-sandbox.nvim/issues" rel="noopener">xyno-sandbox.nvim<span class="vh"> issues</span></a>, <a href="https://github.com/xynorash/xyno-clipboard.nvim/issues" rel="noopener">xyno-clipboard.nvim<span class="vh"> issues</span></a>, <a href="https://github.com/xynorash/xyno-guard.nvim/issues" rel="noopener">xyno-guard.nvim<span class="vh"> issues</span></a>, <a href="https://github.com/xynorash/xyno-rust.nvim/issues" rel="noopener">xyno-rust.nvim<span class="vh"> issues</span></a>, <a href="https://github.com/xynorash/xyno-new.nvim/issues" rel="noopener">xyno-new.nvim<span class="vh"> issues</span></a>, <a href="https://github.com/xynorash/xyno-imports.nvim/issues" rel="noopener">xyno-imports.nvim<span class="vh"> issues</span></a>, <a href="https://github.com/xynorash/xyno-crates.nvim/issues" rel="noopener">xyno-crates.nvim<span class="vh"> issues</span></a>, <a href="https://github.com/xynorash/xyno-macros.nvim/issues" rel="noopener">xyno-macros.nvim<span class="vh"> issues</span></a>. If you are not sure which one it is, xyno-rust.nvim is the base of the Rust toolkit. These are personal projects that I maintain on my own time.</p>
 <h3 id="faq-6">How do I pin a version?</h3>
-<p>Every plugin is tagged <code>v0.1.0</code> and has a GitHub release of that name. In a lazy.nvim spec add <code>tag = "v0.1.0"</code> to the plugin (lazy.nvim also records the exact commit in its lockfile, <code>lazy-lock.json</code>). That is lazy.nvim behaviour, not a feature of the plugins, so pin the dependencies of a toolkit plugin the same way.</p>
+<p>Every plugin is tagged <code>v0.1.0</code> (xyno-sandbox <code>v0.1.1</code>) and has a GitHub release of that name. In a lazy.nvim spec add <code>tag = "v0.1.0"</code> to the plugin (lazy.nvim also records the exact commit in its lockfile, <code>lazy-lock.json</code>). That is lazy.nvim behaviour, not a feature of the plugins, so pin the dependencies of a toolkit plugin the same way.</p>
 
     <h2 id="license">License</h2>
     <p>The nine plugins are MIT licensed, Copyright (c) 2026 Xynorash; each repository has a <code>LICENSE</code> file. xynovim, the configuration they were extracted from, is licensed under <a href="https://github.com/xynorash/xynovim/blob/main/LICENSE">Apache-2.0</a>.</p>

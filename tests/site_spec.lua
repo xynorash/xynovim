@@ -1342,7 +1342,7 @@ describe("the plugins page and the home plugins section", function()
     H.match(read(out .. "/sitemap.xml"), "<loc>" .. CANON .. "plugins/</loc>", true)
   end)
 
-  it("the JSON-LD lists exactly the nine plugins as SoftwareSourceCode of the author, MIT, Lua, 0.1.0", function()
+  it("the JSON-LD lists exactly the nine plugins as SoftwareSourceCode of the author, MIT, Lua, 0.1.0 (sandbox 0.1.1)", function()
     local pg = plugins_page()
     local list, person
     for body in pg.html:gmatch('<script type="application/ld%+json">(.-)</script>') do
@@ -1367,7 +1367,7 @@ describe("the plugins page and the home plugins section", function()
       seen[code.codeRepository] = true
       H.eq("https://opensource.org/licenses/MIT", code.license)
       H.eq("Lua", code.programmingLanguage)
-      H.eq("0.1.0", code.version)
+      H.eq(PLUGINS[i] == "sandbox" and "0.1.1" or "0.1.0", code.version)
       H.eq(person["@id"], code.author["@id"])
       H.ok(#code.description > 40, code.name)
     end
@@ -1381,7 +1381,7 @@ describe("the plugins page and the home plugins section", function()
     for _, n in ipairs(PLUGINS) do
       local repo_url = GH .. "xyno-" .. n .. ".nvim"
       ok_url[repo_url] = true
-      ok_url[repo_url .. "/releases/tag/v0.1.0"] = true
+      ok_url[repo_url .. "/releases/tag/" .. (n == "sandbox" and "v0.1.1" or "v0.1.0")] = true
       ok_url[repo_url .. "/blob/main/LICENSE"] = true
       ok_url[repo_url .. "/issues"] = true
     end

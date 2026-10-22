@@ -53,7 +53,7 @@ Short guides on the website, one per workflow, each with the keys, the reasoning
 
 ## Plugins
 
-These are the original parts of my config that I extracted into standalone plugins, so anyone can use them without the rest of xynovim. All nine are public, tagged `v0.1.0` with a release, and install with lazy.nvim. The plugins are MIT licensed; xynovim itself stays Apache-2.0. Linux is the platform I test on; each README states what is and is not verified on Windows and macOS. The [plugins page](https://xynorash.github.io/xynovim/plugins/) has the install order, one complete lazy.nvim spec for the Rust toolkit and the questions I expect.
+These are the original parts of my config that I extracted into standalone plugins, so anyone can use them without the rest of xynovim. All nine are public, tagged `v0.1.0` with a release (xyno-sandbox is at `v0.1.1`), and install with lazy.nvim. The plugins are MIT licensed; xynovim itself stays Apache-2.0. Linux is the platform I test on; each README states what is and is not verified on Windows and macOS. The [plugins page](https://xynorash.github.io/xynovim/plugins/) has the install order, one complete lazy.nvim spec for the Rust toolkit and the questions I expect.
 
 Standalone:
 
