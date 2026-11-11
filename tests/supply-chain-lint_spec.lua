@@ -240,3 +240,43 @@ describe("docs/plugin-ci-templates", function()
     H.eq(2, bad.code, "a directory without lua/ is refused")
   end)
 end)
+
+describe("scripts/ts_locks.lua (macOS treesitter 'Lock file appears stale')", function()
+  local locks = dofile(repo .. "/scripts/ts_locks.lua")
+
+  it("removes lock files older than the limit and keeps younger ones and directories", function()
+    local dir = H.tmpdir()
+    for _, n in ipairs({ "old-1.lock", "old-2.lock", "fresh.lock" }) do
+      vim.fn.writefile({ "" }, dir .. "/" .. n)
+    end
+    vim.fn.mkdir(dir .. "/sub", "p")
+    local now = os.time()
+    vim.uv.fs_utime(dir .. "/old-1.lock", now - 600, now - 600)
+    vim.uv.fs_utime(dir .. "/old-2.lock", now - 120, now - 120)
+    local removed = locks.clear(dir, 60)
+    table.sort(removed)
+    H.eq({ "old-1.lock", "old-2.lock" }, removed)
+    H.ok(vim.uv.fs_stat(dir .. "/fresh.lock"), "a young lock may belong to a running build")
+    H.ok(vim.uv.fs_stat(dir .. "/sub"), "directories are left alone")
+    H.eq({}, locks.clear(dir .. "/missing", 60), "a missing directory is not an error")
+  end)
+
+  it("looks where the CLI keeps its locks, XDG_CACHE_HOME first", function()
+    local old = vim.env.XDG_CACHE_HOME
+    vim.env.XDG_CACHE_HOME = "/x/cache"
+    local dirs = locks.dirs()
+    vim.env.XDG_CACHE_HOME = old
+    H.eq("/x/cache/tree-sitter/lock", dirs[1])
+    H.ok(vim.iter(dirs):any(function(d)
+      return d:find("/.cache/tree-sitter/lock", 1, true)
+    end))
+  end)
+
+  it("provision.lua clears stale locks before a retry round", function()
+    local text = read("scripts/provision.lua")
+    H.match(text, "ts_locks.clear_all(60)", true)
+    local clear = text:find("ts_locks.clear_all", 1, true)
+    local install = text:find("TS.install(missing", 1, true)
+    H.ok(clear < install, "before TS.install")
+  end)
+end)
