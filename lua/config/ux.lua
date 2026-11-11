@@ -23,10 +23,36 @@ end
 --- differently, so the two never matched; known pairs.
 local LINT_CODES = { unsafe_op_in_unsafe_fn = "E0133" }
 
+-- The naming lints. rust-analyzer words them "Function `BadName` should have snake_case name, e.g.
+-- `bad_name`" with `code = "non_snake_case"`; rustc/clippy (bacon-ls, no `code`) "function `BadName`
+-- should have a snake case name". Same lint and identifier on one line: one problem (field test: both
+-- were shown). rustc's phrase picks the lint.
+local NAMING_LINTS = { non_camel_case_types = true, non_snake_case = true, non_upper_case_globals = true }
+local NAMING_PHRASES = {
+  ["upper camel case"] = "non_camel_case_types",
+  ["snake case"] = "non_snake_case",
+  ["upper case"] = "non_upper_case_globals",
+}
+
+--- "<lint>:<identifier>" for a naming-lint diagnostic of either tier, else nil.
+local function naming_key(d)
+  local first = head(d.message)
+  local ident = first:match("`([^`]+)`")
+  if not ident then
+    return nil
+  end
+  if type(d.code) == "string" and NAMING_LINTS[d.code] then
+    return d.code .. ":" .. ident
+  end
+  local phrase = first:match("should have an? (.-) name")
+  local lint = phrase and NAMING_PHRASES[phrase]
+  return lint and (lint .. ":" .. ident) or nil
+end
+
 local function same_key(d)
   local code = type(d.code) == "string" and (d.code:match("^E%d+$") or LINT_CODES[d.code])
     or head(d.message):match("^%a+%[(E%d+)%]")
-  return code or (head(d.message):gsub("^%a+: ", ""):gsub("[%s%p]+$", ""):lower())
+  return code or naming_key(d) or (head(d.message):gsub("^%a+: ", ""):gsub("[%s%p]+$", ""):lower())
 end
 
 --- virtual_text.format: only the first line (clippy sends the whole rendered

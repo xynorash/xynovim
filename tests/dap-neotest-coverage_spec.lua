@@ -1321,6 +1321,27 @@ describe("real debug session (codelldb + cargo)", function()
     release()
   end)
 
+  it("after a panic stop the selected frame is the workspace's check(), not the runtime's rust_panic", function()
+    need()
+    local s0 = session()
+    vim.cmd("only")
+    local p = require("lazy.core.config").plugins["mason-nvim-dap.nvim"]
+    p.opts.handlers.codelldb(codelldb_cfg())
+    local dap = require("dap")
+    stub_input(s0.bin)
+    dap.run(vim.deepcopy(by_name(require("dap").configurations.rust, "LLDB: Launch")))
+    local s = stopped()
+    local frame = H.wait_for(function()
+      local f = s.current_frame
+      return f and f.name and f.name:find("check", 1, true) and f
+    end, 20000, "the session to select check() (the first non-runtime frame)")
+    H.match(frame.source.path, "src/main.rs", true, "the selected frame is in the project's source")
+    -- the full stack is still there: the runtime frame stays frame 1
+    local _, frames = locals_of(s, "check")
+    H.match(frames[1].name, "rust_panic", true, "top frame of the stack")
+    release()
+  end)
+
   it("a breakpoint in main stops with its locals, then continues into rust_panic", function()
     need()
     local s0 = session()

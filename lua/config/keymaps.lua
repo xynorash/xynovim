@@ -2,6 +2,9 @@
 -- Default keymaps that are always set: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/keymaps.lua
 -- Add any additional keymaps here
 
+-- `u` / <C-r> after a multi-file LSP edit (rename...) go through all the files it changed
+require("config.rename_undo").setup()
+
 -- Global <leader>r<key> stubs: the r* maps below are buffer-local (rust-analyzer attached), so
 -- in Cargo.toml / Lua / markdown buffers (and for a key nothing binds) Vim parsed <Space>rv as
 -- `l` + `rv`, replaced a character and auto-save wrote it. A real buffer-local map wins. These

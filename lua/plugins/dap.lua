@@ -322,6 +322,7 @@ return {
           -- give Rust its own list.
           require("dap").configurations.rust = rust_configurations()
           require("dap").listeners.on_config["xynovim_rust_lldb"] = rust_lldb_init
+          require("config.dap_panic").setup()
         end,
       },
     },
