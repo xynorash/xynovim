@@ -14,13 +14,13 @@ return {
       return
     end
     local function honour_old_switch(copy)
-      return function(lines)
+      return function(lines, ...)
         if vim.g.xynovim_remote_clipboard_osc52 ~= false then
-          return copy(lines)
+          return copy(lines, ...)
         end
         local prev = vim.g.xyno_clipboard_osc52
         vim.g.xyno_clipboard_osc52 = false
-        local ok, err = pcall(copy, lines)
+        local ok, err = pcall(copy, lines, ...)
         vim.g.xyno_clipboard_osc52 = prev
         if not ok then
           error(err, 0)

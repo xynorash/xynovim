@@ -111,6 +111,22 @@ function M.check()
     end
   end
 
+  -- a yank that reaches no clipboard is silent, so say what is missing
+  vim.health.start("xynovim: clipboard")
+  local wayland, x11 = vim.env.WAYLAND_DISPLAY ~= nil, vim.env.DISPLAY ~= nil
+  if wayland and vim.fn.executable("wl-copy") == 1 and vim.fn.executable("wl-paste") == 1 then
+    vim.health.ok("wl-copy and wl-paste found")
+  elseif x11 and (vim.fn.executable("xclip") == 1 or vim.fn.executable("xsel") == 1) then
+    vim.health.ok("xclip/xsel found")
+  elseif wayland or x11 then
+    vim.health.warn(
+      "no clipboard tool for this " .. (wayland and "Wayland" or "X11") .. " session: yanks only reach the terminal via OSC 52",
+      "pacman -S wl-clipboard (Wayland) or xclip / xsel (X11)"
+    )
+  else
+    vim.health.info("no graphical session: clipboard goes through OSC 52 / the terminal")
+  end
+
   vim.health.start("xynovim: rust toolchain")
   if vim.fn.executable("rustup") == 0 then
     vim.health.warn("rustup not found", "components cannot be checked; install rustup")
