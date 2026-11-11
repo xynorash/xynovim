@@ -1,0 +1,560 @@
+{
+  "env": {
+    "config_dir": "/home/xynorash/projects/xynovim",
+    "config_git": "84b0277",
+    "date_utc": "2026-11-11T23:22:38Z",
+    "isolation": {
+      "cache": "temp (fresh per run)",
+      "config": "symlink /home/xynorash/projects/xynovim -> temp XDG_CONFIG_HOME/nvim",
+      "data": "real /home/xynorash/.local/share (plugins are not reinstalled)",
+      "state": "temp (fresh per run)"
+    },
+    "machine": {
+      "cpu": "AMD Ryzen 7 5800X 8-Core Processor",
+      "cpu_governor": "powersave",
+      "kernel": "Linux 7.3.3-1-cachyos-bore",
+      "loadavg_at_start": "0.18 0.34 0.27 2/831 101411",
+      "logical_cpus": 16,
+      "mem_total_mb": 15903
+    },
+    "nvim_appname": "nvim",
+    "project": "/home/xynorash/projects/xynovim/demo/netwatch",
+    "settings": {
+      "diag_trials": 5,
+      "large_lines": "40000,100000",
+      "startup_runs": 10
+    },
+    "tools": {
+      "bacon_ls": "0.31.0",
+      "cargo": "cargo 1.99.1 (5f94df478 2026-08-27)",
+      "clippy": "clippy 0.1.99 (58cf8f9c35 2026-10-13)",
+      "nvim": "NVIM v0.12.6",
+      "rust_analyzer": "rust-analyzer 1.99.1 (58cf8f9 2026-10-13)"
+    }
+  },
+  "metrics": {
+    "large_file": [
+      {
+        "bigfile": false,
+        "bytes": 891933,
+        "clients": ["xyno-features","rust-analyzer"],
+        "filetype": "rust",
+        "idle_max_stall_ms": 527.4,
+        "lines": 40013,
+        "mode": "large",
+        "open_ms": 373.4,
+        "ops": {
+          "edit_middle": 243,
+          "goto_end": 4.5,
+          "goto_start": 2.6,
+          "jump_20000_lines": 3.7,
+          "page_down_x200": 637.3,
+          "search": 5,
+          "write": 5.2
+        },
+        "ready_ms": 57.9,
+        "rss_after_open_mb": 887.6,
+        "rss_after_ops_mb": 1207.4,
+        "rss_before_mb": 26.3,
+        "syntax": "",
+        "treesitter": true
+      },
+      {
+        "bigfile": true,
+        "bytes": 2237423,
+        "clients": {},
+        "filetype": "bigfile",
+        "idle_max_stall_ms": 20.4,
+        "lines": 100003,
+        "mode": "large",
+        "open_ms": 52.4,
+        "ops": {
+          "edit_middle": 19.2,
+          "goto_end": 6.2,
+          "goto_start": 1.6,
+          "jump_20000_lines": 7.1,
+          "page_down_x200": 201.9,
+          "search": 12.6,
+          "write": 9.6
+        },
+        "ready_ms": 57.9,
+        "rss_after_open_mb": 98.3,
+        "rss_after_ops_mb": 117.7,
+        "rss_before_mb": 26.9,
+        "syntax": "rust",
+        "treesitter": false
+      }
+    ],
+    "lsp": {
+      "attach_ms": {
+        "bacon_ls": 212.3,
+        "rust-analyzer": 219.6,
+        "xyno-crates": 212,
+        "xyno-features": 87.09999999999999
+      },
+      "clients": ["xyno-features","rust-analyzer","bacon_ls","xyno-crates"],
+      "cpu_idle_by_comm_pct": {
+        "bacon-ls": 0,
+        "nvim": 0.5,
+        "rust-analyzer": 0,
+        "rust-analyzer-p": 0
+      },
+      "cpu_idle_nvim_pct": 0.5,
+      "cpu_idle_pct": 0.5,
+      "cpu_window_s": 10,
+      "diagnostics_on_open": {},
+      "memory_after_trials": {
+        "by_comm_mb": {
+          "bacon-ls": 9.1,
+          "nvim": 60.9,
+          "rust-analyzer": 884.5,
+          "rust-analyzer-p": 62.3
+        },
+        "nvim_mb": 60.9,
+        "total_mb": 1016.8
+      },
+      "memory_idle": {
+        "by_comm_mb": {
+          "bacon-ls": 7.3,
+          "nvim": 52.3,
+          "rust-analyzer": 880.2,
+          "rust-analyzer-p": 62.3
+        },
+        "nvim_mb": 52.3,
+        "total_mb": 1002
+      },
+      "mode": "lsp",
+      "ready_ms": 58,
+      "settled_ms": 2676.2,
+      "settled_timeout": false,
+      "trials": [
+        {
+          "attempts": 5,
+          "by_client": {
+            "bacon_ls": {
+              "max": 564.9,
+              "median": 562.8,
+              "min": 561.8,
+              "n": 5,
+              "samples": [561.8,564.9,562.8,562.5,563.1],
+              "source": "bacon-ls"
+            },
+            "rust-analyzer": {
+              "code": "E0308",
+              "max": 28.5,
+              "median": 25.6,
+              "min": 25.3,
+              "n": 5,
+              "samples": [26,25.3,25.3,25.6,28.5],
+              "source": "rust-analyzer"
+            }
+          },
+          "first": {
+            "max": 28.5,
+            "median": 25.6,
+            "min": 25.3,
+            "n": 5,
+            "samples": [26,25.3,25.3,25.6,28.5]
+          },
+          "kind": "ra",
+          "mode": "type",
+          "timeout_ms": 20000
+        },
+        {
+          "attempts": 5,
+          "by_client": {
+            "bacon_ls": {
+              "max": 567.4,
+              "median": 562.1,
+              "min": 561.3,
+              "n": 5,
+              "samples": [567.4,566.1,561.6,562.1,561.3],
+              "source": "bacon-ls"
+            },
+            "rust-analyzer": {
+              "code": "E0308",
+              "max": 41.9,
+              "median": 32.3,
+              "min": 28.7,
+              "n": 5,
+              "samples": [29.2,32.3,33.3,41.9,28.7],
+              "source": "rust-analyzer"
+            }
+          },
+          "first": {
+            "max": 41.9,
+            "median": 32.3,
+            "min": 28.7,
+            "n": 5,
+            "samples": [29.2,32.3,33.3,41.9,28.7]
+          },
+          "kind": "ra",
+          "mode": "save",
+          "timeout_ms": 20000
+        },
+        {
+          "attempts": 5,
+          "by_client": {
+            "bacon_ls": {
+              "max": 563.2,
+              "median": 562,
+              "min": 560.9,
+              "n": 5,
+              "samples": [560.9,562,562.5,563.2,561.6],
+              "source": "bacon-ls"
+            }
+          },
+          "first": {
+            "max": 563.2,
+            "median": 562,
+            "min": 560.9,
+            "n": 5,
+            "samples": [560.9,562,562.5,563.2,561.6]
+          },
+          "kind": "clippy",
+          "mode": "type",
+          "timeout_ms": 20000
+        },
+        {
+          "attempts": 5,
+          "by_client": {
+            "bacon_ls": {
+              "max": 564.5,
+              "median": 562.4,
+              "min": 561.6,
+              "n": 5,
+              "samples": [561.6,564.5,563.2,561.9,562.4],
+              "source": "bacon-ls"
+            }
+          },
+          "first": {
+            "max": 564.5,
+            "median": 562.4,
+            "min": 561.6,
+            "n": 5,
+            "samples": [561.6,564.5,563.2,561.9,562.4]
+          },
+          "kind": "clippy",
+          "mode": "save",
+          "timeout_ms": 20000
+        }
+      ]
+    },
+    "plugins": {
+      "clipboard": {
+        "g_clipboard": "XynoClipboard",
+        "has_clipboard": true,
+        "option": "unnamedplus",
+        "provider": "XynoClipboard"
+      },
+      "lazy": {
+        "count": 70,
+        "loaded_after_rs": 43,
+        "loaded_at_start": 26,
+        "loaded_by_rs_file": [
+          {
+            "ms": 15.2,
+            "name": "rustaceanvim",
+            "phase": "lazy"
+          },
+          {
+            "ms": 13.5,
+            "name": "nvim-dap",
+            "phase": "lazy:rustaceanvim"
+          },
+          {
+            "ms": 12.5,
+            "name": "nvim-lspconfig",
+            "phase": "lazy"
+          },
+          {
+            "ms": 4,
+            "name": "nvim-dap-ui",
+            "phase": "lazy:nvim-dap"
+          },
+          {
+            "ms": 3.6,
+            "name": "gitsigns.nvim",
+            "phase": "lazy"
+          },
+          {
+            "ms": 2.7,
+            "name": "mason.nvim",
+            "phase": "lazy:nvim-lspconfig"
+          },
+          {
+            "ms": 1.4,
+            "name": "nvim-ts-autotag",
+            "phase": "lazy"
+          },
+          {
+            "ms": 1.1,
+            "name": "nvim-treesitter-context",
+            "phase": "lazy"
+          },
+          {
+            "ms": 1.1,
+            "name": "todo-comments.nvim",
+            "phase": "lazy"
+          },
+          {
+            "ms": 1,
+            "name": "mini.icons",
+            "phase": "/home/xynorash/.local/share/nvim/lazy/LazyVim/lua/lazyvim/plugins/ui.lua"
+          },
+          {
+            "ms": 0.9,
+            "name": "nvim-lint",
+            "phase": "lazy"
+          },
+          {
+            "ms": 0.6,
+            "name": "nvim-dap-virtual-text",
+            "phase": "lazy:nvim-dap"
+          },
+          {
+            "ms": 0.5,
+            "name": "persistence.nvim",
+            "phase": "lazy"
+          },
+          {
+            "ms": 0.2,
+            "name": "nvim-nio",
+            "phase": "lazy:nvim-dap-ui"
+          },
+          {
+            "ms": 0.1,
+            "name": "mason-nvim-dap.nvim",
+            "phase": "lazy:nvim-dap"
+          }
+        ],
+        "sum_load_ms": 41.4,
+        "top": [
+          {
+            "ms": 13.6,
+            "name": "lazy.nvim",
+            "phase": "init.lua"
+          },
+          {
+            "ms": 3.9,
+            "name": "lualine.nvim",
+            "phase": "lazy"
+          },
+          {
+            "ms": 2.8,
+            "name": "satellite.nvim",
+            "phase": "lazy"
+          },
+          {
+            "ms": 2.4,
+            "name": "snacks.nvim",
+            "phase": "start"
+          },
+          {
+            "ms": 2.4,
+            "name": "LazyVim",
+            "phase": "start"
+          },
+          {
+            "ms": 1.7,
+            "name": "bufferline.nvim",
+            "phase": "lazy"
+          },
+          {
+            "ms": 1.7,
+            "name": "xyno-macros.nvim",
+            "phase": "lazy"
+          },
+          {
+            "ms": 1.5,
+            "name": "nvim-treesitter",
+            "phase": "lazy"
+          },
+          {
+            "ms": 1.4,
+            "name": "xyno-new.nvim",
+            "phase": "lazy:snacks.nvim"
+          },
+          {
+            "ms": 1,
+            "name": "flash.nvim",
+            "phase": "lazy"
+          },
+          {
+            "ms": 0.9,
+            "name": "mini.pairs",
+            "phase": "lazy"
+          },
+          {
+            "ms": 0.9,
+            "name": "xyno-imports.nvim",
+            "phase": "lazy:xyno-macros.nvim"
+          },
+          {
+            "ms": 0.8,
+            "name": "xyno-crates.nvim",
+            "phase": "lazy"
+          },
+          {
+            "ms": 0.7,
+            "name": "mini.ai",
+            "phase": "lazy"
+          },
+          {
+            "ms": 0.7,
+            "name": "xyno-rust.nvim",
+            "phase": "lazy:xyno-new.nvim"
+          },
+          {
+            "ms": 0.6,
+            "name": "nvim-treesitter-textobjects",
+            "phase": "lazy"
+          },
+          {
+            "ms": 0.6,
+            "name": "auto-save.nvim",
+            "phase": "lazy"
+          },
+          {
+            "ms": 0.6,
+            "name": "xyno-history.nvim",
+            "phase": "start"
+          },
+          {
+            "ms": 0.6,
+            "name": "overseer.nvim",
+            "phase": "start"
+          },
+          {
+            "ms": 0.6,
+            "name": "noice.nvim",
+            "phase": "lazy"
+          },
+          {
+            "ms": 0.5,
+            "name": "nvim-navic",
+            "phase": "lazy:lualine.nvim"
+          },
+          {
+            "ms": 0.5,
+            "name": "which-key.nvim",
+            "phase": "lazy"
+          },
+          {
+            "ms": 0.3,
+            "name": "ts-comments.nvim",
+            "phase": "lazy"
+          },
+          {
+            "ms": 0.3,
+            "name": "xyno-clipboard.nvim",
+            "phase": "start"
+          },
+          {
+            "ms": 0.3,
+            "name": "xyno-guard.nvim",
+            "phase": "start"
+          }
+        ]
+      },
+      "mode": "plugins",
+      "ready_ms": 58
+    },
+    "startup": {
+      "first_run_cold_cache": {
+        "hook_loaded": 7.3,
+        "nvim_started": 52.501,
+        "uienter": 50.5,
+        "very_lazy": 57.5,
+        "very_lazy_idle": 97.09999999999999,
+        "vimenter": 50.5
+      },
+      "method": "nvim -n --startuptime F in a tmux pty (real TUI); nvim_started = 'NVIM STARTED' in the startuptime log; vimenter/uienter/very_lazy = wall clock from the shell right before exec to that event (includes exec, 'env', tmux pty setup excluded). Run 1 is discarded as cold-cache and reported separately.",
+      "tui": {
+        "nvim_started": {
+          "max": 35.9,
+          "mean": 33.3,
+          "median": 33.2,
+          "min": 31.1,
+          "n": 10,
+          "samples": [33.551,33.208,32.826,33.95,31.099,33.321,35.931,32.759,33.241,32.907]
+        },
+        "uienter": {
+          "max": 36,
+          "mean": 33.2,
+          "median": 33.2,
+          "min": 31.2,
+          "n": 10,
+          "samples": [33.3,33.5,32.6,34,31.2,33.1,36,32.3,33.5,32.8]
+        },
+        "very_lazy": {
+          "max": 41,
+          "mean": 38.2,
+          "median": 38.2,
+          "min": 36,
+          "n": 10,
+          "samples": [38.5,38.2,37.8,38.8,36,38.2,41,37.1,38.2,38]
+        },
+        "very_lazy_idle": {
+          "max": 63.5,
+          "mean": 59.5,
+          "median": 59.3,
+          "min": 57.6,
+          "n": 10,
+          "samples": [59.4,58.5,59,59.4,57.6,59.1,63.5,58.6,59.7,60.1]
+        },
+        "vimenter": {
+          "max": 36,
+          "mean": 33.2,
+          "median": 33.1,
+          "min": 31.2,
+          "n": 10,
+          "samples": [33.2,33.4,32.6,34,31.2,33,36,32.2,33.4,32.8]
+        }
+      },
+      "tui_open_rs_file": {
+        "nvim_started": {
+          "max": 197.4,
+          "mean": 180.3,
+          "median": 177.3,
+          "min": 169.1,
+          "n": 10,
+          "samples": [190.039,197.409,182.596,186.63,173.061,172.977,169.135,176.263,177.336,177.258]
+        },
+        "uienter": {
+          "max": 196.9,
+          "mean": 179.7,
+          "median": 176.8,
+          "min": 168.5,
+          "n": 10,
+          "samples": [189.3,196.9,182.5,184.4,172.5,172.5,168.5,176.4,176.9,176.7]
+        },
+        "very_lazy": {
+          "max": 250.2,
+          "mean": 227.7,
+          "median": 224.5,
+          "min": 215.8,
+          "n": 10,
+          "samples": [238.5,250.2,230.6,234.2,219.4,218.6,215.8,220.7,224.8,224.2]
+        },
+        "very_lazy_idle": {
+          "max": 309.4,
+          "mean": 281.7,
+          "median": 275.4,
+          "min": 267.1,
+          "n": 10,
+          "samples": [291.6,309.4,284.1,302.3,274.4,270,267.2,267.1,274.6,276.2]
+        },
+        "vimenter": {
+          "max": 196.5,
+          "mean": 179.3,
+          "median": 176.5,
+          "min": 168.1,
+          "n": 10,
+          "samples": [188.8,196.5,182.1,184,172.2,172.1,168.1,176,176.6,176.3]
+        }
+      }
+    }
+  },
+  "notes": {}
+}
