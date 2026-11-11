@@ -1,0 +1,4 @@
+# not part of the format check
+tests/fixtures/
+demo/
+_site/

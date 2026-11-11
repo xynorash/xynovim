@@ -614,7 +614,12 @@ describe("lazy-lock.json", function()
         end
       end
     end
-    H.eq({}, bad)
+    -- A mismatch is drift of the local install, not of the repo: the install was made (or
+    -- updated) without scripts/bootstrap.sh, e.g. a one-step `Lazy install` that leaves the
+    -- plugins discovered in a later round on their newest commit, or a `:Lazy update` that
+    -- was not committed. Put the plugins back on the lockfile with
+    --   nvim --headless '+Lazy! restore' +qa     (offline when the commits are already fetched)
+    H.eq({}, bad, "plugins off lazy-lock.json; restore: nvim --headless '+Lazy! restore' +qa")
     -- kulala sits exactly on its tag
     local r = vim.system({ "git", "-C", dir .. "/kulala.nvim", "describe", "--tags", "--exact-match" }, { text = true })
       :wait(10000)
