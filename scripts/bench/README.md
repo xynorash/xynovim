@@ -26,10 +26,23 @@ Every measured nvim is a separate process with its own environment. By default t
 
 Options and environment: `scripts/bench/bench.sh --help`.
 
+## Comparing other configs
+
+`NVIM_APPNAME` selects the config; set `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME` and `XDG_CACHE_HOME` to a private tree so the config's plugins, Mason packages and caches stay out of your real ones:
+
+```sh
+NVIM_APPNAME=lazyvim XDG_CONFIG_HOME=$D/lazyvim/config XDG_DATA_HOME=$D/lazyvim/data \
+  XDG_STATE_HOME=$D/lazyvim/state XDG_CACHE_HOME=$D/lazyvim/cache \
+  BENCH_CONFIG=$D/lazyvim/config/lazyvim scripts/bench/bench.sh --label lazyvim --out lazyvim.json
+```
+
+`compare.sh DIR` does this for the LazyVim starter, kickstart.nvim, the AstroNvim template and the NvChad starter: it clones each, adds Rust support the way that starter documents (LazyVim `lang.rust` extra, kickstart's `rust_analyzer` server entry, astrocommunity's `pack.rust`, NvChad's `servers` list plus the rust parser), installs plugins, and runs the harness. It executes third-party Lua, so read it and run it yourself. What a result means for configs that are not lazy.nvim based (kickstart uses `vim.pack`): per-plugin cost is "not measured" and "ready" is n/a, because there is no `VeryLazy` event; `UIEnter` and `NVIM STARTED` still apply. Which `rust-analyzer` binary each config ran (PATH or Mason's) is recorded in the result.
+
 ## Files
 
 - `bench.sh` / `bench.lua` – orchestrator and report (JSON with sorted keys, plus a text table).
 - `hook.lua` – loaded with `--cmd`: startup timestamps, and starts the probe after startup.
+- `compare.sh` – clone, add Rust support and measure the public starter configs (see above).
 - `probe.lua` – runs inside the measured nvim: `plugins`, `lsp` and `large` modes.
 
 ## Caveats

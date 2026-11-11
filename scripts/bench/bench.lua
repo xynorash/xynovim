@@ -368,6 +368,7 @@ local function table_text()
     add("== LSP on %s ==", vim.fs.basename(result.env.project))
     if D.error then add("  ERROR: %s", D.error) end
     add("  clients attached (ms after :edit): %s", insp(D.attach_ms))
+    add("  server binaries: %s | rust-analyzer version run: %s", insp(D.client_cmds), tostring(D.rust_analyzer_version))
     add("  settled after (ms, quiet 3 s)    : %s%s", f1(D.settled_ms), D.settled_timeout and " (TIMED OUT, never quiet)" or "")
     if D.memory_idle then
       add("  idle RSS MB: total %s, nvim %s; by process: %s", f1(D.memory_idle.total_mb), f1(D.memory_idle.nvim_mb), insp(D.memory_idle.by_comm_mb))

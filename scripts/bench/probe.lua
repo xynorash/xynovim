@@ -237,6 +237,16 @@ local function mode_lsp()
   R.settled_timeout = not ok
   R.attach_ms = attach
   R.clients = vim.tbl_map(function(c) return c.name end, vim.lsp.get_clients())
+  -- which server binary each client really runs (a config may use Mason's copy instead of PATH's)
+  R.client_cmds = {}
+  for _, c in ipairs(vim.lsp.get_clients()) do
+    local cmd = c.config and c.config.cmd
+    if type(cmd) == "table" and cmd[1] then
+      R.client_cmds[c.name] = vim.fn.exepath(cmd[1]) ~= "" and vim.fn.exepath(cmd[1]) or cmd[1]
+    end
+  end
+  local ra = R.client_cmds["rust-analyzer"] or R.client_cmds["rust_analyzer"]
+  if ra then R.rust_analyzer_version = vim.trim(vim.fn.system({ ra, "--version" })) end
   R.diagnostics_on_open = vim.tbl_map(function(ds) return #ds end, lsp_diags(buf))
 
   -- idle memory and CPU after indexing
