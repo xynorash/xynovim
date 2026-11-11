@@ -72,7 +72,7 @@ return {
         end
       end
       inflight = inflight + 1
-      return { done = false }
+      return { done = false, handle = nil }
     end
 
     local function release(token)
@@ -80,6 +80,11 @@ return {
         return
       end
       token.done = true
+      -- the sandbox handle removes the private copy of the agent config and the empty placeholders
+      -- the guards left in the project (older plugin versions return no handle)
+      if token.handle then
+        pcall(token.handle.release)
+      end
       inflight = math.max(0, inflight - 1)
       if inflight == 0 and we_disabled_autosave then
         we_disabled_autosave = false
@@ -103,12 +108,23 @@ return {
       end)
     end
 
+    local function project_root()
+      return vim.fs.root(0, ".git") or vim.uv.cwd()
+    end
+
+    -- The plan the operator saw in the preview, handed to the (synchronous) Claude.make_request call
+    -- so the command that runs is that plan; the sandbox handle comes back the same way.
+    local pending
+
     function Guarded._build_command(self, query, context)
       local cmd = Claude._build_command(self, query, context)
-      local project = vim.fs.root(0, ".git") or vim.uv.cwd()
-      local wrapped, err = require("xyno_sandbox").wrap(cmd, project, tmp_dir)
+      local project = project_root()
+      local wrapped, err, handle = require("xyno_sandbox").wrap(cmd, project, tmp_dir, pending and { plan = pending.plan })
       if not wrapped then
         error("99 sandbox: " .. tostring(err), 0)
+      end
+      if pending then
+        pending.handle = handle
       end
       return wrapped
     end
@@ -120,6 +136,7 @@ return {
       if st.mode == "refused" then
         local msg = "99 refused to start: "
           .. st.reason
+          .. (st.hint and (" (" .. st.hint .. ")") or "")
           .. ". The agent only runs sandboxed (Linux with bubblewrap, or WSL2 with bubblewrap). To run it anyway"
           .. " set vim.g.xynovim_99_allow_unsandboxed = true: claude --dangerously-skip-permissions then runs"
           .. " with your full privileges."
@@ -135,55 +152,83 @@ return {
           vim.log.levels.WARN
         )
       end
-      local token = acquire()
-      local guarded_observer = setmetatable({
-        on_complete = function(...)
-          release(token)
-          return observer.on_complete(...)
-        end,
-      }, { __index = observer })
-      -- <leader>9x (stop_all_requests) cancels the prompt; on_complete only
-      -- follows once the process exits, and never if none was started.
-      local cancel = context.cancel
-      if type(cancel) == "function" then
-        context.cancel = function(...)
-          local ok, err = pcall(cancel, ...)
-          release(token)
-          if not ok then
-            error(err, 0)
+      local function go(plan)
+        local token = acquire()
+        local guarded_observer = setmetatable({
+          on_complete = function(...)
+            release(token)
+            return observer.on_complete(...)
+          end,
+        }, { __index = observer })
+        -- <leader>9x (stop_all_requests) cancels the prompt; on_complete only
+        -- follows once the process exits, and never if none was started.
+        local cancel = context.cancel
+        if type(cancel) == "function" then
+          context.cancel = function(...)
+            local ok, err = pcall(cancel, ...)
+            release(token)
+            if not ok then
+              error(err, 0)
+            end
           end
         end
-      end
-      local started, result = false, nil
-      -- A synchronous throw (e.g. spawn failure) never reaches on_complete.
-      local function start()
-        if started or token.done then -- done: cancelled while the checkpoint ran
-          return
+        local started, result = false, nil
+        -- A synchronous throw (e.g. spawn failure) never reaches on_complete.
+        local function start()
+          if started or token.done then -- done: cancelled while the checkpoint ran
+            return
+          end
+          started = true
+          pending = { plan = plan }
+          local ok, res = pcall(Claude.make_request, self, query, context, guarded_observer)
+          local handle = pending.handle
+          pending = nil
+          token.handle = handle
+          if token.done and handle then
+            pcall(handle.release) -- cancelled meanwhile
+          end
+          if not ok then
+            release(token)
+            error(res, 0)
+          end
+          result = res
         end
-        started = true
-        local ok, res = pcall(Claude.make_request, self, query, context, guarded_observer)
-        if not ok then
-          release(token)
-          error(res, 0)
+        -- The agent must not start before the checkpoint holds the pre-request
+        -- state (a fast agent rewrote files while the snapshot was still
+        -- reading them): start from the snapshot's `done`, or after 15 s.
+        local path = vim.api.nvim_buf_get_name(0)
+        if path ~= "" and vim.fs.root(path, ".git") then
+          vim.defer_fn(start, 15000)
+          require("xyno_history").snapshot({
+            path = path,
+            force = true,
+            label = "before 99 request",
+            done = start,
+          })
+        else
+          start()
         end
-        result = res
+        return result
       end
-      -- The agent must not start before the checkpoint holds the pre-request
-      -- state (a fast agent rewrote files while the snapshot was still
-      -- reading them): start from the snapshot's `done`, or after 15 s.
-      local path = vim.api.nvim_buf_get_name(0)
-      if path ~= "" and vim.fs.root(path, ".git") then
-        vim.defer_fn(start, 15000)
-        require("xyno_history").snapshot({
-          path = path,
-          force = true,
-          label = "before 99 request",
-          done = start,
-        })
-      else
-        start()
+
+      -- The policy preview (xyno-sandbox.nvim, setting `preview`): what the sandbox allows, hides and
+      -- strips, and the --dangerously-skip-permissions line, before anything starts. Interactive, so
+      -- the request continues from the confirm; without a UI (headless) or an older plugin it goes on
+      -- at once. Cancelling ends the request as cancelled: no snapshot, no auto-save toggle, no process.
+      local sandbox = require("xyno_sandbox")
+      if type(sandbox.confirm) == "function" and st.mode ~= "refused" then
+        local returned
+        sandbox.confirm(Claude._build_command(self, query, context), project_root(), tmp_dir, function(ok, plan)
+          if ok then
+            returned = go(plan)
+          else
+            pcall(observer.on_start)
+            pcall(observer.on_complete, "cancelled", tostring(plan))
+          end
+        end)
+        return returned
       end
-      return result
+      return go(nil)
     end
 
     _99.setup({

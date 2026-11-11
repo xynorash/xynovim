@@ -898,6 +898,166 @@ pending(
   "not verified in the README: needs a real claude session and network"
 )
 
+-- ------------------------------------------- sandbox policy preview, handle
+
+describe("Guarded.make_request with the policy preview (xyno-sandbox.nvim)", function()
+  local sandbox = require("xyno_sandbox")
+  local rec, restore_claude
+
+  before_each(function()
+    if type(sandbox.confirm) ~= "function" then
+      skip("needs xyno-sandbox.nvim with the policy preview (the lock file still pins the older plugin)")
+    end
+    vim.g.xynovim_99_sandbox = nil
+    rec, restore_claude = fake_claude()
+    autosave().on()
+  end)
+
+  after_each(function()
+    restore_claude()
+    for _, fn in ipairs(H._restore) do
+      pcall(fn)
+    end
+    H._restore = {}
+    vim.g.xynovim_99_sandbox = nil
+    autosave().on()
+  end)
+
+  it("shows the policy first; cancelling ends the request as cancelled with no process, no snapshot, auto-save untouched", function()
+    if vim.fn.executable("bwrap") ~= 1 then
+      skip("bwrap not found")
+    end
+    local asked
+    patch(sandbox, {
+      confirm = function(cmd, project, tmp, cb)
+        asked = { cmd = cmd, project = project, tmp = tmp }
+        cb(false, "cancelled")
+      end,
+    })
+    local _, obs = start()
+    H.ok(asked, "confirm was asked")
+    H.eq("claude", asked.cmd[1])
+    H.has(asked.cmd, "--dangerously-skip-permissions")
+    H.eq(tmp_dir, asked.tmp)
+    H.eq(0, rec.n, "claude was not started")
+    H.eq("cancelled", obs.completed[1][1])
+    H.ok(autosave().enabled(), "auto-save untouched")
+  end)
+
+  it("the plan the operator confirmed is the plan that is wrapped, and the handle is released when the request ends", function()
+    if vim.fn.executable("bwrap") ~= 1 then
+      skip("bwrap not found")
+    end
+    local shown_plan, wrapped_with
+    local released = 0
+    local orig_wrap = sandbox.wrap
+    patch(sandbox, {
+      confirm = function(cmd, project, tmp, cb)
+        shown_plan = sandbox.plan(cmd, project, tmp)
+        cb(true, shown_plan, {})
+      end,
+      wrap = function(cmd, project, tmp, opts)
+        wrapped_with = opts
+        local w, err, h = orig_wrap(cmd, project, tmp, opts)
+        if h then
+          local rel = h.release
+          h.release = function()
+            released = released + 1
+            return rel()
+          end
+        end
+        return w, err, h
+      end,
+    })
+    patch(claude(), {
+      make_request = function(self, query, context, observer)
+        -- the real provider builds the command from Guarded:_build_command
+        guarded()._build_command(self, query, context)
+        rec.observers[#rec.observers + 1] = observer
+        return "ran"
+      end,
+    })
+    local _, obs = start()
+    H.ok(wrapped_with and wrapped_with.plan == shown_plan, "wrap() got the confirmed plan")
+    H.eq(0, released)
+    rec.observers[1].on_complete("success", "done")
+    H.eq(1, released, "the sandbox handle was released on completion")
+    H.eq("success", obs.completed[1][1])
+  end)
+
+  it("a cancelled request releases the handle too", function()
+    if vim.fn.executable("bwrap") ~= 1 then
+      skip("bwrap not found")
+    end
+    local released = 0
+    local orig_wrap = sandbox.wrap
+    patch(sandbox, {
+      wrap = function(...)
+        local w, err, h = orig_wrap(...)
+        if h then
+          local rel = h.release
+          h.release = function()
+            released = released + 1
+            return rel()
+          end
+        end
+        return w, err, h
+      end,
+    })
+    patch(claude(), {
+      make_request = function(self, query, context)
+        guarded()._build_command(self, query, context)
+        return "ran"
+      end,
+    })
+    local ctx = start()
+    ctx:cancel()
+    H.eq(1, released)
+  end)
+end)
+
+describe("the sandbox commands and statusline in this config", function()
+  it(":XynoSandboxStatus and :XynoSandboxRun exist; the policy commands exist with the preview plugin", function()
+    require("lazy").load({ plugins = { "xyno-sandbox.nvim" } })
+    H.eq(2, vim.fn.exists(":XynoSandboxStatus"))
+    H.eq(2, vim.fn.exists(":XynoSandboxRun"))
+    if type(require("xyno_sandbox").confirm) == "function" then
+      H.eq(2, vim.fn.exists(":XynoSandboxPolicy"))
+      H.eq(2, vim.fn.exists(":XynoSandboxApprovals"))
+    end
+  end)
+
+  it("vim.g.xynovim_99_sandbox / allow_unsandboxed are still read at every call", function()
+    local sandbox = require("xyno_sandbox")
+    local old_sb, old_au = vim.g.xynovim_99_sandbox, vim.g.xynovim_99_allow_unsandboxed
+    vim.g.xynovim_99_sandbox = false
+    H.eq("sandbox=false", sandbox.status().via)
+    vim.g.xynovim_99_sandbox = nil
+    H.ok(sandbox.status().mode ~= "unsandboxed" or sandbox.status().via == "allow_unsandboxed")
+    vim.g.xynovim_99_sandbox, vim.g.xynovim_99_allow_unsandboxed = old_sb, old_au
+  end)
+
+  it("lualine shows the sandbox state only once the sandbox module is loaded", function()
+    local spec = dofile(H.repo .. "/lua/plugins/lualine.lua")
+    local opts = { sections = { lualine_x = {} } }
+    spec.opts(nil, opts)
+    local comp
+    for _, c in ipairs(opts.sections.lualine_x) do
+      if type(c) == "table" and type(c.cond) == "function" and type(c.color) == "function" then
+        comp = c
+      end
+    end
+    H.ok(comp, "sandbox component present")
+    local sandbox = require("xyno_sandbox")
+    if type(sandbox.statusline) == "function" then
+      H.eq(true, comp.cond())
+      H.match(comp[1](), "^sandbox: ")
+    end
+  end)
+end)
+
+
+
 -- ------------------------------------------- the provider picker is guarded
 
 describe("provider picker (<leader>9P)", function()
