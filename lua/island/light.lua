@@ -1,11 +1,14 @@
--- Island Light: a LIGHT variant derived from Island Dark by a rule, not a second hand-made scheme.
+-- Island Light: the light variant of Island Dark, with a HAND-TUNED palette (lua/island/light_palette.lua:
+-- one chosen light colour for every dark colour of the scheme, designed after JetBrains Light / Islands
+-- Light, GitHub Light, catppuccin-latte and tokyonight-day, see the header of that file).
 --
--- It is NOT a JetBrains scheme: the palette in lua/island/palette.lua is the dark scheme only, so every
--- colour here is the dark one run through `flip` (lightness inverted in OKLab, hue kept, chroma a little
--- lower), and afterwards each highlight group is checked against the contrast the DARK scheme gives the
--- same group (capped at 9:1): text that was 8.9:1 in dark stays at least 8.9:1, a muted tone that was 4.5:1
--- stays at least 4.5:1, a border that was 3:1 stays at least 3:1. Colours that miss are moved towards
--- black until they reach it.
+-- It is not a JetBrains scheme. Colours the palette file does not list (tints plugins derive from the
+-- dark colours at run time) still go through `flip` (lightness inverted in OKLab, hue kept). Afterwards
+-- every highlight group is checked: text keeps at least min(the contrast the dark scheme gives the same
+-- group, 4.5:1), a border that was 3:1 stays at least 3:1; colours that miss are moved towards black until
+-- they reach it. (The first, derived version of this variant held every group to the dark contrast, capped
+-- at 9:1, which made keywords and strings dark brown and dark green; the hand-tuned one holds syntax to 5:1
+-- instead, as GitHub Light does, and normal text to 12:1.)
 --
 --   :colorscheme island-light      (colors/island-light.lua)
 --   island.light.apply()           after island.setup(), used by that file
@@ -60,9 +63,14 @@ function M.from_oklab(L, a, b)
   return string.format("#%02x%02x%02x", from_lin(r) * 255 + 0.5, from_lin(g) * 255 + 0.5, from_lin(bl) * 255 + 0.5)
 end
 
---- Lightness inverted around the middle of the range the scheme uses (dark background L 0.24 -> 0.97,
+--- The light colour for a dark one: the hand-tuned palette entry if there is one, else the OKLab flip.
+--- (OKLab flip: lightness inverted around the middle of the range the scheme uses (dark background L 0.24 -> 0.97,
 --- light text L 0.90 -> 0.25), hue kept, chroma x 0.92.
 function M.flip(hex)
+  local chosen = require("island.light_palette").lookup(hex)
+  if chosen then
+    return chosen
+  end
   local L, a, b = M.to_oklab(hex)
   return M.from_oklab(clamp(1.238 - 1.098 * L, 0.05, 0.99), a * 0.92, b * 0.92)
 end
@@ -139,7 +147,7 @@ local function convert(groups, light_bg, dark_bg, only_new, untouched)
       local target
       if dfg then
         -- the contrast this group has in the dark scheme (its own fill, else the editor background)
-        target = math.min(M.ratio(dfg, dbg or dark_bg), 9)
+        target = math.min(M.ratio(dfg, dbg or dark_bg), 4.5)
       end
       local n = vim.deepcopy(spec)
       n.default = nil -- groups defined `default` (bufferline & co.) must be replaced, not skipped
@@ -181,7 +189,7 @@ function M.apply(defaults)
   local nfg = hex(normal.fg) or "#bcbec4"
   local n = vim.deepcopy(normal)
   n.bg = light_bg
-  n.fg = M.darken_to(M.flip(nfg), light_bg, math.min(M.ratio(nfg, dark_bg), 9))
+  n.fg = M.darken_to(M.flip(nfg), light_bg, 12)
   updated.Normal = n
   for name, spec in pairs(updated) do
     vim.api.nvim_set_hl(0, name, spec)

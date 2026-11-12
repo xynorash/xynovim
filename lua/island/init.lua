@@ -145,7 +145,7 @@ function M.late()
     return n and string.format("#%06x", n) or nil
   end
   local nbg = hx(vim.api.nvim_get_hl(0, { name = "Normal", link = false }).bg)
-    or (vim.g.colors_name == "island-light" and "#f5f7fb" or "#1e1f22")
+    or (vim.g.colors_name == "island-light" and "#ffffff" or "#1e1f22")
   local n = 0
   -- a tab group without its own background is drawn on whatever the tabline is: TabLineFill / TabLine
   local function bg_of(name)
@@ -198,7 +198,7 @@ function M.apply_high_contrast()
   end
   local normal = vim.api.nvim_get_hl(0, { name = "Normal", link = false })
   local nbg = hx(normal.bg)
-  nbg = nbg or (vim.g.colors_name == "island-light" and "#f5f7fb" or "#1e1f22")
+  nbg = nbg or (vim.g.colors_name == "island-light" and "#ffffff" or "#1e1f22")
   local changed = 0
   for name in pairs(vim.api.nvim_get_hl(0, {})) do
     local h = vim.api.nvim_get_hl(0, { name = name, link = false })

@@ -1253,7 +1253,7 @@ describe("ui round 2: the tagline says only what is true", function()
   end)
 end)
 
-describe("ui round 2: Island Light (derived, contrast-checked per group)", function()
+describe("ui round 3: Island Light (hand-tuned palette, contrast-checked per group)", function()
   after_each(function()
     vim.g.xynovim_contrast = nil
     vim.g.xynovim_transparent = nil
@@ -1266,14 +1266,14 @@ describe("ui round 2: Island Light (derived, contrast-checked per group)", funct
     H.eq("light", vim.o.background)
     local nb, nf = hex(hl("Normal").bg), hex(hl("Normal").fg)
     H.ok(lum(nb) > 0.85, "background luminance " .. lum(nb))
-    H.ok(ratio(nf, nb) >= 7, ("Normal text %.2f:1"):format(ratio(nf, nb)))
+    H.ok(ratio(nf, nb) >= 12, ("Normal text %.2f:1"):format(ratio(nf, nb)))
     vim.cmd.colorscheme("island-dark")
     H.eq("dark", vim.o.background)
     H.eq(0xbcbec4, hl("Normal").fg, "dark is unchanged by having loaded light")
   end)
 
   it(
-    "every highlight group keeps the contrast it has in dark (capped at 8:1 here, 9:1 in the construction), checked group by group",
+    "every highlight group keeps min(its dark contrast, 4.5:1), checked group by group",
     function()
       vim.g.xynovim_transparent = false -- compare solid with solid: transparency drops backgrounds in dark only
       vim.cmd.colorscheme("island-dark")
@@ -1288,8 +1288,8 @@ describe("ui round 2: Island Light (derived, contrast-checked per group)", funct
         -- lualine_* are written by lualine from the theme file (checked >= 4.5:1 in the statusline test)
         if l and was >= 1.2 and not name:find("^lualine_") and not name:find("^BufferLine") then
           checked = checked + 1
-          local want, got = math.min(was, 8), ratio(l.fg, l.bg or lbg)
-          if got < want - 0.15 then
+          local want, got = math.min(was, 4.5), ratio(l.fg, l.bg or lbg)
+          if got < want - 0.05 then
             worse[#worse + 1] = ("%s dark %.2f light %.2f"):format(name, was, got)
           end
         end
@@ -1307,6 +1307,57 @@ describe("ui round 2: Island Light (derived, contrast-checked per group)", funct
       H.eq({}, vim.list_slice(worse, 1, 15), #worse .. " groups lost contrast in light")
     end
   )
+
+  it("hand-tuned targets: key groups reach the ratios written in lua/island/light_palette.lua", function()
+    vim.g.xynovim_transparent = false
+    vim.cmd.colorscheme("island-light")
+    vim.wait(150)
+    local nbg = hex(hl("Normal").bg)
+    H.eq("#ffffff", nbg)
+    -- group (foreground) [, group whose background it sits on] -> minimum ratio
+    local want = {
+      { "Normal", nil, 12 },
+      { "Comment", nil, 4.5 }, { "String", nil, 5 }, { "Number", nil, 5 }, { "Boolean", nil, 5 }, { "Statement", nil, 5 },
+      { "Function", nil, 5 }, { "@function.call", nil, 5 }, { "Type", nil, 5 }, { "Constant", nil, 5 },
+      { "@variable.member", nil, 5 }, { "@attribute", nil, 5 }, { "@function.macro", nil, 5 },
+      { "@variable.builtin", nil, 5 }, { "@lsp.type.lifetime.rust", nil, 5 }, { "@lsp.type.enumMember", nil, 5 },
+      { "@string.documentation", nil, 4.5 }, { "@string.regexp", nil, 5 }, { "Todo", nil, 5 },
+      { "DiagnosticError", nil, 4.5 }, { "DiagnosticWarn", nil, 4.5 }, { "DiagnosticInfo", nil, 4.5 },
+      { "DiagnosticHint", nil, 4.5 }, { "DiagnosticOk", nil, 4.5 },
+      { "DiagnosticVirtualTextError", "DiagnosticVirtualTextError", 4.5 },
+      { "LineNr", nil, 4.5 }, { "CursorLineNr", "CursorLine", 7 }, { "LspInlayHint", nil, 4.5 },
+      { "LspCodeLens", nil, 4.5 }, { "StatusLine", nil, 7 }, { "StatusLineNC", "StatusLine", 4.5 },
+      { "WinBar", nil, 4.5 }, { "WinBarNC", nil, 4.5 }, { "NormalFloat", nil, 7 }, { "Pmenu", nil, 7 },
+      { "PmenuSel", nil, 7 }, { "FloatTitle", "NormalFloat", 7 }, { "CurSearch", nil, 7 }, { "Folded", nil, 4.5 },
+      { "Added", nil, 4.5 }, { "Removed", nil, 4.5 }, { "Changed", nil, 4.5 }, { "Underlined", nil, 4.5 },
+      { "GitSignsAdd", nil, 4.5 }, { "GitSignsDelete", nil, 4.5 },
+    }
+    local bad = {}
+    for _, w in ipairs(want) do
+      local g = hl(w[1])
+      local bg = g.bg or (w[2] and hl(w[2]).bg) or hl("Normal").bg
+      local r = ratio(hex(g.fg), hex(bg))
+      if r < w[3] - 0.005 then
+        bad[#bad + 1] = ("%s %.2f < %s"):format(w[1], r, w[3])
+      end
+    end
+    H.eq({}, bad, "key groups under their target")
+    -- text sits on selection, cursor line, search and diff fills at >= 7:1 (Normal text)
+    for _, f in ipairs({ "Visual", "CursorLine", "DiffAdd", "DiffChange", "DiffDelete", "DiffText", "LspReferenceText" }) do
+      local r = ratio(hex(hl("Normal").fg), hex(hl(f).bg))
+      H.ok(r >= 7, ("Normal text on %s = %.2f:1"):format(f, r))
+    end
+    -- frames: float border and popup border >= 3:1 on the popup fill
+    local fb = hl("FloatBorder")
+    H.ok(ratio(hex(fb.fg), hex(fb.bg or hl("NormalFloat").bg)) >= 3, "float border >= 3:1")
+  end)
+
+  it("the dark scheme did not change by having a hand-tuned light one (Normal, keyword, string)", function()
+    vim.cmd.colorscheme("island-dark")
+    H.eq(0xbcbec4, hl("Normal").fg)
+    H.eq(0xcf8e6d, hl("Statement").fg)
+    H.eq(0x6aab73, hl("String").fg)
+  end)
 
   it("the statusline and the lualine pills are >= 4.5:1 on the grid", function()
     vim.cmd.colorscheme("island-light")
