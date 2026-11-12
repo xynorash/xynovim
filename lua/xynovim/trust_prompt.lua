@@ -66,10 +66,23 @@ function M.open(spec, cb)
   vim.wo[win].wrap = true
   vim.wo[win].linebreak = true
   vim.wo[win].cursorline = true
+  vim.wo[win].scrolloff = 0 -- a global 'scrolloff' scrolled the first wrapped line out of a window that fits everything
+  vim.wo[win].sidescrolloff = 0
+  vim.wo[win].smoothscroll = false
   vim.wo[win].winhighlight = "NormalFloat:NormalFloat,FloatBorder:FloatBorder,CursorLine:PmenuSel"
   geometry(buf, win, #spec.choices, first - 1)
   local last = first + #spec.choices - 1
   vim.api.nvim_win_set_cursor(win, { first, 0 })
+  -- once more after the first redraw (the text height of a freshly opened float can be one row short of what
+  -- gets drawn), and the view back to the top
+  vim.schedule(function()
+    if vim.api.nvim_win_is_valid(win) then
+      geometry(buf, win, #spec.choices, first - 1)
+      vim.api.nvim_win_call(win, function()
+        vim.fn.winrestview({ topline = 1, skipcol = 0 })
+      end)
+    end
+  end)
 
   local done = false
   local group = vim.api.nvim_create_augroup("xynovim_trust_prompt_" .. buf, { clear = true })
