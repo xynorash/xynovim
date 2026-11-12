@@ -37,21 +37,17 @@ return {
     -- OSC52", groups XynoClipboardWarn/Error); empty when all is well. Needs the plugin version with statusline().
     "nvim-lualine/lualine.nvim",
     opts = function(_, opts)
-      local function clip()
-        local c = package.loaded["xyno_clipboard"]
-        return c and type(c.statusline) == "function" and c or nil
-      end
+      local clip = require("xynovim.clip")
       table.insert(opts.sections.lualine_x, {
         function()
-          return (clip().statusline())
+          return (clip.status())
         end,
         cond = function()
-          local c = clip()
-          return c ~= nil and c.statusline() ~= ""
+          return clip.status() ~= ""
         end,
         color = function()
-          local c = clip()
-          return c and c.statusline_hl()
+          local _, hl = clip.status()
+          return hl
         end,
       })
     end,
