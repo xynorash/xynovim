@@ -290,10 +290,19 @@ describe("value float, hover, inline text (real codelldb)", function()
       vim.notify = old
     end
     DV.show_value("no_such_variable_here")
+    -- Noice can post its own "vim.notify has been overwritten" warning through the same hook when it loads late
+    -- under load; look for the notice among the messages instead of taking the first one.
+    local function found()
+      for _, m in ipairs(msgs) do
+        if tostring(m):find("cannot evaluate", 1, true) then
+          return m
+        end
+      end
+    end
     H.wait_for(function()
-      return #msgs > 0
+      return found() ~= nil
     end, 10000, "the notice")
-    H.match(msgs[1], "cannot evaluate", true)
+    H.match(found(), "cannot evaluate", true)
     wait_gone()
   end)
 

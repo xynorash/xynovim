@@ -329,8 +329,10 @@ describe("Guarded._build_command", function()
     vim.g.xynovim_99_sandbox = saved
     -- Newer xyno-sandbox starts bwrap with an empty environment (`env -i NAME=value... bwrap ...`), older
     -- ones start with bwrap itself; the token must be gone in either case.
+    -- The newer one uses absolute paths (`/usr/bin/env`, `/usr/bin/bwrap`), so compare base names.
     local at = 1
-    if out[1] == "env" then
+    local is_env = vim.fs.basename(out[1]) == "env"
+    if is_env then
       H.eq("-i", out[2])
       at = 3
       while out[at] and out[at]:find("=", 1, true) do
@@ -338,9 +340,9 @@ describe("Guarded._build_command", function()
         at = at + 1
       end
     end
-    H.eq("bwrap", out[at])
+    H.eq("bwrap", vim.fs.basename(out[at]))
     H.eq("claude", out[#out - #claude():_build_command("do it", ctx) + 1])
-    local unset = out[1] == "env" -- `env -i` passes only an allowlist: the token never exists
+    local unset = is_env -- `env -i` passes only an allowlist: the token never exists
     for i, a in ipairs(out) do
       if a == "--unsetenv" and out[i + 1] == "GITHUB_TOKEN" then
         unset = true

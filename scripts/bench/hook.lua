@@ -19,6 +19,13 @@ mark("hook_loaded")
 if vim.env.BENCH_EARLY and vim.env.BENCH_EARLY ~= "" then
   dofile(vim.env.BENCH_EARLY)
 end
+-- The harness copies the demo crate into a temp dir with a fresh state dir, i.e. an UNTRUSTED workspace; the
+-- workspace trust gate (lua/config/workspace_trust.lua) would then start rust-analyzer restricted (no proc macros,
+-- no check) and not start bacon-ls, which is not what a user who trusted their project gets. So the gate is
+-- switched off by default (= the settings of a trusted workspace). BENCH_TRUST=0 measures the restricted mode.
+if vim.env.BENCH_TRUST ~= "0" then
+  vim.g.xynovim_workspace_trust = false
+end
 local g = vim.api.nvim_create_augroup("bench_hook", { clear = true })
 local function au(ev, cb, pat)
   vim.api.nvim_create_autocmd(ev, { group = g, pattern = pat, once = true, callback = cb })
