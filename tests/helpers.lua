@@ -221,6 +221,27 @@ function H.clear_messages()
   vim.cmd("messages clear")
 end
 
+--- LazyVim.lazy_notify() parks vim.notify in a collecting function for the first 500 ms and then
+--- replays what it collected with `for _, n in ipairs(notifs) do vim.notify(n) end`. A stub that
+--- saved the collector as "the original" and restored it later put it back for good: the replay
+--- then appended to the table it was iterating over and never ended (a spec hanging at 100% CPU in
+--- LazyVim/util/init.lua notify, seen as the hang of rust-context_spec with XYNOVIM_DEV_PLUGINS,
+--- where the config starts faster). A spec that captures notifications while it runs early calls
+--- H.settle_notify() first. (Not done inside capture_notify for every spec: the earlier replay made
+--- the snippets/completion spec hang in the snacks notifier with the dev plugins.)
+function H.settle_notify()
+  local function parked()
+    local info = debug.getinfo(vim.notify, "S")
+    return info and info.short_src:find("lazyvim/util/init.lua", 1, true) ~= nil
+  end
+  if parked() then
+    vim.wait(2000, function()
+      return not parked()
+    end, 10)
+    vim.wait(20) -- the replay is scheduled: let it run
+  end
+end
+
 --- Replace vim.notify; returns { list = {{msg, level}...}, restore = fn }.
 function H.capture_notify()
   local orig = vim.notify

@@ -31,7 +31,8 @@ return {
             return false
           end
           local warned = vim.b.xyno_guard_warned
-          local paused_shown = package.loaded["config.ui"] and type(package.loaded["config.ui"].guard_status) == "function"
+          local paused_shown = package.loaded["config.ui"]
+            and type(package.loaded["config.ui"].guard_status) == "function"
           return not (paused_shown and warned ~= nil and warned ~= vim.NIL)
         end,
         color = function()

@@ -63,7 +63,9 @@ return {
             local ra = settings["rust-analyzer"]
             ra.cargo = vim.tbl_extend("force", ra.cargo or {}, cargo)
           end
-          return settings
+          -- Restricted mode (config/workspace_trust.lua): in a workspace nobody trusted, no build
+          -- scripts, no proc macros, no cargo check; trusted workspaces keep the settings above as is.
+          return require("config.workspace_trust").settings_for(ctx.root(root and (root .. "/x")), settings)
         end,
         default_settings = {
           ["rust-analyzer"] = {

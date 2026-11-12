@@ -99,7 +99,11 @@ return {
           local rc = require("xyno_rust.rust_context")
           local function start(root)
             if root and (root:sub(1, 1) == "/" or root:match("^%a:[/\\]")) then
-              on_dir(root)
+              -- clippy compiles build.rs and proc macros: not in a workspace nobody trusted (restricted
+              -- mode, config/workspace_trust.lua). Trusting it re-runs this function for the buffers.
+              if require("config.workspace_trust").allow_bacon(root) then
+                on_dir(root)
+              end
             end
           end
           if rc.root_async then

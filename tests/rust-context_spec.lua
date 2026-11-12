@@ -38,6 +38,7 @@ local function on_undo(fn)
 end
 
 local function notes()
+  H.settle_notify() -- see helpers.lua: a collector restored as "the original" loops LazyVim's replay
   local cap = H.capture_notify()
   on_undo(cap.restore)
   return cap
