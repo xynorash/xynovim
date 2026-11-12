@@ -191,6 +191,19 @@ vim.api.nvim_create_autocmd("LspAttach", {
         require("xyno_rust.rust_nav").local_usages()
       end, "Usages in file (R/W)")
 
+      -- newer xyno-rust.nvim commands (rename preview, grouped usages, profile view, tokio-console);
+      -- a pinned older plugin lacks them, so each key is set only when its command exists
+      for _, k in ipairs({
+        { "<leader>rn", "RustRename", "Rename with a per-file diff preview" },
+        { "<leader>rU", "RustUsages", "Usages in the workspace, grouped (code / imports / tests / docs)" },
+        { "<leader>rY", "RustProfile", "Profile view (hot functions, call tree)" },
+        { "<leader>rA", "TokioConsole", "Async: tokio-console check / launch" },
+      }) do
+        if vim.fn.exists(":" .. k[2]) == 2 then
+          map("n", k[1], "<cmd>" .. k[2] .. "<cr>", k[3])
+        end
+      end
+
       map("n", "<leader>rF", "<cmd>RustContext<cr>", "Cargo features / target (both diagnostic tiers)")
       map("n", "<leader>rX", "<cmd>RustTargets<cr>", "Cargo targets: run / test / bench")
       -- run configurations saved per project (args, env, profiler): xyno-rust.nvim, :RustRun

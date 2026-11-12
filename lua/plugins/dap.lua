@@ -408,6 +408,13 @@ return {
           require("dap").listeners.on_config["xynovim_rust_lldb"] = rust_lldb_init
           require("config.dap_panic").setup()
           require("config.dap_values").setup()
+          -- once per project: a debugger shows threads, not tokio tasks (xyno-rust.nvim, :TokioConsole)
+          require("dap").listeners.after.event_initialized["xynovim_tokio_hint"] = function()
+            local ok, tk = pcall(require, "xyno_rust.tokio")
+            if ok then
+              pcall(tk.debug_hint)
+            end
+          end
         end,
       },
     },
