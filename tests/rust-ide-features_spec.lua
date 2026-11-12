@@ -38,8 +38,14 @@ local function session()
 end
 
 local function need_dev()
-  if vim.fn.exists(":RustRun") ~= 2 then
-    H.skip_file("xyno-rust.nvim without :RustRun (run with XYNOVIM_DEV_PLUGINS=~/projects/xyno-plugins)")
+  if
+    vim.fn.exists(":RustRun") ~= 2
+    or not pcall(require, "xyno_rust.run_configs")
+    or not pcall(require, "xyno_rust.action_menu")
+  then
+    H.skip_file(
+      "the pinned xyno-rust.nvim has no run_configs / action_menu modules (run with XYNOVIM_DEV_PLUGINS=~/projects/xyno-plugins)"
+    )
   end
 end
 
