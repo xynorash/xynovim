@@ -113,7 +113,15 @@ describe("live servers", function()
   before_each(function()
     H.need_rust()
     if vim.fn.executable("bacon-ls") ~= 1 then
-      skip("bacon-ls not found")
+      -- Mason's bin directory is put on PATH when mason.nvim loads, which a spec that never loads it does not
+      -- see; the file is where `:MasonInstall bacon-ls` puts it
+      local mason_bin = vim.fn.stdpath("data") .. "/mason/bin"
+      if vim.fn.executable(mason_bin .. "/bacon-ls") == 1 then
+        vim.env.PATH = vim.env.PATH .. ":" .. mason_bin
+      end
+    end
+    if vim.fn.executable("bacon-ls") ~= 1 then
+      skip("bacon-ls not found (not on PATH, not in " .. vim.fn.stdpath("data") .. "/mason/bin)")
     end
     if not crate then
       crate = H.fixture("basic", { git = true })
