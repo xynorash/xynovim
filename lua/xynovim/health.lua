@@ -158,9 +158,9 @@ function M.check()
   if not wt_ok or not wt.enabled() then
     if vim.g.xynovim_workspace_trust ~= false then
       vim.health.error(
-        "xyno-rust.nvim has no workspace trust (older pinned commit): Rust workspaces stay RESTRICTED and nothing can run their code",
+        "no workspace trust store loads (neither xyno_rust.trust nor lua/xynovim/trust_fallback.lua): Rust workspaces stay RESTRICTED and nothing can run their code",
         {
-          "update the xyno-rust.nvim pin in lazy-lock.json (the trust list and the prompt live there)",
+          "check the checkout: lua/xynovim/trust_fallback.lua must load (:lua require('xynovim.trust_fallback'))",
           "or switch the gate off: vim.g.xynovim_workspace_trust = false (rust-analyzer and clippy then run build scripts and proc macros)",
         }
       )
@@ -171,6 +171,11 @@ function M.check()
       )
     end
   else
+    if wt.using_fallback() then
+      vim.health.info(
+        "the pinned xyno-rust.nvim has no trust module: the vendored lua/xynovim/trust_fallback.lua is the trust store (same file and API; the plugin's own wins once the pin has it)"
+      )
+    end
     local r = wt.report()
     if not r.workspace then
       vim.health.info("no Cargo workspace at the current directory")

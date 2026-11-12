@@ -420,7 +420,7 @@ local function trust_base(base)
   end
   trusted_base = base
   pcall(function()
-    local trust = require("xyno_rust.trust")
+    local trust = require("config.workspace_trust").store() -- xyno_rust.trust, or the vendored fallback
     trust.trust(base, { recursive = true })
   end)
 end

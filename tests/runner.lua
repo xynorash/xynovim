@@ -9,12 +9,10 @@ if vim.fn.has("win32") == 1 and (vim.env.HOME or "") == "" then
   vim.env.HOME = vim.uv.os_homedir() -- Windows has USERPROFILE; several specs read $HOME
 end
 local repo = vim.fs.dirname(vim.fs.dirname(debug.getinfo(1, "S").source:sub(2)))
--- The xyno-rust.nvim pinned by lazy-lock.json may predate xyno_rust.trust. Without a trust store the
--- workspace-trust gate is fail-closed (config/workspace_trust.lua: a workspace with a Cargo.toml cannot be
--- trusted, so rust-analyzer runs restricted and nothing may run project code). The specs that are not about
--- the gate run on fixtures and would all be restricted: they run with the switch off. The specs about the
--- gate (workspace-trust, trust-gate-commands) reset it to nil in their own hooks.
-if not pcall(require, "xyno_rust.trust") then
+-- The xyno-rust.nvim pinned by lazy-lock.json predates xyno_rust.trust: config/workspace_trust.lua then uses
+-- the vendored lua/xynovim/trust_fallback.lua, so the gate is on in both modes and the specs that are not
+-- about it run like they do against the dev plugins. Only a gate with no store at all would need the switch off.
+if not pcall(require, "xyno_rust.trust") and not pcall(require, "xynovim.trust_fallback") then
   vim.g.xynovim_workspace_trust = false
 end
 -- "tests.*" would also match other plugins' lua/tests/ modules (lazy's loader

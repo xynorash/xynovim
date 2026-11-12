@@ -23,7 +23,9 @@ return {
     end
     local status = require("xyno_rust.lsp_status")
     table.insert(opts.sections.lualine_x, 1, {
-      status.component,
+      function()
+        return status.component() -- looked up at draw time: config.workspace_trust may wrap it
+      end,
       cond = function()
         return status.component() ~= ""
       end,

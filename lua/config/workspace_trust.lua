@@ -18,11 +18,13 @@
 --     the settings it always had.
 --   * `vim.g.xynovim_workspace_trust = false` switches the gate off. Without a UI (headless) nothing is
 --     asked and the workspace stays restricted until trusted.
---   * Without xyno_rust.trust (an older plugin checkout) the gate FAILS CLOSED where it matters: a
---     workspace with a Cargo.toml up the tree is restricted and nothing can run its code (there is no
---     trust list to ask), with one notice naming the fix (update the xyno-rust.nvim pin) and the
---     switch-off. A path with no Cargo.toml (a lone .rs file) has nothing to build and stays allowed.
---   * Trust follows the content (xyno_rust.trust api 1.3): a workspace trusted by its own entry is
+--   * Without xyno_rust.trust (the xyno-rust.nvim that lazy-lock.json pins predates the module) the vendored
+--     lua/xynovim/trust_fallback.lua is the trust store: same API, same file, same prompt, so the gate works
+--     with the pinned set. Only if that cannot load either does the gate FAIL CLOSED where it matters: a
+--     workspace with a Cargo.toml up the tree is restricted and nothing can run its code, with one notice.
+--     A path with no Cargo.toml (a lone .rs file) has nothing to build and stays allowed.
+--   * Trust follows the content (xyno_rust.trust api 1.3): a workspace trusted by its own entry (or by a
+--     "run this once", which holds only for the content it was given for) is
 --     untrusted again when a Cargo.toml, build.rs, .cargo/config(.toml) or rust-toolchain(.toml) differs
 --     from what was trusted (a pull, a checkout), once per session and workspace, with the changed files
 --     named in the prompt. Saving such a file inside Neovim is not a surprise and re-records it, unless
@@ -46,17 +48,47 @@
 -- other plugins that run cargo are gated by xyno-rust.nvim itself, not here.
 local M = {}
 
-local session = {} -- workspace key -> true: "run this once" answers
+local session = {} -- workspace key -> { hash, files }: "run this once" answers, valid while the content is the same
 local asked = {} -- workspace key -> true: prompted in this session
 local applied = {} -- workspace key -> true|false: what rust-analyzer's settings were built for
 local cache = {} -- workspace key -> boolean (is_trusted reads a file: not on every redraw)
 local watcher
 
+local chosen -- the trust store in use: xyno_rust.trust, else the vendored fallback
+
+local function usable(t)
+  return type(t) == "table" and type(t.is_trusted) == "function" and type(t.ra_overrides) == "function"
+end
+
+--- The trust store: xyno_rust.trust when the plugin has it, else lua/xynovim/trust_fallback.lua (same API
+--- and file; the pinned xyno-rust.nvim of lazy-lock.json predates the module, and without a store the
+--- fail-closed gate would restrict every Cargo workspace for ever). Decided once per session.
 local function plugin()
-  local ok, t = pcall(require, "xyno_rust.trust")
-  if ok and type(t) == "table" and type(t.is_trusted) == "function" and type(t.ra_overrides) == "function" then
-    return t
+  if chosen then
+    return chosen
   end
+  local ok, t = pcall(require, "xyno_rust.trust")
+  if ok and usable(t) then
+    chosen = t
+  else
+    local okf, fb = pcall(require, "xynovim.trust_fallback")
+    if okf and usable(fb) then
+      chosen = fb
+      pcall(fb.setup, { commands = true }) -- :RustTrust, which the old plugin does not define
+    end
+  end
+  return chosen
+end
+
+--- The trust store in use (xyno_rust.trust or the vendored fallback), nil if neither loads.
+function M.store()
+  return plugin()
+end
+
+--- Whether the vendored fallback (not the plugin) is the trust store.
+function M.using_fallback()
+  local t = plugin()
+  return t ~= nil and t == package.loaded["xynovim.trust_fallback"]
 end
 
 --- Whether the gate has a trust store to ask (switched on, and the plugin has one).
@@ -67,6 +99,31 @@ end
 --- Whether the gate is switched on at all (`vim.g.xynovim_workspace_trust = false` is the one switch-off).
 local function active()
   return vim.g.xynovim_workspace_trust ~= false
+end
+
+--- Whether the "run this once" answer for `key` still holds: it was given for the content of that moment, so a
+--- manifest / build script / cargo config / toolchain that changed since (a `git pull`) ends it like it ends
+--- a stored trust. Re-checked at most once a second (the fingerprint is memoised on stat stamps anyway).
+local function session_ok(key, t)
+  local e = session[key]
+  if not e then
+    return false
+  end
+  if not e.hash or type(t.fingerprint) ~= "function" then
+    return true -- a store without fingerprints cannot tell
+  end
+  local now = vim.uv.now()
+  if e.checked and now - e.checked < 1000 then
+    return true
+  end
+  local ok, fp = pcall(t.fingerprint, key)
+  if ok and fp.hash ~= e.hash then
+    session[key] = nil
+    asked[key] = nil -- the content changed under a "once": ask again
+    return false
+  end
+  e.checked = now
+  return true
 end
 
 --- One spelling of a workspace root (what xyno_rust.trust stores), or nil for no workspace.
@@ -122,7 +179,7 @@ function M.trusted(root)
   if not key then
     return true
   end
-  if session[key] then
+  if session_ok(key, t) then
     return true
   end
   if cache[key] == nil then
@@ -149,7 +206,7 @@ function M.allowed(path)
   if not key then
     return true
   end
-  if session[key] then
+  if session_ok(key, t) then
     return true
   end
   cache[key] = t.is_trusted(key) == true
@@ -397,7 +454,11 @@ function M.prompt(key)
     end
     t.ask(key, "rust-analyzer (build scripts, proc macros) and clippy", function(answer)
       if answer and not t.is_trusted(key) then
-        session[key] = true -- "run this once": for this session
+        -- "run this once": for this session, as long as the content is the one that was asked about
+        local okf, fp = pcall(function()
+          return t.fingerprint(key)
+        end)
+        session[key] = okf and { hash = fp.hash, files = fp.files } or {}
       end
       cache[key] = nil
       if answer then
@@ -564,8 +625,9 @@ function M.report(path)
   if ws then
     out.workspace = key_of(ws)
     local ok, by = t.is_trusted(ws)
-    out.trusted = ok or session[out.workspace] == true
-    out.by = ok and by or (session[out.workspace] and "this session" or nil)
+    local once = session[out.workspace] ~= nil and session_ok(out.workspace, t)
+    out.trusted = ok or once
+    out.by = ok and by or (once and "this session" or nil)
   end
   for key, ok in pairs(applied) do
     if not ok then
@@ -602,6 +664,33 @@ function M.recheck(path)
   return true
 end
 
+--- A manifest saved inside Neovim re-records the "run once" baseline too, unless another trusted-content
+--- file changed as well (the same rule as rehash for stored entries).
+function M.note_saved(root, file, t)
+  local key = key_of(root)
+  local e = key and session[key]
+  if not e or not e.files or type(t.fingerprint) ~= "function" then
+    return
+  end
+  local ok, fp = pcall(t.fingerprint, key, { fresh = true })
+  if not ok then
+    return
+  end
+  local only = vim.fs.normalize(vim.uv.fs_realpath(file) or file)
+  for name, h in pairs(fp.files) do
+    local full = name:sub(1, 1) == "/" and name or (key .. "/" .. name)
+    if e.files[name] ~= h and vim.fs.normalize(vim.uv.fs_realpath(full) or full) ~= only then
+      return
+    end
+  end
+  for name in pairs(e.files) do
+    if fp.files[name] == nil then
+      return
+    end
+  end
+  session[key] = { hash = fp.hash, files = fp.files }
+end
+
 --- Hook the trust store (so `:RustTrust add` / revoke restart the servers at once), the statusline, the
 --- guards of rustaceanvim, and the content checks (saves inside Neovim re-record, FocusGained re-checks).
 --- Idempotent. Without xyno_rust.trust only the guards are installed.
@@ -623,6 +712,18 @@ function M.setup()
   local ok, status = pcall(require, "xyno_rust.lsp_status")
   if ok and type(status.add_part) == "function" then
     status.add_part(M.status)
+  elseif ok and type(status.component) == "function" and not status._xynovim_gate_part then
+    -- the pinned xyno-rust.nvim has no add_part: put the marker in front of the component ourselves
+    status._xynovim_gate_part = true
+    local orig = status.component
+    status.component = function(...)
+      local rest = orig(...)
+      local okp, mark = pcall(M.status, vim.api.nvim_get_current_buf())
+      if okp and mark ~= "" then
+        return rest ~= "" and (mark .. " | " .. rest) or mark
+      end
+      return rest
+    end
   end
   if type(t.rehash) == "function" then
     local group = vim.api.nvim_create_augroup("xynovim_workspace_trust", { clear = true })
@@ -637,6 +738,7 @@ function M.setup()
         local root = M.workspace(file)
         if root then
           pcall(t.rehash, root, file)
+          M.note_saved(root, file, t)
           cache = {}
         end
       end,
@@ -662,6 +764,7 @@ end
 --- Forget everything (specs).
 function M._reset()
   session, asked, applied, cache = {}, {}, {}, {}
+  chosen = nil
   if watcher then
     pcall(watcher.stop, watcher)
     pcall(watcher.close, watcher)

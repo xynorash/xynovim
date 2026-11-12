@@ -6,14 +6,12 @@
 -- live part runs a real rust-analyzer on a crate whose build.rs writes a canary file.
 local H = require("xynotest.helpers")
 
-local ok_trust, trust = pcall(require, "xyno_rust.trust")
-if not ok_trust or type(trust.ra_overrides) ~= "function" then
-  H.skip_file(
-    "xyno_rust.trust missing (pinned xyno-rust.nvim without workspace trust; XYNOVIM_DEV_PLUGINS or a newer lock)"
-  )
-end
-
+-- the trust store the gate uses: xyno_rust.trust, or the vendored fallback while the pinned plugin has none
 local wt = require("config.workspace_trust")
+local trust = wt.store()
+if not trust then
+  H.skip_file("neither xyno_rust.trust nor the vendored fallback loads")
+end
 local base = vim.env.XYNO_TEST_TMP
 
 local undo = {}
@@ -54,6 +52,8 @@ end
 local function stub_ui(choice)
   local calls = {}
   local orig_select, orig_uis = vim.ui.select, vim.api.nvim_list_uis
+  local orig_float = trust.float_prompt
+  trust.float_prompt = false -- these cases answer through vim.ui.select (the float has its own spec)
   vim.api.nvim_list_uis = function()
     return { {} }
   end
@@ -65,6 +65,7 @@ local function stub_ui(choice)
   end
   on_undo(function()
     vim.ui.select, vim.api.nvim_list_uis = orig_select, orig_uis
+    trust.float_prompt = orig_float
   end)
   return calls
 end

@@ -8,11 +8,10 @@
 local H = require("xynotest.helpers")
 H.need_rust()
 
--- The pinned xyno-rust.nvim (lazy-lock.json) may predate xyno_rust.trust altogether: then the gate is
--- fail-closed (the "module missing" case below runs, the prompt cases skip). Content fingerprints
--- (api 1.3) need a newer plugin still.
-local ok_trust, trust = pcall(require, "xyno_rust.trust")
-local HAS_TRUST = ok_trust and type(trust) == "table" and type(trust.ra_overrides) == "function"
+-- The pinned xyno-rust.nvim (lazy-lock.json) predates xyno_rust.trust: the gate then uses the vendored
+-- fallback (lua/xynovim/trust_fallback.lua, same API incl. content fingerprints), so these cases run in both modes.
+local trust = require("config.workspace_trust").store()
+local HAS_TRUST = type(trust) == "table" and type(trust.ra_overrides) == "function"
 local HAS_DRIFT = HAS_TRUST and type(trust.drift) == "function" and type(trust.rehash) == "function"
 local function needs_trust()
   if not HAS_TRUST then
@@ -45,6 +44,9 @@ end
 --- Answer the trust prompt with the choice tagged `choice` (nil: Esc); a UI is "attached".
 local function ui(choice)
   local calls = { n = 0, prompts = {} }
+  if trust then
+    stub(trust, "float_prompt", false) -- answered through vim.ui.select here
+  end
   stub(vim.api, "nvim_list_uis", function()
     return { {} }
   end)
@@ -423,18 +425,20 @@ describe("the gate decides per case", function()
   end)
 
   it(
-    "xyno_rust.trust missing + a Cargo.toml up the tree: UNTRUSTED (fail closed); without Cargo.toml: trusted",
+    "no trust store at all (plugin module and vendored fallback missing) + a Cargo.toml up the tree: UNTRUSTED (fail closed); without Cargo.toml: trusted",
     function()
       local ws = H.fixture("basic")
-      local saved = package.loaded["xyno_rust.trust"]
-      package.loaded["xyno_rust.trust"] = nil
-      local preload = package.preload["xyno_rust.trust"]
-      package.preload["xyno_rust.trust"] = function()
-        error("module 'xyno_rust.trust' not found")
+      for _, name in ipairs({ "xyno_rust.trust", "xynovim.trust_fallback" }) do
+        local saved = package.loaded[name]
+        package.loaded[name] = nil
+        local preload = package.preload[name]
+        package.preload[name] = function()
+          error("module '" .. name .. "' not found")
+        end
+        on_undo(function()
+          package.loaded[name], package.preload[name] = saved, preload
+        end)
       end
-      on_undo(function()
-        package.loaded["xyno_rust.trust"], package.preload["xyno_rust.trust"] = saved, preload
-      end)
       wt._reset()
       H.eq(false, wt.trusted(ws), "restricted: the gate cannot ask, so it holds back")
       H.eq(false, wt.allowed(ws))
