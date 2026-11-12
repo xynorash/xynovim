@@ -643,7 +643,11 @@ describe("lazy-lock.json", function()
     -- plugins discovered in a later round on their newest commit, or a `:Lazy update` that
     -- was not committed. Put the plugins back on the lockfile with
     --   nvim --headless '+Lazy! restore' +qa     (offline when the commits are already fetched)
-    H.eq({}, bad, "plugins off lazy-lock.json; restore: nvim --headless '+Lazy! restore' +qa")
+    H.eq(
+      {},
+      bad,
+      'installed plugins are off lazy-lock.json (local drift, not a code failure); put them back with: nvim --headless "+Lazy! restore" +qa'
+    )
     -- kulala sits exactly on its tag
     local r = vim
       .system({ "git", "-C", dir .. "/kulala.nvim", "describe", "--tags", "--exact-match" }, { text = true })
