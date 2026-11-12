@@ -70,7 +70,11 @@ local function spy()
   local real = vim.system
   stub(vim, "system", function(cmd, opts, cb)
     local head = type(cmd) == "table" and vim.fs.basename(cmd[1] or "") or ""
-    if (head == "cargo" or head == "rustc") and not READ_ONLY[cmd[2] or ""] and not (head == "rustc" and cmd[2] == "--print") then
+    if
+      (head == "cargo" or head == "rustc")
+      and not READ_ONLY[cmd[2] or ""]
+      and not (head == "rustc" and cmd[2] == "--print")
+    then
       ran[#ran + 1] = table.concat(cmd, " ")
       local res = { code = 0, stdout = "", stderr = "" }
       if cb then
@@ -210,7 +214,11 @@ end)
 describe("the debug build before a launch (dap.lua build_current_binary)", function()
   before_each(needs_trust)
   local function program()
-    local h = require("lazy.core.plugin").values(require("lazy.core.config").plugins["mason-nvim-dap.nvim"], "opts", false).handlers
+    local h = require("lazy.core.plugin").values(
+      require("lazy.core.config").plugins["mason-nvim-dap.nvim"],
+      "opts",
+      false
+    ).handlers
     stub(require("mason-nvim-dap"), "default_setup", function() end)
     h.codelldb({})
     for _, c in ipairs(require("dap").configurations.rust) do
@@ -391,7 +399,8 @@ describe("cargo-deny / cargo-machete linters (they run `cargo metadata` with the
   it("are skipped in an untrusted workspace, run in a trusted one", function()
     local ws = crate()
     write(ws .. "/deny.toml", "")
-    local linters = require("lazy.core.plugin").values(require("lazy.core.config").plugins["nvim-lint"], "opts", false).linters
+    local linters =
+      require("lazy.core.plugin").values(require("lazy.core.config").plugins["nvim-lint"], "opts", false).linters
     local ctx = { filename = ws .. "/Cargo.toml", dirname = ws }
     H.eq(false, linters.cargo_deny.condition(ctx))
     H.eq(false, linters.cargo_machete.condition(ctx))
@@ -413,37 +422,40 @@ describe("the gate decides per case", function()
     H.eq(nil, wt.workspace(dir .. "/x.rs"))
   end)
 
-  it("xyno_rust.trust missing + a Cargo.toml up the tree: UNTRUSTED (fail closed); without Cargo.toml: trusted", function()
-    local ws = H.fixture("basic")
-    local saved = package.loaded["xyno_rust.trust"]
-    package.loaded["xyno_rust.trust"] = nil
-    local preload = package.preload["xyno_rust.trust"]
-    package.preload["xyno_rust.trust"] = function()
-      error("module 'xyno_rust.trust' not found")
+  it(
+    "xyno_rust.trust missing + a Cargo.toml up the tree: UNTRUSTED (fail closed); without Cargo.toml: trusted",
+    function()
+      local ws = H.fixture("basic")
+      local saved = package.loaded["xyno_rust.trust"]
+      package.loaded["xyno_rust.trust"] = nil
+      local preload = package.preload["xyno_rust.trust"]
+      package.preload["xyno_rust.trust"] = function()
+        error("module 'xyno_rust.trust' not found")
+      end
+      on_undo(function()
+        package.loaded["xyno_rust.trust"], package.preload["xyno_rust.trust"] = saved, preload
+      end)
+      wt._reset()
+      H.eq(false, wt.trusted(ws), "restricted: the gate cannot ask, so it holds back")
+      H.eq(false, wt.allowed(ws))
+      local ran = spy()
+      local denied
+      wt.require(ws, "cargo test", function(ok)
+        denied = not ok
+      end)
+      H.eq(true, denied)
+      local s = wt.settings_for(ws, { ["rust-analyzer"] = {} })["rust-analyzer"]
+      H.eq(false, s.procMacro.enable)
+      H.eq(false, s.cargo.buildScripts.enable)
+      H.eq(false, wt.allow_bacon(ws))
+      H.eq({}, ran)
+      local lone = H.tmpdir() .. "/lone"
+      write(lone .. "/x.rs", "fn main() {}\n")
+      H.ok(wt.trusted(lone))
+      vim.g.xynovim_workspace_trust = false
+      H.ok(wt.trusted(ws), "the explicit switch-off still wins")
     end
-    on_undo(function()
-      package.loaded["xyno_rust.trust"], package.preload["xyno_rust.trust"] = saved, preload
-    end)
-    wt._reset()
-    H.eq(false, wt.trusted(ws), "restricted: the gate cannot ask, so it holds back")
-    H.eq(false, wt.allowed(ws))
-    local ran = spy()
-    local denied
-    wt.require(ws, "cargo test", function(ok)
-      denied = not ok
-    end)
-    H.eq(true, denied)
-    local s = wt.settings_for(ws, { ["rust-analyzer"] = {} })["rust-analyzer"]
-    H.eq(false, s.procMacro.enable)
-    H.eq(false, s.cargo.buildScripts.enable)
-    H.eq(false, wt.allow_bacon(ws))
-    H.eq({}, ran)
-    local lone = H.tmpdir() .. "/lone"
-    write(lone .. "/x.rs", "fn main() {}\n")
-    H.ok(wt.trusted(lone))
-    vim.g.xynovim_workspace_trust = false
-    H.ok(wt.trusted(ws), "the explicit switch-off still wins")
-  end)
+  )
 
   describe("content changes", function()
     before_each(function()
@@ -460,7 +472,7 @@ describe("the gate decides per case", function()
 
     it("a changed build.rs / Cargo.toml / .cargo/config.toml / rust-toolchain asks again, naming the file", function()
       for _, case in ipairs({
-        { "build.rs", "fn main() { println!(\"cargo:warning=x\"); }\n" },
+        { "build.rs", 'fn main() { println!("cargo:warning=x"); }\n' },
         { ".cargo/config.toml", '[build]\nrustc-wrapper = "/bin/true"\n' },
         { "rust-toolchain.toml", '[toolchain]\nchannel = "stable"\n' },
         { "Cargo.toml", '[package]\nname = "basic"\nversion = "9.9.9"\nedition = "2021"\n' },
@@ -487,7 +499,8 @@ describe("the gate decides per case", function()
 
     it("rust-analyzer restarts restricted on focus after a pull changed build.rs (drift while trusted)", function()
       local ws = trusted_ws()
-      local o = require("lazy.core.plugin").values(require("lazy.core.config").plugins["rustaceanvim"], "opts", false).server
+      local o =
+        require("lazy.core.plugin").values(require("lazy.core.config").plugins["rustaceanvim"], "opts", false).server
       local s = o.settings(ws, vim.deepcopy(o.default_settings))["rust-analyzer"]
       H.ok(s.procMacro.enable ~= false, "trusted: full settings")
       write(ws .. "/build.rs", "fn main() {}\n")
@@ -501,12 +514,24 @@ describe("the gate decides per case", function()
       wt.setup()
       vim.cmd.edit(vim.fn.fnameescape(ws .. "/Cargo.toml"))
       local buf = vim.api.nvim_get_current_buf()
-      vim.api.nvim_buf_set_lines(buf, 0, -1, false, { '[package]', 'name = "basic"', 'version = "0.5.0"', 'edition = "2021"' })
+      vim.api.nvim_buf_set_lines(
+        buf,
+        0,
+        -1,
+        false,
+        { "[package]", 'name = "basic"', 'version = "0.5.0"', 'edition = "2021"' }
+      )
       vim.cmd("silent write")
       wt._reset()
       H.ok(wt.allowed(ws), "an in-editor save is not a surprise")
       write(ws .. "/build.rs", "fn main() {}\n")
-      vim.api.nvim_buf_set_lines(buf, 0, -1, false, { '[package]', 'name = "basic"', 'version = "0.6.0"', 'edition = "2021"' })
+      vim.api.nvim_buf_set_lines(
+        buf,
+        0,
+        -1,
+        false,
+        { "[package]", 'name = "basic"', 'version = "0.6.0"', 'edition = "2021"' }
+      )
       vim.cmd("silent write")
       wt._reset()
       H.eq(false, wt.allowed(ws), "build.rs changed behind the editor's back")
@@ -523,11 +548,22 @@ describe("source scan: every spawn of cargo / rustc / an unknown command is gate
 
   -- a spawn call
   local SPAWN = {
-    "vim%.system%(", "jobstart%(", "termopen%(", "Snacks%.terminal", "fn%.system%(", "fn%.systemlist%(",
-    "io%.popen%(", "os%.execute%(", "uv%.spawn%(", "vim%.cmd%.terminal", "vim%.cmd%([\"']%s*:?terminal", "nvim_open_term",
+    "vim%.system%(",
+    "jobstart%(",
+    "termopen%(",
+    "Snacks%.terminal",
+    "fn%.system%(",
+    "fn%.systemlist%(",
+    "io%.popen%(",
+    "os%.execute%(",
+    "uv%.spawn%(",
+    "vim%.cmd%.terminal",
+    "vim%.cmd%([\"']%s*:?terminal",
+    "nvim_open_term",
   }
   -- the tools that run project code
-  local RUNS_CODE = { "cargo", "rustc", "rustup", "rust%-analyzer", "bacon", "cargo%-[%w%-]+", "rustfmt", "clippy%-driver" }
+  local RUNS_CODE =
+    { "cargo", "rustc", "rustup", "rust%-analyzer", "bacon", "cargo%-[%w%-]+", "rustfmt", "clippy%-driver" }
 
   local function spawns(line)
     for _, p in ipairs(SPAWN) do
@@ -566,7 +602,7 @@ describe("source scan: every spawn of cargo / rustc / an unknown command is gate
     return false
   end
 
-    it("scans every Lua source and finds the known call sites (the scan itself is not vacuous)", function()
+  it("scans every Lua source and finds the known call sites (the scan itself is not vacuous)", function()
     local seen = {}
     for _, f in ipairs(lua_files()) do
       local lines = vim.fn.readfile(f)
@@ -581,30 +617,37 @@ describe("source scan: every spawn of cargo / rustc / an unknown command is gate
     end
   end)
 
-  it("each one is routed through config.workspace_trust (within 60 lines above / 40 below) or says `trust: read-only <why>`", function()
-    local offenders = {}
-    for _, f in ipairs(lua_files()) do
-      local rel = f:sub(#H.repo + 2)
-      if rel ~= "lua/config/workspace_trust.lua" then
-        local lines = vim.fn.readfile(f)
-        for i, l in ipairs(lines) do
-          if suspicious(l) then
-            local annotated = l:find("trust: read%-only") or (lines[i - 1] or ""):find("trust: read%-only")
-            local gated = false
-            for j = math.max(1, i - 60), math.min(#lines, i + 40) do
-              if (lines[j] or ""):find("workspace_trust") then
-                gated = true
+  it(
+    "each one is routed through config.workspace_trust (within 60 lines above / 40 below) or says `trust: read-only <why>`",
+    function()
+      local offenders = {}
+      for _, f in ipairs(lua_files()) do
+        local rel = f:sub(#H.repo + 2)
+        if rel ~= "lua/config/workspace_trust.lua" then
+          local lines = vim.fn.readfile(f)
+          for i, l in ipairs(lines) do
+            if suspicious(l) then
+              local annotated = l:find("trust: read%-only") or (lines[i - 1] or ""):find("trust: read%-only")
+              local gated = false
+              for j = math.max(1, i - 60), math.min(#lines, i + 40) do
+                if (lines[j] or ""):find("workspace_trust") then
+                  gated = true
+                end
               end
-            end
-            if not (annotated or gated) then
-              offenders[#offenders + 1] = ("%s:%d: %s"):format(rel, i, vim.trim(l))
+              if not (annotated or gated) then
+                offenders[#offenders + 1] = ("%s:%d: %s"):format(rel, i, vim.trim(l))
+              end
             end
           end
         end
       end
+      H.eq(
+        {},
+        offenders,
+        "ungated spawns of cargo/rustc (gate with config.workspace_trust or annotate `-- trust: read-only <why>`)"
+      )
     end
-    H.eq({}, offenders, "ungated spawns of cargo/rustc (gate with config.workspace_trust or annotate `-- trust: read-only <why>`)")
-  end)
+  )
 
   it("read-only annotations carry a reason and only appear on tools that do not build", function()
     for _, f in ipairs(lua_files()) do
@@ -612,8 +655,8 @@ describe("source scan: every spawn of cargo / rustc / an unknown command is gate
         local why = l:match("trust: read%-only%s*(.*)$")
         if why then
           H.ok(#vim.trim(why) >= 10, ("%s:%d: say why it is read-only"):format(f, i))
-          H.no_match(l, "cargo\", \"build", true)
-          H.no_match(l, "\"test\"", true)
+          H.no_match(l, 'cargo", "build', true)
+          H.no_match(l, '"test"', true)
         end
       end
     end

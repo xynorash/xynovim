@@ -104,7 +104,8 @@ function M.explain_error()
   if not code then
     return vim.notify("no E0000 error code in the diagnostics on this line", vim.log.levels.INFO)
   end
-  vim.system({ "rustc", "--explain", code }, { text = true }, function(o) -- trust: read-only prints the built-in text of an error code, reads no project
+  -- trust: read-only prints the built-in text of an error code, reads no project
+  vim.system({ "rustc", "--explain", code }, { text = true }, function(o)
     vim.schedule(function()
       if o.code ~= 0 then
         return vim.notify("rustc --explain " .. code .. " failed:\n" .. (o.stderr or ""), vim.log.levels.ERROR)

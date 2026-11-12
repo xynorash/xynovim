@@ -576,11 +576,13 @@ function M.report(path)
   return out
 end
 
-local MANIFEST = { ["Cargo.toml"] = true, ["build.rs"] = true, ["rust-toolchain"] = true, ["rust-toolchain.toml"] = true }
+local MANIFEST =
+  { ["Cargo.toml"] = true, ["build.rs"] = true, ["rust-toolchain"] = true, ["rust-toolchain.toml"] = true }
 
 local function is_trust_input(path)
   local name = vim.fs.basename(path)
-  return MANIFEST[name] or ((name == "config" or name == "config.toml") and vim.fs.basename(vim.fs.dirname(path)) == ".cargo")
+  return MANIFEST[name]
+    or ((name == "config" or name == "config.toml") and vim.fs.basename(vim.fs.dirname(path)) == ".cargo")
 end
 
 --- Look at the trust state again (files changed behind Neovim's back: a `git pull` in a terminal).
