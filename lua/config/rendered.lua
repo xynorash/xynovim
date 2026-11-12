@@ -199,13 +199,20 @@ function M.open(d)
   vim.keymap.set("n", "q", function()
     pcall(vim.api.nvim_win_close, win, true)
   end, { buffer = buf, nowait = true })
-  -- the float follows the cursor away: close it when the cursor moves in the source window
+  -- the float follows the cursor away: close it when the cursor moves in the source window. One group,
+  -- cleared on every open: each call used to add three more ungrouped autocmds that lived until the next move.
+  local group = vim.api.nvim_create_augroup("xynovim_rendered_float", { clear = true })
   vim.api.nvim_create_autocmd({ "CursorMoved", "InsertEnter", "BufLeave" }, {
-    once = true,
+    group = group,
     callback = function()
-      if vim.api.nvim_get_current_win() ~= win then
+      if not vim.api.nvim_win_is_valid(win) or vim.api.nvim_get_current_win() ~= win then
+        -- gone already (q, :close) or the cursor left: close it and drop all three autocmds (returning true
+        -- would delete only the one that fired)
         pcall(vim.api.nvim_win_close, win, true)
+        pcall(vim.api.nvim_del_augroup_by_id, group)
+        return true
       end
+      -- (the cursor is in the float itself: it stays)
     end,
   })
   last.win = win
