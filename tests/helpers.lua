@@ -173,6 +173,10 @@ end
 --- :edit a file and fire VeryLazy (never fires headless; LazyVim's setup
 --- hangs off it). Returns the buffer number.
 function H.open(path)
+  -- Callbacks an earlier test left scheduled for buffers it wiped (nvim's undotree, LazyVim's autocmds: "Invalid
+  -- buffer id") must not run inside :edit: xyno-rust.nvim waits for cargo in its FileType autocmd, which pumps the
+  -- event loop, and the error would surface as an error of :edit. Run them here, where an error is harmless.
+  pcall(vim.wait, 50)
   vim.cmd.edit(vim.fn.fnameescape(path))
   H.very_lazy()
   return vim.api.nvim_get_current_buf()

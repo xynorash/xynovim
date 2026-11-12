@@ -1679,10 +1679,31 @@ describe("README layout and path claims", function()
     for _, c in ipairs({ ":checkhealth xynovim", ":Mason", ":LazyExtras", ":Lazy sync" }) do
       H.match(readme, "`" .. c .. "`", true, c .. " named in README")
     end
-    vim.cmd("checkhealth xynovim")
-    local text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
-    vim.cmd("bwipeout!")
-    H.match(text, "xynovim", true)
+    -- In a child nvim: the in-process :checkhealth of this long-lived spec process never returned once with
+    -- the dev branch of xyno-clipboard.nvim (XYNOVIM_DEV_PLUGINS; cause not found, a fresh process is fine),
+    -- which stalled the whole file. A child with a timeout can only fail this one check.
+    local out = H.tmpdir() .. "/health.txt"
+    local env = {}
+    for _, k in ipairs({
+      "HOME",
+      "PATH",
+      "XDG_CONFIG_HOME",
+      "XDG_DATA_HOME",
+      "XDG_STATE_HOME",
+      "XDG_CACHE_HOME",
+      "TMPDIR",
+      "XYNOVIM_DEV_PLUGINS",
+    }) do
+      env[k] = vim.env[k]
+    end
+    local r = vim
+      .system(
+        { vim.fn.exepath("nvim"), "--headless", "+checkhealth xynovim", "+w! " .. out, "+qa!" },
+        { env = env, clear_env = true, text = true }
+      )
+      :wait(90000)
+    H.eq(0, r.code, "child :checkhealth xynovim: " .. (r.stderr or ""))
+    H.match(read(out), "xynovim", true)
   end)
 end)
 
