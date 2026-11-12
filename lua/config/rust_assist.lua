@@ -297,12 +297,31 @@ function M.organize_on_save(buf)
     return
   end
   vim.b[buf].xynovim_organizing = true
-  engine.organize(buf, function(applied)
-    if not vim.api.nvim_buf_is_valid(buf) then
-      return
+  -- The flag must come off however organize ends: its callback, an error raised by it, a request the server
+  -- never answers (timeout), or a buffer that goes away. Before, only the callback cleared it, and then
+  -- organize-on-save was off for that buffer for the rest of the session.
+  local cleared = false
+  local function clear()
+    if cleared then
+      return false
     end
-    vim.b[buf].xynovim_organizing = nil
-    if applied == 0 then
+    cleared = true
+    if vim.api.nvim_buf_is_valid(buf) then
+      vim.b[buf].xynovim_organizing = nil
+    end
+    return true
+  end
+  local timer = vim.defer_fn(clear, M.organize_timeout_ms)
+  vim.api.nvim_create_autocmd("BufUnload", { buffer = buf, once = true, callback = clear })
+  local started, err = pcall(engine.organize, buf, function(applied)
+    pcall(function()
+      timer:stop()
+      timer:close()
+    end)
+    if not clear() then
+      return -- it timed out earlier: do not write the buffer behind the user's back now
+    end
+    if not vim.api.nvim_buf_is_valid(buf) or applied == 0 then
       return
     end
     local typing = vim.fn.mode():sub(1, 1) == "i" and vim.api.nvim_get_current_buf() == buf
@@ -313,6 +332,13 @@ function M.organize_on_save(buf)
       vim.cmd("silent! noautocmd update")
     end)
   end)
+  if not started then
+    clear()
+    vim.notify("organize imports on save failed: " .. tostring(err), vim.log.levels.WARN)
+  end
 end
+
+--- How long organize_on_save waits for xyno-imports before it gives the buffer back.
+M.organize_timeout_ms = 20000
 
 return M
