@@ -256,11 +256,11 @@ If yanks inside tmux do not arrive, tmux must accept applications' OSC 52: `set 
 
 | Keys | What |
 | --- | --- |
-| `<leader>r…` | rust-analyzer: `rv` extract variable, `rf` function, `rc` constant, `ri` inline, `rs` structural search / replace, `rj` join lines, `rm` expand macro, `rh` / `rH` HIR / MIR, `re` explain error code, `rl` usages in file (read / write), `ru` go to super method, `rw` / `rW` workspace symbol (+ dependencies), `rF` features / target, `rX` targets, `rZ` cargo tools, `rN` HTTP routes, `rR` reload workspace; dependencies and macros: `rA` add crate, `rG` enable the missing feature, `rI` import name (ranked), `rO` organize imports, `rx` expand macro (lens), `rq` proc-macro status; `<A-j>` / `<A-k>` move item |
+| `<leader>r…` | rust-analyzer: `ra` refactor menu with a diff preview of the highlighted action, `rv` extract variable, `rf` function, `rc` constant, `ri` inline, `rs` structural search / replace, `rj` join lines, `rm` expand macro, `rh` / `rH` HIR / MIR, `re` explain error code, `rl` usages in file (read / write), `ru` go to super method, `rw` / `rW` workspace symbol (+ dependencies), `rF` features / target, `rX` targets, `rZ` cargo tools, `rN` HTTP routes, `rR` reload workspace; dependencies and macros: `rA` add crate, `rG` enable the missing feature, `rI` import name (ranked), `rO` organize imports, `rb` / `rB` run configurations (args, env, profiler; saved per project) / run the last again, `rQ` apply the preferred quick fixes of the buffer, `rx` expand macro (lens), `rq` proc-macro status; `<A-j>` / `<A-k>` move item |
 | `<leader>d…` | debugger: `db` breakpoint, `dc` continue, `dr` / `dR` debuggables (file / workspace), `du` dap-ui |
 | `<leader>t…` | tests: `tt` file, `tr` nearest, `tT` all, `ts` summary, `to` output, `tw` watch, `tD` doc-tests, `tc` run coverage, `tg` toggle coverage signs |
 | `<leader>g…` | git: `gg` lazygit, `gv` diffview, `gV` branch vs origin, `gF` file history, `gH` local history |
-| `<leader>c…` | `cd` diagnostic float, `cj` split / join (treesj), `cI` / `cO` incoming / outgoing call trees, `cn` doc comment stub |
+| `<leader>c…` | `ca` code actions with a diff preview (Rust buffers), `cd` diagnostic float, `cj` split / join (treesj), `cI` / `cO` incoming / outgoing call trees, `cn` doc comment stub |
 | `<leader>9…` | the 99 agent: `9v` vibe, `9s` search, `9o` last interaction, `9x` stop |
 | `<leader>H`, `<C-e>`, `<M-1..4>` | harpoon: add file, menu, jump |
 | `<leader>uO`, `uB`, `uu` | toggle editor transparency, colour-blind diagnostics, undotree |
@@ -268,7 +268,18 @@ If yanks inside tmux do not arrive, tmux must accept applications' OSC 52: `set 
 
 ## Commands
 
-`:RustContext` (features and target for both tiers), `:RustTargets`, `:RustTools`, `:RustNew`, `:RustNewBin`, `:RustNewLib`, `:RustNewWorkspace`, `:RustNewMember` (new binary, library or workspace, also on the dashboard), `:EguiNew` (new egui project from the current eframe_template, also on the dashboard), `:RustRoutes` (axum / actix / rocket routes), `:RustRestart`, `:CrateAdd`, `:CrateFeatures`, `:ImportName`, `:ImportForget`, `:ImportOrganize`, `:MacroAttrs`, `:MacroExpand`, `:MacroSignature`, `:MacroFormatFix`, `:ProcMacroStatus`, `:ActJob` (run the GitHub Actions job under the cursor with `act`), `:LocalHistory`, `:LocalHistoryRestore`, `:LocalHistoryPrune`, `:ColorblindDiagnostics`, `:Hints`, `:DiagnosticsView`, `:XynoIcons`, `:IslandContrast`, `:checkhealth xynovim`. Plugin management is stock LazyVim: `:Lazy sync` updates (the update checker is off), `:LazyExtras` toggles extras, `:Mason` manages language servers.
+`:RustContext` (features and target for both tiers), `:RustTargets`, `:RustTools`, `:RustNew`, `:RustNewBin`, `:RustNewLib`, `:RustNewWorkspace`, `:RustNewMember` (new binary, library or workspace, also on the dashboard), `:EguiNew` (new egui project from the current eframe_template, also on the dashboard), `:RustRoutes` (axum / actix / rocket routes), `:RustRun` / `:RustRunLast` / `:RustRunEdit` / `:RustRunDelete` (run configurations), `:RustActions` / `:RustRefactor` (code actions with a diff preview), `:RustFixAll`, `:RustRestart`, `:CrateAdd`, `:CrateFeatures`, `:ImportName`, `:ImportForget`, `:ImportOrganize`, `:MacroAttrs`, `:MacroExpand`, `:MacroSignature`, `:MacroFormatFix`, `:ProcMacroStatus`, `:ActJob` (run the GitHub Actions job under the cursor with `act`), `:LocalHistory`, `:LocalHistoryRestore`, `:LocalHistoryPrune`, `:ColorblindDiagnostics`, `:Hints`, `:DiagnosticsView`, `:XynoIcons`, `:IslandContrast`, `:checkhealth xynovim`. Plugin management is stock LazyVim: `:Lazy sync` updates (the update checker is off), `:LazyExtras` toggles extras, `:Mason` manages language servers.
+
+## Run configurations, previews and Problems
+
+| Keys / command | What it does |
+| --- | --- |
+| `<leader>rb`, `:RustRun [name]` | run configurations saved per project: cargo command, target, program arguments, cargo arguments, environment variables, optional `samply` / `cargo flamegraph` profiler. `<CR>` runs, `<C-e>` edits, `<C-x>` deletes; stored in the state directory, never read from the repository (so a cloned repo cannot ship one that runs on your machine); asks for workspace trust once |
+| `<leader>rB`, `:RustRunLast` | run the previous one again |
+| `<leader>ca`, `<leader>ra` (Rust buffers) | code actions / refactorings in a picker; the preview is the diff the highlighted action would make |
+| `<leader>rQ`, `:RustFixAll` | apply rust-analyzer's preferred quick fixes of the buffer as one undo step; fixes from `cargo check` are skipped while the buffer has unsaved changes (they describe the saved text) |
+| `<leader>xx`, `<leader>xe`, then `e` / `w` / `S` / `a` | Problems panel (Trouble): all files; `xe` opens it errors-only; inside it `e` errors only, `w` errors and warnings, `S` next source, `a` clear (Trouble's own `s` cycles one severity, `gb` limits to the buffer) |
+| `vim.g.xynovim_organize_on_save = true` | opt-in: organize imports (merge, normalise, remove unused) after `:w` in Rust files, then write again. Off by default; not triggered by auto-save |
 
 ## Macros and dependencies
 

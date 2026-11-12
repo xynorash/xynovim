@@ -765,7 +765,7 @@ describe("keys in a Rust buffer", function()
     H.wait_for(function()
       return bmap("<leader>ra", "n")
     end, 15000, "<leader>ra")
-    H.eq("Refactor actions", bmap("<leader>ra", "n").desc)
+    H.eq("Refactor menu (diff preview)", bmap("<leader>ra", "n").desc)
     for _, m in ipairs(vim.api.nvim_get_keymap("n")) do
       -- the only global ones are the hidden "not bound" stubs
       if (m.lhs:match("^ r%a") or m.lhs:match("^<Space>r%a")) and m.desc ~= "which_key_ignore" then

@@ -80,9 +80,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
       end
 
       -- Refactor
-      map({ "n", "x" }, "<leader>ra", function()
-        vim.lsp.buf.code_action({ context = { only = { "refactor" }, diagnostics = {} } })
-      end, "Refactor actions")
+      map({ "n", "x" }, "<leader>ra", "<cmd>RustRefactor<cr>", "Refactor menu (diff preview)")
       map({ "n", "x" }, "<leader>rv", assist("^Extract into variable"), "Extract variable")
       map({ "n", "x" }, "<leader>rf", assist("^Extract into function"), "Extract function")
       map({ "n", "x" }, "<leader>rc", assist("^Extract into constant"), "Extract constant")
@@ -195,6 +193,10 @@ vim.api.nvim_create_autocmd("LspAttach", {
 
       map("n", "<leader>rF", "<cmd>RustContext<cr>", "Cargo features / target (both diagnostic tiers)")
       map("n", "<leader>rX", "<cmd>RustTargets<cr>", "Cargo targets: run / test / bench")
+      -- run configurations saved per project (args, env, profiler): xyno-rust.nvim, :RustRun
+      map("n", "<leader>rb", "<cmd>RustRun<cr>", "Run configurations (args, env, profiler)")
+      map("n", "<leader>rB", "<cmd>RustRunLast<cr>", "Run the last configuration again")
+      map("n", "<leader>rQ", "<cmd>RustFixAll<cr>", "Quick-fix all (preferred fixes, one undo step)")
 
       map("n", "<leader>rZ", "<cmd>RustTools<cr>", "Cargo tools (deny, audit, bloat, timings, ...)")
       map("n", "<leader>rN", "<cmd>RustRoutes<cr>", "HTTP routes (axum / actix / rocket)")
@@ -218,6 +220,16 @@ vim.keymap.set("n", "<leader>uu", function()
   vim.cmd.packadd("nvim.undotree")
   require("undotree").open()
 end, { desc = "Undotree" })
+
+-- Organize imports after :w for Rust files, opt-in (vim.g.xynovim_organize_on_save = true); see
+-- config/rust_assist.lua. The check is inside the callback, so the option can change at any time.
+vim.api.nvim_create_autocmd("BufWritePost", {
+  group = vim.api.nvim_create_augroup("xynovim_organize_on_save", { clear = true }),
+  pattern = "*.rs",
+  callback = function(ev)
+    require("config.rust_assist").organize_on_save(ev.buf)
+  end,
+})
 
 -- Okabe-Ito diagnostic colours (off by default; also :ColorblindDiagnostics).
 Snacks.toggle({

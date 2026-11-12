@@ -143,6 +143,9 @@ local RA_MAPS_N = {
   "rl",
   "rF",
   "rX",
+  "rb",
+  "rB",
+  "rQ",
   "rZ",
   "rN",
   "rR",
@@ -196,7 +199,7 @@ describe("LspAttach autocmd", function()
     local m = vim.api.nvim_buf_call(b, function()
       return vim.fn.maparg("<leader>ra", "n", false, true)
     end)
-    H.eq("Refactor actions", m.desc)
+    H.eq("Refactor menu (diff preview)", m.desc)
     local global = vim.fn.maparg("<leader>ra", "n", false, true)
     H.ok(global.buffer ~= 1, "no global <leader>ra")
     -- every rust map carries a description
@@ -275,7 +278,7 @@ describe("buffer-local maps on a Rust buffer", function()
 
   it("27. the complete normal / visual map list is buffer-local with the documented descs", function()
     local expect_desc = {
-      ra = "Refactor actions",
+      ra = "Refactor menu (diff preview)",
       rv = "Extract variable",
       rf = "Extract function",
       rc = "Extract constant",
@@ -300,6 +303,9 @@ describe("buffer-local maps on a Rust buffer", function()
       rl = "Usages in file (R/W)",
       rF = "Cargo features / target (both diagnostic tiers)",
       rX = "Cargo targets: run / test / bench",
+      rb = "Run configurations (args, env, profiler)",
+      rB = "Run the last configuration again",
+      rQ = "Quick-fix all (preferred fixes, one undo step)",
       rZ = "Cargo tools (deny, audit, bloat, timings, ...)",
       rN = "HTTP routes (axum / actix / rocket)",
       rR = "Reload workspace",
@@ -349,17 +355,11 @@ describe("buffer-local maps on a Rust buffer", function()
     end
   end)
 
-  it("3. <leader>ra (n, x) calls code_action with context.only = {'refactor'}", function()
-    local got
-    stub(vim.lsp.buf, "code_action", function(o)
-      got = o
-    end)
+  it("3. <leader>ra (n, x) opens the refactor menu with a diff preview (:RustRefactor)", function()
     for _, mode in ipairs({ "n", "x" }) do
-      got = nil
       local m = mp("<leader>ra", mode)
-      H.eq("Refactor actions", m.desc)
-      m.callback()
-      H.eq({ "refactor" }, got.context.only)
+      H.eq("Refactor menu (diff preview)", m.desc)
+      H.eq("<cmd>RustRefactor<cr>", m.rhs)
     end
   end)
 

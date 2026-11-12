@@ -279,4 +279,40 @@ function M.move_item(direction)
   end)
 end
 
+--- Organize imports after `:w` (opt-in: `vim.g.xynovim_organize_on_save = true`, or `vim.b.xynovim_organize_on_save`
+--- for one buffer). rust-analyzer has no `source.organizeImports`, so this is xyno-imports' organize (merge,
+--- normalise, remove unused) run when the write has finished; if it changed anything the buffer is written
+--- again, unless you are typing (insert mode). Autosaves
+--- (auto-save.nvim writes with `noautocmd`) never trigger it.
+function M.organize_on_save(buf)
+  local flag = vim.b[buf].xynovim_organize_on_save
+  if flag == nil then
+    flag = vim.g.xynovim_organize_on_save
+  end
+  if flag ~= true or vim.b[buf].xynovim_organizing then
+    return
+  end
+  local ok, engine = pcall(require, "xyno_imports.engine")
+  if not ok then
+    return
+  end
+  vim.b[buf].xynovim_organizing = true
+  engine.organize(buf, function(applied)
+    if not vim.api.nvim_buf_is_valid(buf) then
+      return
+    end
+    vim.b[buf].xynovim_organizing = nil
+    if applied == 0 then
+      return
+    end
+    local typing = vim.fn.mode():sub(1, 1) == "i" and vim.api.nvim_get_current_buf() == buf
+    if typing or not vim.bo[buf].modified then
+      return
+    end
+    vim.api.nvim_buf_call(buf, function()
+      vim.cmd("silent! noautocmd update")
+    end)
+  end)
+end
+
 return M

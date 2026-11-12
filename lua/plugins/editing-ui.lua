@@ -207,6 +207,22 @@ return {
               mode = { "n" },
               has = { "workspace/didRenameFiles", "workspace/willRenameFiles" },
             },
+            -- <leader>ca: in a Rust buffer the code actions come with a diff preview (xyno-rust.nvim,
+            -- :RustActions); everywhere else LazyVim's vim.lsp.buf.code_action. Same description, so
+            -- which-key and the existing mapping tests see no change.
+            {
+              "<leader>ca",
+              function()
+                if vim.bo.filetype == "rust" and vim.fn.exists(":RustActions") == 2 then
+                  vim.cmd("RustActions")
+                else
+                  vim.lsp.buf.code_action()
+                end
+              end,
+              desc = "Code Action",
+              mode = { "n", "x" },
+              has = "codeAction",
+            },
           },
         },
       },
