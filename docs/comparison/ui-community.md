@@ -149,12 +149,12 @@ Evidence is limited to what is in this file; "unknown" means I could not establi
 | Narrow-window statusline | **behind** lualine/mini.statusline best practice | observed at 60 columns |
 | Dashboard on short windows | ahead (adapts down to about 18 rows, documented in `editing-ui.lua`) | code comment; not compared against others by running them |
 | Dashboard branding | **behind** (still shows the LazyVim banner) | observed |
-| Debugger / test panels | unknown | no complaint or competitor evidence read |
+| Debugger / test panels | **behind or tied** (complaints now found, see notes.md section 9): nvim-dap-ui long-value and disassembly gaps, neotest output placement; Zed added a hover value tree in 2026-04 | GitHub issues cited in notes.md section 9 |
 
 ## Open gaps (not resolved)
 
 - Reddit threads could not be read (browser safety block and 403), so r/neovim, r/rust and r/unixporn evidence is indirect. A person with a logged-in browser could read the three threads tagged `(i)` above.
-- No direct competitor comparison of debugger/test panel readability was found.
+- Debugger/test panel complaints were found on 2026-11-12 (GitHub issues, JetBrains and rust-lang forums) and are in notes.md section 9; still no side-by-side of the panels themselves.
 - Zed's inline diagnostics settings were not found in the docs page fetched; only the 382-reaction request (Z1) is cited.
 - Colour-blind support of Zed, Helix and RustRover themes was not checked beyond search results.
 - Nothing here was implemented; the shortlist is a proposal.

@@ -27,6 +27,8 @@ Retrieved: 2026-11-12 (all URLs below were fetched or searched on that date; ven
 | 12 | Dependency add confirmation / typosquat | ahead (add time) | Preview + typosquat + age check; no competitor page mentions one; continuous advisories are tied |
 | 13 | Template supply chain | ahead (narrow) | Pinned commit, `https` only; LazyVim starter and RustRover custom templates document no pin |
 | 14 | `:checkhealth` equivalents | tied | rustaceanvim, kickstart and LazyVim also ship health checks; xynovim has one per plugin |
+| 15 | Sandboxing in Neovim agent plugins | **ahead** | none of seven popular Neovim agent plugins ships an OS sandbox; two default to auto-approve or offer a YOLO mode |
+| 16 | Helix agent, sandbox and trust features | tied (trust: Helix ahead on the language server, unreleased) | no agent, no sandbox merged; workspace trust is on master only, not in the latest release 25.07.1 |
 
 Two rows are `behind` (3, 11), both for the same reason; the fix is listed under row 3.
 
@@ -226,11 +228,43 @@ Two rows are `behind` (3, 11), both for the same reason; the fix is listed under
 
 ---
 
+## 15. Sandboxing in Neovim agent plugins
+
+Method: README fetched with `gh api repos/<r>/readme` (read-only) and, for each repo, the full git tree (`git/trees/<default branch>?recursive=1`) searched for paths matching `sandbox|bwrap|seatbelt|firejail|landlock`. Zero matching paths in all six repos below; this shows no sandbox module exists, not that the plugin cannot be run inside one by the user. Retrieved 2026-11-12. Stars and last push are from the same API call.
+
+| Plugin (stars, last push) | What it does about agent safety | OS sandbox / network control |
+|---|---|---|
+| avante.nvim (18.2k, 2026-11-12) | README config: `auto_approve_tool_permissions = true` is the default ("auto-approve all tools (no prompts)"); can be `false` or a list of tool names (`{"bash","str_replace"}`); `confirmation_ui_style`. Scoped `AVANTE_`-prefixed API keys. The same default is in `lua/avante/config.lua`. | None found. By default its bash tool needs no prompt. |
+| codecompanion.nvim (6.9k, 2026-11-09) | Docs (`doc/codecompanion.txt`): per-tool approval keymaps (accept once / always / reject / cancel); "always accept" for `run_command` covers only that exact command; approval modes Ask, Auto (runs everything but `run_command` unless on a safe list, and protected tools such as `delete_file`), YOLO ("runs every tool without asking, including `delete_file` and any shell command"); `protect = true` option that YOLO ignores; optional LLM "judge" of commands; code review of agent edits. | None found. |
+| claudecode.nvim (3.2k, 2026-11-12) | Bridges Claude Code's IDE protocol: loopback WebSocket listener, lock file `0600`, diff accept/reject in Neovim. Permission behaviour is Claude Code's own. | None; the README's "Global Side Effects" section documents the network/disk footprint only. |
+| sidekick.nvim (2.8k, 2026-09-08) | Runs CLI agents in a tmux/zellij or native terminal. No approval layer of its own found in README/config. | None found. |
+| opencode.nvim (3.9k, 2026-10-30) | README "Permissions": when the connected OpenCode asks, the plugin prompts approve/deny; edit requests open a `:diffpatch` view with accept keys. | None; policy lives in OpenCode. |
+| 99 (4.8k, 2026-06-12) | README warns that `tmp_dir` outside the cwd causes permission failures in claude/opencode and links their permission docs. | None. |
+| claude-code.nvim (greggh, 2.1k, 2026-02-04) | README has no permission or sandbox text. | None. |
+
+**Verdict: ahead.** Against Neovim agent plugins, xynovim is the only one found with an OS sandbox (bubblewrap), default-deny egress and fail-closed startup (rows 1-2). The strongest of the others (codecompanion) offers approval prompts, which xynovim also leaves to the agent itself; the approval layer is orthogonal, and xynovim does not claim to be ahead of codecompanion on in-chat tool approval UX (not compared). Caveat: avante's default (auto-approve everything) and codecompanion's YOLO mode are the cases a sandbox protects against.
+
+Not verified: no plugin was installed or run; plugins not listed here (e.g. gp.nvim, parrot.nvim, CopilotChat.nvim, minuet) were not read. A user can still launch any of these inside their own bwrap/firejail.
+
+Sources: https://github.com/avante-corp/avante.nvim ; https://github.com/olimorris/codecompanion.nvim ; https://github.com/coder/claudecode.nvim ; https://github.com/folke/sidekick.nvim ; https://github.com/nickjvandyke/opencode.nvim ; https://github.com/ThePrimeagen/99 ; https://github.com/greggh/claude-code.nvim . Retrieved 2026-11-12.
+
+## 16. Helix: agent, sandbox and trust features
+
+| Field | Content |
+|---|---|
+| Workspace trust | Book chapter `book/src/workspace-trust.md` on master: gates language servers, debug adapters, `.helix/config.toml` / `languages.toml` and `.git/config` filters; `[editor.workspace-trust] level` = `none` / `servers` (default) / `insecure`, `prompt`, `trusted` globs; `:workspace-trust`, `:workspace-untrust`, `:workspace-exclude`; hash of `.helix/` detects later changes (stale state). **Default `servers` still starts language servers**, so rust-analyzer runs in an unreviewed repo by default; only `level = "none"` stops it. Shipped: PR 15177 merged 2026-03-26, "v2" PR 15857 merged 2026-06-20 (commits touching the chapter); the latest tagged release is 25.07.1 (2025-07-15), so **no release contains it** as of 2026-11-12 (tags list shows 24.03 ... 25.07.1; a `v0.6.0` tag is unrelated). |
+| Agent / AI | Not in the editor. PR 15955 (Copilot inline completion) and PR 16312 (assist panel driving agents over ACP) were closed unmerged (2026-07-05, 2026-09-25); issue 14390 (ACP support) closed as duplicate. |
+| Sandbox | PR 15983 "Add fs sandboxing on Linux using Landlock" closed unmerged 2026-07-05. Issue 16459 "Sharing my bubblewrap sandboxing" is open: a user-side wrapper, not a feature. |
+| **Verdict** | **tied on trust, ahead on agents/sandbox only in the trivial sense**: Helix has a trust model on master (unreleased) that gates the language server when the user sets `level = "none"`; xynovim does not gate rust-analyzer (row 3, behind). Helix has no agent, so there is nothing to sandbox. The honest reading is: Helix is ahead of xynovim on the language-server trust question once released; xynovim is ahead of Helix on agent isolation because Helix has none. |
+| Sources | https://docs.helix-editor.com/master/workspace-trust.html (book source via `gh api repos/helix-editor/helix/contents/book/src/workspace-trust.md`) ; https://github.com/helix-editor/helix/pull/15177 ; https://github.com/helix-editor/helix/pull/15857 ; https://github.com/helix-editor/helix/pull/15983 ; https://github.com/helix-editor/helix/pull/16312 ; https://github.com/helix-editor/helix/issues/14390 ; https://github.com/helix-editor/helix/issues/16459 ; https://github.com/helix-editor/helix/releases . Retrieved 2026-11-12. |
+
+---
+
 ## Not verified
 
 - No xynovim behaviour was re-run for this document. Claims come from READMEs and commit titles; the plugin specs were not executed here.
 - No competitor product was installed or run. Everything about RustRover, VS Code, Zed, Helix, Claude Code, Codex and the distros is from vendor docs or source files read through web fetch (a summarising fetch tool, so quotes are paraphrases of its output) and search on 2026-11-12. One VS Code docs page was also opened in Chrome (own tab, closed) and turned out to be the wrong page; the `workbench.localHistory.*` defaults come from VS Code's source file on GitHub.
-- Helix workspace trust is taken from the `master` book; which release first shipped it was not found. VS Code's agent sandbox is labelled Preview on its macOS/Linux rows in the docs; GA claims in trade press were not relied on.
+- Helix workspace trust is taken from the `master` book; resolved in row 16: merged 2026-03-26 (PR 15177), reworked 2026-06-20 (PR 15857), and not in the latest tagged release (25.07.1, 2025-07-15) as of 2026-11-12. VS Code's agent sandbox is labelled Preview on its macOS/Linux rows in the docs; GA claims in trade press were not relied on.
 - "Not documented" and "no feature found" are search results, not proof. Zed and Helix local history, RustRover sandboxing of its IDE agent, and rust-analyzer's behaviour in VS Code Restricted Mode are the three that matter most; re-check before quoting them as absences.
 - The Windows and macOS behaviour of xynovim's hardening is unexercised (READMEs say so).
 
