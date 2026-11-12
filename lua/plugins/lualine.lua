@@ -13,6 +13,13 @@ return {
       opts.options = opts.options or {}
       opts.options.section_separators = ""
       opts.options.component_separators = "|"
+      opts.options.icons_enabled = false -- the branch glyph and the file-type icon (found on a real capture)
+    else
+      -- lualine's own defaults, said again so that `:XynoIcons nerd` undoes the ascii separators
+      opts.options = opts.options or {}
+      opts.options.icons_enabled = true
+      opts.options.section_separators = { left = "\xee\x82\xb0", right = "\xee\x82\xb2" } -- U+E0B0, U+E0B2
+      opts.options.component_separators = { left = "\xee\x82\xb1", right = "\xee\x82\xb3" } -- U+E0B1, U+E0B3
     end
     local status = require("xyno_rust.lsp_status")
     table.insert(opts.sections.lualine_x, 1, {

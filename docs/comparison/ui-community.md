@@ -170,13 +170,16 @@ Tests: `tests/ui-community_spec.lua`, 55 checks, grid assertions via `screenstri
 | 3 | Hint legibility | done | 4 (3 indirect) | 3.23:1 -> 6.07:1 (VS Code default 5.31:1 from its source, tokyonight 2.47:1 computed from its source) |
 | 4 | Severity not by colour alone | done | 3 (1 indirect) | glyph `✗ ▲ ● ◆` (ASCII `x ! i ?`), four underline styles |
 | 5 | Terminal check | done: `lua/xynovim/term.lua` | 4 | tmux / Ghostty / WezTerm / kitty cases in the spec |
-| 6 | High contrast | done: `:IslandContrast high` | 4 (1 indirect) | muted tones >= 7:1 (comments 4.50 -> 7.09, line numbers 3.46 -> 7.07) |
-| 7 | Transparency / float regression | spec only | 4 (2 indirect) | one border, solid float on a transparent editor |
+| 6 | High contrast | done, widened round 2: every visible group >= 7:1, frames >= 4.5:1; plus `island-light` | 4 (1 indirect) | all ~1,000 groups checked in dark and light |
+| 7 | Transparency / float regression | done round 2: real grid cells (editor see-through, floats, borders, titles, footers solid) | 4 (2 indirect) | one border, solid float on a transparent editor |
 | 8 | Narrow statusline | done | 3 | file name whole at 60/80/120/200; `<main` stub gone |
 | 9 | ASCII icons | done (dashboard, tabs, tree, statusline separators, signs, mini.icons); code lens "Debug" icon and a few plugin popups still use their own glyphs | 5 (2 indirect) | child Neovim with `XYNOVIM_ICONS=ascii` |
 | 10 | Width-aware truncation | done | 3 | `…` inside the window at 4 widths |
 | 11 | Debounce | done (120 ms in insert mode) | 2 | not timed |
 | 12 | Dashboard header | done | 2 (1 indirect) | centred at 4 widths |
-| 13-16 | | not done | | |
+| 13 | Coloured rustc text | done round 2: `<leader>cD`, `:DiagnosticRendered` | 3 | spans + grid colours, all cells >= 4.5:1 |
+| 14 | Error colour on names | done for the tree; the tab keeps bufferline's count (name not recolourable) | 2 | tree name cell colour on the grid; tab count >= 4.5:1 |
+| 15 | Winbar | done, opt-in `:XynoWinbar` | 2 | row 1 on the grid, narrow window keeps the file name |
+| 16 | End-of-line hints | **not built** (no clean Neovim way that does not shift text) | 3 | - |
 
-No light variant was made: nothing in the shortlist asks for one. `unknown` that stayed unknown: how Helix, Zed and RustRover measure on hint contrast (only VS Code and tokyonight were derived from source).
+Round 2 added a derived light variant (`island-light`) although no source asked for one; it is the user's request, not community demand. `unknown` that stayed unknown: how Helix, Zed and RustRover measure on hint contrast (only VS Code and tokyonight were derived from source).

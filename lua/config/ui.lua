@@ -8,6 +8,8 @@
 --   vim.g.xynovim_diagnostics  "cursor" (default) | "all" | "off"                 :DiagnosticsView
 --   vim.g.xynovim_icons        "auto" (default) | "nerd" | "ascii"  (or $XYNOVIM_ICONS) :XynoIcons
 --   vim.g.xynovim_contrast     "normal" (default) | "high"                         :IslandContrast
+--   vim.g.xynovim_winbar       false (default) | true                              :XynoWinbar
+--   :colorscheme island-light  the light variant (lua/island/light.lua)
 local M = {}
 
 -- Width ------------------------------------------------------------------------------------
@@ -111,7 +113,17 @@ function M.apply_icons()
     LazyVim.config.icons = ascii and vim.tbl_deep_extend("force", base, M.ASCII) or base
   end
   if package.loaded["mini.icons"] and _G.MiniIcons and MiniIcons.config then
-    MiniIcons.config.style = ascii and "ascii" or "glyph"
+    local style = ascii and "ascii" or "glyph"
+    if MiniIcons.config.style ~= style then
+      -- setup() again: mini.icons caches what it returned, a bare config change would not show
+      local cfg = vim.deepcopy(MiniIcons.config)
+      cfg.style = style
+      pcall(MiniIcons.setup, cfg)
+      MiniIcons.config.style = style
+      if package.loaded["nvim-web-devicons"] and MiniIcons.mock_nvim_web_devicons then
+        pcall(MiniIcons.mock_nvim_web_devicons)
+      end
+    end
   end
   M.apply_signs()
   return ascii and "ascii" or "nerd"
@@ -647,11 +659,14 @@ function M.setup()
     if a == "nerd" or a == "ascii" or a == "auto" then
       vim.g.xynovim_icons = a
       M.apply_icons()
+      local rebuilt = require("config.ui_chrome").refresh()
       vim.notify(
         "icons: "
           .. M.icon_mode()
           .. (a ~= "auto" and "" or " (auto)")
-          .. "; statusline, tabs and tree pick it up after a restart, signs now"
+          .. "; rebuilt now: signs, "
+          .. table.concat(rebuilt, ", ")
+          .. ". Read at startup only: the tree's expander arrows, git and diagnostic symbols"
       )
     elseif a ~= "" then
       return vim.notify("XynoIcons: nerd, ascii or auto", vim.log.levels.WARN)
@@ -765,6 +780,7 @@ function M.setup()
 
   vim.api.nvim_create_autocmd("ColorScheme", { group = group, callback = M.apply_signs })
   M.apply_icons()
+  require("config.ui_chrome").setup()
 end
 
 return M

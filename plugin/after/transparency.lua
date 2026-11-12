@@ -59,6 +59,11 @@ local function apply()
   if vim.g.xynovim_transparent == false then
     return
   end
+  -- The light variant has dark text: it needs its own light background, not the terminal's (which is
+  -- usually dark). Transparent only when asked for explicitly (vim.g.xynovim_transparent = true).
+  if vim.g.colors_name == "island-light" and vim.g.xynovim_transparent ~= true then
+    return
+  end
   for _, name in ipairs(groups) do
     make_transparent(name)
   end
@@ -76,6 +81,9 @@ if _G.Snacks and Snacks.toggle then
   Snacks.toggle({
     name = "Transparent background",
     get = function()
+      if vim.g.colors_name == "island-light" then
+        return vim.g.xynovim_transparent == true
+      end
       return vim.g.xynovim_transparent ~= false
     end,
     set = function(state)
