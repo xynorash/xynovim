@@ -44,7 +44,7 @@ below `vim.g`.
 | `enabled` | `true` | master switch | Enable rainbow brackets |
 | `round` `square` `curly` `angle` | `true` | the four kinds | Enable rainbow round / square / squiggly / angle brackets |
 | `pipe` | `true` | Rust closure pipes | (none) |
-| `mismatch` | `true` | mark unmatched brackets (red, bold, curl) | (none: the plugin leaves them to the IDE) |
+| `mismatch` | `true` | mark unmatched brackets (red, bold, curl). A kind that is switched off (`round`, `square`, `curly`, `angle`, `pipe`) is not examined at all, so its unmatched brackets are not marked either (the other kinds still are) | (none: the plugin leaves them to the IDE) |
 | `colors` | `6` | colours in the cycle, 1..16 (colour-blind palette: 8) | Number of colors |
 | `cycle_all_types` | `true` | one level counter for all kinds; `false`: each kind counts its own nesting | Cycle count on all bracket types |
 | `skip_first_level` | `false` | leave level 0 uncoloured | Do not rainbowify brackets of the first level |

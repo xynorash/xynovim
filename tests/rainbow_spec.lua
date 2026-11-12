@@ -561,6 +561,21 @@ describe("rainbow brackets: levels on the real grid", function()
     R.set("colors", 6)
   end)
 
+  it(":XynoRainbow colors names the rejected value", function()
+    open_text("kk.rs", RUST)
+    local seen = {}
+    local notify = vim.notify
+    vim.notify = function(msg)
+      seen[#seen + 1] = msg
+    end
+    vim.cmd("XynoRainbow colors abc")
+    vim.notify = notify
+    local all = table.concat(seen, "\n")
+    H.ok(all:find('"abc"', 1, true), "names abc: " .. all)
+    H.not_ok(all:find("nil is not valid", 1, true), "no nil: " .. all)
+    H.eq(6, R.opts().colors)
+  end)
+
   it("the disable list takes filetypes, languages and extensions; a buffer variable and max_lines too", function()
     open_text("l.rs", RUST)
     local c = cycle()
@@ -641,6 +656,16 @@ describe("rainbow brackets: unmatched brackets", function()
   it("a stray close is marked", function()
     open_text("w.rs", "fn f() {\n}\n}\n")
     H.eq(mismatch_fg(), (cell(3, 1)))
+  end)
+
+  it("a kind that is switched off is not examined at all: its unmatched brackets are not marked, the others are", function()
+    open_text("y.rs", "fn f() {\n    foo(;\n    bar[1;\n}\n")
+    H.eq(mismatch_fg(), (cell(2, col_of(2, "("))), "marked while round is on")
+    R.set("round", false)
+    vim.cmd("redraw!")
+    H.not_ok(fg_of(2, "(") == mismatch_fg(), "round off: foo( is not marked")
+    H.eq(mismatch_fg(), (cell(3, col_of(3, "["))), "square is still marked")
+    R.set("round", true)
   end)
 
   it("mismatch = false leaves the unmatched ones alone", function()

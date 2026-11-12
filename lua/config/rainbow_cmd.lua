@@ -219,7 +219,7 @@ SUBS.colors = function(args)
       say("could not write " .. path, vim.log.levels.ERROR)
     end
   else
-    local n = tonumber(a)
+    local n = tonumber(a) or a -- a non-number stays as typed so the error names it
     local ok, msg = R().set("colors", n)
     say(ok and ("colours " .. n) or msg, ok and nil or vim.log.levels.WARN)
     show_colors()
