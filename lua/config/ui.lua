@@ -5,6 +5,7 @@
 --
 -- Switches (all `vim.g`, set before the config loads, or at run time through the commands):
 --   vim.g.xynovim_hints        { types = true, params = true, lifetimes = true }   :Hints
+--   vim.g.xynovim_hints_style  "inline" (default) | "eol" (end of line, code never moves)  :Hints eol|inline
 --   vim.g.xynovim_diagnostics  "cursor" (default) | "all" | "off"                 :DiagnosticsView
 --   vim.g.xynovim_icons        "auto" (default) | "nerd" | "ascii"  (or $XYNOVIM_ICONS) :XynoIcons
 --   vim.g.xynovim_contrast     "normal" (default) | "high"                         :IslandContrast
@@ -273,6 +274,16 @@ M.HINT_KINDS = {
 }
 M.HINT_ORDER = { "types", "params", "lifetimes" }
 
+--- Hints shown in this buffer by either renderer (inline built-in, or end-of-line, item 16).
+function M.hints_enabled(buf)
+  buf = (buf == nil or buf == 0) and vim.api.nvim_get_current_buf() or buf
+  return vim.lsp.inlay_hint.is_enabled({ bufnr = buf }) or require("config.eolhints").is_active(buf)
+end
+
+function M.hint_style()
+  return require("config.eolhints").is_active(0) and "eol" or "inline"
+end
+
 function M.hint_state()
   local st = vim.g.xynovim_hints
   local out = {}
@@ -314,11 +325,14 @@ function M.apply_hints()
     for _, b in ipairs(vim.api.nvim_list_bufs()) do
       if
         vim.api.nvim_buf_is_loaded(b)
-        and vim.lsp.inlay_hint.is_enabled({ bufnr = b })
         and #vim.lsp.get_clients({ bufnr = b, method = "textDocument/inlayHint" }) > 0
       then
-        pcall(vim.lsp.inlay_hint.enable, false, { bufnr = b })
-        pcall(vim.lsp.inlay_hint.enable, true, { bufnr = b })
+        if require("config.eolhints").is_active(b) then
+          require("config.eolhints").refresh(b)
+        elseif vim.lsp.inlay_hint.is_enabled({ bufnr = b }) then
+          pcall(vim.lsp.inlay_hint.enable, false, { bufnr = b })
+          pcall(vim.lsp.inlay_hint.enable, true, { bufnr = b })
+        end
       end
     end
   end, 150)
@@ -331,23 +345,47 @@ function M.hints(arg)
   local st = M.hint_state()
   -- the master switch is per buffer, like LazyVim's <leader>uh; the kinds are the server's
   local buf = { bufnr = 0 }
-  local master = vim.lsp.inlay_hint.is_enabled(buf)
+  local eol = require("config.eolhints")
+  local master = M.hints_enabled(0)
+  -- the style outlives the switch: after `:Hints eol`, `:Hints off` and `:Hints on` come back as eol
+  local function turn_on()
+    if vim.g.xynovim_hints_style == "eol" then
+      eol.enable(0)
+    else
+      vim.lsp.inlay_hint.enable(true, buf)
+    end
+  end
+  local function turn_off()
+    eol.disable(0)
+    vim.lsp.inlay_hint.enable(false, buf)
+  end
   if arg == "" or arg == "all" or arg == "toggle" then
-    vim.lsp.inlay_hint.enable(not master, buf)
-  elseif arg == "on" then
+    if master then
+      turn_off()
+    else
+      turn_on()
+    end
+  elseif arg == "eol" then
+    vim.g.xynovim_hints_style = "eol"
+    eol.enable(0)
+  elseif arg == "inline" then
+    vim.g.xynovim_hints_style = "inline"
+    eol.disable(0)
     vim.lsp.inlay_hint.enable(true, buf)
+  elseif arg == "on" then
+    turn_on()
     for _, k in ipairs(M.HINT_ORDER) do
       st[k] = true
     end
   elseif arg == "off" then
-    vim.lsp.inlay_hint.enable(false, buf)
+    turn_off()
   elseif M.HINT_KINDS[arg] then
     st[arg] = not st[arg]
     if not master then
-      vim.lsp.inlay_hint.enable(true, buf)
+      turn_on()
     end
   elseif arg ~= "status" then
-    return "Hints: unknown argument '" .. arg .. "' (types, params, lifetimes, on, off, status)"
+    return "Hints: unknown argument '" .. arg .. "' (types, params, lifetimes, eol, inline, on, off, status)"
   end
   vim.g.xynovim_hints = st
   if arg ~= "status" and arg ~= "" and arg ~= "all" and arg ~= "toggle" and arg ~= "off" then
@@ -363,7 +401,7 @@ function M.hints_line()
     parts[#parts + 1] = k .. " " .. (st[k] and "on" or "off")
   end
   return "inlay hints "
-    .. (vim.lsp.inlay_hint.is_enabled({ bufnr = 0 }) and "on" or "off")
+    .. (M.hints_enabled(0) and (M.hint_style() == "eol" and "on, end of line" or "on") or "off")
     .. " ("
     .. table.concat(parts, ", ")
     .. ")"
@@ -382,13 +420,14 @@ function M.hints_status(width)
     letters[#letters + 1] = st[k] and M.HINT_KINDS[k].label or "-"
     full = full and st[k]
   end
-  if not vim.lsp.inlay_hint.is_enabled({ bufnr = 0 }) then
+  if not M.hints_enabled(0) then
     return "hints off"
   end
+  local eolmark = M.hint_style() == "eol" and " eol" or ""
   if full and width < 110 then
-    return ""
+    return eolmark ~= "" and "hints eol" or ""
   end
-  return "hints " .. table.concat(letters)
+  return "hints " .. table.concat(letters) .. eolmark
 end
 
 -- Statusline state: sandbox / guard / history ------------------------------------------------------
@@ -590,10 +629,10 @@ function M.lualine_x_components()
       end,
       cond = function()
         return M.hints_status() ~= ""
-          and (M.width() >= M.PRIORITY.hints or not vim.lsp.inlay_hint.is_enabled({ bufnr = 0 }))
+          and (M.width() >= M.PRIORITY.hints or not M.hints_enabled(0))
       end,
       color = function()
-        return vim.lsp.inlay_hint.is_enabled({ bufnr = 0 }) and "XynoStatusMuted" or "XynoStatusWarn"
+        return M.hints_enabled(0) and "XynoStatusMuted" or "XynoStatusWarn"
       end,
     },
     item(M.guard_status, "guard"),
@@ -633,7 +672,7 @@ function M.setup()
     nargs = "?",
     desc = "Inlay hints: toggle, or switch one kind (types, params, lifetimes) on/off",
     complete = function()
-      return { "types", "params", "lifetimes", "on", "off", "status" }
+      return { "types", "params", "lifetimes", "eol", "inline", "on", "off", "status" }
     end,
   })
 
@@ -706,6 +745,14 @@ function M.setup()
     callback = function(args)
       local c = vim.lsp.get_client_by_id(args.data.client_id)
       if c and c.name == "rust-analyzer" then
+        if vim.g.xynovim_hints_style == "eol" then
+          -- after LazyVim's own enable on this event: take the buffer over
+          vim.defer_fn(function()
+            if vim.api.nvim_buf_is_valid(args.buf) then
+              require("config.eolhints").enable(args.buf)
+            end
+          end, 300)
+        end
         local st = M.hint_state()
         if not (st.types and st.params and st.lifetimes) then
           apply_client(c)
