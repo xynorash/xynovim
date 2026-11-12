@@ -30,14 +30,15 @@ What it does (Linux with `bwrap` and unprivileged user namespaces; checked by sp
 
 What it does not do:
 
-- **The network stays open.** Anything the agent can read (the project, its own state) it can send out. Prompts and file contents go to the model provider by design.
+- **Only the AI agent is sandboxed.** rust-analyzer, build scripts and proc macros, `cargo`, the debugger target, tests and all plugins run with your privileges. The restricted mode for untrusted Rust workspaces (rust-analyzer without build scripts, proc macros and `cargo check`) limits what rust-analyzer executes; it is not a sandbox.
+- **The network stays open with the pinned plugin version.** The xyno-sandbox.nvim `dev` branch (not pinned yet) runs the agent in its own network namespace and lets HTTPS through an allowlist proxy only, failing closed; until `lazy-lock.json` pins it, assume the agent can reach any host. Anything the agent can read (the project, its own state) it can send out. Prompts and file contents go to the model provider by design.
 - **The project directory is writable**, including `target/`, build scripts and test code. Code the agent writes runs with your privileges as soon as you build or test it outside the sandbox. Review the diff before you run it.
 - **The hidden paths are a denylist.** A secret kept in an unlisted place under a readable path is visible to the agent. Some state under `~/.claude` stays writable inside the sandbox.
 - **No sandbox on Windows or macOS.** There the agent does not run at all (fail-closed), except under the explicit opt-out above, which runs it with no sandbox.
 - **Other 99 providers** (OpenCode, Cursor, Gemini, Kiro) are not sandboxed and are reachable only through that opt-in.
 - It has not been audited and no escape test beyond the repository's specs has been run. bubblewrap itself is a privilege-reduction tool, not a hardened VM.
 
-Other things that run code on your machine, by design: the plugins in `lazy-lock.json`, the tools Mason installs, `cargo`/`rust-analyzer` proc-macros and build scripts of the project you open (the same exposure as every Rust IDE; Neovim has no workspace-trust prompt for them), and the `build` hooks of a few plugins.
+Other things that run code on your machine, by design: the plugins in `lazy-lock.json`, the tools Mason installs, `cargo`/`rust-analyzer` proc-macros and build scripts of the project you open (the same exposure as every Rust IDE; on `dev` a workspace you have not trusted with `:RustTrust` starts rust-analyzer without them, see CHANGELOG, "Restricted mode"), and the `build` hooks of a few plugins.
 
 ## Supply chain: what is pinned and what is not
 

@@ -57,3 +57,14 @@ nvim --headless "+Lazy! restore" +qa
 A few specs check behaviour that only exists on the plugins' `dev` branches (the OSC 52 fallback in
 `clipboard-e2e`, the xyno-sandbox policy preview in `agent-99-guard`, ...). With the pinned plugins they skip with a
 message that names `XYNOVIM_DEV_PLUGINS`; with the clones they run.
+
+## Results of the integration run (2026-11-12)
+
+Same machine, `scripts/test.sh` (pinned plugins) against `scripts/dev-plugins.sh test` (clones on `dev`):
+
+| Mode | Passed | Failed | Skipped |
+|---|---|---|---|
+| pinned (`lazy-lock.json`) | 1104 | 1 | 46 |
+| dev clones | 1131 | 1 | 32 |
+
+The one failure is the same in both modes: `startup-and-options` (10 installed plugins off the lockfile: `nvim --headless "+Lazy! restore" +qa`, to be run by the owner of the install; the spec's message says so). A spec that failed once in dev mode under load, `keymaps-rust` "rv extracts into a variable", passed in the full run and in two reruns. Specs that skip against the pinned plugins with a message naming `XYNOVIM_DEV_PLUGINS`: `rust-ide-features` (run configurations, the code-action menu, organize on save), the real-popup checks of `ui-community`, the policy-preview and checkpoint specs of `agent-99-guard`, the OSC 52 fallback in `clipboard-e2e`. Each clone's own suite (`nvim -l tests/run.lua`): clipboard 33, crates 107, guard 63, history 158, imports 67, macros 283, new 220, rust 339, sandbox 799 passed, none failed.

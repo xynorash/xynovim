@@ -30,7 +30,7 @@ Retrieved: 2026-11-12 (all URLs below were fetched or searched on that date; ven
 | 15 | Sandboxing in Neovim agent plugins | **ahead** | none of seven popular Neovim agent plugins ships an OS sandbox; two default to auto-approve or offer a YOLO mode |
 | 16 | Helix agent, sandbox and trust features | tied (trust: Helix ahead on the language server, unreleased) | no agent, no sandbox merged; workspace trust is on master only, not in the latest release 25.07.1 |
 
-Two rows are `behind` (3, 11), both for the same reason; the fix is listed under row 3.
+No row is `behind` any more: rows 3 and 11 were, until the restricted mode for untrusted Rust workspaces landed on `dev` (2026-11-12; it needs the unpublished xyno-rust.nvim `dev` branch, so a user on the pinned plugins is still behind there). The remaining weak points are rows 1 and 2 on macOS / Windows and credential masking.
 
 ---
 

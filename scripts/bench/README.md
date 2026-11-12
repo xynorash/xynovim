@@ -24,6 +24,8 @@ Opt-in metric: `--type-gaps 80,150,300` (with `--only typing`) types 40 keystrok
 
 ## Isolation
 
+**Trap:** if `XDG_CONFIG_HOME` is set in your shell, the harness uses it as given and measures whatever is in `$XDG_CONFIG_HOME/$NVIM_APPNAME`, not this checkout. Run `env -u XDG_CONFIG_HOME scripts/bench/bench.sh ...` to measure the checkout (the header of the result says `config symlink ...` when it did).
+
 Every measured nvim is a separate process with its own environment. By default the config under test is this checkout (or `BENCH_CONFIG`), symlinked as `$XDG_CONFIG_HOME/$NVIM_APPNAME` in a temp dir; `XDG_STATE_HOME` and `XDG_CACHE_HOME` are fresh temp dirs (no shada, swap, lsp.log or lua cache leaks in or out); `XDG_DATA_HOME` is the real one so installed plugins are used. If you set the `XDG_*` variables yourself, they are used as given (this is how the comparison configs get a fully private data dir). The Rust project is a private copy, so `target/` and bacon-ls's shadow never touch the repo.
 
 Options and environment: `scripts/bench/bench.sh --help`.
