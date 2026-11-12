@@ -7,7 +7,7 @@
 [![ci](https://github.com/xynorash/xynovim/actions/workflows/ci.yml/badge.svg)](https://github.com/xynorash/xynovim/actions/workflows/ci.yml)
 ![neovim 0.12](https://img.shields.io/badge/neovim-0.12-57a143?logo=neovim&logoColor=white)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
-![tests](https://img.shields.io/badge/tests-906%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-850%20passing-brightgreen)
 
 Website: https://xynorash.github.io/xynovim/ (with [guides](https://xynorash.github.io/xynovim/#guides) to the workflows below)
 
@@ -38,7 +38,7 @@ The website, <https://xynorash.github.io/xynovim/>, is published from the dedica
 - **A debugger and a test runner that look like the ones in an IDE**: breakpoints with Rust-aware variable views, a test summary tree, coverage in the gutter.
 - **A safety net**: every save is snapshotted as a git ref (a "Local History"), and the AI agent runs inside a sandbox.
 - **Treesitter everywhere**: sticky scope, text objects, SQL injected into `sqlx` strings, a live syntax-tree view.
-- **Tested**: 906 passing checks across 32 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
+- **Tested**: 850 passing checks across 34 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
 
 ## Guides
 
@@ -184,7 +184,7 @@ The shell scripts (`scripts/bootstrap.sh`, `scripts/test.sh`) are bash convenien
 | --- | --- | --- |
 | Linux | Developed on (Arch); fully tested. | Ubuntu, `ci` run 39695896272: bootstrap, startup and the whole suite: 1749 passed, 0 failed, 76 skipped. |
 | Windows | Works in CI: the plugin restore from the lockfile (`scripts/bootstrap.ps1`), a silent headless start, and the specs that are not Linux-only. 10 of the 38 spec files of that run are skipped whole there and not demonstrated. | `platforms` run 39673715062: 1077 passed, 0 failed, 87 skipped. Green in 5 of the 6 runs from 39660597368 on (39660597368, 39663956677, 39673715062, 39679589563, 39679743409); the one red run (39668277143) was a path assertion in a spec, fixed afterwards. |
-| macOS | **Not reliably green.** Neovim starts and most specs pass, but the job did not pass in 4 of the 5 runs that finished from 39660597368 on (39679589563 was cancelled). | Green once: run 39663956677 (1431 passed, 0 failed, 73 skipped). Red in 39660597368 (2 timing specs failed), 39668277143 (a live `:MacroExpand` spec timed out), 39673715062 (a treesitter parser would not compile during the plugin restore, so nothing after it ran) and 39679743409 (an auto-import timing spec failed). |
+| macOS | **Not reliably green.** Neovim starts and most specs pass, but the macOS job passed in 8 of the 20 runs that finished from 39660597368 through 39779852292 (the last one, 2026-10-22, is green; 39679589563 was cancelled). | Green: 39663956677 (1431 passed, 0 failed, 73 skipped), 39682866562, 39685304990, 39685340055, 39687595350, 39736274036, 39738986558 and 39779852292 (the last: both jobs, the whole suite). The reds were mostly timing-dependent specs against a live rust-analyzer: an auto-import `single` spec (39679743409, 39695896363, 39701794116, 39727973489, 39732897360, 39746701940, 39756026137; that spec now lives in xyno-imports.nvim and no longer runs here), a live `:MacroExpand` (39668277143), `rv` extract (39729998314), two timing specs (39660597368). One red (39673715062) was the plugin restore: the treesitter parsers failed with `Lock file ... appears stale` because two builds of one parser contended for the CLI's lock; `scripts/provision.lua` now waits for LazyVim's own installs and retries (green runs show no such error) and, since this change, also clears stale lock files before a retry (a macOS run has not shown that last part yet). |
 
 Linux-only by design, so nothing of it works on Windows or macOS: the **99 agent sandbox** (bubblewrap; without a backend 99 refuses to start, see [The AI agent, sandboxed](#the-ai-agent-sandboxed)), the remote clipboard, the **tmux-based** and bash-stub test tooling (`scripts/test.sh`, `--coverage`; use `scripts/test.lua` or `scripts/test.ps1` elsewhere) and the **mold** linker setup (a Linux speed-up; `mold` and `clang` are optional anyway).
 
@@ -194,7 +194,7 @@ Prerequisites (`scripts/bootstrap.sh` checks the ones it needs itself (see the s
 
 - Required to bring the config up: `nvim` 0.12, `git`, `curl`, `tar`, `unzip`, `gcc` (tree-sitter parsers), the `tree-sitter` CLI (nvim-treesitter builds parsers with it; Mason installs it as the tree-sitter-cli package, `:checkhealth xynovim` warns when it is missing), `gzip`, `node` and `npm` (Mason's `markdownlint-cli2`, `markdown-toc`, `yaml-language-server`).
 - Required for the Rust workflow: `cargo`, `rustup` (with the `stable` toolchain, its `clippy` and `llvm-tools` components) and `rust-analyzer` on PATH (`rustup component add rust-analyzer`).
-- Installed by Mason (`scripts/bootstrap.sh` step 3 runs `scripts/provision.lua`, which also downloads the treesitter parsers; otherwise they come with the first interactive start): `bacon-ls` >= 0.31.0, `codelldb`, `taplo`, `wgsl-analyzer`, `marksman`, `lua-language-server`, `json-lsp`, `yaml-language-server`, `tree-sitter-cli`, `markdownlint-cli2`, `markdown-toc`, `stylua`, `shfmt`. The `bacon` package is a separate Mason package (also pulled in with `bacon-ls`); its binary is **not** used: bacon-ls runs cargo/clippy directly. `bootstrap.sh` stops without `cargo`, `rustup` or `rust-analyzer`; `BOOTSTRAP_SKIP_PREREQS=1` goes on anyway (a machine without Rust).
+- Installed by Mason (`scripts/bootstrap.sh` step 3 runs `scripts/provision.lua`, which also downloads the treesitter parsers; otherwise they come with the first interactive start): `bacon-ls` >= 0.31.0, `codelldb`, `taplo`, `wgsl-analyzer`, `marksman`, `lua-language-server`, `json-lsp`, `yaml-language-server`, `tree-sitter-cli`, `markdownlint-cli2`, `markdown-toc`, `stylua`, `shfmt`. Their versions are fixed by pinning the Mason **registry** to a release tag (`lua/plugins/mason-pin.lua`; LazyVim's `ensure_installed` takes no `name@version`); that fixes which version Mason resolves, it does not audit the downloads. The `bacon` package is a separate Mason package (also pulled in with `bacon-ls`); its binary is **not** used: bacon-ls runs cargo/clippy directly. `bootstrap.sh` stops without `cargo`, `rustup` or `rust-analyzer`; `BOOTSTRAP_SKIP_PREREQS=1` goes on anyway (a machine without Rust).
 - Optional, each one only costs its feature: `mold` + `clang` (linker, see below), `cargo-nextest`, `cargo-deny`, `cargo-expand`, `lazygit`, `delta`, `bwrap` (the 99 sandbox, Linux only; without it 99 refuses to run, see above).
 
 ```sh
@@ -369,7 +369,7 @@ Video: [14-egui-new.mp4](docs/media/14-egui-new.mp4)
 
 ## Tests: run them yourself
 
-The config ships with an automated suite: **32 spec files, 906 checks passing, 35 skipped with a stated reason, 0 failing**, in about six minutes. The passing and skipped counts depend on the machine (the figures are from my Linux machine (Arch), which has `debug = true` in `~/.cargo/config.toml`, a `~/.cargo/bin` and no `pwsh`; the Ubuntu CI run 39695896272 shows 1749 passed, 76 skipped, 0 failed). Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
+The config ships with an automated suite: **34 spec files, 850 checks passing, 45 skipped with a stated reason, 3 failing**, in about eleven minutes. These are the figures of the last whole-suite run (2026-11-12, Linux, Arch; the plugins restored to the lockfile). The 3 failures are tied to that machine's state, not to a feature found broken: `keymaps-global` runs into its 400 s timeout in the colourscheme-picker test (it did so on the previous commit there as well; cause not found; 74 of its checks had passed before the hang, but a timed-out file counts none), `bacon-ls-config` wants Mason's `tree-sitter` binary, which that install lacks, and `agent-99-guard` found an empty `/tmp/.git` directory (left by the sandbox work), which makes `/tmp` look like a git repository. The 45 skips include the real-debugger specs, which need `debug = true` in `~/.cargo/config.toml`; with that setting and a fake HOME the debugger file ran 56 passed, 1 failed (`<leader>dR`, which also fails without this session's change), 7 skipped. The earlier figure, from a different state of the same machine, was 32 spec files, 906 passing, 35 skipped, 0 failing (2026-10-22). The passing and skipped counts depend on the machine (the Ubuntu CI run 39695896272 shows 1749 passed, 76 skipped, 0 failed). Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
 
 ```sh
 scripts/test.sh                  # everything (or: make test)
@@ -385,7 +385,7 @@ Video: [10-test-suite.mp4](docs/media/10-test-suite.mp4)
 - **Nothing of yours is touched**: the specs run against a temp config / state / cache; only the installed plugins are reused. Missing tools (rust-analyzer, tmux, bubblewrap, lazygit, ...) make their specs **skip with a message**, never fail.
 - **One spec per feature area**: startup and options, the Island theme, every `<leader>r` command, `:RustContext`, `:RustTargets`, Local History, auto-save guards, the agent sandbox and the 99 guard, the two diagnostic tiers' configuration, server supervision, debugger and test integration, git and lint tooling, snippets and treesitter injections, the UI helpers, health / bootstrap / CI, and the claims this documentation makes, and the website. [tests/COVERAGE.md](tests/COVERAGE.md) maps every feature to the spec that tests it and lists what has no test and why.
 - **Line coverage** of the repo's own Lua was about 86 % before the macros and dependencies modules (`--coverage`, not re-run since; the denominator is estimated, treat it as a guide).
-- **CI**: the [ci workflow](.github/workflows/ci.yml) runs `scripts/bootstrap.sh` (clone plugins on their locked commits, download parsers and Mason tools), a startup smoke test, then `scripts/test.sh`, on a clean Ubuntu machine for every push.
+- **CI**: the [ci workflow](.github/workflows/ci.yml) runs `scripts/bootstrap.sh` (clone plugins on their locked commits, download parsers and Mason tools), a startup smoke test, then `scripts/test.sh`, on a clean Ubuntu machine for every push. The same workflow has a `lint` job (`stylua --check .` and `lua-language-server --check`, config in `stylua.toml` and `.luarc.json`), and its Neovim, StyLua and lua-language-server downloads are pinned by version and sha256 like the ones in the [platforms workflow](.github/workflows/platforms.yml); the Actions are pinned by commit SHA and Dependabot proposes updates. Ready-to-copy lint and security files for the nine plugin repositories are in [docs/plugin-ci-templates](docs/plugin-ci-templates) (not applied to those repositories).
 - How the harness works, how to write a spec and what the helpers offer: [docs/TESTING.md](docs/TESTING.md).
 
 ## The demo project and the recordings
@@ -402,7 +402,8 @@ docs/media/record.sh 05-tests   # one tape
 ## More documentation
 
 - [docs/DETAILS.md](docs/DETAILS.md): the engineering notes behind each setting, what was measured and what was **not** verified.
-- [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md): limitations that were found and deliberately left alone.
+- [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md): limitations that were found and deliberately left alone, and the ones fixed since.
+- [SECURITY.md](SECURITY.md): how to report a problem, what the agent sandbox is and is not (a seatbelt, not a jail), and what is pinned and what is not.
 - [docs/TESTING.md](docs/TESTING.md) and [tests/COVERAGE.md](tests/COVERAGE.md): the test suite.
 - [CHANGELOG.md](CHANGELOG.md): every notable change.
 
