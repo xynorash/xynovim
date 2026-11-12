@@ -29,10 +29,19 @@ end
 --- is cut at `max` display cells with an ellipsis.
 function M.format_line(line, hints, max)
   local out, seen = {}, {}
+  local lifetimes, lseen = {}, {}
   for _, h in ipairs(hints) do
     local lab = (h.label or ""):gsub("^%s+", ""):gsub("%s+$", "")
     local entry
-    if h.kind == 2 then
+    if h.kind == nil and lab:find("'", 1, true) then
+      -- elided lifetimes (`<'a, 'b>` after the name, `'a` after each `&`): one entry for the whole line
+      for name in lab:gmatch("'[%w_]+") do
+        if not lseen[name] then
+          lseen[name] = true
+          lifetimes[#lifetimes + 1] = name
+        end
+      end
+    elseif h.kind == 2 then
       local nm = lab:gsub(":$", "")
       local arg = line:sub(h.col + 1):match("^%s*([%w_%.&\"'%-]+)") or ""
       entry = arg ~= "" and (nm .. "=" .. arg) or nm
@@ -45,10 +54,13 @@ function M.format_line(line, hints, max)
         entry = ident .. ": " .. lab
       end
     end
-    if not seen[entry] then
+    if entry and not seen[entry] then
       seen[entry] = true
       out[#out + 1] = entry
     end
+  end
+  if #lifetimes > 0 then
+    out[#out + 1] = "lifetimes " .. table.concat(lifetimes, ", ")
   end
   local text = table.concat(out, "  ")
   if max and vim.fn.strdisplaywidth(text) > max then

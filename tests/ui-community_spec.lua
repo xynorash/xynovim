@@ -620,6 +620,16 @@ describe("ui-community 16: end-of-line hints (pure formatting)", function()
     )
     H.eq("x: T", eol.format_line("let x = f();", { { col = 5, label = ": T", kind = 1 }, { col = 5, label = ": T", kind = 1 } }))
   end)
+  it("elided lifetimes become one entry for the line", function()
+    H.eq(
+      "lifetimes 'self, '_other",
+      eol.format_line("fn pick(&self, other: &str) -> &str {", {
+        { col = 7, label = "<'self, '_other>" },
+        { col = 8, label = "'self " },
+        { col = 25, label = "'_other " },
+      })
+    )
+  end)
   it("long text is cut with an ellipsis inside the width", function()
     local t = eol.format_line("let a = f();", { { col = 5, label = ": " .. ("X"):rep(60), kind = 1 } }, 20)
     H.eq(20, vim.fn.strdisplaywidth(t))
