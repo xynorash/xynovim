@@ -549,53 +549,56 @@ describe("ui-community 1: per-kind inlay hints", function()
       shows(true, true, true, "lifetime hints back")
     end)
 
-    it("#16 :Hints eol: the code does not move, the hints sit at the end of the line, :Hints inline restores", function()
-      start()
-      shows(true, true, true, "inline hints first")
-      local inline_r, inline_c = find("let n: i32")
-      H.ok(inline_r ~= nil, "inline mode shifts `answer()`: the hint is inside the line")
-      local code_inline = select(2, find("= answer()"))
-      ui.hints("eol")
-      H.eq("eol", ui.hint_style())
-      H.match(ui.hints("status"), "end of line", true)
-      H.eq("hints TPL eol", ui.hints_status(120))
-      H.wait_for(function()
-        vim.cmd("redraw!")
-        return find("let n = answer();") ~= nil and find("n: i32") ~= nil
-      end, 40000, "type hint moved to the end of the line")
-      local r1, c1 = find("let n = answer();")
-      H.ok(r1 ~= nil, "the code is whole again on the screen: `let n = answer();`")
-      local code_eol = select(2, find("= answer()"))
-      H.ok(code_eol < code_inline, "answer() moved left by the width of the hint")
-      -- the add(a: 1 style parameter hint is now name=arg at the end of that line
-      H.ok(find("a=1") ~= nil and find("b=2") ~= nil, "parameter hints read a=1  b=2 at the end")
-      H.ok(find("add(1, 2)") ~= nil, "call arguments are not displaced")
-      -- hint colour as drawn is the same legible chip text (>= 4.5:1 against the editor)
-      local r2, c2 = find("n: i32")
-      local fg, bg = colors_at(r2, c2)
-      H.ok(ratio(fg, bg) >= 4.5, ("eol hint %s on %s = %.2f:1"):format(fg, bg, ratio(fg, bg)))
-      ui.hints("params")
-      H.wait_for(function()
-        vim.cmd("redraw!")
-        return find("a=1") == nil and find("n: i32") ~= nil and find("let s = add(1, 2);") ~= nil
-      end, 40000, "params removed in eol mode")
-      ui.hints("params")
-      ui.hints("off")
-      H.wait_for(function()
-        vim.cmd("redraw!")
-        return find("n: i32") == nil and find("let n = answer();") ~= nil
-      end, 10000, "off removes eol hints")
-      H.eq("hints off", ui.hints_status(120))
-      ui.hints("on")
-      H.wait_for(function()
-        vim.cmd("redraw!")
-        return find("n: i32") ~= nil
-      end, 40000, "on restores eol hints")
-      ui.hints("inline")
-      H.eq("inline", ui.hint_style())
-      shows(true, true, true, "inline hints back")
-      vim.g.xynovim_hints_style = nil
-    end)
+    it(
+      "#16 :Hints eol: the code does not move, the hints sit at the end of the line, :Hints inline restores",
+      function()
+        start()
+        shows(true, true, true, "inline hints first")
+        local inline_r, inline_c = find("let n: i32")
+        H.ok(inline_r ~= nil, "inline mode shifts `answer()`: the hint is inside the line")
+        local code_inline = select(2, find("= answer()"))
+        ui.hints("eol")
+        H.eq("eol", ui.hint_style())
+        H.match(ui.hints("status"), "end of line", true)
+        H.eq("hints TPL eol", ui.hints_status(120))
+        H.wait_for(function()
+          vim.cmd("redraw!")
+          return find("let n = answer();") ~= nil and find("n: i32") ~= nil
+        end, 40000, "type hint moved to the end of the line")
+        local r1, c1 = find("let n = answer();")
+        H.ok(r1 ~= nil, "the code is whole again on the screen: `let n = answer();`")
+        local code_eol = select(2, find("= answer()"))
+        H.ok(code_eol < code_inline, "answer() moved left by the width of the hint")
+        -- the add(a: 1 style parameter hint is now name=arg at the end of that line
+        H.ok(find("a=1") ~= nil and find("b=2") ~= nil, "parameter hints read a=1  b=2 at the end")
+        H.ok(find("add(1, 2)") ~= nil, "call arguments are not displaced")
+        -- hint colour as drawn is the same legible chip text (>= 4.5:1 against the editor)
+        local r2, c2 = find("n: i32")
+        local fg, bg = colors_at(r2, c2)
+        H.ok(ratio(fg, bg) >= 4.5, ("eol hint %s on %s = %.2f:1"):format(fg, bg, ratio(fg, bg)))
+        ui.hints("params")
+        H.wait_for(function()
+          vim.cmd("redraw!")
+          return find("a=1") == nil and find("n: i32") ~= nil and find("let s = add(1, 2);") ~= nil
+        end, 40000, "params removed in eol mode")
+        ui.hints("params")
+        ui.hints("off")
+        H.wait_for(function()
+          vim.cmd("redraw!")
+          return find("n: i32") == nil and find("let n = answer();") ~= nil
+        end, 10000, "off removes eol hints")
+        H.eq("hints off", ui.hints_status(120))
+        ui.hints("on")
+        H.wait_for(function()
+          vim.cmd("redraw!")
+          return find("n: i32") ~= nil
+        end, 40000, "on restores eol hints")
+        ui.hints("inline")
+        H.eq("inline", ui.hint_style())
+        shows(true, true, true, "inline hints back")
+        vim.g.xynovim_hints_style = nil
+      end
+    )
 
     it(":Hints off hides everything in this buffer, :Hints on restores all kinds", function()
       start()
@@ -618,7 +621,10 @@ describe("ui-community 16: end-of-line hints (pure formatting)", function()
         { col = 19, label = "b:", kind = 2 },
       })
     )
-    H.eq("x: T", eol.format_line("let x = f();", { { col = 5, label = ": T", kind = 1 }, { col = 5, label = ": T", kind = 1 } }))
+    H.eq(
+      "x: T",
+      eol.format_line("let x = f();", { { col = 5, label = ": T", kind = 1 }, { col = 5, label = ": T", kind = 1 } })
+    )
   end)
   it("elided lifetimes become one entry for the line", function()
     H.eq(
@@ -1291,41 +1297,38 @@ describe("ui round 3: Island Light (hand-tuned palette, contrast-checked per gro
     H.eq(0xbcbec4, hl("Normal").fg, "dark is unchanged by having loaded light")
   end)
 
-  it(
-    "every highlight group keeps min(its dark contrast, 4.5:1), checked group by group",
-    function()
-      vim.g.xynovim_transparent = false -- compare solid with solid: transparency drops backgrounds in dark only
-      vim.cmd.colorscheme("island-dark")
-      local dark, dbg = all_groups(), THEME_BG
-      vim.cmd.colorscheme("island-light")
-      vim.wait(100) -- the late pass (groups plugins define after the file ran)
-      local light, lbg = all_groups(), hex(hl("Normal").bg)
-      local checked, worse = 0, {}
-      for name, d in pairs(dark) do
-        local l = light[name]
-        local was = ratio(d.fg, d.bg or dbg)
-        -- lualine_* are written by lualine from the theme file (checked >= 4.5:1 in the statusline test)
-        if l and was >= 1.2 and not name:find("^lualine_") and not name:find("^BufferLine") then
-          checked = checked + 1
-          local want, got = math.min(was, 4.5), ratio(l.fg, l.bg or lbg)
-          if got < want - 0.05 then
-            worse[#worse + 1] = ("%s dark %.2f light %.2f"):format(name, was, got)
-          end
+  it("every highlight group keeps min(its dark contrast, 4.5:1), checked group by group", function()
+    vim.g.xynovim_transparent = false -- compare solid with solid: transparency drops backgrounds in dark only
+    vim.cmd.colorscheme("island-dark")
+    local dark, dbg = all_groups(), THEME_BG
+    vim.cmd.colorscheme("island-light")
+    vim.wait(100) -- the late pass (groups plugins define after the file ran)
+    local light, lbg = all_groups(), hex(hl("Normal").bg)
+    local checked, worse = 0, {}
+    for name, d in pairs(dark) do
+      local l = light[name]
+      local was = ratio(d.fg, d.bg or dbg)
+      -- lualine_* are written by lualine from the theme file (checked >= 4.5:1 in the statusline test)
+      if l and was >= 1.2 and not name:find("^lualine_") and not name:find("^BufferLine") then
+        checked = checked + 1
+        local want, got = math.min(was, 4.5), ratio(l.fg, l.bg or lbg)
+        if got < want - 0.05 then
+          worse[#worse + 1] = ("%s dark %.2f light %.2f"):format(name, was, got)
         end
       end
-      table.sort(worse)
-      H.ok(checked > 700, "groups compared: " .. checked)
-      for name, g in pairs(light) do
-        if name:find("^BufferLine") and name:find("Buffer$") or name == "BufferLineBackground" then
-          H.ok(
-            ratio(g.fg, g.bg or lbg) >= 4.5,
-            ("%s %.2f:1 (bufferline derives its own tints)"):format(name, ratio(g.fg, g.bg or lbg))
-          )
-        end
-      end
-      H.eq({}, vim.list_slice(worse, 1, 15), #worse .. " groups lost contrast in light")
     end
-  )
+    table.sort(worse)
+    H.ok(checked > 700, "groups compared: " .. checked)
+    for name, g in pairs(light) do
+      if name:find("^BufferLine") and name:find("Buffer$") or name == "BufferLineBackground" then
+        H.ok(
+          ratio(g.fg, g.bg or lbg) >= 4.5,
+          ("%s %.2f:1 (bufferline derives its own tints)"):format(name, ratio(g.fg, g.bg or lbg))
+        )
+      end
+    end
+    H.eq({}, vim.list_slice(worse, 1, 15), #worse .. " groups lost contrast in light")
+  end)
 
   it("hand-tuned targets: key groups reach the ratios written in lua/island/light_palette.lua", function()
     vim.g.xynovim_transparent = false
@@ -1336,20 +1339,50 @@ describe("ui round 3: Island Light (hand-tuned palette, contrast-checked per gro
     -- group (foreground) [, group whose background it sits on] -> minimum ratio
     local want = {
       { "Normal", nil, 12 },
-      { "Comment", nil, 4.5 }, { "String", nil, 5 }, { "Number", nil, 5 }, { "Boolean", nil, 5 }, { "Statement", nil, 5 },
-      { "Function", nil, 5 }, { "@function.call", nil, 5 }, { "Type", nil, 5 }, { "Constant", nil, 5 },
-      { "@variable.member", nil, 5 }, { "@attribute", nil, 5 }, { "@function.macro", nil, 5 },
-      { "@variable.builtin", nil, 5 }, { "@lsp.type.lifetime.rust", nil, 5 }, { "@lsp.type.enumMember", nil, 5 },
-      { "@string.documentation", nil, 4.5 }, { "@string.regexp", nil, 5 }, { "Todo", nil, 5 },
-      { "DiagnosticError", nil, 4.5 }, { "DiagnosticWarn", nil, 4.5 }, { "DiagnosticInfo", nil, 4.5 },
-      { "DiagnosticHint", nil, 4.5 }, { "DiagnosticOk", nil, 4.5 },
+      { "Comment", nil, 4.5 },
+      { "String", nil, 5 },
+      { "Number", nil, 5 },
+      { "Boolean", nil, 5 },
+      { "Statement", nil, 5 },
+      { "Function", nil, 5 },
+      { "@function.call", nil, 5 },
+      { "Type", nil, 5 },
+      { "Constant", nil, 5 },
+      { "@variable.member", nil, 5 },
+      { "@attribute", nil, 5 },
+      { "@function.macro", nil, 5 },
+      { "@variable.builtin", nil, 5 },
+      { "@lsp.type.lifetime.rust", nil, 5 },
+      { "@lsp.type.enumMember", nil, 5 },
+      { "@string.documentation", nil, 4.5 },
+      { "@string.regexp", nil, 5 },
+      { "Todo", nil, 5 },
+      { "DiagnosticError", nil, 4.5 },
+      { "DiagnosticWarn", nil, 4.5 },
+      { "DiagnosticInfo", nil, 4.5 },
+      { "DiagnosticHint", nil, 4.5 },
+      { "DiagnosticOk", nil, 4.5 },
       { "DiagnosticVirtualTextError", "DiagnosticVirtualTextError", 4.5 },
-      { "LineNr", nil, 4.5 }, { "CursorLineNr", "CursorLine", 7 }, { "LspInlayHint", nil, 4.5 },
-      { "LspCodeLens", nil, 4.5 }, { "StatusLine", nil, 7 }, { "StatusLineNC", "StatusLine", 4.5 },
-      { "WinBar", nil, 4.5 }, { "WinBarNC", nil, 4.5 }, { "NormalFloat", nil, 7 }, { "Pmenu", nil, 7 },
-      { "PmenuSel", nil, 7 }, { "FloatTitle", "NormalFloat", 7 }, { "CurSearch", nil, 7 }, { "Folded", nil, 4.5 },
-      { "Added", nil, 4.5 }, { "Removed", nil, 4.5 }, { "Changed", nil, 4.5 }, { "Underlined", nil, 4.5 },
-      { "GitSignsAdd", nil, 4.5 }, { "GitSignsDelete", nil, 4.5 },
+      { "LineNr", nil, 4.5 },
+      { "CursorLineNr", "CursorLine", 7 },
+      { "LspInlayHint", nil, 4.5 },
+      { "LspCodeLens", nil, 4.5 },
+      { "StatusLine", nil, 7 },
+      { "StatusLineNC", "StatusLine", 4.5 },
+      { "WinBar", nil, 4.5 },
+      { "WinBarNC", nil, 4.5 },
+      { "NormalFloat", nil, 7 },
+      { "Pmenu", nil, 7 },
+      { "PmenuSel", nil, 7 },
+      { "FloatTitle", "NormalFloat", 7 },
+      { "CurSearch", nil, 7 },
+      { "Folded", nil, 4.5 },
+      { "Added", nil, 4.5 },
+      { "Removed", nil, 4.5 },
+      { "Changed", nil, 4.5 },
+      { "Underlined", nil, 4.5 },
+      { "GitSignsAdd", nil, 4.5 },
+      { "GitSignsDelete", nil, 4.5 },
     }
     local bad = {}
     for _, w in ipairs(want) do

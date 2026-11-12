@@ -149,9 +149,13 @@ schedule = function(buf, delay)
     timers[buf] = t
   end
   t:stop()
-  t:start(delay or 150, 0, vim.schedule_wrap(function()
-    refresh(buf)
-  end))
+  t:start(
+    delay or 150,
+    0,
+    vim.schedule_wrap(function()
+      refresh(buf)
+    end)
+  )
 end
 
 function M.is_active(buf)
