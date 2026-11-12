@@ -51,10 +51,15 @@ return {
               local weak = {}
               for i = 1, math.min(3, #sum.files) do
                 local f = sum.files[i]
-                weak[#weak + 1] = ("  %5.1f%%  %s"):format(f.pct, vim.fn.fnamemodify(f.path, ":.")) 
+                weak[#weak + 1] = ("  %5.1f%%  %s"):format(f.pct, vim.fn.fnamemodify(f.path, ":."))
               end
               vim.notify(
-                ("coverage: %.1f%% of %d lines (%d files). Lowest:\n%s"):format(sum.pct, sum.found, #sum.files, table.concat(weak, "\n")),
+                ("coverage: %.1f%% of %d lines (%d files). Lowest:\n%s"):format(
+                  sum.pct,
+                  sum.found,
+                  #sum.files,
+                  table.concat(weak, "\n")
+                ),
                 vim.log.levels.INFO,
                 { title = "coverage" }
               )

@@ -352,7 +352,12 @@ describe("value float, hover, inline text (real codelldb)", function()
       more = 0,
     })
     H.eq({ "s : String", "", "a", "b", "", "[0]: 1", "  x: 2" }, lines)
-    H.eq("HashMap<String, int>", DV.type_short("std::collections::hash::map::HashMap<alloc::string::String, int, std::hash::random::RandomState, alloc::alloc::Global>"))
+    H.eq(
+      "HashMap<String, int>",
+      DV.type_short(
+        "std::collections::hash::map::HashMap<alloc::string::String, int, std::hash::random::RandomState, alloc::alloc::Global>"
+      )
+    )
   end)
 end)
 
@@ -439,7 +444,14 @@ describe("breakpoints and stepping (real codelldb)", function()
     launch({ DV_PANIC = "1" })
     local s = stopped()
     local frames = s.threads[s.stopped_thread_id].frames
-    H.match(frames[1].name, "rust_panic", true, vim.inspect(vim.tbl_map(function(f) return f.name end, frames)))
+    H.match(
+      frames[1].name,
+      "rust_panic",
+      true,
+      vim.inspect(vim.tbl_map(function(f)
+        return f.name
+      end, frames))
+    )
     local cur = H.wait_for(function()
       local f = s.current_frame
       return f and f.name:find("debug_values::main", 1, true) and f
@@ -474,46 +486,52 @@ describe("breakpoints and stepping (real codelldb)", function()
 end)
 
 describe("debugging a test through neotest (strategy dap, real codelldb + rust-analyzer)", function()
-  it("<leader>td runs the nearest test under codelldb: stops at the breakpoint inside the test with its locals", function()
-    local s0 = session_setup()
-    H.wait_lsp("rust-analyzer", vim.api.nvim_get_current_buf(), 120000)
-    H.wait_for(function()
-      return require("xyno_rust.lsp_status").component():match("^RA ready") ~= nil
-    end, 120000, "rust-analyzer ready")
-    bp(s0.lines.IN_TEST)
-    local nt = require("neotest")
-    local nio = require("nio")
-    local id = s0.dir .. "/src/main.rs::tests::adds"
-    -- a run started before the adapter discovered the file's tests finds none: retry until the dap session starts
-    local ran
-    local s
-    for _ = 1, 8 do
-      nio.run(function()
-        nt.run.run({ id, strategy = "dap" })
-        ran = true
-      end)
-      local ok, got = pcall(stopped, 20000)
-      if ok then
-        s = got
-        break
+  it(
+    "<leader>td runs the nearest test under codelldb: stops at the breakpoint inside the test with its locals",
+    function()
+      local s0 = session_setup()
+      H.wait_lsp("rust-analyzer", vim.api.nvim_get_current_buf(), 120000)
+      H.wait_for(function()
+        return require("xyno_rust.lsp_status").component():match("^RA ready") ~= nil
+      end, 120000, "rust-analyzer ready")
+      bp(s0.lines.IN_TEST)
+      local nt = require("neotest")
+      local nio = require("nio")
+      local id = s0.dir .. "/src/main.rs::tests::adds"
+      -- a run started before the adapter discovered the file's tests finds none: retry until the dap session starts
+      local ran
+      local s
+      for _ = 1, 8 do
+        nio.run(function()
+          nt.run.run({ id, strategy = "dap" })
+          ran = true
+        end)
+        local ok, got = pcall(stopped, 20000)
+        if ok then
+          s = got
+          break
+        end
       end
+      H.ok(s, "the neotest dap run never reached the breakpoint")
+      H.eq("debug_values::add", s.current_frame.name)
+      local v = locals(s)
+      H.eq("2", v.a.value)
+      H.eq("3", v.b.value)
+      -- and the Rust formatters / preview script are active in this launch too
+      H.eq("rust", s.config.sourceLanguages[1])
+      H.ok(
+        vim.iter(s.config.initCommands or {}):any(function(c)
+          return c:find("xyno_rust_preview.py", 1, true)
+        end),
+        "the preview import is in the test launch's initCommands"
+      )
+      require("dap").continue()
+      H.wait_for(function()
+        return ran
+      end, 120000, "the neotest run to finish")
+      wait_gone()
     end
-    H.ok(s, "the neotest dap run never reached the breakpoint")
-    H.eq("debug_values::add", s.current_frame.name)
-    local v = locals(s)
-    H.eq("2", v.a.value)
-    H.eq("3", v.b.value)
-    -- and the Rust formatters / preview script are active in this launch too
-    H.eq("rust", s.config.sourceLanguages[1])
-    H.ok(vim.iter(s.config.initCommands or {}):any(function(c)
-      return c:find("xyno_rust_preview.py", 1, true)
-    end), "the preview import is in the test launch's initCommands")
-    require("dap").continue()
-    H.wait_for(function()
-      return ran
-    end, 120000, "the neotest run to finish")
-    wait_gone()
-  end)
+  )
 end)
 
 describe("variable types (real codelldb)", function()
@@ -560,6 +578,9 @@ describe(":checkhealth xynovim: debugger value rendering", function()
     local text = table.concat(seen, "\n")
     H.match(text, "start: xynovim: debugger value rendering", true)
     H.match(text, "content previews (Vec [1, 2, 3], HashMap, Rc, RefCell)", true)
-    H.ok(text:find("ok: rust's lldb formatters", 1, true) or text:find("lldb_lookup.py is not in the active toolchain", 1, true))
+    H.ok(
+      text:find("ok: rust's lldb formatters", 1, true)
+        or text:find("lldb_lookup.py is not in the active toolchain", 1, true)
+    )
   end)
 end)

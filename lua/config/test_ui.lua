@@ -108,12 +108,16 @@ function M.parse(text)
       local name, status = l:match("^test (.-) %.%.%.%s*(.*)$")
       local secs3 = status:match("<([%d.]+)s>")
       -- with --nocapture a test's own prints are glued to the status word ("FAILEDprobing ...")
-      local word = status:match("^(FAILED)") or status:match("^(ok)") or status:match("^(ignored)") or status:match("^(%a+)")
+      local word = status:match("^(FAILED)")
+        or status:match("^(ok)")
+        or status:match("^(ignored)")
+        or status:match("^(%a+)")
       local t = test(name)
       -- no status word: a parallel test printed between "test x ... " and its "ok"; it did not fail
       -- (a failure prints FAILED on that line), so it keeps what it had
       if word then
-        t.status = word == "ok" and "passed" or (word == "ignored" and "ignored" or (word == "FAILED" and "failed" or "passed"))
+        t.status = word == "ok" and "passed"
+          or (word == "ignored" and "ignored" or (word == "FAILED" and "failed" or "passed"))
       end
       t.time = tonumber(secs3)
       cur = nil
@@ -137,7 +141,14 @@ function M.parse(text)
     elseif cur and cur_kind == "libtest" and (l == "failures:" or l:match("^running %d+ test")) then
       cur = nil
     elseif cur then
-      if cur_kind == "nextest" and (l:match("^[\226\148\128]+%s*$") or l:match("^%-%-%-%-+%s*$") or (l:match("^%s*%u+%s+%[") and NEXTEST_STATUS[l:match("^%s*(%u+)")])) then
+      if
+        cur_kind == "nextest"
+        and (
+          l:match("^[\226\148\128]+%s*$")
+          or l:match("^%-%-%-%-+%s*$")
+          or (l:match("^%s*%u+%s+%[") and NEXTEST_STATUS[l:match("^%s*(%u+)")])
+        )
+      then
         cur = nil
       else
         local body = l
@@ -306,7 +317,11 @@ function M.assert_diff(output)
           diff[#diff + 1] = { sign = "-", text = vim.trim(a[1]), span = { sa[1], sa[2] } }
           diff[#diff + 1] = { sign = "+", text = vim.trim(b[1]), span = { sb[1], sb[2] } }
         else
-          local hunks = vim.diff(table.concat(a, "\n") .. "\n", table.concat(b, "\n") .. "\n", { result_type = "indices", algorithm = "myers" })
+          local hunks = vim.diff(
+            table.concat(a, "\n") .. "\n",
+            table.concat(b, "\n") .. "\n",
+            { result_type = "indices", algorithm = "myers" }
+          )
           local ia, ib = 1, 1
           local function same(upto_a, upto_b)
             while ia <= upto_a and ib <= upto_b do
@@ -362,7 +377,12 @@ function M.render(run)
     return #lines
   end
   local s = p.summary
-  local head = ("%s  %d failed  %d passed  %d skipped"):format(run.title or "Tests", s.failed or 0, s.passed or 0, s.ignored or 0)
+  local head = ("%s  %d failed  %d passed  %d skipped"):format(
+    run.title or "Tests",
+    s.failed or 0,
+    s.passed or 0,
+    s.ignored or 0
+  )
   local bits = {}
   if s.time or run.wall then
     bits[#bits + 1] = secs(s.time or run.wall) .. (s.time and run.wall and (" (wall " .. secs(run.wall) .. ")") or "")
@@ -373,7 +393,10 @@ function M.render(run)
   if run.coverage then
     bits[#bits + 1] = ("coverage %.1f%% of %d lines"):format(run.coverage.pct, run.coverage.found)
   end
-  add(head .. (#bits > 0 and ("   " .. table.concat(bits, "   ")) or ""), (s.failed or 0) > 0 and "DiagnosticError" or "DiagnosticOk")
+  add(
+    head .. (#bits > 0 and ("   " .. table.concat(bits, "   ")) or ""),
+    (s.failed or 0) > 0 and "DiagnosticError" or "DiagnosticOk"
+  )
   add("<CR> jump   za fold   zM/zR all   r rerun failed   o raw log   q close", "Comment")
   add("")
 
@@ -434,7 +457,11 @@ function M.render(run)
       local first = row
       local ad = t.status == "failed" and M.assert_diff(t.output)
       if ad then
-        add(("  assert_%s! failed%s"):format(ad.kind, ad.message and (": " .. ad.message) or ""), "Special", { test = t })
+        add(
+          ("  assert_%s! failed%s"):format(ad.kind, ad.message and (": " .. ad.message) or ""),
+          "Special",
+          { test = t }
+        )
         for _, d in ipairs(ad.diff) do
           local r = add(
             ("  %s %s"):format(d.sign, d.text),
@@ -468,7 +495,8 @@ M.state = { run = nil, log = nil, failed_ids = {}, coverage = nil, win = nil, bu
 
 function M.foldtext()
   local first = vim.fn.getline(vim.v.foldstart)
-  return ("    ... %d lines of output"):format(vim.v.foldend - vim.v.foldstart + 1) .. (first:match("panicked") and "  (panic)" or "")
+  return ("    ... %d lines of output"):format(vim.v.foldend - vim.v.foldstart + 1)
+    .. (first:match("panicked") and "  (panic)" or "")
 end
 
 local function panel_buf()
@@ -513,7 +541,14 @@ function M.show(run, opts)
   vim.bo[b].modifiable = false
   vim.api.nvim_buf_clear_namespace(b, ns, 0, -1)
   for _, h in ipairs(r.hl) do
-    pcall(vim.api.nvim_buf_set_extmark, b, ns, h[1], h[2], h[3] == -1 and { line_hl_group = h[4] } or { end_col = h[3], hl_group = h[4] })
+    pcall(
+      vim.api.nvim_buf_set_extmark,
+      b,
+      ns,
+      h[1],
+      h[2],
+      h[3] == -1 and { line_hl_group = h[4] } or { end_col = h[3], hl_group = h[4] }
+    )
   end
   local win = M.state.win
   if not (win and vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == b) then
@@ -698,7 +733,8 @@ function M.consumer(client)
         for _, tt in ipairs(prev.parsed.tests) do
           c[tt.status] = c[tt.status] + 1
         end
-        prev.parsed.summary = vim.tbl_extend("force", prev.parsed.summary, c, { total = #prev.parsed.tests, time = nil })
+        prev.parsed.summary =
+          vim.tbl_extend("force", prev.parsed.summary, c, { total = #prev.parsed.tests, time = nil })
         prev.ids = vim.tbl_extend("force", prev.ids or {}, ids)
         positions = vim.tbl_extend("force", M.state.positions or {}, positions)
         failed_ids = {}
@@ -763,7 +799,10 @@ function M.run_doctests()
       end
       M.state.failed_ids = {}
       M.state.log = tmp
-      M.show({ parsed = parsed, wall = (vim.uv.hrtime() - t0) / 1e9, title = "Doc-tests", coverage = nil, ids = {} }, { enter = false })
+      M.show(
+        { parsed = parsed, wall = (vim.uv.hrtime() - t0) / 1e9, title = "Doc-tests", coverage = nil, ids = {} },
+        { enter = false }
+      )
     end)
   end)
 end

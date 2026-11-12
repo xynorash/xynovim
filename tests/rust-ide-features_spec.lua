@@ -22,7 +22,12 @@ local function session()
   S = { dir = dir, buf = buf, client = client }
   -- analysed: documentSymbol answers
   H.wait_for(function()
-    local r = vim.lsp.buf_request_sync(buf, "textDocument/documentSymbol", { textDocument = vim.lsp.util.make_text_document_params(buf) }, 5000)
+    local r = vim.lsp.buf_request_sync(
+      buf,
+      "textDocument/documentSymbol",
+      { textDocument = vim.lsp.util.make_text_document_params(buf) },
+      5000
+    )
     for _, x in pairs(r or {}) do
       if x.result and #x.result > 0 then
         return true
@@ -210,7 +215,13 @@ describe("run configurations in the full config", function()
     local root = H.wait_for(function()
       return rc.root(nil, { nowait = true })
     end, 20000, "root")
-    R.save(root, { name = "with args", cmd = "run", bin = "keymaps_rust_crate", args = "--n 3 'a b'", env = { RUST_LOG = "debug" } })
+    R.save(root, {
+      name = "with args",
+      cmd = "run",
+      bin = "keymaps_rust_crate",
+      args = "--n 3 'a b'",
+      env = { RUST_LOG = "debug" },
+    })
     local n = H.capture_notify()
     R.run_named("with args")
     H.wait_for(function()

@@ -218,26 +218,30 @@ function M.show_value(expr)
     return notify("no expression under the cursor", vim.log.levels.WARN)
   end
   local frame = session.current_frame
-  session:request("evaluate", { expression = expr, context = "hover", frameId = frame and frame.id }, function(err, resp)
-    if err or not resp then
-      return notify(("cannot evaluate %s: %s"):format(expr, err and err.message or "no answer"), vim.log.levels.WARN)
-    end
-    local node = { name = expr, type = resp.type, value = resp.result }
-    local function finish()
-      vim.schedule(function()
-        open_float(M.render_value(node), "value")
-      end)
-    end
-    -- a string's children are its characters: the unquoted text above is the whole content
-    if (resp.variablesReference or 0) > 0 and not (resp.result or ""):match('^"') then
-      fetch_children(session, resp.variablesReference, MAX_DEPTH, function(ch, more)
-        node.children, node.more = ch, more
+  session:request(
+    "evaluate",
+    { expression = expr, context = "hover", frameId = frame and frame.id },
+    function(err, resp)
+      if err or not resp then
+        return notify(("cannot evaluate %s: %s"):format(expr, err and err.message or "no answer"), vim.log.levels.WARN)
+      end
+      local node = { name = expr, type = resp.type, value = resp.result }
+      local function finish()
+        vim.schedule(function()
+          open_float(M.render_value(node), "value")
+        end)
+      end
+      -- a string's children are its characters: the unquoted text above is the whole content
+      if (resp.variablesReference or 0) > 0 and not (resp.result or ""):match('^"') then
+        fetch_children(session, resp.variablesReference, MAX_DEPTH, function(ch, more)
+          node.children, node.more = ch, more
+          finish()
+        end)
+      else
         finish()
-      end)
-    else
-      finish()
+      end
     end
-  end)
+  )
 end
 
 --- `K`: the value float while the debuggee is stopped, LSP hover otherwise.
@@ -294,7 +298,11 @@ function M.exception_breakpoints()
     prompt = "Break on (toggle)",
     format_item = function(f)
       local on = M.active_exceptions and M.active_exceptions[f.filter]
-      return ("%s %s%s"):format(on and "[x]" or "[ ]", f.label or f.filter, f.description and ("  - " .. f.description) or "")
+      return ("%s %s%s"):format(
+        on and "[x]" or "[ ]",
+        f.label or f.filter,
+        f.description and ("  - " .. f.description) or ""
+      )
     end,
   }, function(choice)
     if not choice then
@@ -363,11 +371,10 @@ function M.setup()
       if (session.xyno_async_frames or 0) > 0 and not session.xyno_async_told then
         session.xyno_async_told = true
         notify(
-          ("stopped in async code (%d async frame%s): locals of a suspended future are fields of `self` in its "
-            .. "state machine; other tasks are not visible to a debugger (tokio-console lists them)"):format(
-            session.xyno_async_frames,
-            session.xyno_async_frames == 1 and "" or "s"
-          )
+          (
+            "stopped in async code (%d async frame%s): locals of a suspended future are fields of `self` in its "
+            .. "state machine; other tasks are not visible to a debugger (tokio-console lists them)"
+          ):format(session.xyno_async_frames, session.xyno_async_frames == 1 and "" or "s")
         )
       end
     end, 200)

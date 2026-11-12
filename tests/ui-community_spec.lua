@@ -1156,8 +1156,13 @@ local function all_groups()
 end
 
 local function is_frame(name)
-  return name:find("Border") or name:find("Separator") or name:find("Split") or name:find("Indent")
-    or name:find("Backdrop") or name:find("Guide") or name:find("Progress")
+  return name:find("Border")
+    or name:find("Separator")
+    or name:find("Split")
+    or name:find("Indent")
+    or name:find("Backdrop")
+    or name:find("Guide")
+    or name:find("Progress")
 end
 
 describe("ui round 2: the tagline says only what is true", function()
@@ -1199,35 +1204,41 @@ describe("ui round 2: Island Light (derived, contrast-checked per group)", funct
     H.eq(0xbcbec4, hl("Normal").fg, "dark is unchanged by having loaded light")
   end)
 
-  it("every highlight group keeps the contrast it has in dark (capped at 8:1 here, 9:1 in the construction), checked group by group", function()
-    vim.g.xynovim_transparent = false -- compare solid with solid: transparency drops backgrounds in dark only
-    vim.cmd.colorscheme("island-dark")
-    local dark, dbg = all_groups(), THEME_BG
-    vim.cmd.colorscheme("island-light")
-    vim.wait(100) -- the late pass (groups plugins define after the file ran)
-    local light, lbg = all_groups(), hex(hl("Normal").bg)
-    local checked, worse = 0, {}
-    for name, d in pairs(dark) do
-      local l = light[name]
-      local was = ratio(d.fg, d.bg or dbg)
-      -- lualine_* are written by lualine from the theme file (checked >= 4.5:1 in the statusline test)
-      if l and was >= 1.2 and not name:find("^lualine_") and not name:find("^BufferLine") then
-        checked = checked + 1
-        local want, got = math.min(was, 8), ratio(l.fg, l.bg or lbg)
-        if got < want - 0.15 then
-          worse[#worse + 1] = ("%s dark %.2f light %.2f"):format(name, was, got)
+  it(
+    "every highlight group keeps the contrast it has in dark (capped at 8:1 here, 9:1 in the construction), checked group by group",
+    function()
+      vim.g.xynovim_transparent = false -- compare solid with solid: transparency drops backgrounds in dark only
+      vim.cmd.colorscheme("island-dark")
+      local dark, dbg = all_groups(), THEME_BG
+      vim.cmd.colorscheme("island-light")
+      vim.wait(100) -- the late pass (groups plugins define after the file ran)
+      local light, lbg = all_groups(), hex(hl("Normal").bg)
+      local checked, worse = 0, {}
+      for name, d in pairs(dark) do
+        local l = light[name]
+        local was = ratio(d.fg, d.bg or dbg)
+        -- lualine_* are written by lualine from the theme file (checked >= 4.5:1 in the statusline test)
+        if l and was >= 1.2 and not name:find("^lualine_") and not name:find("^BufferLine") then
+          checked = checked + 1
+          local want, got = math.min(was, 8), ratio(l.fg, l.bg or lbg)
+          if got < want - 0.15 then
+            worse[#worse + 1] = ("%s dark %.2f light %.2f"):format(name, was, got)
+          end
         end
       end
-    end
-    table.sort(worse)
-    H.ok(checked > 700, "groups compared: " .. checked)
-    for name, g in pairs(light) do
-      if name:find("^BufferLine") and name:find("Buffer$") or name == "BufferLineBackground" then
-        H.ok(ratio(g.fg, g.bg or lbg) >= 4.5, ("%s %.2f:1 (bufferline derives its own tints)"):format(name, ratio(g.fg, g.bg or lbg)))
+      table.sort(worse)
+      H.ok(checked > 700, "groups compared: " .. checked)
+      for name, g in pairs(light) do
+        if name:find("^BufferLine") and name:find("Buffer$") or name == "BufferLineBackground" then
+          H.ok(
+            ratio(g.fg, g.bg or lbg) >= 4.5,
+            ("%s %.2f:1 (bufferline derives its own tints)"):format(name, ratio(g.fg, g.bg or lbg))
+          )
+        end
       end
+      H.eq({}, vim.list_slice(worse, 1, 15), #worse .. " groups lost contrast in light")
     end
-    H.eq({}, vim.list_slice(worse, 1, 15), #worse .. " groups lost contrast in light")
-  end)
+  )
 
   it("the statusline and the lualine pills are >= 4.5:1 on the grid", function()
     vim.cmd.colorscheme("island-light")
@@ -1335,7 +1346,13 @@ describe("ui round 2: high-contrast variant covers every visible group", functio
     local b = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_buf_set_lines(b, 0, -1, false, { "popup text here" })
     local w = vim.api.nvim_open_win(b, false, {
-      relative = "editor", row = 2, col = 5, width = 20, height = 1, border = "rounded", style = "minimal",
+      relative = "editor",
+      row = 2,
+      col = 5,
+      width = 20,
+      height = 1,
+      border = "rounded",
+      style = "minimal",
     })
     vim.cmd("redraw!")
     local fg, bg = float_colors(w, 1, 3)
@@ -1368,7 +1385,9 @@ describe("ui round 2 (#4): severity is not carried by colour alone, on the real 
       local sign = vim.fn.strcharpart(text, 0, 1)
       local prefix = text:match("%d;%s+([\194-\244][\128-\191]*)") or "?"
       local _, a = unpack(inspect(r, c + 4))
-      local style = (a.undercurl and "curl" or "") .. (a.underdashed and "dash" or "") .. (a.underdotted and "dot" or "")
+      local style = (a.undercurl and "curl" or "")
+        .. (a.underdashed and "dash" or "")
+        .. (a.underdotted and "dot" or "")
         .. (a.underline and "line" or "")
       parts.signs[sign], parts.prefixes[prefix], parts.unders[style] = true, true, true
       parts.all[sign .. "|" .. prefix .. "|" .. style] = true
@@ -1429,7 +1448,12 @@ local function glyphs_on_screen()
       local ch = vim.fn.screenstring(r, c)
       if ch ~= "" then
         local n = vim.fn.char2nr(ch)
-        if (n >= 0xE000 and n <= 0xF8FF) or n >= 0xF0000 or (n >= 0x2190 and n <= 0x21FF) or (n >= 0x2600 and n <= 0x27BF) then
+        if
+          (n >= 0xE000 and n <= 0xF8FF)
+          or n >= 0xF0000
+          or (n >= 0x2190 and n <= 0x21FF)
+          or (n >= 0x2600 and n <= 0x27BF)
+        then
           out[#out + 1] = ("U+%X@%d:%d"):format(n, r, c)
         end
       end
@@ -1457,7 +1481,10 @@ describe("ui round 2 (#9): ascii mode reaches the places that kept their glyphs"
     local seen = {}
     local client = {
       request = function(_, method, _, handler)
-        local lens = { { range = {}, command = { title = "▶\239\184\142 Run" } }, { range = {}, command = { title = "⚙\239\184\142 Debug" } } }
+        local lens = {
+          { range = {}, command = { title = "▶\239\184\142 Run" } },
+          { range = {}, command = { title = "⚙\239\184\142 Debug" } },
+        }
         handler(nil, lens, { method = method })
         seen[#seen + 1] = lens
       end,
@@ -1481,31 +1508,34 @@ describe("ui round 2 (#9): ascii mode reaches the places that kept their glyphs"
   end)
 
   describe("with rust-analyzer", function()
-    it("the lens above `fn main` shows ▶︎ Run | ⚙︎ Debug in nerd mode and > Run | * Debug in ascii, on the grid", function()
-      H.need_rust()
-      local _, buf = H.open_fixture("basic", "src/main.rs", { git = true })
-      H.wait_lsp("rust-analyzer", buf)
-      vim.o.laststatus = 0
-      size(120, 20)
-      eventually(function()
-        return find("Run")
-      end, 90000, "code lens on the screen")
-      H.ok(find("▶") and find("⚙"), "nerd mode keeps the symbols")
-      vim.g.xynovim_icons = "ascii"
-      ui.apply_icons()
-      chrome.refresh()
-      eventually(function()
-        return find("> Run") and not find("▶")
-      end, 30000, "ascii lens")
-      H.ok(find("* Debug"), "the Debug lens is plain too")
-      H.ok(not find("⚙"), "no gear left")
-      vim.g.xynovim_icons = "nerd"
-      ui.apply_icons()
-      chrome.refresh()
-      eventually(function()
-        return find("▶")
-      end, 30000, "nerd lens back")
-    end)
+    it(
+      "the lens above `fn main` shows ▶︎ Run | ⚙︎ Debug in nerd mode and > Run | * Debug in ascii, on the grid",
+      function()
+        H.need_rust()
+        local _, buf = H.open_fixture("basic", "src/main.rs", { git = true })
+        H.wait_lsp("rust-analyzer", buf)
+        vim.o.laststatus = 0
+        size(120, 20)
+        eventually(function()
+          return find("Run")
+        end, 90000, "code lens on the screen")
+        H.ok(find("▶") and find("⚙"), "nerd mode keeps the symbols")
+        vim.g.xynovim_icons = "ascii"
+        ui.apply_icons()
+        chrome.refresh()
+        eventually(function()
+          return find("> Run") and not find("▶")
+        end, 30000, "ascii lens")
+        H.ok(find("* Debug"), "the Debug lens is plain too")
+        H.ok(not find("⚙"), "no gear left")
+        vim.g.xynovim_icons = "nerd"
+        ui.apply_icons()
+        chrome.refresh()
+        eventually(function()
+          return find("▶")
+        end, 30000, "nerd lens back")
+      end
+    )
   end)
 
   it("a child nvim with XYNOVIM_ICONS=ascii: file icons, dap-ui and tree diagnostics are plain too", function()
@@ -1530,7 +1560,9 @@ describe("ui round 2 (#9): ascii mode reaches the places that kept their glyphs"
     local f = assert(io.open(path, "w"))
     f:write(script)
     f:close()
-    local r = vim.system({ vim.v.progpath, "--headless", "-S", path }, { text = true, env = { XYNOVIM_ICONS = "ascii" }, stdin = false }):wait(60000)
+    local r = vim
+      .system({ vim.v.progpath, "--headless", "-S", path }, { text = true, env = { XYNOVIM_ICONS = "ascii" }, stdin = false })
+      :wait(60000)
     local out = (r.stdout or "") .. (r.stderr or "")
     H.match(out, "DONE", true, out)
     H.match(out, "mini=ascii", true, out)
@@ -1591,7 +1623,11 @@ describe("ui round 2 (#9): ascii mode reaches the places that kept their glyphs"
       return #glyphs_on_screen() > 0
     end, 8000, "glyphs back")
     H.ok(require("bufferline.config").options.show_buffer_icons ~= false)
-    H.eq("\xee\x82\xb0", require("lualine").get_config().options.section_separators.left, "powerline separator restored")
+    H.eq(
+      "\xee\x82\xb0",
+      require("lualine").get_config().options.section_separators.left,
+      "powerline separator restored"
+    )
     H.eq("\xef\x82\xa8", require("bufferline.config").options.left_trunc_marker, "tab truncation marker restored")
     pcall(vim.cmd, "Neotree close")
   end)
@@ -1648,51 +1684,76 @@ describe("ui round 2 (#14): error colour on the file tree and the tabs", functio
     H.ok(ratio(hex(g.fg), THEME_BG) >= 4.5, ("%.2f:1"):format(ratio(hex(g.fg), THEME_BG)))
   end)
 
-  it("a file with an error is drawn in the error colour in the tree, a clean file and a warning-only file are not", function()
-    setup_files()
-    vim.fn.writefile({ "fn warn() {}" }, d .. "/src/warn.rs")
-    vim.cmd("edit src/warn.rs")
-    local warn_buf = vim.api.nvim_get_current_buf()
-    local ns = vim.api.nvim_create_namespace("ui-tree-test")
-    vim.diagnostic.set(ns, bad_buf, { { lnum = 1, col = 17, end_col = 20, severity = E, message = "mismatched types", code = "E0308", source = "rustc" } })
-    vim.diagnostic.set(ns, warn_buf, { { lnum = 0, col = 3, end_col = 7, severity = W, message = "unused", source = "rustc" } })
-    vim.cmd("Neotree show dir=" .. vim.fn.fnameescape(d) .. " reveal_file=" .. vim.fn.fnameescape(d .. "/src/bad.rs"))
-    local mgr = require("neo-tree.sources.manager")
-    vim.wait(1200)
-    mgr.refresh("filesystem")
-    local want = hex(hl("XynoTreeError").fg)
-    local last
-    --- all names read from the same drawn frame (the tree redraws on focus and cursor events)
-    local function frame()
-      vim.cmd("redraw!")
-      local t = {}
-      for _, n in ipairs({ "bad.rs", "good.rs", "warn.rs", "src" }) do
-        local r, c = find(n, 2) -- row 1 is the tabline
-        if not r then
-          return nil
+  it(
+    "a file with an error is drawn in the error colour in the tree, a clean file and a warning-only file are not",
+    function()
+      setup_files()
+      vim.fn.writefile({ "fn warn() {}" }, d .. "/src/warn.rs")
+      vim.cmd("edit src/warn.rs")
+      local warn_buf = vim.api.nvim_get_current_buf()
+      local ns = vim.api.nvim_create_namespace("ui-tree-test")
+      vim.diagnostic.set(ns, bad_buf, {
+        {
+          lnum = 1,
+          col = 17,
+          end_col = 20,
+          severity = E,
+          message = "mismatched types",
+          code = "E0308",
+          source = "rustc",
+        },
+      })
+      vim.diagnostic.set(
+        ns,
+        warn_buf,
+        { { lnum = 0, col = 3, end_col = 7, severity = W, message = "unused", source = "rustc" } }
+      )
+      vim.cmd("Neotree show dir=" .. vim.fn.fnameescape(d) .. " reveal_file=" .. vim.fn.fnameescape(d .. "/src/bad.rs"))
+      local mgr = require("neo-tree.sources.manager")
+      vim.wait(1200)
+      mgr.refresh("filesystem")
+      local want = hex(hl("XynoTreeError").fg)
+      local last
+      --- all names read from the same drawn frame (the tree redraws on focus and cursor events)
+      local function frame()
+        vim.cmd("redraw!")
+        local t = {}
+        for _, n in ipairs({ "bad.rs", "good.rs", "warn.rs", "src" }) do
+          local r, c = find(n, 2) -- row 1 is the tabline
+          if not r then
+            return nil
+          end
+          local fg, bg = colors_at(r, c)
+          t[n] = { fg = fg, bg = bg }
         end
-        local fg, bg = colors_at(r, c)
-        t[n] = { fg = fg, bg = bg }
+        last = t
+        return t
       end
-      last = t
-      return t
+      local ok, err = pcall(eventually, function()
+        local t = frame()
+        return t
+          and t["bad.rs"].fg == want
+          and t["src"].fg == want
+          and t["good.rs"].fg ~= want
+          and t["warn.rs"].fg ~= want
+      end, 10000, "names drawn in their colours")
+      if not ok then
+        error(("%s\n%s\n%s"):format(err, vim.inspect(last), screen_text():sub(1, 1200)))
+      end
+      H.ok(ratio(last["bad.rs"].fg, last["bad.rs"].bg) >= 4.5, "error name legible")
+      -- the error colour is the file's, the folder above it; a clean file and a warning-only file keep theirs
+      pcall(vim.cmd, "Neotree close")
     end
-    local ok, err = pcall(eventually, function()
-      local t = frame()
-      return t and t["bad.rs"].fg == want and t["src"].fg == want and t["good.rs"].fg ~= want and t["warn.rs"].fg ~= want
-    end, 10000, "names drawn in their colours")
-    if not ok then
-      error(("%s\n%s\n%s"):format(err, vim.inspect(last), screen_text():sub(1, 1200)))
-    end
-    H.ok(ratio(last["bad.rs"].fg, last["bad.rs"].bg) >= 4.5, "error name legible")
-    -- the error colour is the file's, the folder above it; a clean file and a warning-only file keep theirs
-    pcall(vim.cmd, "Neotree close")
-  end)
+  )
 
   it("the tab of a buffer with an error shows the error count right after its name, in a legible colour", function()
     setup_files()
     local ns = vim.api.nvim_create_namespace("ui-tab-test")
-    vim.diagnostic.set(ns, bad_buf, { { lnum = 1, col = 17, end_col = 20, severity = E, message = "mismatched types", source = "rustc" } })
+    vim.diagnostic.set(
+      ns,
+      bad_buf,
+      { { lnum = 1, col = 17, end_col = 20, severity = E, message = "mismatched types", source = "rustc" } }
+    )
     eventually(function()
       vim.cmd("redrawtabline")
       local r, c = find("bad.rs")
@@ -1870,8 +1931,16 @@ describe("ui round 2 (#13): the diagnostic as rustc prints it, coloured", functi
     vim.o.laststatus = 0
     local ns = vim.api.nvim_create_namespace("rendered-test")
     vim.diagnostic.set(ns, buf, {
-      { lnum = 1, col = 17, end_col = 20, severity = E, message = "mismatched types", code = "E0308", source = "rustc",
-        user_data = { lsp = { data = { rendered = RUSTC } } } },
+      {
+        lnum = 1,
+        col = 17,
+        end_col = 20,
+        severity = E,
+        message = "mismatched types",
+        code = "E0308",
+        source = "rustc",
+        user_data = { lsp = { data = { rendered = RUSTC } } },
+      },
     })
     vim.api.nvim_win_set_cursor(0, { 2, 18 })
     local win = rendered.open()
@@ -1926,7 +1995,16 @@ describe("ui round 2 (#13): the diagnostic as rustc prints it, coloured", functi
     end
     H.ok(vim.api.nvim_win_get_height(win) >= math.min(need, vim.o.lines - 6), "tall enough for the wrapped text")
     vim.cmd("redraw!")
-    H.match(vim.fn.join(vim.tbl_map(function(r) return row_text(r) end, vim.fn.range(1, vim.o.lines)), "\n"), "one-line message", true)
+    H.match(
+      vim.fn.join(
+        vim.tbl_map(function(r)
+          return row_text(r)
+        end, vim.fn.range(1, vim.o.lines)),
+        "\n"
+      ),
+      "one-line message",
+      true
+    )
     vim.api.nvim_win_close(win, true)
   end)
 end)
@@ -1951,65 +2029,83 @@ describe("ui round 2 (#7): transparency and floats on the real grid", function()
   end
 
   for _, transparent in ipairs({ true, false }) do
-    it(("transparent=%s: editor surfaces %s, floats, borders, titles and footers are solid"):format(tostring(transparent), transparent and "see through" or "are solid"), function()
-      vim.g.xynovim_transparent = transparent
-      vim.cmd.colorscheme("island-dark")
-      size(80, 14)
-      local buf = vim.api.nvim_create_buf(false, true)
-      vim.api.nvim_set_current_buf(buf)
-      vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "one", "two", "three" })
-      vim.wo.number = true
-      vim.wo.cursorline = false
-      vim.o.signcolumn = "yes:1"
-      vim.wo.statuscolumn = ""
-      vim.diagnostic.set(vim.api.nvim_create_namespace("transp"), buf, { { lnum = 1, col = 0, severity = W, message = "w", source = "x" } })
-      vim.cmd("redraw!")
-      local want
-      if not transparent then
-        want = "#1e1f22"
-      end
-      H.eq(want, drawn_bg(8, 40), "empty editor cell")
-      local r = find("two")
-      H.eq(want, drawn_bg(r, 70), "the rest of a text line")
-      local r3 = find("three") -- (the cursor cell of the grid is drawn with the Cursor group: not on this row)
-      H.eq(want, drawn_bg(r3, 1), "sign column cell")
-      H.eq(want, drawn_bg(r3, 3), "gap before the line number")
-      H.eq(want, drawn_bg(r3, 5), "line number cell")
-      -- a float: solid everywhere including border, title and footer
-      local fb = vim.api.nvim_create_buf(false, true)
-      vim.api.nvim_buf_set_lines(fb, 0, -1, false, { "float body" })
-      local w = vim.api.nvim_open_win(fb, false, {
-        relative = "editor", row = 3, col = 12, width = 20, height = 1, border = "rounded", style = "minimal",
-        title = " Title ", footer = " foot ", footer_pos = "center",
-      })
-      vim.cmd("redraw!")
-      local solid = hex(hl("NormalFloat").bg)
-      local grid
-      for g = 2, 3000 do
-        local ok, cell = pcall(vim.api.nvim__inspect_cell, g, 1, 1)
-        if ok and cell[1] == "f" then
-          grid = g
-          break
+    it(
+      ("transparent=%s: editor surfaces %s, floats, borders, titles and footers are solid"):format(
+        tostring(transparent),
+        transparent and "see through" or "are solid"
+      ),
+      function()
+        vim.g.xynovim_transparent = transparent
+        vim.cmd.colorscheme("island-dark")
+        size(80, 14)
+        local buf = vim.api.nvim_create_buf(false, true)
+        vim.api.nvim_set_current_buf(buf)
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "one", "two", "three" })
+        vim.wo.number = true
+        vim.wo.cursorline = false
+        vim.o.signcolumn = "yes:1"
+        vim.wo.statuscolumn = ""
+        vim.diagnostic.set(
+          vim.api.nvim_create_namespace("transp"),
+          buf,
+          { { lnum = 1, col = 0, severity = W, message = "w", source = "x" } }
+        )
+        vim.cmd("redraw!")
+        local want
+        if not transparent then
+          want = "#1e1f22"
         end
-      end
-      H.ok(grid, "float grid found")
-      local checked = 0
-      for rr = 0, 2 do
-        for cc = 0, 21 do
-          local ok, cell = pcall(vim.api.nvim__inspect_cell, grid, rr, cc)
-          if ok then
-            checked = checked + 1
-            H.eq(solid, hex(cell[2].background), ("float cell %d,%d (%q) is solid"):format(rr, cc, cell[1]))
+        H.eq(want, drawn_bg(8, 40), "empty editor cell")
+        local r = find("two")
+        H.eq(want, drawn_bg(r, 70), "the rest of a text line")
+        local r3 = find("three") -- (the cursor cell of the grid is drawn with the Cursor group: not on this row)
+        H.eq(want, drawn_bg(r3, 1), "sign column cell")
+        H.eq(want, drawn_bg(r3, 3), "gap before the line number")
+        H.eq(want, drawn_bg(r3, 5), "line number cell")
+        -- a float: solid everywhere including border, title and footer
+        local fb = vim.api.nvim_create_buf(false, true)
+        vim.api.nvim_buf_set_lines(fb, 0, -1, false, { "float body" })
+        local w = vim.api.nvim_open_win(fb, false, {
+          relative = "editor",
+          row = 3,
+          col = 12,
+          width = 20,
+          height = 1,
+          border = "rounded",
+          style = "minimal",
+          title = " Title ",
+          footer = " foot ",
+          footer_pos = "center",
+        })
+        vim.cmd("redraw!")
+        local solid = hex(hl("NormalFloat").bg)
+        local grid
+        for g = 2, 3000 do
+          local ok, cell = pcall(vim.api.nvim__inspect_cell, g, 1, 1)
+          if ok and cell[1] == "f" then
+            grid = g
+            break
           end
         end
+        H.ok(grid, "float grid found")
+        local checked = 0
+        for rr = 0, 2 do
+          for cc = 0, 21 do
+            local ok, cell = pcall(vim.api.nvim__inspect_cell, grid, rr, cc)
+            if ok then
+              checked = checked + 1
+              H.eq(solid, hex(cell[2].background), ("float cell %d,%d (%q) is solid"):format(rr, cc, cell[1]))
+            end
+          end
+        end
+        H.ok(checked >= 60, "cells checked: " .. checked)
+        vim.api.nvim_win_close(w, true)
+        -- the completion popup and the statusline keep their fills
+        H.ok(hl("Pmenu").bg, "Pmenu has a background")
+        H.ok(hl("StatusLine").bg, "StatusLine has a background")
+        H.ok(hl("XynoPopupNormal").bg, "plugin popups have a background")
       end
-      H.ok(checked >= 60, "cells checked: " .. checked)
-      vim.api.nvim_win_close(w, true)
-      -- the completion popup and the statusline keep their fills
-      H.ok(hl("Pmenu").bg, "Pmenu has a background")
-      H.ok(hl("StatusLine").bg, "StatusLine has a background")
-      H.ok(hl("XynoPopupNormal").bg, "plugin popups have a background")
-    end)
+    )
   end
 
   it("the dashboard in a transparent editor: the statusline row is uniform, not a patchwork", function()
@@ -2115,65 +2211,78 @@ describe("ui round 2: the real popups of the xyno plugins on the grid", function
     end
   end
 
-  it("sandbox policy window (:XynoSandboxPolicy): Xyno groups, every text cell >= 4.5:1, tall enough for its text", function()
-    H.need_sandbox()
-    if not pcall(require, "xyno_sandbox.ui") then
-      skip("the loaded xyno-sandbox.nvim has no policy window (lock file pins the older plugin)")
-    end
-    local restore = hermetic_home()
-    local project = H.fixture("basic", { git = true })
-    vim.cmd.cd(vim.fn.fnameescape(project))
-    size(120, 40)
-    vim.cmd("XynoSandboxPolicy")
-    local win
-    eventually(function()
-      for _, w in ipairs(vim.api.nvim_list_wins()) do
-        if vim.bo[vim.api.nvim_win_get_buf(w)].filetype == "xyno-sandbox" then
-          win = w
-          return true
-        end
+  it(
+    "sandbox policy window (:XynoSandboxPolicy): Xyno groups, every text cell >= 4.5:1, tall enough for its text",
+    function()
+      H.need_sandbox()
+      if not pcall(require, "xyno_sandbox.ui") then
+        skip("the loaded xyno-sandbox.nvim has no policy window (lock file pins the older plugin)")
       end
-    end, 15000, "the policy window")
-    restore()
-    eventually(function()
-      return vim.wo[win].winhighlight:find("XynoPopupBorder", 1, true)
-    end, 3000, "winhighlight")
-    vim.cmd("redraw!")
-    local cells, cfg = float_cells(win)
-    H.ok(#cells > 200, "the window has text: " .. #cells)
-    local height = vim.api.nvim_win_get_height(win)
-    local cur = vim.api.nvim_win_get_cursor(win)
-    local body, title, footer = {}, {}, {}
-    for _, c in ipairs(cells) do
-      if c.row == 0 then
-        title[#title + 1] = c
-      elseif c.row == height + 1 then
-        footer[#footer + 1] = c
-      elseif c.row == cur[1] then
+      local restore = hermetic_home()
+      local project = H.fixture("basic", { git = true })
+      vim.cmd.cd(vim.fn.fnameescape(project))
+      size(120, 40)
+      vim.cmd("XynoSandboxPolicy")
+      local win
+      eventually(function()
+        for _, w in ipairs(vim.api.nvim_list_wins()) do
+          if vim.bo[vim.api.nvim_win_get_buf(w)].filetype == "xyno-sandbox" then
+            win = w
+            return true
+          end
+        end
+      end, 15000, "the policy window")
+      restore()
+      eventually(function()
+        return vim.wo[win].winhighlight:find("XynoPopupBorder", 1, true)
+      end, 3000, "winhighlight")
+      vim.cmd("redraw!")
+      local cells, cfg = float_cells(win)
+      H.ok(#cells > 200, "the window has text: " .. #cells)
+      local height = vim.api.nvim_win_get_height(win)
+      local cur = vim.api.nvim_win_get_cursor(win)
+      local body, title, footer = {}, {}, {}
+      for _, c in ipairs(cells) do
+        if c.row == 0 then
+          title[#title + 1] = c
+        elseif c.row == height + 1 then
+          footer[#footer + 1] = c
+        elseif c.row == cur[1] then
         -- the cursor row: its cells carry the cursor / reference highlights of other plugins (an LSP
         -- reference or code-lens group landed on it in the multigrid read), not the popup's text colour
-      else
-        body[#body + 1] = c
+        else
+          body[#body + 1] = c
+        end
       end
+      local worst, at = text_cells_ratio(body)
+      H.ok(
+        worst >= 4.5,
+        ("worst body cell %.2f:1 (%s %s on %s at %d,%d)"):format(
+          worst,
+          at and at.ch or "",
+          at and at.fg or "",
+          at and at.bg or "",
+          at and at.row or -1,
+          at and at.col or -1
+        )
+      )
+      -- title and footer: their text is on the grid; their colour is whatever FloatTitle / FloatFooter map to in
+      -- winhighlight (checked below): reading those cells back is unreliable here (an LSP reference highlight of
+      -- another plugin lands on the title row), so the groups themselves carry the contrast assertion
+      H.ok(#title > 5 and #footer > 5, "title and footer cells are drawn")
+      H.match(vim.wo[win].winhighlight, "FloatTitle:XynoPopupTitle", true)
+      H.match(vim.wo[win].winhighlight, "FloatFooter:XynoPopupFooter", true)
+      H.ok(ratio(hex(hl("XynoPopupTitle").fg), hex(hl("XynoPopupTitle").bg)) >= 4.5)
+      H.ok(ratio(hex(hl("XynoPopupFooter").fg), hex(hl("XynoPopupFooter").bg)) >= 4.5)
+      local first = cells[1]
+      H.ok(ratio(first.fg, first.bg) >= 3, ("border corner %.2f:1 (non-text: 3:1)"):format(ratio(first.fg, first.bg)))
+      -- nothing cut: no '@@@' marker, and the window grew to the wrapped text or says how to scroll
+      local screen = screen_text()
+      H.no_match(screen, "@@@", true, "text cut off at the bottom of the window")
+      H.match(vim.inspect(cfg.footer), "q close", true)
+      vim.api.nvim_win_close(win, true)
     end
-    local worst, at = text_cells_ratio(body)
-    H.ok(worst >= 4.5, ("worst body cell %.2f:1 (%s %s on %s at %d,%d)"):format(worst, at and at.ch or "", at and at.fg or "", at and at.bg or "", at and at.row or -1, at and at.col or -1))
-    -- title and footer: their text is on the grid; their colour is whatever FloatTitle / FloatFooter map to in
-    -- winhighlight (checked below): reading those cells back is unreliable here (an LSP reference highlight of
-    -- another plugin lands on the title row), so the groups themselves carry the contrast assertion
-    H.ok(#title > 5 and #footer > 5, "title and footer cells are drawn")
-    H.match(vim.wo[win].winhighlight, "FloatTitle:XynoPopupTitle", true)
-    H.match(vim.wo[win].winhighlight, "FloatFooter:XynoPopupFooter", true)
-    H.ok(ratio(hex(hl("XynoPopupTitle").fg), hex(hl("XynoPopupTitle").bg)) >= 4.5)
-    H.ok(ratio(hex(hl("XynoPopupFooter").fg), hex(hl("XynoPopupFooter").bg)) >= 4.5)
-    local first = cells[1]
-    H.ok(ratio(first.fg, first.bg) >= 3, ("border corner %.2f:1 (non-text: 3:1)"):format(ratio(first.fg, first.bg)))
-    -- nothing cut: no '@@@' marker, and the window grew to the wrapped text or says how to scroll
-    local screen = screen_text()
-    H.no_match(screen, "@@@", true, "text cut off at the bottom of the window")
-    H.match(vim.inspect(cfg.footer), "q close", true)
-    vim.api.nvim_win_close(win, true)
-  end)
+  )
 
   it("local-history panel (:LocalHistoryPanel): every text cell >= 4.5:1, selected row included", function()
     if not pcall(require, "xyno_history.panel") then
@@ -2188,8 +2297,16 @@ describe("ui round 2: the real popups of the xyno plugins on the grid", function
       vim.api.nvim_buf_set_lines(0, 0, 0, false, { "// edit " .. i })
       vim.cmd("silent write")
       local done = false
-      LH.snapshot({ path = root, force = true, done = function() done = true end })
-      H.wait_for(function() return done end, 20000, "snapshot")
+      LH.snapshot({
+        path = root,
+        force = true,
+        done = function()
+          done = true
+        end,
+      })
+      H.wait_for(function()
+        return done
+      end, 20000, "snapshot")
     end
     size(120, 36)
     require("xyno_history.panel").open({ scope = "file" })
@@ -2269,36 +2386,39 @@ describe("ui round 2: the real popups of the xyno plugins on the grid", function
     H.ok(worst >= 4.5, ("worst report cell %.2f:1 %s"):format(worst, tostring(at)))
   end)
 
-  it("guard: a dependency buffer shows its state in words (DEP RO) in a legible colour, on the real statusline", function()
-    local guard = package.loaded["xyno_guard"] or select(2, pcall(require, "xyno_guard"))
-    if type(guard) ~= "table" or type(guard.statusline) ~= "function" then
-      skip("the loaded xyno-guard.nvim has no statusline component")
+  it(
+    "guard: a dependency buffer shows its state in words (DEP RO) in a legible colour, on the real statusline",
+    function()
+      local guard = package.loaded["xyno_guard"] or select(2, pcall(require, "xyno_guard"))
+      if type(guard) ~= "table" or type(guard.statusline) ~= "function" then
+        skip("the loaded xyno-guard.nvim has no statusline component")
+      end
+      local d = H.tmpdir()
+      local saved = vim.env.CARGO_HOME
+      vim.env.CARGO_HOME = d
+      vim.fn.mkdir(d .. "/registry/src/index.crates.io-x/foo-1.0.0/src", "p")
+      local f = d .. "/registry/src/index.crates.io-x/foo-1.0.0/src/lib.rs"
+      vim.fn.writefile({ "pub fn foo() {}" }, f)
+      size(110, 12)
+      vim.cmd("edit " .. vim.fn.fnameescape(f))
+      vim.o.laststatus = 3
+      eventually(function()
+        return guard.state(0) == "dependency"
+      end, 5000, "dependency state")
+      pcall(function()
+        require("lualine").setup(opts_of("lualine.nvim"))
+      end)
+      local row = vim.o.lines - vim.o.cmdheight
+      eventually(function()
+        vim.cmd("redrawstatus!")
+        return row_text(row):find(guard.statusline(0), 1, true)
+      end, 5000, "guard text in the statusline")
+      local text = guard.statusline(0)
+      H.ok(text ~= "", "the state has words/letters, not only a colour: " .. text)
+      local r, c = find(vim.trim(text):sub(1, 3), row)
+      local fg, bg = colors_at(r, c)
+      H.ok(ratio(fg, bg) >= 4.5, ("guard text %.2f:1"):format(ratio(fg, bg)))
+      vim.env.CARGO_HOME = saved
     end
-    local d = H.tmpdir()
-    local saved = vim.env.CARGO_HOME
-    vim.env.CARGO_HOME = d
-    vim.fn.mkdir(d .. "/registry/src/index.crates.io-x/foo-1.0.0/src", "p")
-    local f = d .. "/registry/src/index.crates.io-x/foo-1.0.0/src/lib.rs"
-    vim.fn.writefile({ "pub fn foo() {}" }, f)
-    size(110, 12)
-    vim.cmd("edit " .. vim.fn.fnameescape(f))
-    vim.o.laststatus = 3
-    eventually(function()
-      return guard.state(0) == "dependency"
-    end, 5000, "dependency state")
-    pcall(function()
-      require("lualine").setup(opts_of("lualine.nvim"))
-    end)
-    local row = vim.o.lines - vim.o.cmdheight
-    eventually(function()
-      vim.cmd("redrawstatus!")
-      return row_text(row):find(guard.statusline(0), 1, true)
-    end, 5000, "guard text in the statusline")
-    local text = guard.statusline(0)
-    H.ok(text ~= "", "the state has words/letters, not only a colour: " .. text)
-    local r, c = find(vim.trim(text):sub(1, 3), row)
-    local fg, bg = colors_at(r, c)
-    H.ok(ratio(fg, bg) >= 4.5, ("guard text %.2f:1"):format(ratio(fg, bg)))
-    vim.env.CARGO_HOME = saved
-  end)
+  )
 end)

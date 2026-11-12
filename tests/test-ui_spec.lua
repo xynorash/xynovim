@@ -87,9 +87,12 @@ describe("assert_eq! diff", function()
     local signs = vim.tbl_map(function(x)
       return x.sign .. x.text:gsub("^%s+", "")
     end, d.diff)
-    H.eq({ "-3", "+4" }, vim.tbl_filter(function(s)
-      return s:sub(1, 1) ~= " "
-    end, signs))
+    H.eq(
+      { "-3", "+4" },
+      vim.tbl_filter(function(s)
+        return s:sub(1, 1) ~= " "
+      end, signs)
+    )
     H.ok(#d.diff > 3, "unchanged elements are kept as context")
   end)
 
@@ -148,20 +151,28 @@ describe("render", function()
   it("failed tests come first, passed ones after, each failed one has an open fold with its output", function()
     local first_fail, first_ok
     for i, l in ipairs(r.lines) do
-      if l:match("^FAIL ") then first_fail = first_fail or i end
-      if l:match("^ok   ") then first_ok = first_ok or i end
+      if l:match("^FAIL ") then
+        first_fail = first_fail or i
+      end
+      if l:match("^ok   ") then
+        first_ok = first_ok or i
+      end
     end
     H.ok(first_fail < first_ok)
     local open = 0
     for _, f in ipairs(r.folds) do
-      if f.open then open = open + 1 end
+      if f.open then
+        open = open + 1
+      end
     end
     H.eq(4, open)
   end)
 
   it("the diff block uses DiffDelete / DiffAdd", function()
     local groups = {}
-    for _, h in ipairs(r.hl) do groups[h[4]] = true end
+    for _, h in ipairs(r.hl) do
+      groups[h[4]] = true
+    end
     H.ok(groups.DiffDelete and groups.DiffAdd and groups.DiffText)
   end)
 end)
@@ -179,26 +190,32 @@ describe("panel window (real grid)", function()
     local lines = vim.api.nvim_buf_get_lines(b, 0, -1, false)
     local row
     for i, l in ipairs(lines) do
-      if l:match("^FAIL more::vec_mismatch") then row = i end
+      if l:match("^FAIL more::vec_mismatch") then
+        row = i
+      end
     end
     H.ok(row)
     -- the fold under the failed test is open: its first output line is visible
     vim.api.nvim_win_call(w, function()
-      H.eq(-1, vim.fn.foldclosed(row + 1) , "fold under a failed test is open")
+      H.eq(-1, vim.fn.foldclosed(row + 1), "fold under a failed test is open")
     end)
     -- an `ok` row has no output
     H.eq(false, vim.bo[b].modifiable)
   end)
 
   it("a fold with output of a passing test (--success-output) starts closed", function()
-    local p = T.parse("test a ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n")
+    local p = T.parse(
+      "test a ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n"
+    )
     p.tests[1].output = { "hello", "world" }
     T.show({ parsed = p }, { enter = true })
     local w = T.state.win
     local b = vim.api.nvim_win_get_buf(w)
     local row
     for i, l in ipairs(vim.api.nvim_buf_get_lines(b, 0, -1, false)) do
-      if l:match("^ok   a") then row = i end
+      if l:match("^ok   a") then
+        row = i
+      end
     end
     vim.api.nvim_win_call(w, function()
       H.ok(vim.fn.foldclosed(row + 1) ~= -1, "closed")
@@ -210,7 +227,10 @@ describe("nextest profiles, lcov total", function()
   it("lists the profiles of .config/nextest.toml, default first", function()
     local dir = H.tmpdir()
     vim.fn.mkdir(dir .. "/.config", "p")
-    vim.fn.writefile({ "[profile.ci]", "retries = 2", "[profile.\"slow-net\"]", "[profile.default]" }, dir .. "/.config/nextest.toml")
+    vim.fn.writefile(
+      { "[profile.ci]", "retries = 2", '[profile."slow-net"]', "[profile.default]" },
+      dir .. "/.config/nextest.toml"
+    )
     H.eq({ "default", "ci", "slow-net" }, T.profiles(dir))
     H.eq({ "default" }, T.profiles(H.tmpdir()))
   end)
@@ -225,30 +245,33 @@ describe("nextest profiles, lcov total", function()
   end)
 end)
 
-describe("parse: --nocapture output (what neotest's rustaceanvim adapter captures: ANSI, OSC, CR, no per-test sections)", function()
-  local p = T.parse(read("neotest-nocapture.txt"))
-  it("panic blocks are attributed to the test named by the thread", function()
-    H.eq("libtest", p.format)
-    H.eq(4, #p.tests)
-    local v = by_name(p, "tests::vec_mismatch")
-    H.eq("failed", v.status)
-    H.match(table.concat(v.output, "\n"), "left: [1, 2, 3]", true)
-    local d = T.assert_diff(v.output)
-    H.eq("ports differ", d.message)
-    H.eq("passed", by_name(p, "tests::doubles").status)
-    H.eq("failed", by_name(p, "tests::plain_panic").status, "status word glued to the test's own print")
-    H.eq(3, p.summary.failed)
-    H.eq(1, p.summary.passed)
-  end)
-  it("no escape sequence survives into the output lines", function()
-    for _, t in ipairs(p.tests) do
-      for _, l in ipairs(t.output) do
-        H.no_match(l, "\27", true)
-        H.no_match(l, "\r", true)
+describe(
+  "parse: --nocapture output (what neotest's rustaceanvim adapter captures: ANSI, OSC, CR, no per-test sections)",
+  function()
+    local p = T.parse(read("neotest-nocapture.txt"))
+    it("panic blocks are attributed to the test named by the thread", function()
+      H.eq("libtest", p.format)
+      H.eq(4, #p.tests)
+      local v = by_name(p, "tests::vec_mismatch")
+      H.eq("failed", v.status)
+      H.match(table.concat(v.output, "\n"), "left: [1, 2, 3]", true)
+      local d = T.assert_diff(v.output)
+      H.eq("ports differ", d.message)
+      H.eq("passed", by_name(p, "tests::doubles").status)
+      H.eq("failed", by_name(p, "tests::plain_panic").status, "status word glued to the test's own print")
+      H.eq(3, p.summary.failed)
+      H.eq(1, p.summary.passed)
+    end)
+    it("no escape sequence survives into the output lines", function()
+      for _, t in ipairs(p.tests) do
+        for _, l in ipairs(t.output) do
+          H.no_match(l, "\27", true)
+          H.no_match(l, "\r", true)
+        end
       end
-    end
-  end)
-end)
+    end)
+  end
+)
 
 describe("doc-test failures point at the doc comment, not the generated file", function()
   it("src/lib.rs - double (line 140) -> src/lib.rs:140", function()
@@ -259,11 +282,14 @@ describe("doc-test failures point at the doc comment, not the generated file", f
 end)
 
 describe("lcov total from a real cargo-llvm-cov report", function()
-  it("tests/fixtures/test-output/lcov.info (failing-tests, one failing run): lines found / hit and the percentage", function()
-    local s = T.lcov_summary(H.fixtures .. "/test-output/lcov.info")
-    H.eq(1, #s.files)
-    H.eq("/work/failing-tests/src/lib.rs", s.files[1].path)
-    H.ok(s.found > 0 and s.hit > 0 and s.hit < s.found, vim.inspect({ s.found, s.hit }))
-    H.eq(s.hit / s.found * 100, s.pct)
-  end)
+  it(
+    "tests/fixtures/test-output/lcov.info (failing-tests, one failing run): lines found / hit and the percentage",
+    function()
+      local s = T.lcov_summary(H.fixtures .. "/test-output/lcov.info")
+      H.eq(1, #s.files)
+      H.eq("/work/failing-tests/src/lib.rs", s.files[1].path)
+      H.ok(s.found > 0 and s.hit > 0 and s.hit < s.found, vim.inspect({ s.found, s.hit }))
+      H.eq(s.hit / s.found * 100, s.pct)
+    end
+  )
 end)

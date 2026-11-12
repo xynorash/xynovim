@@ -1007,16 +1007,19 @@ describe("neotest, overseer", function()
     end
   end)
 
-  it("lua/plugins/neotest.lua: output panel at the bottom, summary at the right, no float per run, no quickfix popup", function()
-    local spec = dofile(H.repo .. "/lua/plugins/neotest.lua")[1]
-    local opts = spec.opts
-    H.eq(false, opts.output.open_on_run)
-    H.eq("botright split | resize 14", opts.output_panel.open)
-    H.eq("botright vsplit | vertical resize 48", opts.summary.open)
-    H.eq(true, opts.status.virtual_text)
-    H.eq(false, opts.quickfix.open, "no second (Trouble quickfix) panel next to the results panel")
-    H.eq("function", type(opts.consumers.xyno_panel), "the results panel consumer")
-  end)
+  it(
+    "lua/plugins/neotest.lua: output panel at the bottom, summary at the right, no float per run, no quickfix popup",
+    function()
+      local spec = dofile(H.repo .. "/lua/plugins/neotest.lua")[1]
+      local opts = spec.opts
+      H.eq(false, opts.output.open_on_run)
+      H.eq("botright split | resize 14", opts.output_panel.open)
+      H.eq("botright vsplit | vertical resize 48", opts.summary.open)
+      H.eq(true, opts.status.virtual_text)
+      H.eq(false, opts.quickfix.open, "no second (Trouble quickfix) panel next to the results panel")
+      H.eq("function", type(opts.consumers.xyno_panel), "the results panel consumer")
+    end
+  )
 
   it("test keys exist and neotest's watch consumer is present", function()
     H.need_rust()

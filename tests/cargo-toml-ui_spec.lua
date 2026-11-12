@@ -5,7 +5,12 @@
 local H = require("xynotest.helpers")
 
 local function online()
-  local r = vim.system({ "curl", "-sS", "-m", "8", "-o", "/dev/null", "-w", "%{http_code}", "https://index.crates.io/se/rd/serde" }, { text = true }):wait(12000)
+  local r = vim
+    .system(
+      { "curl", "-sS", "-m", "8", "-o", "/dev/null", "-w", "%{http_code}", "https://index.crates.io/se/rd/serde" },
+      { text = true }
+    )
+    :wait(12000)
   return r.code == 0 and r.stdout == "200"
 end
 
@@ -16,7 +21,15 @@ describe("Cargo.toml (crates.nvim)", function()
     end
     local dir = H.tmpdir()
     vim.fn.mkdir(dir .. "/src", "p")
-    vim.fn.writefile({ "[package]", 'name = "t"', 'version = "0.1.0"', 'edition = "2021"', "", "[dependencies]", 'serde = { version = "1", features = [""] }' }, dir .. "/Cargo.toml")
+    vim.fn.writefile({
+      "[package]",
+      'name = "t"',
+      'version = "0.1.0"',
+      'edition = "2021"',
+      "",
+      "[dependencies]",
+      'serde = { version = "1", features = [""] }',
+    }, dir .. "/Cargo.toml")
     vim.fn.writefile({ "fn main() {}" }, dir .. "/src/main.rs")
     vim.cmd.cd(vim.fn.fnameescape(dir))
     vim.cmd.edit(vim.fn.fnameescape(dir .. "/Cargo.toml"))

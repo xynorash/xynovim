@@ -28,7 +28,11 @@ return {
       })
     end,
     keys = {
-      { "<leader>xe", "<cmd>Trouble diagnostics toggle filter.severity=vim.diagnostic.severity.ERROR<cr>", desc = "Errors (Trouble)" },
+      {
+        "<leader>xe",
+        "<cmd>Trouble diagnostics toggle filter.severity=vim.diagnostic.severity.ERROR<cr>",
+        desc = "Errors (Trouble)",
+      },
       {
         "<leader>cI",
         "<cmd>Trouble lsp_incoming_calls toggle focus=true auto_refresh=false<cr>",

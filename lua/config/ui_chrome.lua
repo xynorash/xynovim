@@ -165,7 +165,9 @@ function M.refresh()
     -- (enable(true) on an enabled buffer does nothing: off and on makes it ask the server again)
     if vim.lsp.codelens and vim.lsp.codelens.enable then
       for _, b in ipairs(vim.api.nvim_list_bufs()) do
-        if vim.api.nvim_buf_is_loaded(b) and #vim.lsp.get_clients({ bufnr = b, method = "textDocument/codeLens" }) > 0 then
+        if
+          vim.api.nvim_buf_is_loaded(b) and #vim.lsp.get_clients({ bufnr = b, method = "textDocument/codeLens" }) > 0
+        then
           vim.lsp.codelens.enable(false, { bufnr = b })
           vim.lsp.codelens.enable(true, { bufnr = b })
         end

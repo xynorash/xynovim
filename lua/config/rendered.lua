@@ -169,7 +169,14 @@ function M.open(d)
   vim.bo[buf].filetype = "xyno-rendered"
   if rendered then
     for _, s in ipairs(M.spans(lines, d.severity)) do
-      pcall(vim.api.nvim_buf_set_extmark, buf, ns, s.row, s.col, { end_col = math.min(s.end_col, #lines[s.row + 1]), hl_group = s.hl })
+      pcall(
+        vim.api.nvim_buf_set_extmark,
+        buf,
+        ns,
+        s.row,
+        s.col,
+        { end_col = math.min(s.end_col, #lines[s.row + 1]), hl_group = s.hl }
+      )
     end
   end
   local title = (d.code and (" " .. tostring(d.code) .. " ") or " diagnostic ")

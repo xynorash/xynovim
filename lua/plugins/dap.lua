@@ -169,9 +169,13 @@ local function rust_lldb_init(config)
   end
   -- content previews (Vec [1, 2, 3], HashMap {"a": 1}, Rc/RefCell value) on top of rust's summaries
   local preview = require("config.dap_values").preview_script()
-  if script and preview and not vim.iter(cmds):any(function(c)
-    return c:find("xyno_rust_preview.py", 1, true)
-  end) then
+  if
+    script
+    and preview
+    and not vim.iter(cmds):any(function(c)
+      return c:find("xyno_rust_preview.py", 1, true)
+    end)
+  then
     local at = 1
     for i, c in ipairs(cmds) do
       if c:find("lldb_lookup.py", 1, true) then
