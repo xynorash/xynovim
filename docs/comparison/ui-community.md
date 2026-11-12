@@ -117,7 +117,7 @@ Support counts independent sources from the list above; "(i)" means one of them 
 14. Error colour on tab / tree file names (4.0, S)
 15. Optional winbar breadcrumbs (2.0, M)
 
-Tie at 2.0 with #15: end-of-line hints (#16 in the table), left out because it needs a new rendering path and the community signal is split.
+Tie at 2.0 with #15: end-of-line hints (#16 in the table), left out of the first rounds because it needs a new rendering path and the community signal is split; built in round 3 (see the status table).
 
 ## xynovim today (code reading plus a real run)
 
@@ -180,6 +180,6 @@ Tests: `tests/ui-community_spec.lua`, 55 checks, grid assertions via `screenstri
 | 13 | Coloured rustc text | done round 2: `<leader>cD`, `:DiagnosticRendered` | 3 | spans + grid colours, all cells >= 4.5:1 |
 | 14 | Error colour on names | done for the tree; the tab keeps bufferline's count (name not recolourable) | 2 | tree name cell colour on the grid; tab count >= 4.5:1 |
 | 15 | Winbar | done, opt-in `:XynoWinbar` | 2 | row 1 on the grid, narrow window keeps the file name |
-| 16 | End-of-line hints | **not built** (no clean Neovim way that does not shift text) | 3 | - |
+| 16 | End-of-line hints | **done round 3**: `:Hints eol` / `:Hints inline`, `vim.g.xynovim_hints_style`. The built-in renderer only draws inline, so in eol mode the buffer's inline hints are switched off and the same hints are requested from rust-analyzer and drawn once per line as end-of-line virtual text (`lua/config/eolhints.lua`). Limits: lines too long for their window get no hints; hint text is a summary (`n: i32  a=1  b=2`), not the server's exact label parts; no hover / go-to on a hint | 3 | the code columns are the same with hints on or off (grid test, real rust-analyzer) |
 
 Round 2 added a derived light variant (`island-light`) although no source asked for one; it is the user's request, not community demand. `unknown` that stayed unknown: how Helix, Zed and RustRover measure on hint contrast (only VS Code and tokyonight were derived from source).
