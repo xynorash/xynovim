@@ -196,6 +196,11 @@ function M.check()
     end
   end
 
+  vim.health.start("xynovim: blink.cmp binary")
+  for _, l in ipairs(require("config.blink_binary").report()) do
+    vim.health[l[1]](l[2])
+  end
+
   vim.health.start("xynovim: rust toolchain")
   if vim.fn.executable("rustup") == 0 then
     vim.health.warn("rustup not found", "components cannot be checked; install rustup")
