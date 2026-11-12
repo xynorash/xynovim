@@ -57,6 +57,8 @@ below `vim.g`.
 | `priority` | `130` | extmark priority (tree-sitter 100, LSP semantic tokens 125) | (none) |
 | `max_lines` | `0` | `0` = no limit, `N` = files with more lines get no colours | Do NOT rainbowify files with more than N lines (default 1000 there) |
 | `large` | `"on"` | `"on"`: also in large-file tier 1 (only visible lines are processed); `"off"` | (none) |
+| `words.keywords` | `false` | Python `if elif else for while try except finally with def class` by the number of enclosing blocks; C `#if #ifdef #ifndef #elif #else #endif` by the number of enclosing conditionals (`#if` and its `#endif` match). Lives in `rainbow_words.lua` | Rainbowify Python keywords, C/C++ `#if/#else` macro keywords (the plugin's default for them is not documented; off here) |
+| `words.tags` | `false` | HTML, XML, JSX (javascript and tsx grammars) tag names and their `<` `>` `</` `/>` by element depth, an opening and its closing tag match; YAML mapping keys by mapping depth | Rainbowify tag name (off by default there too), Rainbowify JSX; the plugin's exact YAML rule is not documented, this is the same idea (colour by nesting) |
 | `disable` | `{}` | filetypes, tree-sitter languages or file extensions (`"md"`, `".toml"`, `"lua"`); also applies to injected trees | Do NOT rainbowify these languages |
 | `variables.enabled` | `false` | rainbow variables: locals coloured by name | Rainbow variables |
 | `variables.colors` | `10` | 2..16 | (premium: generator for variables) |
@@ -77,7 +79,7 @@ below `vim.g`.
 | --- | --- |
 | `on` `off` `toggle` | the master switch |
 | `buffer [on\|off\|toggle]` | this buffer only (`vim.b.xynovim_rainbow = false`) |
-| `round` `square` `curly` (`squiggly`) `angle` `pipe` `mismatch` `first-level` `cycle-all` `generator` `variables` `any-key` `keep-colors` `suppress-debug` `suppress-diff` `mouse` `[on\|off\|toggle]` | one switch each |
+| `round` `square` `curly` (`squiggly`) `angle` `pipe` `mismatch` `first-level` `cycle-all` `generator` `variables` `keywords` `tags` `any-key` `keep-colors` `suppress-debug` `suppress-diff` `mouse` `[on\|off\|toggle]` | one switch each |
 | `palette [island\|colorblind\|generated\|custom\|auto\|next]` (`cycle`) | pick a palette; `next` / `cycle` walks island, colour-blind, generated |
 | `colors [N\|show\|freeze\|save]` | the number of colours; `show` prints them in their colours; `freeze` turns the generated colours into `palette = custom`; `save` writes them to `stdpath("state")/xynovim/rainbow-colors.json` |
 | `hue NAME` `luminosity NAME` | generator options |
@@ -174,7 +176,8 @@ few milliseconds, inside the first redraw, after the first screen).
 | Plugin feature | Status |
 | --- | --- |
 | rainbow indent guides | excluded by you |
-| Python / Ruby keywords, C/C++ `#if` macros, Kotlin function-literal arrows and labels, HTML / XML / JSX / YAML tags | **not implemented.** None of these exists in Rust; the grammars for Kotlin, Ruby and C++ are not installed here, so they could not be tested. Nothing in Neovim prevents them (a rule table on top of the same pair engine would do it). |
+| Python keywords, C `#if` macros, HTML / XML / JSX tags, YAML | **built** as `words.keywords` / `words.tags` (see the option table), by depth, off by default; demonstrated on real Ghostty pixels (`docs/comparison/screenshots/rainbow/words-{py,c,html,tsx,yaml}.png`) and asserted in `tests/rainbow_spec.lua`. What "depth" means is chosen here (blocks for Python, conditionals for C, elements for tags): the plugin's closed-source rule was not read. Tag names are coloured together with their brackets; attributes and text are untouched. |
+| Ruby keywords, C++ `#if` macros as their own rule, Kotlin function-literal arrows and labels, Pug / Vue / Svelte tags | **not implemented.** The Ruby, C++ and Kotlin grammars are not installed here, so a rule for them could not be tested (the C rule would very likely work for C++, whose grammar extends C; not tried). Nothing in Neovim prevents them: they are rows in the rule table of `rainbow_words.lua`. |
 | per-colour-scheme XML file (`rainbow_brackets.xml`) | replaced by `vim.g.xynovim_rainbow` and `:XynoRainbow save` |
 | premium "show and save generated colors" window | `:XynoRainbow colors show|save|freeze` |
 | "Respects the debugger Execution Point colour" | not implemented (see above) |
@@ -197,7 +200,7 @@ branch 2022.3), intellij-rust `RsBraceMatcher.kt`, the rainbow-delimiters Rust q
 
 ## Files
 
-`lua/config/rainbow.lua` (options, engine, provider), `rainbow_palette.lua` (palettes, generator, contrast, groups),
+`lua/config/rainbow.lua` (options, engine, provider), `rainbow_palette.lua` (palettes, generator, contrast, groups), `rainbow_words.lua` (keywords and tags),
 `rainbow_scope.lua`, `rainbow_vars.lua`, `rainbow_cmd.lua` (`:XynoRainbow`, health), `rainbow_boot.lua` (the command and a
 VeryLazy autocmd; called from `options.lua`; deliberately no lazy.nvim spec, which would be a plugin without a lock entry),
 `tests/rainbow_spec.lua`, `scripts/bench/rainbow.{sh,lua}`.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One real-pixel capture of the rainbow brackets: a private Ghostty window (X11), this config, scene.lua, then
 # ffmpeg x11grab of that window. Usage: shot.sh <scene> <columns> <lines> <out.png> [font-size]
-#   scene: off | on | light | cb | lightcb | high | scope | restrain | vars | mismatch   (see scene.lua)
+#   scene: off | on | light | cb | lightcb | high | scope | restrain | vars | mismatch | words-{py,c,html,tsx,yaml}   (see scene.lua)
 # Needs ghostty, ffmpeg, xprop and an X11 (or Xwayland) display. Private XDG state / cache; the real plugin
 # directory (XDG_DATA_HOME) is read, nothing is installed. The window size follows the compositor: the grid
 # actually reached is written next to "window" in the output line.
@@ -13,7 +13,7 @@ work=$(mktemp -d "${TMPDIR:-/tmp}/rbshot.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 mkdir -p "$work"/{cfg,state,cache}
 ln -s "$repo" "$work/cfg/nvim"
-cp "$here"/demo.rs "$here"/mismatch.rs "$here"/scene.lua "$work"/
+cp "$here"/demo.rs "$here"/mismatch.rs "$here"/words.* "$here"/scene.lua "$work"/
 ready=$work/ready
 pre=$(xprop -root _NET_CLIENT_LIST | sed 's/.*# //; s/,//g')
 env -i HOME="$HOME" PATH="$PATH" DISPLAY="${DISPLAY:-:0}" WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}" XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-}" \

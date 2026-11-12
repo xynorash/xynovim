@@ -28,6 +28,8 @@ local SWITCHES = {
   ["suppress-diff"] = "scope.suppress_diff",
   mouse = "scope.mouse",
   variables = "variables.enabled",
+  keywords = "words.keywords",
+  tags = "words.tags",
 }
 
 local ACTIONS = { "on", "off", "toggle" }
@@ -77,6 +79,10 @@ local function status_lines()
       o.cycle_all_types and "all kinds" or "each kind",
       o.skip_first_level and "plain" or "coloured",
       tostring(o.min_contrast)
+    ),
+    ("keywords: %s, tags: %s (by depth; Python, C #if / HTML, XML, JSX, YAML keys)"):format(
+      onoff(o.words.keywords),
+      onoff(o.words.tags)
     ),
     ("variables: %s (%d colours, by name)"):format(onoff(o.variables.enabled), o.variables.colors),
     ("scope: alpha %.2f, restrain %.2f%s, clear with %s, mouse %s, box %s"):format(

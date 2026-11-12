@@ -2,6 +2,10 @@
 local scene = vim.env.RB_SCENE or "on"
 vim.g.xynovim_workspace_trust = false
 local file = (scene == "mismatch") and vim.env.RB_DIR .. "/mismatch.rs" or vim.env.RB_DIR .. "/demo.rs"
+local WORDS = scene:match("^words%-(%a+)$") -- words-py | words-c | words-html | words-tsx | words-yaml
+if WORDS then
+  file = vim.env.RB_DIR .. "/words." .. WORDS
+end
 vim.cmd("edit " .. file)
 vim.o.cursorline = true
 vim.defer_fn(function()
@@ -21,6 +25,9 @@ vim.defer_fn(function()
     R.set("enabled", false)
   elseif scene == "cb" or scene == "lightcb" then
     R.set("palette", "colorblind")
+  elseif WORDS then
+    R.set("words.keywords", true)
+    R.set("words.tags", true)
   elseif scene == "vars" then
     R.set("variables.enabled", true)
   end
@@ -32,6 +39,8 @@ vim.defer_fn(function()
       require("config.rainbow_scope").at_cursor(scene)
     elseif scene == "mismatch" then
       vim.api.nvim_win_set_cursor(0, { 6, 0 })
+    elseif WORDS then
+      vim.api.nvim_win_set_cursor(0, { 1, 0 })
     else
       vim.api.nvim_win_set_cursor(0, { 14, 0 })
     end

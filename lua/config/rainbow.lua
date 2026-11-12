@@ -45,6 +45,10 @@ local DEFAULTS = {
     enabled = false,
     colors = 10, -- 2..16 colours, picked by a hash of the name
   },
+  words = { -- rainbow keywords (Python, C #if) and tags (HTML, XML, JSX, YAML keys) by depth: lua/config/rainbow_words.lua
+    keywords = false,
+    tags = false,
+  },
   scope = {
     alpha = 0.2, -- the scope tint: its rainbow colour mixed this much into the editor background
     restrain_strength = 0.65, -- how far the text outside the scope is dimmed towards the background
@@ -155,6 +159,10 @@ local SPEC = {
   variables = {
     enabled = "boolean",
     colors = { int = { 2, 16 } },
+  },
+  words = {
+    keywords = "boolean",
+    tags = "boolean",
   },
   scope = {
     alpha = { num = { 0, 1 } },
@@ -751,6 +759,14 @@ local function on_win(_, win, buf, top, bot)
       end)
       if okv then
         vim.list_extend(marks, vm)
+      end
+    end
+    if ok and (S.opts.words.keywords or S.opts.words.tags) then
+      local okw, wm = pcall(function()
+        return require("config.rainbow_words").collect(buf, hl.tree, srow, erow, S.opts, S.groups)
+      end)
+      if okw then
+        vim.list_extend(marks, wm)
       end
     end
     c = { buf = buf, tick = tick, srow = srow, erow = erow, version = S.version, marks = ok and marks or {} }

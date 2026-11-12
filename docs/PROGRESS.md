@@ -10,7 +10,7 @@ Machine: AMD Ryzen 7 5800X, 15.9 GB, Linux 7.3.3 (CachyOS), Neovim 0.12.6, rust-
 
 | Run | Result |
 |---|---|
-| `scripts/test.sh` (pinned plugins), 49 spec files | 1137 passed, 1 failed, 67 skipped (511 s, 2026-11-12, last run). The failure is the lockfile drift below. An earlier full run the same day: 1136 passed, 2 failed (the second was the README spec count, 43 against 49 files, fixed) |
+| `scripts/test.sh` (pinned plugins), 57 spec files | 1286 passed, 1 failed, 49 skipped (583 s, 2026-11-12, last run). The failure was the README spec count (fixed). Before the rainbow work: 49 files, 1137 passed, 1 failed (lockfile drift below), 67 skipped. An earlier full run the same day: 1136 passed, 2 failed (the second was the README spec count, 43 against 49 files, fixed) |
 | `scripts/dev-plugins.sh test` (plugin clones on `dev`) | 1185 passed, 1 failed (the same drift), 32 skipped (539 s, last run). The earlier full dev run had 1181 passed, 5 failed: the spec count, the drift, and three fixed or load-dependent specs (`agent-99-guard` absolute `/usr/bin/env` and `bwrap` paths of the newer plugin, `debug-values` Noice notice racing the notify capture, `keymaps-rust` "rv" timing out under load); all three pass in the last run |
 | `stylua --check .` (StyLua 2.6.0 from Mason) | clean in xynovim and in all nine plugin clones (each with its own `.stylua.toml`; xyno-history has none and uses xynovim's settings); the lint spec (`supply-chain-lint`) passes |
 | xyno-clipboard `nvim -l tests/run.lua` | 41 passed, 0 failed, 0 skipped |

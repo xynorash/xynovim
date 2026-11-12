@@ -19,6 +19,7 @@ Grids reached (columns x lines): `*-60`: 58x27, `*-120`: 117x57, `*-200`: 187x88
 | `cb-120.png`, `lightcb-120.png` | the colour-blind palette, dark and light |
 | `high-120.png` | `vim.g.xynovim_contrast = "high"` (7:1) |
 | `vars-120.png` | rainbow variables on (`count`, `sum`, `weights`, ... each in its own colour) |
+| `words-{py,c,html,tsx,yaml}.png` | `words.keywords` and `words.tags` on: Python `def/for/if/while/try` by block depth, C `#if`/`#else`/`#endif` by conditional depth, HTML and JSX tag names with their brackets by element depth (the comparison `<` in the JSX is untouched), YAML keys by mapping depth. 78x17 grid, Island Dark; colours read back from the pixels for the Python file |
 | `mismatch-120.png` | unmatched brackets marked red with a curl |
 
 ## What they show, and what they do not
