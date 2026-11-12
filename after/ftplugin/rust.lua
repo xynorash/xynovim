@@ -1,5 +1,26 @@
 -- Rust-only buffer settings.
 
+-- Neovim's bundled rust.vim defines a buffer-local :RustRun (cargo run of the file through rust#Run). A
+-- buffer-local command wins over the global :RustRun of xyno-rust.nvim (the run-configuration picker, also
+-- <leader>rb), so in every .rs buffer the headline feature was unreachable. The picker keeps the name;
+-- rust.vim's command stays available as :RustVimRun.
+do
+  local cmds = vim.api.nvim_buf_get_commands(0, {})
+  local theirs = cmds.RustRun
+  if theirs and (theirs.definition or ""):find("rust#Run", 1, true) then
+    pcall(vim.api.nvim_buf_del_user_command, 0, "RustRun")
+    vim.api.nvim_buf_create_user_command(0, "RustVimRun", function(a)
+      vim.fn["rust#Run"](a.bang and 1 or 0, a.args)
+    end, { nargs = "*", complete = "file", bang = true, desc = "rust.vim's :RustRun (cargo run of this file)" })
+    -- rust.vim's b:undo_ftplugin runs `delcommand -buffer RustRun` when the filetype is set again: that would
+    -- raise E1237 for the command removed above
+    vim.b.undo_ftplugin = (vim.b.undo_ftplugin or ""):gsub(
+      "delcommand %-buffer RustRun",
+      "silent! delcommand -buffer RustRun"
+    ) .. "|silent! delcommand -buffer RustVimRun"
+  end
+end
+
 -- mini.pairs pairs `'` after `&` and `<`, so typing a lifetime left a stray
 -- quote (`&'a str)` became `&'a str')`). Rust has lifetimes and char
 -- literals, which no pairing rule tells apart: type `'` plainly (a char
