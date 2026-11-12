@@ -126,6 +126,8 @@ Video: [03-refactor.mp4](docs/media/03-refactor.mp4)
 
 Video: [05-tests.mp4](docs/media/05-tests.mp4)
 
+A failed run opens the **results panel** (`<leader>tp` toggles it): the counts, the wall time, the failures with `file:line` and the first message, then one fold per test with its output (failed ones open, `za` / `zM` / `zR`). `assert_eq!` / `assert_ne!` failures are shown as a diff of left and right (a `Vec` element by element, a string with the differing word marked). `<CR>` jumps to the test, `r` (or `<leader>tf`) reruns the failed ones, `<leader>tE` runs the doc-tests into the same panel (`<leader>tD` is the terminal run), `<leader>tP` picks a nextest profile from `.config/nextest.toml`, and `<leader>tc` shows the coverage total and the least covered files and puts the total in the panel header. Per-test times are shown only for nextest runs (plain `cargo test` prints none on stable); the nextest path was never run on the machine that wrote this (`cargo-nextest` is not installed there), only its output parser was tested. Evidence and screenshots: [docs/comparison/debug-test-ux.md](docs/comparison/debug-test-ux.md).
+
 ### Debugging
 
 nvim-dap with codelldb, a dap-ui layout sized for Rust's long type names, and lldb's Rust formatters loaded automatically (a `String` shows as text and a struct as `{host:"127.0.0.1", ...}`, not as raw memory). `<leader>db` sets a breakpoint, `<leader>dR` lists every debuggable target of the workspace, and a panic stops at the panicking frame.
@@ -133,6 +135,8 @@ nvim-dap with codelldb, a dap-ui layout sized for Rust's long type names, and ll
 ![dap-ui stopped at a breakpoint: locals, stack, console and inline values](docs/media/06-debug-stopped.png)
 
 Video: [06-debug.mp4](docs/media/06-debug.mp4)
+
+Containers show their content, not just their size: `Vec<int> = size=3 [1, 2, 3]`, `HashMap<String, int> = size=1 {"a": 1}`, `Rc<String> = strong=2, weak=0 "rc"`, `RefCell<int> = borrow=0 5` (lldb summaries in `scripts/lldb/xyno_rust_preview.py`, loaded after rust's own formatters; type names are shortened, `vim.g.xynovim_dap_full_types = true` keeps the full ones). `<leader>dv` (and `K` while stopped) opens the whole value of the expression under the cursor in a wrapped float with its children; inline values are one line each. Runtime frames (`lang_start`, `catch_unwind`, ...) are hidden in the stack view (`t` in it shows them); closures and async frames get readable names. `<leader>dL` sets a logpoint, `<leader>dH` a hit-count breakpoint, `<leader>dB` a condition, `<leader>dX` lists the adapter's exception breakpoints (codelldb offers `rust_panic` only; a panic already stops at the panicking frame). `<leader>td` debugs the nearest test through neotest. If the Rust formatters do not load, one warning says so, and `:checkhealth xynovim` has a section for it. Not covered: a disassembly view, a tokio task list (a debugger cannot list tasks), debugging a nextest run (untested). Screenshots and what was and was not run: [docs/comparison/debug-test-ux.md](docs/comparison/debug-test-ux.md).
 
 ### One feature set for both tiers: `:RustContext`
 
@@ -257,8 +261,8 @@ If yanks inside tmux do not arrive, tmux must accept applications' OSC 52: `set 
 | Keys | What |
 | --- | --- |
 | `<leader>r…` | rust-analyzer: `ra` refactor menu with a diff preview of the highlighted action, `rv` extract variable, `rf` function, `rc` constant, `ri` inline, `rs` structural search / replace, `rj` join lines, `rm` expand macro, `rh` / `rH` HIR / MIR, `re` explain error code, `rl` usages in file (read / write), `ru` go to super method, `rw` / `rW` workspace symbol (+ dependencies), `rF` features / target, `rX` targets, `rZ` cargo tools, `rN` HTTP routes, `rR` reload workspace; dependencies and macros: `rA` add crate, `rG` enable the missing feature, `rI` import name (ranked), `rO` organize imports, `rb` / `rB` run configurations (args, env, profiler; saved per project) / run the last again, `rQ` apply the preferred quick fixes of the buffer, `rx` expand macro (lens), `rq` proc-macro status; `<A-j>` / `<A-k>` move item |
-| `<leader>d…` | debugger: `db` breakpoint, `dc` continue, `dr` / `dR` debuggables (file / workspace), `du` dap-ui |
-| `<leader>t…` | tests: `tt` file, `tr` nearest, `tT` all, `ts` summary, `to` output, `tw` watch, `tD` doc-tests, `tc` run coverage, `tg` toggle coverage signs |
+| `<leader>d…` | debugger: `db` breakpoint, `dB` condition, `dL` logpoint, `dH` hit count, `dX` exception breakpoints, `dc` continue, `dv` value float, `dr` / `dR` debuggables (file / workspace), `du` dap-ui |
+| `<leader>t…` | tests: `tt` file, `tr` nearest, `tT` all, `ts` summary, `to` output, `tw` watch, `tD` doc-tests (terminal), `tE` doc-tests (panel), `tp` results panel, `tf` rerun failed, `tP` nextest profile, `tc` run coverage, `tg` toggle coverage signs |
 | `<leader>g…` | git: `gg` lazygit, `gv` diffview, `gV` branch vs origin, `gF` file history, `gH` local history |
 | `<leader>c…` | `ca` code actions with a diff preview (Rust buffers), `cd` diagnostic float, `cj` split / join (treesj), `cI` / `cO` incoming / outgoing call trees, `cn` doc comment stub |
 | `<leader>9…` | the 99 agent: `9v` vibe, `9s` search, `9o` last interaction, `9x` stop |

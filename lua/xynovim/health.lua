@@ -225,6 +225,33 @@ function M.check()
       )
     end
   end
+
+  vim.health.start("xynovim: debugger value rendering")
+  do
+    local ok, o = pcall(function()
+      return vim.system({ "rustc", "--print", "sysroot" }, { text = true }):wait(10000)
+    end)
+    local script = ok and o.code == 0 and vim.trim(o.stdout) .. "/lib/rustlib/etc/lldb_lookup.py"
+    if script and vim.uv.fs_stat(script) then
+      vim.health.ok("rust's lldb formatters: " .. script .. " (String, Vec, Option, enums)")
+    else
+      vim.health.warn(
+        "lldb_lookup.py is not in the active toolchain: values show as raw fields in the debugger",
+        "the script ships with rustc: check `rustc --print sysroot`/lib/rustlib/etc, or reinstall the toolchain"
+      )
+    end
+    local preview = require("config.dap_values").preview_script()
+    if preview then
+      vim.health.ok("content previews (Vec [1, 2, 3], HashMap, Rc, RefCell): " .. preview)
+    else
+      vim.health.warn("scripts/lldb/xyno_rust_preview.py is missing: containers show only their size")
+    end
+    local nextest = vim.fn.executable("cargo-nextest") == 1
+    vim.health[nextest and "ok" or "info"](
+      nextest and "cargo-nextest found: neotest runs nextest, profiles via <leader>tP"
+        or "cargo-nextest not installed: neotest runs `cargo test` (the results panel parses both)"
+    )
+  end
 end
 
 return M

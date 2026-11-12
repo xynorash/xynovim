@@ -538,7 +538,13 @@ describe("rust_lldb_init (dap.listeners.on_config)", function()
     end
     local _, _, listener = fresh_setup()
     local out = listener(rust())
-    H.eq({ 'command script import "' .. script .. '"', "breakpoint set -n rust_panic" }, out.initCommands)
+    local preview = require("config.dap_values").preview_script()
+    H.eq({
+      'command script import "' .. script .. '"',
+      'command script import "' .. preview .. '"',
+      "breakpoint set -n rust_panic",
+    }, out.initCommands)
+    H.eq({ "type category enable XynoRust" }, out.postRunCommands)
     for _, c in ipairs(out.initCommands) do
       H.no_match(c, "lldb_commands", true)
     end
@@ -554,6 +560,7 @@ describe("rust_lldb_init (dap.listeners.on_config)", function()
     local out = listener(rust({ initCommands = { "settings set x y", "log enable lldb all" } }))
     H.eq({
       'command script import "' .. script .. '"',
+      'command script import "' .. require("config.dap_values").preview_script() .. '"',
       "settings set x y",
       "log enable lldb all",
       "breakpoint set -n rust_panic",
@@ -565,7 +572,10 @@ describe("rust_lldb_init (dap.listeners.on_config)", function()
     local _, _, listener = fresh_setup()
     local mine = 'command script import "/somewhere/lldb_lookup.py"'
     local out = listener(rust({ initCommands = { mine } }))
-    H.eq({ mine, "breakpoint set -n rust_panic" }, out.initCommands)
+    H.eq(mine, out.initCommands[1])
+    H.eq(3, #out.initCommands)
+    H.match(out.initCommands[2], "xyno_rust_preview.py", true, "the content previews still load")
+    H.eq("breakpoint set -n rust_panic", out.initCommands[3])
   end)
 
   it("is idempotent: a second call adds nothing", function()
@@ -997,12 +1007,15 @@ describe("neotest, overseer", function()
     end
   end)
 
-  it("neotest is configured with rustaceanvim's adapter", function()
-    local p = require("lazy.core.config").plugins["neotest"]
-    H.ok(p, "neotest plugin spec")
-    -- the raw spec: resolving it with lazy's values() would run LazyVim's opts
-    -- function (it replaces the adapter names by objects) before neotest loads
-    H.eq("table", type(p.opts.adapters["rustaceanvim.neotest"]), "adapters['rustaceanvim.neotest']")
+  it("lua/plugins/neotest.lua: output panel at the bottom, summary at the right, no float per run, no quickfix popup", function()
+    local spec = dofile(H.repo .. "/lua/plugins/neotest.lua")[1]
+    local opts = spec.opts
+    H.eq(false, opts.output.open_on_run)
+    H.eq("botright split | resize 14", opts.output_panel.open)
+    H.eq("botright vsplit | vertical resize 48", opts.summary.open)
+    H.eq(true, opts.status.virtual_text)
+    H.eq(false, opts.quickfix.open, "no second (Trouble quickfix) panel next to the results panel")
+    H.eq("function", type(opts.consumers.xyno_panel), "the results panel consumer")
   end)
 
   it("test keys exist and neotest's watch consumer is present", function()
@@ -1032,6 +1045,13 @@ describe("neotest, overseer", function()
     end, 50)
     H.ok(waited, "neotest.consumers.watch; messages: " .. H.messages())
     H.ok(nt.watch, "neotest.watch (consumer)")
+    -- the configuration neotest actually runs with: rustaceanvim's adapter and our panel options merged over LazyVim's
+    local cfg = require("neotest.config")
+    H.eq("rustaceanvim", cfg.adapters[1].name)
+    H.eq("botright split | resize 14", cfg.output_panel.open)
+    H.eq("botright vsplit | vertical resize 48", cfg.summary.open)
+    H.eq(false, cfg.output.open_on_run)
+    H.eq("function", type(nt.xyno_panel) == "table" and "function" or type(nt.xyno_panel), "xyno_panel consumer ran")
     H.eq("function", type(nt.watch.toggle))
     H.ok(nt.run and nt.summary and nt.output_panel)
   end)

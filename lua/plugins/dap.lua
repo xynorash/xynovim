@@ -167,6 +167,26 @@ local function rust_lldb_init(config)
   end) then
     table.insert(cmds, 1, 'command script import "' .. script .. '"')
   end
+  -- content previews (Vec [1, 2, 3], HashMap {"a": 1}, Rc/RefCell value) on top of rust's summaries
+  local preview = require("config.dap_values").preview_script()
+  if script and preview and not vim.iter(cmds):any(function(c)
+    return c:find("xyno_rust_preview.py", 1, true)
+  end) then
+    local at = 1
+    for i, c in ipairs(cmds) do
+      if c:find("lldb_lookup.py", 1, true) then
+        at = i + 1
+      end
+    end
+    table.insert(cmds, at, 'command script import "' .. preview .. '"')
+    -- codelldb loads rust's formatters itself after initCommands and enables their category again,
+    -- which puts it in front of ours; enabling ours once the process exists moves it back to the front.
+    local post = vim.deepcopy(type(config.postRunCommands) == "table" and config.postRunCommands or {})
+    if not vim.tbl_contains(post, "type category enable XynoRust") then
+      post[#post + 1] = "type category enable XynoRust"
+    end
+    config.postRunCommands = post
+  end
   if not vim.tbl_contains(cmds, "breakpoint set -n rust_panic") then
     cmds[#cmds + 1] = "breakpoint set -n rust_panic"
   end
@@ -310,6 +330,43 @@ return {
     keys = {
       { "<leader>dR", pick_workspace_debuggable, desc = "Rust Debuggables (whole workspace)" },
       { "<leader>dP", pause, desc = "Pause" },
+      {
+        "<leader>dv",
+        function()
+          require("config.dap_values").show_value()
+        end,
+        mode = { "n", "x" },
+        desc = "Value under cursor (full, with children)",
+      },
+      {
+        "<leader>dL",
+        function()
+          require("config.dap_values").logpoint()
+        end,
+        desc = "Logpoint",
+      },
+      {
+        "<leader>dH",
+        function()
+          require("config.dap_values").hit_count()
+        end,
+        desc = "Breakpoint with hit count",
+      },
+      {
+        "<leader>dX",
+        function()
+          require("config.dap_values").exception_breakpoints()
+        end,
+        desc = "Exception breakpoints (panic, throw, catch)",
+      },
+      {
+        "<leader>dQ",
+        function()
+          require("dap").list_breakpoints()
+          vim.cmd("copen")
+        end,
+        desc = "Breakpoints to quickfix",
+      },
     },
   },
   {
@@ -323,6 +380,7 @@ return {
           require("dap").configurations.rust = rust_configurations()
           require("dap").listeners.on_config["xynovim_rust_lldb"] = rust_lldb_init
           require("config.dap_panic").setup()
+          require("config.dap_values").setup()
         end,
       },
     },
@@ -407,5 +465,15 @@ return {
         },
       }
     end,
+  },
+  {
+    -- inline values: the previews of xyno_rust_preview.py, one line each (a 600-character String filled the
+    -- line); the whole value is one <leader>dv away
+    "theHamsta/nvim-dap-virtual-text",
+    opts = {
+      display_callback = function(variable, _, _, _, options)
+        return require("config.dap_values").inline_text(variable, options)
+      end,
+    },
   },
 }
