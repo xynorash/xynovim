@@ -1074,6 +1074,10 @@ describe("rust_assist", function()
       cmd, opts = c, o
     end)
     mp("<leader>tD").callback()
+    -- xyno-rust resolves the root asynchronously now (the cargo layer): wait for the terminal call
+    H.wait_for(function()
+      return cmd
+    end, 10000, "the terminal command")
     H.eq({ "cargo", "test", "--doc", "--workspace" }, vim.list_slice(cmd, 1, 4))
     H.ok(#cmd >= 5, "context flags appended: " .. vim.inspect(cmd))
     H.eq(vim.uv.fs_realpath(S.dir), vim.uv.fs_realpath(opts.cwd))
@@ -1313,6 +1317,10 @@ describe("after/ftplugin/rust.lua", function()
     local function open_main()
       local dir = H.fixture("keymaps-rust-crate")
       vim.cmd.cd(vim.fn.fnameescape(dir))
+      -- Callbacks scheduled for buffers an earlier test wiped (nvim's built-in undotree throws "Invalid buffer
+      -- id") would otherwise run inside the FileType autocmd, when xyno-rust waits for cargo and pumps the
+      -- event loop, and surface as an error of :edit. Run them here, where an error is harmless.
+      pcall(vim.wait, 100)
       vim.cmd.edit(vim.fn.fnameescape(dir .. "/src/main.rs"))
       H.very_lazy()
       return vim.api.nvim_get_current_buf()

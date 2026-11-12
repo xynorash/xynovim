@@ -30,6 +30,19 @@ local function has_arg(args, a)
   return vim.tbl_contains(args, a)
 end
 
+-- root_dir is asynchronous (it asks cargo off the main loop): returns the root, or "none" when on_dir
+-- is not called (it never is for a buffer without a root; the answer arrives within one loop turn then).
+local function root_of_async(srv, buf, expect_none)
+  local got = "none"
+  srv.root_dir(buf, function(r)
+    got = r
+  end)
+  vim.wait(expect_none and 400 or 10000, function()
+    return got ~= "none"
+  end, 20)
+  return got
+end
+
 describe("bacon-ls config", function()
   before_each(function()
     H.need_rust()
@@ -118,43 +131,35 @@ describe("bacon-ls config", function()
   -- 5
   it("roots a plain crate at the crate dir; empty names and loose .rs files get none", function()
     local srv = plugin_server()
-    local function root_of(buf)
-      local got = "none"
-      srv.root_dir(buf, function(r)
-        got = r
-      end)
-      return got
+    local function root_of(buf, expect_none)
+      return root_of_async(srv, buf, expect_none)
     end
     local dir = H.fixture("basic")
     local b = vim.fn.bufadd(dir .. "/src/lib.rs")
     H.eq(dir, root_of(b))
     local empty = vim.api.nvim_create_buf(true, false)
-    H.eq("none", root_of(empty), "empty buffer name")
+    H.eq("none", root_of(empty, true), "empty buffer name")
     local solo_dir = H.tmpdir()
     vim.fn.writefile({ "fn main() {}" }, solo_dir .. "/solo.rs")
-    H.eq("none", root_of(vim.fn.bufadd(solo_dir .. "/solo.rs")), "no Cargo.toml above")
+    H.eq("none", root_of(vim.fn.bufadd(solo_dir .. "/solo.rs"), true), "no Cargo.toml above")
   end)
 
   it("virtual buffers (diffview://, fugitive://) and non-file buftypes get no client (root came out as `.`)", function()
     local srv = plugin_server()
-    local function root_of(buf)
-      local got = "none"
-      srv.root_dir(buf, function(r)
-        got = r
-      end)
-      return got
+    local function root_of(buf, expect_none)
+      return root_of_async(srv, buf, expect_none)
     end
     for _, name in ipairs({
       "diffview://" .. H.fixture("basic") .. "/.git/:0:/src/lib.rs",
       "fugitive:///x/.git//0/src/lib.rs",
     }) do
       local b = vim.fn.bufadd(name)
-      H.eq("none", root_of(b), name)
+      H.eq("none", root_of(b, true), name)
     end
     local dir = H.fixture("basic")
     local b = vim.fn.bufadd(dir .. "/src/lib.rs")
     vim.bo[b].buftype = "nofile"
-    H.eq("none", root_of(b), "nofile buffer")
+    H.eq("none", root_of(b, true), "nofile buffer")
   end)
 
   it("without cargo on PATH no client is started and one WARN says why (not a bare os error 2)", function()
@@ -177,6 +182,7 @@ describe("bacon-ls config", function()
       srv.root_dir(b, function(r)
         got = r
       end)
+      vim.wait(300)
     end)
     rawset(vim.fn, "executable", nil)
     cap.restore()
@@ -185,17 +191,7 @@ describe("bacon-ls config", function()
     H.eq(1, #cap.list, "told once")
     H.eq(vim.log.levels.WARN, cap.list[1].level)
     H.match(cap.list[1].msg, "cargo is not on PATH", true)
-    H.eq(
-      dir,
-      (function()
-        local r
-        srv.root_dir(b, function(x)
-          r = x
-        end)
-        return r
-      end)(),
-      "with cargo again it roots normally"
-    )
+    H.eq(dir, root_of_async(srv, b), "with cargo again it roots normally")
   end)
 
   it("a standalone .rs file attaches rust-analyzer but not bacon_ls", function()
@@ -479,11 +475,19 @@ describe("bacon-ls config", function()
       "yaml-language-server",
       "vscode-json-language-server",
       "lua-language-server",
-      "tree-sitter",
     }) do
       H.ok(exists(mason_bin .. "/" .. t), t .. " missing from " .. mason_bin)
     end
     local v = vim.system({ mason_bin .. "/bacon-ls", "--version" }, { text = true }):wait(10000)
     H.match(v.stdout, "^0%.3[1-9]")
+    -- Mason's tree-sitter CLI is only installed by LazyVim's treesitter setup once it has run on this machine
+    -- (not on a fresh checkout or an install that never reached it): every other check above ran, so say so.
+    if not exists(mason_bin .. "/tree-sitter") then
+      skip(
+        "all other Mason tools present; the tree-sitter CLI is not in "
+          .. mason_bin
+          .. " (open Neovim once and let Mason install it: nvim --headless '+MasonInstall tree-sitter-cli' +qa)"
+      )
+    end
   end)
 end)

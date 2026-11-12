@@ -609,6 +609,12 @@ describe("lazy-lock.json", function()
         spec = spec + 1
       end
     end
+    -- with XYNOVIM_DEV_PLUGINS the xyno-* plugins are local clones: still locked, not counted above
+    for _, n in ipairs(names) do
+      if Config.plugins[n]._.is_local then
+        spec = spec + 1
+      end
+    end
     H.eq(spec, #names, "spec plugins vs lockfile entries")
   end)
 
@@ -617,7 +623,13 @@ describe("lazy-lock.json", function()
     local bad = {}
     for _, n in ipairs(names) do
       local plugin_dir = (Config.plugins[n] and Config.plugins[n].dir) or (dir .. "/" .. n)
-      if vim.fn.isdirectory(plugin_dir) ~= 1 then
+      if Config.plugins[n] and Config.plugins[n]._.is_local then
+        -- run with XYNOVIM_DEV_PLUGINS (docs/DEV-PLUGINS.md): a local clone is not the pinned commit by design
+        plugin_dir = nil
+      end
+      if not plugin_dir then
+        -- nothing to compare
+      elseif vim.fn.isdirectory(plugin_dir) ~= 1 then
         bad[#bad + 1] = n .. ": not installed"
       else
         local r = vim.system({ "git", "-C", plugin_dir, "rev-parse", "HEAD" }, { text = true }):wait(10000)

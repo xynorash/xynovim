@@ -25,7 +25,31 @@ local function writable_dir(dir)
 end
 local cache_ok = writable_dir(vim.fn.stdpath("cache"))
 
+-- Run xynovim against local clones of the xyno-* plugins instead of the
+-- commits pinned in lazy-lock.json:
+--   XYNOVIM_DEV_PLUGINS=~/projects/xyno-plugins nvim
+-- Every "xynorash/xyno-*" plugin is then loaded from <dir>/<name> (e.g.
+-- <dir>/xyno-rust.nvim) and is no longer tracked by the lock file or by
+-- :Lazy update/restore. A missing clone falls back to the normal checkout.
+-- Unset (the default), nothing changes. See docs/DEV-PLUGINS.md.
+local dev_dir = vim.env.XYNOVIM_DEV_PLUGINS
+local dev = { path = "~/projects", patterns = {}, fallback = true }
+if dev_dir and dev_dir ~= "" then
+  dev_dir = vim.fs.normalize(dev_dir)
+  if vim.fn.isdirectory(dev_dir) == 1 then
+    dev = { path = dev_dir, patterns = { "xynorash/xyno-" }, fallback = true }
+  else
+    vim.schedule(function()
+      vim.notify(
+        "XYNOVIM_DEV_PLUGINS is not a directory: " .. dev_dir .. " (using the pinned plugins)",
+        vim.log.levels.WARN
+      )
+    end)
+  end
+end
+
 require("lazy").setup({
+  dev = dev,
   spec = {
     -- add LazyVim and import its plugins
     { "LazyVim/LazyVim", import = "lazyvim.plugins" },

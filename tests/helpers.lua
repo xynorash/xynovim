@@ -225,6 +225,9 @@ function H.capture_notify()
     if type(msg) == "string" and msg:find("has been overwritten by another plugin", 1, true) then
       return -- noice's late check (timing dependent, seen on macOS runners)
     end
+    if type(msg) == "string" and msg:find("^xyno%-clipboard: no clipboard tool found") then
+      return -- the one-time startup hint on a machine without wl-clipboard/xclip, replayed late by the notifier
+    end
     cap.list[#cap.list + 1] = { msg = msg, level = level }
   end
   cap.restore = function()
@@ -380,12 +383,30 @@ function H.write_icls(path)
   f:close()
 end
 
+local trusted_base
+
+--- Workspace trust (xyno-rust.nvim >= the trust gate): running a target, test or cargo tool in an untrusted
+--- workspace asks first, and in a headless spec nobody can answer (vim.ui.select waits for ever). The temp
+--- directory of the run is this spec's own, so it is trusted once, recursively (state lives in the temp
+--- XDG_STATE_HOME). Specs that test the prompt itself stub it. Older plugin versions have no trust module.
+local function trust_base(base)
+  if trusted_base == base then
+    return
+  end
+  trusted_base = base
+  pcall(function()
+    local trust = require("xyno_rust.trust")
+    trust.trust(base, { recursive = true })
+  end)
+end
+
 --- A fresh empty directory, removed by cleanup().
 function H.tmpdir()
   local base = vim.env.XYNO_TEST_TMP
   if not base or base == "" then
     base = vim.fs.dirname(vim.fn.tempname())
   end
+  trust_base(base)
   local dir = assert(vim.uv.fs_mkdtemp(base .. "/spec-XXXXXX"))
   H._dirs[#H._dirs + 1] = dir
   if H.os ~= "linux" then

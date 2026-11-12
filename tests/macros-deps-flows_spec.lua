@@ -28,6 +28,14 @@ local function stub(t, k, v)
 end
 
 before_each(function()
+  -- xyno-crates.nvim asks (preview + typosquat check) before every `cargo add`: nobody can answer in a
+  -- headless spec, so the question is answered "yes" here (the pinned version has no such question)
+  local ok, add = pcall(require, "xyno_crates.crate_add")
+  if ok and type(add.ui) == "table" and add.ui.confirm then
+    stub(add.ui, "confirm", function(_, cb)
+      cb(true)
+    end)
+  end
   stub(E, "state_file", H.tmpdir() .. "/state/imports.json")
   E.reload_memory()
 end)

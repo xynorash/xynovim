@@ -222,8 +222,16 @@ describe("configurations: program / args / cwd", function()
       local path = c.program()
       H.eq(cargo_meta(dir).target_directory .. "/debug/blockpkg" .. EXE, path)
       H.ok(vim.uv.fs_stat(path), "binary was built at " .. path)
-      H.eq({ msg = "cargo build --package blockpkg --bin blockpkg", level = vim.log.levels.INFO, title = "dap" }, n[1])
-      H.eq(1, #n)
+      -- only the dap notes: a startup notice of another plugin (xyno-clipboard's one-time hint on a machine
+      -- without a clipboard tool) can be replayed through vim.notify while the stub is installed
+      local dap_notes = vim.tbl_filter(function(x)
+        return x.title == "dap"
+      end, n)
+      H.eq(
+        { msg = "cargo build --package blockpkg --bin blockpkg", level = vim.log.levels.INFO, title = "dap" },
+        dap_notes[1]
+      )
+      H.eq(1, #dap_notes)
     end
   )
 
@@ -1185,6 +1193,10 @@ describe("coverage honours :RustContext", function()
       items = o.items
     end)
     require("xyno_rust.rust_tasks").tools()
+    -- the root is resolved asynchronously in xyno-rust.nvim's cargo layer; the pinned version is synchronous
+    H.wait_for(function()
+      return items
+    end, 10000, "the tools picker")
     H.ok(items, "the tools picker was opened")
     local cov
     for _, i in ipairs(items) do
@@ -1197,6 +1209,9 @@ describe("coverage honours :RustContext", function()
     require("xyno_rust.rust_context").apply(dir, nil)
     items = nil
     require("xyno_rust.rust_tasks").tools()
+    H.wait_for(function()
+      return items
+    end, 10000, "the tools picker (second call)")
     for _, i in ipairs(items) do
       if i.text:find("coverage report", 1, true) then
         H.eq({ "cargo", "llvm-cov", "--workspace", "--ignore-run-fail", "--summary-only", "--all-features" }, i.cmd)

@@ -327,9 +327,20 @@ describe("Guarded._build_command", function()
     local out = guarded():_build_command("do it", ctx)
     vim.env.GITHUB_TOKEN = nil
     vim.g.xynovim_99_sandbox = saved
-    H.eq("bwrap", out[1])
+    -- Newer xyno-sandbox starts bwrap with an empty environment (`env -i NAME=value... bwrap ...`), older
+    -- ones start with bwrap itself; the token must be gone in either case.
+    local at = 1
+    if out[1] == "env" then
+      H.eq("-i", out[2])
+      at = 3
+      while out[at] and out[at]:find("=", 1, true) do
+        H.no_match(out[at], "^GITHUB_TOKEN=", false, "the token must not be passed through env -i")
+        at = at + 1
+      end
+    end
+    H.eq("bwrap", out[at])
     H.eq("claude", out[#out - #claude():_build_command("do it", ctx) + 1])
-    local unset = false
+    local unset = out[1] == "env" -- `env -i` passes only an allowlist: the token never exists
     for i, a in ipairs(out) do
       if a == "--unsetenv" and out[i + 1] == "GITHUB_TOKEN" then
         unset = true

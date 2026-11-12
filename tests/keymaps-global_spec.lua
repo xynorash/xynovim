@@ -568,28 +568,64 @@ describe("colourscheme picker", function()
         "under --coverage (the line hook makes the colourscheme previews take 20+ minutes)"
       )
     end
-    H.open(H.fixture("standalone.rs"))
-    H.clear_messages()
-    H.feed("<leader>uC")
-    local picker = H.wait_for(function()
-      return Snacks.picker.get()[1]
-    end, 10000, "the colourscheme picker")
-    -- move over the first entries: each move applies a preview
-    H.wait_for(function()
-      return #picker.list.items > 3
-    end, 20000, "picker items")
-    picker:action("list_down")
-    vim.wait(300)
-    picker:action("cancel")
-    H.wait_for(function()
-      return #Snacks.picker.get() == 0
-    end, 30000, "the picker to close")
-    H.eq("", vim.v.errmsg)
-    H.no_match(H.messages(), "E%d+:")
-    -- the restore after a cancel is asynchronous
-    H.wait_for(function()
-      return vim.g.colors_name == "island-dark"
-    end, 30000, "island-dark restored after cancelling the picker")
+    -- Runs in a child nvim with a hard timeout: when the picker's colourscheme previews keep nvim busy
+    -- (a hang seen on one machine, never reproduced on others) an in-process run froze the whole spec
+    -- file until the 400 s file timeout and lost every check of it. Now it is one failing test.
+    local dir = H.tmpdir()
+    assert(io.open(dir .. "/note.txt", "w")):close()
+    local f = assert(io.open(dir .. "/picker.lua", "w"))
+    f:write(([[
+vim.api.nvim_create_autocmd("VimEnter", { once = true, callback = function()
+  vim.defer_fn(function()
+    local ok, err = xpcall(function()
+      local function wait_for(pred, ms, what)
+        if not vim.wait(ms, pred, 50) then error("timeout waiting for " .. what, 0) end
+      end
+      vim.cmd.edit(%q)
+      vim.cmd("messages clear")
+      vim.api.nvim_feedkeys(vim.keycode("<leader>uC"), "x", false)
+      wait_for(function() return Snacks.picker.get()[1] end, 10000, "the colourscheme picker")
+      local picker = Snacks.picker.get()[1]
+      wait_for(function() return #picker.list.items > 3 end, 20000, "picker items")
+      picker:action("list_down")
+      vim.wait(300)
+      picker:action("cancel")
+      wait_for(function() return #Snacks.picker.get() == 0 end, 30000, "the picker to close")
+      wait_for(function() return vim.g.colors_name == "island-dark" end, 30000, "island-dark restored after cancelling")
+      local msgs = vim.api.nvim_exec2("messages", { output = true }).output
+      if vim.v.errmsg ~= "" or msgs:find("E%%d+:") then error("errors: " .. vim.v.errmsg .. " " .. msgs, 0) end
+    end, debug.traceback)
+    io.stdout:write("\nPICKER_RESULT " .. (ok and "ok" or ("ERR " .. tostring(err):gsub("\n", " "))) .. "\n")
+    vim.cmd("qa!")
+  end, 300)
+end })
+]]):format(dir .. "/note.txt"))
+    f:close()
+    local env = {}
+    for _, k in ipairs({
+      "HOME",
+      "PATH",
+      "XDG_CONFIG_HOME",
+      "XDG_DATA_HOME",
+      "XDG_STATE_HOME",
+      "XDG_CACHE_HOME",
+      "TMPDIR",
+    }) do
+      env[k] = vim.env[k]
+    end
+    local obj = vim.system(
+      { vim.fn.exepath("nvim"), "--headless", "-S", dir .. "/picker.lua" },
+      { text = true, env = env, clear_env = true, cwd = dir }
+    )
+    local r = obj:wait(100000)
+    if r.code == 124 or r.signal ~= 0 then
+      H.ok(
+        false,
+        "the colourscheme picker hung nvim for 100 s (killed); output: " .. (r.stdout or "") .. (r.stderr or "")
+      )
+    end
+    local line = ((r.stdout or "") .. (r.stderr or "")):match("PICKER_RESULT ([^\n]*)")
+    H.eq("ok", line, "child result; output: " .. (r.stdout or "") .. (r.stderr or ""))
   end)
 end)
 
@@ -623,6 +659,10 @@ describe("keymap uniqueness", function()
       while i <= #lines do
         -- lazy keys: `{ "<lhs>", rhs, mode = .., desc = ".." }`, possibly over several lines
         local lhs = lines[i]:match('^%s*{%s*"(<[^"]+)"') or lines[i]:match('^%s*"(<[^"]+)",')
+        -- an rhs on a line of its own (StyLua splits long key specs) is not a lhs
+        if lhs and lhs:find("^<[cC]md>") then
+          lhs = nil
+        end
         if lhs and not lines[i]:find("keymap") then
           local acc, j = lines[i], i
           while not acc:find('desc%s*=%s*"') and j < i + 30 and j < #lines do

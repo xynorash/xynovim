@@ -215,6 +215,30 @@ $env:USERPROFILE\xynovim\scripts\bootstrap.ps1
 
 Why a script and not just `nvim --headless '+Lazy! restore' +qa`: on an empty plugin directory lazy.nvim installs in several rounds (a plugin's own specs, such as LazyVim's extras, are only read once it is cloned) and rewrites `lazy-lock.json` after every round with the plugins it knows so far. The pins of the ones found later are dropped, so those land on their newest commit (5 of 79 did in the first fresh-install tests, before 18 theme-only plugins were dropped (61 plugins are locked now), and the lockfile changed; kulala was a sixth until `submodules = false` fixed its pin, see step 10). The script runs `Lazy! install`, puts the original lockfile back, runs `Lazy! restore` and fails if `lazy-lock.json` differs afterwards; CI runs it and then `git diff --exit-code lazy-lock.json`. A plain `Lazy! restore` on an install that already holds every plugin ended with an identical lockfile in the same test.
 
+## Clipboard: tmux, SSH, Ghostty
+
+Yanks reach the system clipboard in three ways, chosen by [xyno-clipboard.nvim](https://github.com/xynorash/xyno-clipboard.nvim):
+
+| Session | What happens on `"+y` | Paste (`"+p`) |
+| --- | --- | --- |
+| Plain local terminal with `wl-clipboard` (Wayland) or `xclip`/`xsel` (X11) | Neovim's own provider | the system clipboard |
+| Inside tmux, over SSH, or under herdr | `wl-copy` if there is one **and** an OSC 52 sequence to the terminal (tmux turns it into a tmux buffer and passes it on to every client) | `wl-paste` if there is one, otherwise an OSC 52 query |
+| No clipboard tool at all (a fresh machine) | an OSC 52 sequence only, and one hint on startup saying what to install | what this session copied last (an OSC 52 query would freeze Neovim in terminals that never answer) |
+
+On Arch/CachyOS under Wayland: `sudo pacman -S wl-clipboard`. On X11: `sudo pacman -S xclip`. `:checkhealth xynovim` reports what is missing.
+
+**OSC 52 needs the terminal's permission.** [Ghostty](https://ghostty.org/docs/config/reference) (`TERM=xterm-ghostty`) accepts OSC 52
+writes by default (`clipboard-write = allow`; the values are `ask`, `allow`, `deny`), while reading is `clipboard-read = ask`, i.e. a
+prompt on every request. In `~/.config/ghostty/config`:
+
+```
+clipboard-write = allow
+clipboard-read = ask      # or allow; Neovim's fallback never reads through the terminal, only tmux/ssh pastes do
+```
+
+If yanks inside tmux do not arrive, tmux must accept applications' OSC 52: `set -g set-clipboard on` in `~/.tmux.conf` (the default,
+`external`, ignores them; the `clipboard-e2e` spec runs a real tmux with `on`). Retrieved 2026-11-12 from the Ghostty option reference.
+
 ## Keys you will use
 
 `<leader>` is Space; which-key shows the menu of every prefix.
@@ -405,6 +429,7 @@ docs/media/record.sh 05-tests   # one tape
 - [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md): limitations that were found and deliberately left alone, and the ones fixed since.
 - [SECURITY.md](SECURITY.md): how to report a problem, what the agent sandbox is and is not (a seatbelt, not a jail), and what is pinned and what is not.
 - [docs/TESTING.md](docs/TESTING.md) and [tests/COVERAGE.md](tests/COVERAGE.md): the test suite.
+- [docs/DEV-PLUGINS.md](docs/DEV-PLUGINS.md): run xynovim, its specs and the benchmarks against local clones of the `xyno-*` plugins (`XYNOVIM_DEV_PLUGINS`).
 - [CHANGELOG.md](CHANGELOG.md): every notable change.
 
 ### Website
