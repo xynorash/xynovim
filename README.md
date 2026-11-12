@@ -283,7 +283,8 @@ If yanks inside tmux do not arrive, tmux must accept applications' OSC 52: `set 
 
 | Keys / command | What it does |
 | --- | --- |
-| `<leader>rb`, `:RustRun [name]` | run configurations saved per project: cargo command, target, program arguments, cargo arguments, environment variables, optional `samply` / `cargo flamegraph` profiler. `<CR>` runs, `<C-e>` edits, `<C-x>` deletes; stored in the state directory, never read from the repository (so a cloned repo cannot ship one that runs on your machine); asks for workspace trust once |
+| `<leader>rb`, `:RustRun [name]` | run configurations saved per project: cargo command, target, program arguments, cargo arguments, environment variables, optional `samply` / `cargo flamegraph` profiler. `<CR>` runs, `<C-e>` edits, `<C-x>` deletes; stored in the state directory; asks for workspace trust once. Opt-in sharing: a committed `.xynovim/run.toml` (read only in a trusted workspace, merged with the personal ones; `:RustRunShare`) |
+| `<leader>rn`, `<leader>rU`, `<leader>rY`, `<leader>rA` | `:RustRename` (per-file diff preview, untick files), `:RustUsages` (grouped code / imports / tests / docs), `:RustProfile` (hot functions and call tree of a `perf script` / folded-stacks file), `:TokioConsole` (project check and launcher). A mouse click on rust-analyzer's Run / Debug lens line runs it. Present with the xyno-rust.nvim `dev` commits (see CHANGELOG); the keys are set only when the commands exist |
 | `<leader>rB`, `:RustRunLast` | run the previous one again |
 | `<leader>ca`, `<leader>ra` (Rust buffers) | code actions / refactorings in a picker; the preview is the diff the highlighted action would make |
 | `<leader>rQ`, `:RustFixAll` | apply rust-analyzer's preferred quick fixes of the buffer as one undo step; fixes from `cargo check` are skipped while the buffer has unsaved changes (they describe the saved text) |
