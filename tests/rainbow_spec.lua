@@ -787,6 +787,104 @@ describe("rainbow brackets: injected languages and other plugins", function()
   end)
 end)
 
+-- ------------------------------------------------------------------ rainbow variables
+
+describe("rainbow brackets: rainbow variables", function()
+  before_each(function()
+    load()
+    defaults({ variables = { enabled = true } })
+    vim.cmd("colorscheme island-dark")
+  end)
+  after_each(function()
+    defaults(nil)
+    pcall(vim.cmd, "silent! %bwipeout!")
+  end)
+
+  local SRC = table.concat({
+    "struct P { total: u32 }",
+    "fn add(total: u32, count: u32) -> u32 {",
+    "    let sum = total + count;",
+    "    let p = P { total };",
+    '    println!("{}", sum);',
+    "    let f = |count| count + sum;",
+    "    p.total + f(count) + sum",
+    "}",
+    "",
+  }, "\n")
+
+  local function var_colors()
+    local out = {}
+    for i = 1, R._state.groups.var_count do
+      out[hex(vim.api.nvim_get_hl(0, { name = "XynoRainbowVar" .. i, link = false }).fg)] = true
+    end
+    return out
+  end
+
+  it("a name has one colour wherever it is declared or used; different names differ", function()
+    open_text("v1.rs", SRC)
+    local vc = var_colors()
+    local total_def = fg_of(2, "total", 1)
+    H.ok(vc[total_def], "a variable colour")
+    H.eq(total_def, fg_of(3, "total"), "use in the initialiser")
+    H.eq(total_def, fg_of(4, "total"), "shorthand field initialiser uses the local")
+    local sum = fg_of(3, "sum")
+    H.eq(sum, fg_of(5, "sum"), "in the macro arguments")
+    H.eq(sum, fg_of(6, "sum", 1), "in the closure body")
+    H.eq(sum, fg_of(7, "sum"))
+    H.ok(sum ~= total_def, "sum and total differ")
+    H.ok(fg_of(2, "count", 1) ~= sum)
+    H.eq(fg_of(2, "count", 1), fg_of(3, "count"), "parameter and use")
+    H.eq(fg_of(2, "count", 1), fg_of(6, "count", 1), "closure parameter with the same name: same name, same colour")
+  end)
+
+  it("fields, functions and types keep their own colours", function()
+    open_text("v2.rs", SRC)
+    local vc = var_colors()
+    H.not_ok(vc[fg_of(1, "total")], "the field `total` of the struct is not a variable colour")
+    H.not_ok(vc[fg_of(7, "total")], "p.total is a field access")
+    H.not_ok(vc[fg_of(2, "add")], "the function name")
+    H.not_ok(vc[fg_of(2, "u32", 1)], "a type")
+  end)
+
+  it("every variable colour is >= 3:1 on the editor and the caret row, in both variants", function()
+    for _, variant in ipairs({ "dark", "light" }) do
+      vim.cmd("colorscheme island-" .. variant)
+      defaults({ variables = { enabled = true, colors = 16 } })
+      for i = 1, 16 do
+        local c = hex(vim.api.nvim_get_hl(0, { name = "XynoRainbowVar" .. i, link = false }).fg)
+        H.ok(
+          ratio(c, THEME_BG[variant]) >= 3 and ratio(c, CARET_BG[variant]) >= 3,
+          variant .. " var colour " .. i .. " " .. c
+        )
+      end
+    end
+    vim.cmd("colorscheme island-dark")
+  end)
+
+  it("off by default, switched by :XynoRainbow variables and colours by variables.colors", function()
+    defaults(nil)
+    open_text("v3.rs", SRC)
+    local before = fg_of(3, "sum")
+    H.not_ok(var_colors()[before] and true or false, "off: not a variable colour")
+    vim.cmd("XynoRainbow variables on")
+    vim.cmd("redraw!")
+    H.ok(var_colors()[fg_of(3, "sum")], "on")
+    vim.cmd("XynoRainbow set variables.colors 2")
+    vim.cmd("redraw!")
+    H.eq(2, R._state.groups.var_count)
+    vim.cmd("XynoRainbow variables off")
+    vim.cmd("redraw!")
+    H.eq(before, fg_of(3, "sum"))
+  end)
+
+  it("brackets and variables together: the brackets keep their level colours", function()
+    open_text("v4.rs", SRC)
+    local c = cycle()
+    H.eq(c[1], fg_of(2, "("), "the parameter list")
+    H.eq(c[1], fg_of(2, "{"))
+  end)
+end)
+
 -- ------------------------------------------------------------------ scope highlighting
 
 describe("rainbow brackets: scope highlighting", function()

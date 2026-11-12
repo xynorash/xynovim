@@ -27,6 +27,7 @@ local SWITCHES = {
   ["suppress-debug"] = "scope.suppress_debug",
   ["suppress-diff"] = "scope.suppress_diff",
   mouse = "scope.mouse",
+  variables = "variables.enabled",
 }
 
 local ACTIONS = { "on", "off", "toggle" }
@@ -77,6 +78,7 @@ local function status_lines()
       o.skip_first_level and "plain" or "coloured",
       tostring(o.min_contrast)
     ),
+    ("variables: %s (%d colours, by name)"):format(onoff(o.variables.enabled), o.variables.colors),
     ("scope: alpha %.2f, restrain %.2f%s, clear with %s, mouse %s, box %s"):format(
       o.scope.alpha,
       o.scope.restrain_strength,

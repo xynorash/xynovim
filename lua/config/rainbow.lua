@@ -41,6 +41,10 @@ local DEFAULTS = {
   max_lines = 0, -- 0 = no limit; N = files with more lines get no colours (the plugin's default is 1000)
   large = "on", -- "on" = also in large-file tier 1 (only the visible lines are ever processed), "off"
   disable = {}, -- filetypes, tree-sitter languages or file extensions that are left alone
+  variables = { -- "rainbow variables": locals coloured by name (off by default, like the plugin's semantic highlighting)
+    enabled = false,
+    colors = 10, -- 2..16 colours, picked by a hash of the name
+  },
   scope = {
     alpha = 0.2, -- the scope tint: its rainbow colour mixed this much into the editor background
     restrain_strength = 0.65, -- how far the text outside the scope is dimmed towards the background
@@ -148,6 +152,10 @@ local SPEC = {
   max_lines = { int = { 0, 100000000 } },
   large = { enum = { "on", "off" } },
   disable = strlist,
+  variables = {
+    enabled = "boolean",
+    colors = { int = { 2, 16 } },
+  },
   scope = {
     alpha = { num = { 0, 1 } },
     restrain_strength = { num = { 0, 1 } },
@@ -733,6 +741,14 @@ local function on_win(_, win, buf, top, bot)
     or not (c and c.buf == buf and c.tick == tick and c.srow == srow and c.erow == erow and c.version == S.version)
   then
     local ok, marks = pcall(M.collect, buf, hl.tree, srow, erow)
+    if ok and S.opts.variables.enabled then
+      local okv, vm = pcall(function()
+        return require("config.rainbow_vars").collect(buf, hl.tree, srow, erow, S.groups.var_count, S.opts.priority + 5)
+      end)
+      if okv then
+        vim.list_extend(marks, vm)
+      end
+    end
     c = { buf = buf, tick = tick, srow = srow, erow = erow, version = S.version, marks = ok and marks or {} }
     S.cache[win] = (not parsing) and c or nil
     S.stats.rebuilt = S.stats.rebuilt + 1
@@ -743,7 +759,7 @@ local function on_win(_, win, buf, top, bot)
       end_col = mk[3],
       hl_group = mk[4],
       ephemeral = true,
-      priority = prio,
+      priority = mk[5] or prio,
     })
   end
   local us = (vim.uv.hrtime() - t0) / 1000

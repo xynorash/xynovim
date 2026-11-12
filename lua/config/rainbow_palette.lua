@@ -289,13 +289,18 @@ function M.apply(o)
     set(0, "XynoRainbowScope" .. i, { bg = hexnum(mix(bg, c, o.scope.alpha)) })
     set(0, "XynoRainbowBox" .. i, { fg = hexnum(bg), bg = hexnum(c), bold = true })
   end
+  -- variables: their own colours (golden-angle hues, lifted like the rest), picked by a hash of the name
+  local nvar = o.variables.colors
+  for i, c in ipairs(M.generate(nvar, { hue = "any", luminosity = "bright" }, light)) do
+    set(0, "XynoRainbowVar" .. i, { fg = hexnum(M.ensure(c, surfaces, M.min_contrast(o), light)) })
+  end
   local normal = vim.api.nvim_get_hl(0, { name = "Normal", link = false })
   local text = normal.fg and tohex(normal.fg) or (light and "#1f2229" or "#bcbec4")
   -- restrained text is dimmed towards the background, but never below the minimum contrast
   set(0, "XynoRainbowRestrain", {
     fg = hexnum(M.ensure(mix(text, bg, o.scope.restrain_strength), surfaces, M.min_contrast(o), light)),
   })
-  return { by_kind = by_kind, count = #shared, palette = name, red = red }
+  return { by_kind = by_kind, count = #shared, palette = name, red = red, var_count = nvar }
 end
 
 return M
