@@ -5,8 +5,10 @@ local file = (scene == "mismatch") and vim.env.RB_DIR .. "/mismatch.rs" or vim.e
 vim.cmd("edit " .. file)
 vim.o.cursorline = true
 vim.defer_fn(function()
-  require("lazy").load({ plugins = { "xynovim-rainbow" } })
   local R = require("config.rainbow")
+  if not R._state.ready then
+    R.setup()
+  end
   if scene == "light" or scene == "lightcb" then
     vim.cmd("colorscheme island-light")
   elseif scene == "high" then
@@ -35,9 +37,15 @@ vim.defer_fn(function()
     end
     vim.cmd("redraw!")
     vim.defer_fn(function()
-      pcall(function() vim.cmd("LspStop") end)
-      pcall(function() Snacks.notifier.hide() end)
-      pcall(function() require("noice").cmd("dismiss") end)
+      pcall(function()
+        vim.cmd("LspStop")
+      end)
+      pcall(function()
+        Snacks.notifier.hide()
+      end)
+      pcall(function()
+        require("noice").cmd("dismiss")
+      end)
       vim.cmd("redraw!")
       vim.defer_fn(function()
         vim.fn.writefile({ ("ready %dx%d"):format(vim.o.columns, vim.o.lines) }, vim.env.RB_READY)

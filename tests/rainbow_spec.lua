@@ -1,5 +1,5 @@
 -- Rainbow brackets (lua/config/rainbow.lua, rainbow_palette.lua, rainbow_scope.lua, rainbow_cmd.lua,
--- lua/plugins/rainbow.lua). Every visual claim is asserted on the real UI grid of this (headless) nvim:
+-- lua/config/rainbow_boot.lua). Every visual claim is asserted on the real UI grid of this (headless) nvim:
 -- `screenpos` finds the cell of a bracket, `nvim__inspect_cell` gives the colours it is drawn with, at
 -- 60 / 120 / 200 columns. Contrast is computed here, independently of lua/config/rainbow_palette.lua.
 local H = require("xynotest.helpers")
@@ -91,10 +91,15 @@ end
 
 local R, P
 
+-- before anything of the file runs: has the engine been loaded by the start-up alone?
+local LOADED_AT_START = package.loaded["config.rainbow"] ~= nil
+
 local function load()
   H.very_lazy()
-  require("lazy").load({ plugins = { "xynovim-rainbow" } })
   R = require("config.rainbow")
+  if not R._state.ready then
+    R.setup()
+  end
   P = require("config.rainbow_palette")
 end
 
@@ -245,13 +250,19 @@ describe("rainbow brackets: options", function()
     R.setup()
   end)
 
-  it("nothing of it loads before the first screen (VeryLazy)", function()
-    -- the spec file runs in a fresh nvim: load() above is what pulled the module in
-    local f = assert(io.open(H.repo .. "/lua/plugins/rainbow.lua"))
+  it("the engine is not loaded by the start-up: a command and a VeryLazy autocmd only, no lazy.nvim spec", function()
+    H.not_ok(LOADED_AT_START, "config.rainbow was already required before the first screen")
+    H.eq(2, vim.fn.exists(":XynoRainbow"))
+    local f = assert(io.open(H.repo .. "/lua/config/rainbow_boot.lua"))
     local src = f:read("*a")
     f:close()
-    H.match(src, 'event = "VeryLazy"', nil, true)
-    H.match(src, "virtual = true", nil, true)
+    H.match(src, 'pattern = "VeryLazy"', true)
+    H.eq(0, vim.fn.filereadable(H.repo .. "/lua/plugins/rainbow.lua"), "a spec would be a plugin without a lock entry")
+    local o = assert(io.open(H.repo .. "/lua/config/options.lua"))
+    local opts = o:read("*a")
+    o:close()
+    H.match(opts, 'require("config.rainbow_boot").setup()', true)
+    H.no_match(opts, 'require("config.rainbow")', true)
   end)
 
   it("defaults are valid and complete", function()
@@ -276,7 +287,7 @@ describe("rainbow brackets: options", function()
     H.eq(6, #problems)
     local all = table.concat(problems, "\n")
     for _, k in ipairs({ "colors", "round", "palette", "bogus", "scope.alpha", "scope.box" }) do
-      H.match(all, k, nil, true)
+      H.match(all, k, true)
     end
   end)
 
@@ -327,7 +338,7 @@ describe("rainbow brackets: options", function()
     H.eq(0.4, R.get("scope.alpha"))
     local ok, msg = R.set("scope.alpha", 7)
     H.eq(false, ok)
-    H.match(msg, "scope.alpha", nil, true)
+    H.match(msg, "scope.alpha", true)
     local ok2 = R.set("no.such", 1)
     H.eq(false, ok2)
     H.eq(false, (R.toggle("colors")))
@@ -974,7 +985,7 @@ describe("rainbow brackets: scope highlighting", function()
     vim.api.nvim_win_set_cursor(0, { 5, 0 })
     local ok, msg = S.at_cursor("scope")
     H.eq(false, ok)
-    H.match(msg, "no bracket scope", nil, true)
+    H.match(msg, "no bracket scope", true)
   end)
 
   it("Restrain Scope Highlighting dims everything outside, keeps the inside", function()
@@ -991,7 +1002,7 @@ describe("rainbow brackets: scope highlighting", function()
     H.eq(dim, (cell(2, col_of(2, "[") + 1)), "inside the square brackets but outside the tuple")
     H.eq(c[3], (cell(2, col_of(2, "(", 1))), "the tuple keeps its colour")
     -- dimmed text is still readable: >= 3:1 against the theme background
-    H.ok(ratio(dim, THEME_BG.dark) >= 3, "restrain contrast " .. ratio(dim, THEME_BG.dark))
+    H.ok(ratio(dim, THEME_BG.dark) >= 4.5, "restrain contrast " .. ratio(dim, THEME_BG.dark))
     S.clear()
     vim.cmd("redraw!")
     H.ok(is_rainbow((cell(1, col_of(1, "{")))), "cleared: the brace is a rainbow colour again")
@@ -1012,13 +1023,13 @@ describe("rainbow brackets: scope highlighting", function()
     local want = P.ensure(
       P.mix(kw_before, THEME_BG.dark, R.get("scope.restrain_strength")),
       { THEME_BG.dark, CARET_BG.dark },
-      3,
+      4.5,
       false
     )
     H.eq(want, kept, "the keyword colour, dimmed")
     H.ok(kept ~= plain, "differs from the grey of the plain restrain")
     H.ok(kept ~= kw_before, "dimmed")
-    H.ok(ratio(kept, THEME_BG.dark) >= 3, "still legible")
+    H.ok(ratio(kept, THEME_BG.dark) >= 4.5, "still legible")
     -- inside the scope nothing is dimmed
     H.eq(cycle()[3], (cell(2, col_of(2, "(", 1))))
     S.clear()
@@ -1080,7 +1091,7 @@ describe("rainbow brackets: scope highlighting", function()
     local ok, msg = S.at_cursor("scope")
     vim.wo.diff = false
     H.eq(false, ok)
-    H.match(msg, "diff", nil, true)
+    H.match(msg, "diff", true)
     R.set("scope.suppress_diff", false)
     R.set("scope.suppress_debug", true)
     package.loaded["dap"] = {
@@ -1091,7 +1102,7 @@ describe("rainbow brackets: scope highlighting", function()
     local ok2, msg2 = S.at_cursor("scope")
     package.loaded["dap"] = nil
     H.eq(false, ok2)
-    H.match(msg2, "debugging", nil, true)
+    H.match(msg2, "debugging", true)
     R.set("scope.suppress_debug", false)
     H.eq(true, (S.at_cursor("scope")))
   end)
@@ -1479,12 +1490,12 @@ describe("rainbow brackets: :XynoRainbow", function()
     vim.cmd("XynoRainbow status")
     local text = table.concat(notes, "\n")
     for _, w in ipairs({ "brackets on", "kinds: round on", "colours: 6", "scope: alpha 0.20", "limits:" }) do
-      H.match(text, w, nil, true)
+      H.match(text, w, true)
     end
     notes = {}
     vim.cmd("XynoRainbow frobnicate")
-    H.match(notes[1], "unknown subcommand", nil, true)
-    H.match(notes[1], "palette", nil, true)
+    H.match(notes[1], "unknown subcommand", true)
+    H.match(notes[1], "palette", true)
   end)
 
   it("scope / restrain / clear from the command line", function()
@@ -1592,9 +1603,9 @@ describe("rainbow brackets: health and cost", function()
     vim.wait(200)
     local text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
     vim.cmd("bwipeout!")
-    H.match(text, "rainbow brackets", nil, true)
-    H.match(text, "contrast: lowest colour", nil, true)
-    H.match(text, "vim.g.xynovim_rainbow is valid", nil, true)
+    H.match(text, "rainbow brackets", true)
+    H.match(text, "contrast: lowest colour", true)
+    H.match(text, "vim.g.xynovim_rainbow is valid", true)
   end)
 
   it("health reports an invalid option", function()
@@ -1604,7 +1615,7 @@ describe("rainbow brackets: health and cost", function()
     vim.wait(200)
     local text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
     vim.cmd("bwipeout!")
-    H.match(text, "option ignored", nil, true)
+    H.match(text, "option ignored", true)
   end)
 
   it("a window of a 40 000-line file costs a few milliseconds, warm or after an edit", function()

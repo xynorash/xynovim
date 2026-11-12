@@ -503,13 +503,12 @@ Thank you to JetBrains for their amazing products. I am a full-in JetBrains user
 ## Layout
 
 ```
-lua/config/    options, keymaps, autocmds, statusline/UX helpers, rust_assist, lazy
+lua/config/    options, keymaps, autocmds, statusline/UX helpers, rust_assist, lazy, rainbow* (the rainbow brackets)
 lua/xynovim/   :checkhealth xynovim
 snippets/       rust.json (registered with blink)
 lua/plugins/   one spec per concern (bacon-ls, rustaceanvim, ninety-nine, auto-save, dap, gitsigns, telescope, island-theme, xyno-history, xyno-sandbox, xyno-clipboard, xyno-guard, xyno-rust, xyno-new, xyno-imports, xyno-crates, xyno-macros, …)
 colors/        island-dark colourscheme entry point
 lua/island/    Island Dark: init.lua (mapping), palette.lua (generated)
-lua/config/rainbow*.lua  rainbow brackets: rainbow.lua (options, engine), rainbow_palette.lua, rainbow_scope.lua, rainbow_vars.lua, rainbow_cmd.lua (:XynoRainbow, health); docs/RAINBOW.md
 lua/lualine/   island-dark lualine theme
 tools/         icls2nvim.py (converts a JetBrains .icls you supply into the palette)
 scripts/       bootstrap.sh and bootstrap.ps1 (fresh-install two-step restore, prerequisite check), test.sh (spec runner), test.lua and test.ps1 (the same runner without bash), coverage.lua (coverage report), build-site.py (builds the website), make-share-images.sh (the share cards)

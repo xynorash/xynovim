@@ -53,9 +53,9 @@ vim.o.columns = 160
 vim.o.lines = 50
 local ok, R = pcall(require, "config.rainbow")
 if ok then
-  pcall(function()
-    require("lazy").load({ plugins = { "xynovim-rainbow" } })
-  end)
+  if not R._state.ready then
+    R.setup() -- VeryLazy never fires headless
+  end
   if mode == "off" then
     R.set("enabled", false)
   end

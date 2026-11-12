@@ -893,16 +893,6 @@ function M.setup()
     })
   end
   require("config.rainbow_scope").setup()
-  -- the command's code (lua/config/rainbow_cmd.lua) loads on first use
-  api.nvim_create_user_command("XynoRainbow", function(c)
-    require("config.rainbow_cmd").run(c)
-  end, {
-    nargs = "*",
-    desc = "Rainbow brackets: status, switches, palette, scope",
-    complete = function(a, c)
-      return require("config.rainbow_cmd").complete(a, c)
-    end,
-  })
   M.refresh()
   return o
 end

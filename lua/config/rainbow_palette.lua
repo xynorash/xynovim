@@ -135,6 +135,11 @@ function M.min_contrast(o)
   return vim.g.xynovim_contrast == "high" and 7.0 or 3.0
 end
 
+--- the lowest contrast restrained (dimmed) text may have: 4.5:1, or the minimum contrast when that is higher
+function M.restrain_floor(o)
+  return math.max(M.min_contrast(o), 4.5)
+end
+
 --- `fg` lifted to `target`:1 on every surface (the lowest ratio decides).
 function M.ensure(fg, surfaces, target, light)
   local out = fg
@@ -296,9 +301,9 @@ function M.apply(o)
   end
   local normal = vim.api.nvim_get_hl(0, { name = "Normal", link = false })
   local text = normal.fg and tohex(normal.fg) or (light and "#1f2229" or "#bcbec4")
-  -- restrained text is dimmed towards the background, but never below the minimum contrast
+  -- restrained text is dimmed towards the background, but never below 4.5:1 (the level of the theme's comments)
   set(0, "XynoRainbowRestrain", {
-    fg = hexnum(M.ensure(mix(text, bg, o.scope.restrain_strength), surfaces, M.min_contrast(o), light)),
+    fg = hexnum(M.ensure(mix(text, bg, o.scope.restrain_strength), surfaces, M.restrain_floor(o), light)),
   })
   return { by_kind = by_kind, count = #shared, palette = name, red = red, var_count = nvar }
 end

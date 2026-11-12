@@ -61,7 +61,7 @@ below `vim.g`.
 | `variables.enabled` | `false` | rainbow variables: locals coloured by name | Rainbow variables |
 | `variables.colors` | `10` | 2..16 | (premium: generator for variables) |
 | `scope.alpha` | `0.2` | scope tint: the rainbow colour mixed this much into the editor background | the plugin's alpha 0.2 |
-| `scope.restrain_strength` | `0.65` | how far outside text is dimmed towards the background (never below `min_contrast`) | restrain highlighting effect |
+| `scope.restrain_strength` | `0.65` | how far outside text is dimmed towards the background (never below 4.5:1, the level of the theme's comments, or `min_contrast` when higher) | restrain highlighting effect |
 | `scope.restrain_keep_colors` | `false` | keep the tree-sitter hue of the dimmed text | Keep original colours when restrained |
 | `scope.any_key` | `false` | `false`: ESC clears the scope highlight; `true`: any key | Press any key to remove the highlighting effect |
 | `scope.mouse` | `true` | `<C-RightMouse>` highlights, `<A-RightMouse>` restrains | the two mouse actions |
@@ -165,7 +165,7 @@ edit that is slower than the median costs about 10 ms more with the brackets on.
 the config with it, real TUI in a tmux pty; medians, ms): no file, VeryLazy fired 51.2 -> 50.2, ready 82.6 -> 81.0; with a
 `.rs` file, UIEnter 224.2 -> 224.8, ready 360.2 -> 357.3. The paired differences range from -26 to +35 ms because of the
 load, so **no change is measurable at this noise level**; the in-process cost of loading the module and running its
-`setup()` at VeryLazy was 0.9 to 2.6 ms in five runs (`require("lazy").load` of the virtual spec, no file open), which is
+`setup()` at VeryLazy was 0.9 to 2.6 ms in five runs (`setup()` run at VeryLazy, no file open; measured when the plugin was still a lazy spec, the work is the same), which is
 the number to compare with the 3 ms budget. The first draw of a Rust buffer also compiles the bracket query once (a
 few milliseconds, inside the first redraw, after the first screen).
 
@@ -198,5 +198,6 @@ branch 2022.3), intellij-rust `RsBraceMatcher.kt`, the rainbow-delimiters Rust q
 ## Files
 
 `lua/config/rainbow.lua` (options, engine, provider), `rainbow_palette.lua` (palettes, generator, contrast, groups),
-`rainbow_scope.lua`, `rainbow_vars.lua`, `rainbow_cmd.lua` (`:XynoRainbow`, health), `lua/plugins/rainbow.lua` (a virtual
-lazy spec: loads at VeryLazy), `tests/rainbow_spec.lua`, `scripts/bench/rainbow.{sh,lua}`.
+`rainbow_scope.lua`, `rainbow_vars.lua`, `rainbow_cmd.lua` (`:XynoRainbow`, health), `rainbow_boot.lua` (the command and a
+VeryLazy autocmd; called from `options.lua`; deliberately no lazy.nvim spec, which would be a plugin without a lock entry),
+`tests/rainbow_spec.lua`, `scripts/bench/rainbow.{sh,lua}`.

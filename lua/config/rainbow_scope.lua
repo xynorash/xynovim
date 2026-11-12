@@ -92,7 +92,7 @@ local function keep_colors(buf, pair, o, mark)
   end
   local light = P.variant() == "light"
   local surfaces = P.surfaces()
-  local target = P.min_contrast(o)
+  local target = P.restrain_floor(o)
   local cache = {}
   local function dim_group(fg)
     local g = cache[fg]

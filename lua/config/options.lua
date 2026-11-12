@@ -66,6 +66,10 @@ vim.g.lazyvim_rust_diagnostics = "bacon-ls"
 -- indent query, guides ...) in tiers; see lua/config/largefile.lua.
 require("config.largefile").setup()
 
+-- Rainbow brackets (lua/config/rainbow.lua): this requires only a command and a VeryLazy autocmd; the engine
+-- loads after the first screen. Options: vim.g.xynovim_rainbow, docs/RAINBOW.md.
+require("config.rainbow_boot").setup()
+
 -- :RustContext, :RustTargets, :RustTools, :RustRoutes, :RustRestart, :ActJob and the server
 -- supervision / statusline autocmds come from the xyno-rust.nvim plugin (lua/plugins/xyno-rust.lua).
 -- :RustNewBin, :RustNewLib, :RustNewWorkspace, :RustNewMember and :EguiNew come from the xyno-new.nvim plugin
