@@ -184,3 +184,42 @@ describe("'run this once' honours drift", function()
     H.eq(false, wt.allowed(ws), "the once-answer does not cover content that changed since")
   end)
 end)
+
+describe("the editor's own cargo add (pinned xyno-crates.nvim has no trust call of its own)", function()
+  it("wrap_crates re-records the trust after a successful add, and a pulled build.rs still asks", function()
+    vim.g.xynovim_workspace_trust = nil
+    wt._reset()
+    local store = wt.store()
+    local ok, ca = pcall(require, "xyno_crates.crate_add")
+    if not ok then
+      return H.skip_file("xyno_crates is not installed")
+    end
+    local ws = H.fixture("basic")
+    H.tmpdir()
+    store.revoke(vim.env.XYNO_TEST_TMP) -- the run's temp dir is trusted recursively: that would hide the check
+    store.trust(ws)
+    local orig = ca.run_add
+    local wrapped_before = ca._xynovim_trust_wrapped
+    ca.run_add = function(_, _, cb) -- stands for cargo add: it edits the manifest, then reports success
+      write(ws .. "/Cargo.toml", table.concat(vim.fn.readfile(ws .. "/Cargo.toml"), "\n") .. "\n# cargo add\n")
+      cb(true, "added")
+    end
+    ca._xynovim_trust_wrapped = nil
+    local has_own = pcall(require, "xyno_crates.trust_rehash") -- a newer plugin does it itself
+    local did = wt.wrap_crates()
+    local done
+    ca.run_add(ws, { name = "x", manifest = ws .. "/Cargo.toml" }, function(v)
+      done = v
+    end)
+    if not has_own then
+      H.ok(did)
+      H.eq(true, done)
+      H.ok(store.is_trusted(ws), "the manifest cargo add wrote is the editor's own edit")
+    end
+    write(ws .. "/build.rs", "fn main() {}\n")
+    H.not_ok(store.is_trusted(ws), "a pulled build.rs next to it is not")
+    ca.run_add, ca._xynovim_trust_wrapped = orig, wrapped_before
+    store.revoke(ws)
+    store.trust(vim.env.XYNO_TEST_TMP, { recursive = true })
+  end)
+end)

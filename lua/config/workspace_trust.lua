@@ -691,6 +691,69 @@ function M.note_saved(root, file, t)
   session[key] = { hash = fp.hash, files = fp.files }
 end
 
+--- The editor's own edit of manifests (`cargo add`, a feature switch of xyno-crates.nvim): record the new
+--- content for the workspace `root`, so the next action does not ask again. Only `files` may differ from
+--- what was trusted (a pulled build.rs next to them still asks). Returns whether an entry was refreshed.
+function M.edited(root, files)
+  local t = plugin()
+  if not t or not root then
+    return false
+  end
+  local done = false
+  if type(t.rehash) == "function" then
+    local ok, r = pcall(t.rehash, root, files)
+    done = ok and r == true
+  end
+  local key = key_of(root)
+  if key and session[key] and type(t.fingerprint) == "function" then
+    for _, f in ipairs(files) do
+      M.note_saved(root, f, t)
+    end
+  end
+  cache = {}
+  return done
+end
+
+--- xyno-crates.nvim versions that do not call `edited` themselves (the pinned one): wrap the functions that
+--- write Cargo.toml so a successful `cargo add` or feature switch re-records the trust. Idempotent.
+function M.wrap_crates()
+  local ok, ca = pcall(require, "xyno_crates.crate_add")
+  if not ok or type(ca.run_add) ~= "function" or pcall(require, "xyno_crates.trust_rehash") then
+    return false
+  end
+  if ca._xynovim_trust_wrapped then
+    return true
+  end
+  ca._xynovim_trust_wrapped = true
+  local orig = ca.run_add
+  ca.run_add = function(root, spec, cb)
+    return orig(root, spec, function(done, ...)
+      if done == true then
+        M.edited(root, { spec.manifest or (root .. "/Cargo.toml"), root .. "/Cargo.toml" })
+      end
+      if cb then
+        return cb(done, ...)
+      end
+    end)
+  end
+  local okm, mf = pcall(require, "xyno_crates.features.manifest")
+  if okm and type(mf.set_features) == "function" then
+    local orig_set = mf.set_features
+    mf.set_features = function(d, features, on, cb)
+      return orig_set(d, features, on, function(done, ...)
+        if done == true and d.member_manifest then
+          local rc = M.workspace(d.member_manifest)
+          M.edited(rc, { d.member_manifest })
+        end
+        if cb then
+          return cb(done, ...)
+        end
+      end)
+    end
+  end
+  return true
+end
+
 --- Hook the trust store (so `:RustTrust add` / revoke restart the servers at once), the statusline, the
 --- guards of rustaceanvim, and the content checks (saves inside Neovim re-record, FocusGained re-checks).
 --- Idempotent. Without xyno_rust.trust only the guards are installed.
