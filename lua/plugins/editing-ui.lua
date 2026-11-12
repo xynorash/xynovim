@@ -133,7 +133,7 @@ return {
             return not tall()
           end,
         },
-        { section = "startup" },
+        { section = "startup", icon = require("config.ui").ascii_active() and "" or "⚡ " },
       }
       -- Pickers: below 120 columns snacks uses its `vertical` layout, which asks for
       -- min_height = 30 and puts the preview in the lower 40%; at 80x24 the preview's

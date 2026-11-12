@@ -33,12 +33,7 @@ return {
       opts.dashboard.preset = opts.dashboard.preset or {}
       local ascii = ui().ascii_active()
       opts.dashboard.preset.header = ascii and HEADER_ASCII or HEADER
-      -- snacks' own sections (header, keys, startup) with the startup line's "⚡ " dropped in ascii mode
-      opts.dashboard.sections = {
-        { section = "header" },
-        { section = "keys", gap = 1, padding = 1 },
-        { section = "startup", icon = ascii and "" or "⚡ " },
-      }
+      -- the sections (and the startup line's icon, dropped in ascii mode) are in plugins/editing-ui.lua
       if ascii then
         for _, key in ipairs(opts.dashboard.preset.keys or {}) do
           key.icon = "> "
