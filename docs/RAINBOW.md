@@ -162,11 +162,11 @@ edit that is slower than the median costs about 10 ms more with the brackets on.
 `{` into the large file took 909 ms (median) in this probe.
 
 **Startup** (`scripts/bench/bench.sh --only startup -n 10`, five interleaved pairs of the config before this work against
-the config with it, real TUI in a tmux pty; medians, ms): no file, VeryLazy fired 51.2 -> 50.2, ready 82.6 -> 81.0; with a
+the config with it, measured while the start was still a lazy.nvim spec with the same work, real TUI in a tmux pty; medians, ms): no file, VeryLazy fired 51.2 -> 50.2, ready 82.6 -> 81.0; with a
 `.rs` file, UIEnter 224.2 -> 224.8, ready 360.2 -> 357.3. The paired differences range from -26 to +35 ms because of the
-load, so **no change is measurable at this noise level**; the in-process cost of loading the module and running its
-`setup()` at VeryLazy was 0.9 to 2.6 ms in five runs (`setup()` run at VeryLazy, no file open; measured when the plugin was still a lazy spec, the work is the same), which is
-the number to compare with the 3 ms budget. The first draw of a Rust buffer also compiles the bracket query once (a
+load, so **no change is measurable at this noise level**; the in-process cost is the number to compare with the 3 ms budget:
+the boot module that `options.lua` requires (a command and an autocmd) took 0.13 to 0.37 ms, and loading the engine and
+running its `setup()` at VeryLazy 1.0 to 1.7 ms (five fresh processes each, `hrtime` around the calls). The first draw of a Rust buffer also compiles the bracket query once (a
 few milliseconds, inside the first redraw, after the first screen).
 
 ## Not implemented, and why
