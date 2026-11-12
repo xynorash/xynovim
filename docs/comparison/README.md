@@ -23,3 +23,5 @@ Screenshot limit: the browser window was narrow (about 885 px wide), and shots a
 | rustaceanvim | rustaceanvim-github.jpg | GitHub repo (3.2k stars, v9.2.2 shown, GPL-2.0) |
 
 See notes.md for the feature, performance, security and customization tables.
+
+See also [MATRIX.md](MATRIX.md) (every item, one table, with sources and next steps) and [ONE-PAGE.md](ONE-PAGE.md) (short summary).
