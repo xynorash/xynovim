@@ -49,14 +49,34 @@ local function lift(fg, on, target)
   for i = 1, 3 do
     f[i] = tonumber(fg:sub(2 * i, 2 * i + 1), 16)
   end
-  local out = fg
-  for t = 0, 100 do
-    out = string.format(
+  local function mix(t)
+    return string.format(
       "#%02x%02x%02x",
       f[1] + (255 - f[1]) * t / 100 + 0.5,
       f[2] + (255 - f[2]) * t / 100 + 0.5,
       f[3] + (255 - f[3]) * t / 100 + 0.5
     )
+  end
+  local out = mix(0)
+  if ratio(out, on) >= target then
+    return out
+  end
+  if lum(out) >= lum(on) then
+    -- text lighter than its surface: the ratio only grows with t, so the first t that reaches the target
+    -- is found by bisection (7 steps instead of up to 100; startup runs ~30 of these)
+    local lo, hi = 0, 100
+    while hi - lo > 1 do
+      local mid = math.floor((lo + hi) / 2)
+      if ratio(mix(mid), on) >= target then
+        hi = mid
+      else
+        lo = mid
+      end
+    end
+    return mix(hi)
+  end
+  for t = 1, 100 do
+    out = mix(t)
     if ratio(out, on) >= target then
       break
     end

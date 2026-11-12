@@ -474,6 +474,9 @@ return {
     -- inline values: the previews of xyno_rust_preview.py, one line each (a 600-character String filled the
     -- line); the whole value is one <leader>dv away
     "theHamsta/nvim-dap-virtual-text",
+    -- a top-level spec is eager unless it says otherwise: without this nvim-dap, mason-nvim-dap and mason
+    -- were loaded at every start (+25 ms, measured); LazyVim loads it as a dependency of nvim-dap
+    lazy = true,
     opts = {
       display_callback = function(variable, _, _, _, options)
         return require("config.dap_values").inline_text(variable, options)
