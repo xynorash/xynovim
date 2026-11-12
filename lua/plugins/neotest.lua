@@ -25,6 +25,12 @@ return {
       diagnostic = { enabled = true, severity = vim.diagnostic.severity.ERROR },
       floating = { border = "rounded", max_height = 0.6, max_width = 0.8 },
       consumers = {
+        -- every neotest run (cargo test / nextest of the rustaceanvim adapter) compiles and runs workspace code:
+        -- workspace trust first (config/workspace_trust.lua)
+        xyno_trust = function(client)
+          require("config.workspace_trust").guard_neotest(client)
+          return {}
+        end,
         xyno_panel = function(client)
           require("config.test_ui").consumer(client)
         end,

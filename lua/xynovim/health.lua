@@ -4,7 +4,7 @@ local M = {}
 
 local function first_line(cmd)
   local ok, o = pcall(function()
-    return vim.system(cmd, { text = true }):wait(5000)
+    return vim.system(cmd, { text = true }):wait(5000) -- trust: read-only `--version` probes of tools, no workspace involved
   end)
   if not ok or o.code ~= 0 then
     return nil
@@ -156,15 +156,18 @@ function M.check()
   vim.health.start("xynovim: workspace trust")
   local wt_ok, wt = pcall(require, "config.workspace_trust")
   if not wt_ok or not wt.enabled() then
-    if vim.g.xynovim_workspace_trust == false then
-      vim.health.warn(
-        "restricted mode is switched off (vim.g.xynovim_workspace_trust = false)",
-        "rust-analyzer and clippy always run build scripts and proc macros"
+    if vim.g.xynovim_workspace_trust ~= false then
+      vim.health.error(
+        "xyno-rust.nvim has no workspace trust (older pinned commit): Rust workspaces stay RESTRICTED and nothing can run their code",
+        {
+          "update the xyno-rust.nvim pin in lazy-lock.json (the trust list and the prompt live there)",
+          "or switch the gate off: vim.g.xynovim_workspace_trust = false (rust-analyzer and clippy then run build scripts and proc macros)",
+        }
       )
     else
       vim.health.warn(
-        "xyno-rust.nvim has no workspace trust (older pinned commit): rust-analyzer and clippy are not gated",
-        "update the xyno-rust.nvim pin in lazy-lock.json"
+        "restricted mode is switched off (vim.g.xynovim_workspace_trust = false)",
+        "rust-analyzer, clippy, tests, coverage and debug builds always run build scripts and proc macros"
       )
     end
   else
@@ -229,7 +232,7 @@ function M.check()
   vim.health.start("xynovim: debugger value rendering")
   do
     local ok, o = pcall(function()
-      return vim.system({ "rustc", "--print", "sysroot" }, { text = true }):wait(10000)
+      return vim.system({ "rustc", "--print", "sysroot" }, { text = true }):wait(10000) -- trust: read-only prints the toolchain path, runs no project code
     end)
     local script = ok and o.code == 0 and vim.trim(o.stdout) .. "/lib/rustlib/etc/lldb_lookup.py"
     if script and vim.uv.fs_stat(script) then

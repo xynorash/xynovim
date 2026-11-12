@@ -34,9 +34,18 @@ return {
         -- same features/target as the diagnostics (:RustContext)
         local rc = require("xyno_rust.rust_context")
         vim.list_extend(cmd, rc.cargo_flags(rc.get(root)))
-        vim.notify("coverage: running " .. table.concat(cmd, " "))
-        vim.system(cmd, { cwd = root, text = true }, function(o)
+        -- cargo llvm-cov builds the workspace (build.rs, proc macros) and runs its tests: workspace trust first
+        require("config.workspace_trust").system(cmd, {
+          cwd = root,
+          text = true,
+          on_start = function()
+            vim.notify("coverage: running " .. table.concat(cmd, " "))
+          end,
+        }, function(o)
           vim.schedule(function()
+            if o.denied then
+              return -- refused: the gate said so already
+            end
             if o.code ~= 0 then
               return vim.notify("coverage run failed:\n" .. (o.stderr or ""):sub(-600), vim.log.levels.ERROR)
             end
@@ -73,7 +82,7 @@ return {
               vim.notify("coverage: some tests FAILED (the report is still written)", vim.log.levels.WARN)
             end
           end)
-        end)
+        end, "coverage (" .. table.concat(cmd, " ") .. ")")
       end,
       desc = "Coverage: run + show",
     },

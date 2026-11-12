@@ -168,7 +168,7 @@ end
 
 local function run(cmd)
   local ok, o = pcall(function()
-    return vim.system(cmd, { text = true }):wait(3000)
+    return vim.system(cmd, { text = true }):wait(3000) -- trust: read-only terminal capability probes (tmux, infocmp, fc-list), no Rust tool, no workspace
   end)
   if ok and o.code == 0 then
     return o.stdout

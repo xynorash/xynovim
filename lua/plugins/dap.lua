@@ -17,7 +17,7 @@ local function metadata(path)
     return nil
   end
   local o = vim
-    .system({ "cargo", "metadata", "--format-version", "1", "--no-deps" }, { cwd = root, text = true })
+    .system({ "cargo", "metadata", "--format-version", "1", "--no-deps" }, { cwd = root, text = true }) -- trust: read-only no-deps metadata reads manifests (checked in xyno-rust's trust spec)
     :wait(30000)
   if o.code ~= 0 then
     return nil
@@ -108,19 +108,42 @@ local function build_current_binary()
     notify("no Cargo package with a binary found for this buffer", vim.log.levels.ERROR)
     return require("dap").ABORT
   end
-  notify("cargo build --package " .. b.pkg .. " --bin " .. b.bin)
+  local wt = require("config.workspace_trust")
   local cmd = { "cargo", "build", "--package", b.pkg, "--bin", b.bin }
+  -- the build runs build.rs and proc macros of the workspace: workspace trust first. nvim-dap calls this in
+  -- a coroutine (the prompt can be answered while the UI stays alive); outside one nothing can wait for an
+  -- answer, so an untrusted workspace aborts with the command to trust it.
   local co = coroutine.running()
+  if not wt.allowed(b.dir) then
+    if not co then
+      notify("not built: " .. b.dir .. " is not a trusted workspace (:RustTrust add)", vim.log.levels.WARN)
+      return require("dap").ABORT
+    end
+    local asked
+    wt.require(b.dir, table.concat(cmd, " "), function(ok)
+      asked = { ok = ok }
+      if co and coroutine.status(co) == "suspended" then
+        coroutine.resume(co)
+      end
+    end)
+    if not asked then
+      coroutine.yield()
+    end
+    if not (asked and asked.ok) then
+      return require("dap").ABORT
+    end
+  end
+  notify("cargo build --package " .. b.pkg .. " --bin " .. b.bin)
   local res
   if co then
-    vim.system(cmd, { cwd = b.dir, text = true }, function(o)
+    vim.system(cmd, { cwd = b.dir, text = true }, function(o) -- trust: checked above (wt.allowed / wt.require)
       vim.schedule(function()
         coroutine.resume(co, o)
       end)
     end)
     res = coroutine.yield()
   else
-    res = vim.system(cmd, { cwd = b.dir, text = true }):wait()
+    res = vim.system(cmd, { cwd = b.dir, text = true }):wait() -- trust: checked above (wt.allowed)
   end
   if res.code ~= 0 then
     notify("cargo build failed:\n" .. (res.stderr or ""), vim.log.levels.ERROR)
@@ -141,7 +164,7 @@ local sysroot_script
 --- Resolved once, on the first launch (not at startup).
 local function lldb_lookup_script()
   if sysroot_script == nil then
-    local o = vim.system({ "rustc", "--print", "sysroot" }, { text = true }):wait(10000)
+    local o = vim.system({ "rustc", "--print", "sysroot" }, { text = true }):wait(10000) -- trust: read-only prints the toolchain path, runs no project code
     local script = o.code == 0 and vim.trim(o.stdout) .. "/lib/rustlib/etc/lldb_lookup.py"
     sysroot_script = script and vim.uv.fs_stat(script) and script or false
   end

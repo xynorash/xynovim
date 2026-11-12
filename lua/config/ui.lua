@@ -250,6 +250,143 @@ end
 
 local last_row = {}
 
+-- Incremental cursor-mode redraw ---------------------------------------------------------------
+-- A cursor move used to call vim.diagnostic.show(nil, buf): every diagnostic of the buffer was
+-- formatted again (room() asks for the diagnostics of the line each time: quadratic) and every handler
+-- (signs, underline, virtual text) redrew everything. Only the lines whose shape depends on the cursor
+-- row change: the row the cursor left and the row it entered (and multi-line diagnostics covering them).
+-- The built-in virtual_text handler is wrapped to remember what it was given; the extmarks of those few
+-- lines are then rewritten in place (same extmark ids, so Neovim's own restore-after-edit cache stays valid).
+local vt_state = {} -- [diagnostic namespace][buf] = { lines = {lnum -> diagnostics}, multi = {...}, opts, row }
+local vt_wrapped = false
+
+local function vt_cursor_row(buf)
+  local win = vim.fn.bufwinid(buf)
+  if win == -1 then
+    return nil
+  end
+  return vim.api.nvim_win_get_cursor(win)[1] - 1
+end
+
+local function vt_incremental_ok(opts)
+  -- what the wrapper can re-create faithfully: a plain virtual_text table without current_line/source
+  return type(opts) == "table" and opts.current_line == nil and not opts.source
+end
+
+local function vt_wrap()
+  if vt_wrapped then
+    return
+  end
+  vt_wrapped = true
+  local orig = vim.diagnostic.handlers.virtual_text
+  vim.diagnostic.handlers.virtual_text = {
+    show = function(namespace, bufnr, diagnostics, opts)
+      orig.show(namespace, bufnr, diagnostics, opts)
+      vt_state[namespace] = vt_state[namespace] or {}
+      if not vt_incremental_ok(opts and opts.virtual_text) then
+        vt_state[namespace][bufnr] = nil
+        return
+      end
+      local lines, multi = {}, {}
+      for _, d in ipairs(diagnostics) do
+        local l = lines[d.lnum]
+        if not l then
+          l = {}
+          lines[d.lnum] = l
+        end
+        l[#l + 1] = d
+        if (d.end_lnum or d.lnum) > d.lnum then
+          multi[#multi + 1] = d
+        end
+      end
+      vt_state[namespace][bufnr] = { lines = lines, multi = multi, opts = opts.virtual_text, row = vt_cursor_row(bufnr) }
+    end,
+    hide = function(namespace, bufnr)
+      orig.hide(namespace, bufnr)
+      if vt_state[namespace] then
+        vt_state[namespace][bufnr] = nil
+      end
+    end,
+  }
+end
+
+--- Redraw the virtual text of line `l` of one remembered (namespace, buffer) with the current cursor.
+local function vt_redraw_line(buf, vns, st, l)
+  local diags = st.lines[l] or {}
+  local fmt = st.opts.format
+  if fmt then
+    local out = {}
+    for _, d in ipairs(diags) do
+      local message = fmt(d)
+      if message ~= nil then
+        local c = vim.deepcopy(d, true)
+        c.message = message
+        out[#out + 1] = c
+      end
+    end
+    diags = out
+  end
+  local chunks = vim.api.nvim_buf_line_count(buf) > l and vim.diagnostic._get_virt_text_chunks(diags, st.opts) or nil
+  local marks = vim.api.nvim_buf_get_extmarks(buf, vns, { l, 0 }, { l, -1 }, {})
+  local id = marks[1] and marks[1][1]
+  if not chunks and not id then
+    return
+  end
+  vim.api.nvim_buf_set_extmark(buf, vns, l, 0, {
+    id = id,
+    hl_mode = st.opts.hl_mode or "combine",
+    virt_text = chunks or { { "" } }, -- (an emptied line keeps its mark: the built-in cache would restore a deleted one)
+    virt_text_pos = st.opts.virt_text_pos,
+    virt_text_hide = st.opts.virt_text_hide,
+    virt_text_win_col = st.opts.virt_text_win_col,
+  })
+end
+
+--- The cursor of `buf` moved: rewrite only the lines whose text depends on it. Returns false when the
+--- buffer has to be redrawn the long way (vim.diagnostic.show) instead.
+local function vt_refresh(buf)
+  local now = vt_cursor_row(buf)
+  if now == nil then
+    return false
+  end
+  local touched = false
+  for namespace, bufs in pairs(vt_state) do
+    local st = bufs[buf]
+    if st then
+      local ns = vim.diagnostic.get_namespace(namespace)
+      local vns = ns and ns.user_data and ns.user_data.virt_text_ns
+      if not vns or st.row == nil then
+        return false
+      end
+      local old = st.row
+      if old ~= now then
+        local set = { [old] = true, [now] = true }
+        for _, d in ipairs(st.multi) do
+          local e = d.end_lnum or d.lnum
+          if (old >= d.lnum and old <= e) or (now >= d.lnum and now <= e) then
+            set[d.lnum] = true
+          end
+        end
+        for l in pairs(set) do
+          vt_redraw_line(buf, vns, st, l)
+        end
+        st.row = now
+      end
+      touched = true
+    end
+  end
+  if not touched then
+    return false
+  end
+  for namespace in pairs(vim.diagnostic.get_namespaces()) do
+    if not (vt_state[namespace] and vt_state[namespace][buf]) and next(vim.diagnostic.count(buf, { namespace = namespace })) then
+      return false -- a namespace the wrapper could not follow: draw the long way
+    end
+  end
+  return true
+end
+M._vt_refresh = vt_refresh
+
 -- Hints (item 1) ----------------------------------------------------------------------------------
 
 -- rust-analyzer settings behind each kind: { path in `inlayHints`, on value, off value }
@@ -664,6 +801,7 @@ end
 -- Setup ----------------------------------------------------------------------------------------------------
 
 function M.setup()
+  vt_wrap()
   local group = vim.api.nvim_create_augroup("xynovim_ui", { clear = true })
 
   vim.api.nvim_create_user_command("Hints", function(o)
@@ -764,17 +902,24 @@ function M.setup()
   -- diagnostics: the cursor line changed, so the cursor-line-first text moves with it; a resize
   -- changes the room a line has. Debounced (item 11): holding j does not redraw per line.
   local timer = assert(vim.uv.new_timer())
-  local pending = {}
+  local pending = {} -- buf -> "cursor" (only the lines around the cursor changed) | "full" (a resize: every line)
   local function flush()
-    for buf in pairs(pending) do
+    for buf, kind in pairs(pending) do
       if vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_buf_is_loaded(buf) then
-        pcall(vim.diagnostic.show, nil, buf)
+        local done = false
+        if kind == "cursor" then
+          local ok, r = pcall(vt_refresh, buf)
+          done = ok and r
+        end
+        if not done then
+          pcall(vim.diagnostic.show, nil, buf)
+        end
       end
     end
     pending = {}
   end
-  local function later(buf)
-    pending[buf] = true
+  local function later(buf, full)
+    pending[buf] = (full or pending[buf] == "full") and "full" or "cursor"
     timer:stop()
     timer:start(vim.fn.mode():find("^[iR]") and 120 or 30, 0, vim.schedule_wrap(flush))
   end
@@ -800,7 +945,7 @@ function M.setup()
       for _, w in ipairs(vim.api.nvim_list_wins()) do
         local b = vim.api.nvim_win_get_buf(w)
         if next(vim.diagnostic.count(b)) ~= nil then
-          later(b)
+          later(b, true)
         end
       end
     end,

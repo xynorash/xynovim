@@ -787,10 +787,19 @@ function M.run_doctests()
   local cmd = { "cargo", "test", "--doc", "--workspace" }
   vim.list_extend(cmd, rc.cargo_flags(rc.get(root)))
   local t0 = vim.uv.hrtime()
-  vim.notify("doc-tests: " .. table.concat(cmd, " "), vim.log.levels.INFO, { title = "tests" })
   local tmp = vim.fn.tempname()
-  vim.system(cmd, { cwd = root, text = true }, function(o)
+  -- doctests compile and run the workspace's code (build.rs, proc macros, the examples): workspace trust first
+  require("config.workspace_trust").system(cmd, {
+    cwd = root,
+    text = true,
+    on_start = function()
+      vim.notify("doc-tests: " .. table.concat(cmd, " "), vim.log.levels.INFO, { title = "tests" })
+    end,
+  }, function(o)
     vim.schedule(function()
+      if o.denied then
+        return
+      end
       local text = (o.stdout or "") .. "\n" .. (o.stderr or "")
       vim.fn.writefile(vim.split(text, "\n", { plain = true }), tmp)
       local parsed = M.parse(text)
@@ -804,7 +813,7 @@ function M.run_doctests()
         { enter = false }
       )
     end)
-  end)
+  end, "doc-tests (" .. table.concat(cmd, " ") .. ")")
 end
 
 -- ------------------------------------------------------------------ nextest profiles
