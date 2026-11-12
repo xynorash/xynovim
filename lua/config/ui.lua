@@ -75,28 +75,154 @@ function M.has_nerd_font(fonts)
     or fonts:find("symbols nerd", 1, true) ~= nil
 end
 
---- The detection hint: text when this machine has no Nerd Font installed (via fontconfig), else
---- nil. It is a hint only: the terminal may use a font fontconfig does not list.
---- @param fonts? string test seam; default `fc-list`
---- @return string?
-function M.font_hint(fonts)
-  if not fonts then
-    if vim.fn.executable("fc-list") ~= 1 then
-      return nil
-    end
-    local ok, o = pcall(function()
-      return vim.system({ "fc-list" }, { text = true }):wait(3000)
-    end)
-    if not ok or o.code ~= 0 then
-      return nil
-    end
-    fonts = o.stdout or ""
+-- Fonts (fc-list) --------------------------------------------------------------------------------
+-- `fc-list` lists every font on the machine (hundreds of ms, megabytes of text). It used to run on the main
+-- thread, with a 3 s wait, every time :XynoIcons or :checkhealth asked. Now it runs in the background and
+-- the answer (only the Nerd Font lines: that is all the hint needs) is cached in stdpath("cache"), keyed on
+-- the modification times of fontconfig's cache and font directories, so it is asked again only after fonts
+-- were installed or removed (and fc-cache ran).
+
+local function fonts_cache_file()
+  return vim.fs.joinpath(vim.fn.stdpath("cache"), "xynovim-fonts.json")
+end
+
+--- A string that changes when the installed fonts change.
+function M.fonts_key()
+  local home = vim.env.HOME or vim.uv.os_homedir() or ""
+  local xdg_cache = vim.env.XDG_CACHE_HOME or vim.fs.joinpath(home, ".cache")
+  local xdg_data = vim.env.XDG_DATA_HOME or vim.fs.joinpath(home, ".local", "share")
+  local parts = {}
+  for _, path in ipairs({
+    "/etc/fonts/fonts.conf",
+    "/var/cache/fontconfig",
+    "/usr/share/fonts",
+    "/usr/local/share/fonts",
+    vim.fs.joinpath(xdg_data, "fonts"),
+    vim.fs.joinpath(home, ".fonts"),
+    vim.fs.joinpath(xdg_cache, "fontconfig"),
+  }) do
+    local st = vim.uv.fs_stat(path)
+    parts[#parts + 1] = st and (st.mtime.sec .. "." .. st.mtime.nsec) or "-"
   end
-  if M.has_nerd_font(fonts) then
+  return table.concat(parts, "|")
+end
+
+local function read_fonts_cache()
+  local f = io.open(fonts_cache_file(), "r")
+  if not f then
     return nil
   end
-  return "No Nerd Font found on this system (fc-list). If icons show as boxes, install one and set the "
-    .. 'terminal font to it, or switch to plain text: :XynoIcons ascii (vim.g.xynovim_icons = "ascii").'
+  local ok, data = pcall(vim.json.decode, f:read("*a"))
+  f:close()
+  if ok and type(data) == "table" and type(data.key) == "string" and type(data.sample) == "string" then
+    return data
+  end
+end
+
+--- The Nerd Font lines of `fc-list` from the cache, or nil when there is no valid entry (nothing is run).
+--- @return string?
+function M.fonts_cached()
+  local c = read_fonts_cache()
+  if c and c.key == M.fonts_key() then
+    return c.sample
+  end
+end
+
+local fonts_waiting -- callbacks of the fc-list run in flight
+
+--- The Nerd Font lines of `fc-list` ("" = fonts exist, none is a Nerd Font), without blocking: cb(sample), or
+--- cb(nil) when fontconfig is not installed or fc-list failed. The cache answers at once.
+--- @param cb fun(sample: string?)
+function M.fonts_async(cb)
+  local cached = M.fonts_cached()
+  if cached then
+    return vim.schedule(function()
+      cb(cached)
+    end)
+  end
+  if fonts_waiting then
+    table.insert(fonts_waiting, cb)
+    return
+  end
+  if vim.fn.executable("fc-list") ~= 1 then
+    return vim.schedule(function()
+      cb(nil)
+    end)
+  end
+  fonts_waiting = { cb }
+  local key = M.fonts_key() -- before the run: a change during it makes the entry stale, not wrong
+  local function done(sample)
+    local waiting = fonts_waiting
+    fonts_waiting = nil
+    for _, f in ipairs(waiting) do
+      pcall(f, sample)
+    end
+  end
+  local ok = pcall(vim.system, { "fc-list" }, { text = true, timeout = 10000 }, vim.schedule_wrap(function(o)
+    if o.code ~= 0 then
+      return done(nil)
+    end
+    local keep = {}
+    for line in (o.stdout or ""):gmatch("[^\n]+") do
+      if M.has_nerd_font(line) then
+        keep[#keep + 1] = line
+        if #keep >= 50 then
+          break
+        end
+      end
+    end
+    local sample = table.concat(keep, "\n")
+    pcall(function()
+      vim.fn.mkdir(vim.fs.dirname(fonts_cache_file()), "p")
+      local f = assert(io.open(fonts_cache_file(), "w"))
+      f:write(vim.json.encode({ key = key, sample = sample }))
+      f:close()
+    end)
+    done(sample)
+  end))
+  if not ok then
+    done(nil)
+  end
+end
+
+--- fonts_async for callers that cannot take a callback (:checkhealth): the cache, else waits for the
+--- background run for at most `timeout` ms (default 3000).
+--- @return string?
+function M.fonts_wait(timeout)
+  local cached = M.fonts_cached()
+  if cached then
+    return cached
+  end
+  local got, finished
+  M.fonts_async(function(sample)
+    got, finished = sample, true
+  end)
+  vim.wait(timeout or 3000, function()
+    return finished
+  end, 10)
+  return got
+end
+
+local HINT = "No Nerd Font found on this system (fc-list). If icons show as boxes, install one and set the "
+  .. 'terminal font to it, or switch to plain text: :XynoIcons ascii (vim.g.xynovim_icons = "ascii").'
+
+--- The detection hint: text when this machine has no Nerd Font installed (via fontconfig), else
+--- nil. It is a hint only: the terminal may use a font fontconfig does not list.
+--- @param fonts? string test seam, else the cached answer (nothing is run: use font_hint_async to fill it)
+--- @return string?
+function M.font_hint(fonts)
+  fonts = fonts or M.fonts_cached()
+  if not fonts or M.has_nerd_font(fonts) then
+    return nil
+  end
+  return HINT
+end
+
+--- font_hint without blocking: cb(hint|nil).
+function M.font_hint_async(cb)
+  M.fonts_async(function(sample)
+    cb(sample ~= nil and M.font_hint(sample) or nil)
+  end)
 end
 
 local icons_original
@@ -848,7 +974,9 @@ function M.setup()
     elseif a ~= "" then
       return vim.notify("XynoIcons: nerd, ascii or auto", vim.log.levels.WARN)
     else
-      vim.notify("icons: " .. M.icon_mode() .. (M.font_hint() and ("\n" .. M.font_hint()) or ""))
+      M.font_hint_async(function(hint)
+        vim.notify("icons: " .. M.icon_mode() .. (hint and ("\n" .. hint) or ""))
+      end)
     end
   end, {
     nargs = "?",

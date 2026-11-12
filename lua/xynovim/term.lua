@@ -166,13 +166,24 @@ function M.diagnose(env)
   return out
 end
 
-local function run(cmd)
-  local ok, o = pcall(function()
-    return vim.system(cmd, { text = true }):wait(3000) -- trust: read-only terminal capability probes (tmux, infocmp, fc-list), no Rust tool, no workspace
-  end)
-  if ok and o.code == 0 then
-    return o.stdout
+--- Run the commands at the same time without blocking the editor's main thread on any single one:
+--- each has its own 3 s allowance, the wait is for the slowest (not the sum). Returns stdout (nil on failure).
+local function run_all(cmds)
+  local out, pending = {}, 0
+  for i, cmd in ipairs(cmds) do
+    pending = pending + 1
+    local ok = pcall(vim.system, cmd, { text = true, timeout = 3000 }, function(o)
+      out[i] = o.code == 0 and o.stdout or nil
+      pending = pending - 1
+    end)
+    if not ok then
+      pending = pending - 1
+    end
   end
+  vim.wait(3500, function()
+    return pending <= 0
+  end, 5)
+  return out
 end
 
 --- The real environment.
@@ -196,11 +207,21 @@ function M.collect()
     vars[k] = vim.env[k]
   end
   local env = { vars = vars }
+  local cmds, want = {}, {}
   if vim.fn.executable("infocmp") == 1 and vars.TERM then
-    env.infocmp = run({ "infocmp", "-x", vars.TERM })
+    cmds[#cmds + 1] = { "infocmp", "-x", vars.TERM }
+    want.infocmp = #cmds
   end
   if (vars.TMUX or "") ~= "" and vim.fn.executable("tmux") == 1 then
-    env.tmux = (run({ "tmux", "show-options", "-s" }) or "") .. (run({ "tmux", "show-options", "-g" }) or "")
+    cmds[#cmds + 1] = { "tmux", "show-options", "-s" }
+    want.tmux_s = #cmds
+    cmds[#cmds + 1] = { "tmux", "show-options", "-g" }
+    want.tmux_g = #cmds
+  end
+  local outs = run_all(cmds)
+  env.infocmp = want.infocmp and outs[want.infocmp] or nil
+  if want.tmux_s then
+    env.tmux = (outs[want.tmux_s] or "") .. (outs[want.tmux_g] or "")
   end
   local cfg =
     vim.fs.joinpath(vim.env.XDG_CONFIG_HOME or vim.fs.joinpath(vim.env.HOME or "", ".config"), "ghostty", "config")
@@ -210,7 +231,7 @@ function M.collect()
     f:close()
   end
   if vim.fn.executable("fc-list") == 1 then
-    env.fonts = run({ "fc-list" })
+    env.fonts = require("config.ui").fonts_wait(3000) -- background fc-list + cache (stdpath("cache")), not a blocking run
   end
   return env
 end
