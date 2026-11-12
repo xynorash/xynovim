@@ -9,6 +9,14 @@ if vim.fn.has("win32") == 1 and (vim.env.HOME or "") == "" then
   vim.env.HOME = vim.uv.os_homedir() -- Windows has USERPROFILE; several specs read $HOME
 end
 local repo = vim.fs.dirname(vim.fs.dirname(debug.getinfo(1, "S").source:sub(2)))
+-- The xyno-rust.nvim pinned by lazy-lock.json may predate xyno_rust.trust. Without a trust store the
+-- workspace-trust gate is fail-closed (config/workspace_trust.lua: a workspace with a Cargo.toml cannot be
+-- trusted, so rust-analyzer runs restricted and nothing may run project code). The specs that are not about
+-- the gate run on fixtures and would all be restricted: they run with the switch off. The specs about the
+-- gate (workspace-trust, trust-gate-commands) reset it to nil in their own hooks.
+if not pcall(require, "xyno_rust.trust") then
+  vim.g.xynovim_workspace_trust = false
+end
 -- "tests.*" would also match other plugins' lua/tests/ modules (lazy's loader
 -- runs before package.path), so the helpers live under a private name.
 for _, name in ipairs({ "helpers", "harness" }) do
