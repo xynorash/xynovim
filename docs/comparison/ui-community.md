@@ -158,3 +158,25 @@ Evidence is limited to what is in this file; "unknown" means I could not establi
 - Zed's inline diagnostics settings were not found in the docs page fetched; only the 382-reaction request (Z1) is cited.
 - Colour-blind support of Zed, Helix and RustRover themes was not checked beyond search results.
 - Nothing here was implemented; the shortlist is a proposal.
+
+## Implementation status (2026-11-12, branch `dev`)
+
+Tests: `tests/ui-community_spec.lua`, 55 checks, grid assertions via `screenstring` / `nvim__inspect_cell` in headless Neovim at 60/80/120/200 columns, WCAG ratios computed in the spec itself. Captures: `docs/comparison/screenshots/ui/` (see its README for method and limits).
+
+| # | Item | Status | Source count (this file) | Measured |
+|---|---|---|---|---|
+| 1 | Per-kind inlay hints | done: `:Hints`, statusline `hints TPL`, real rust-analyzer grid test | 4 (1 indirect) | types / params / lifetimes each removed alone on the grid |
+| 2 | Cursor-line-first diagnostics | done: `:DiagnosticsView`, `vim.g.xynovim_diagnostics` | 5 | full text only on the cursor line; Info/Hint hidden elsewhere |
+| 3 | Hint legibility | done | 4 (3 indirect) | 3.23:1 -> 6.07:1 (VS Code default 5.31:1 from its source, tokyonight 2.47:1 computed from its source) |
+| 4 | Severity not by colour alone | done | 3 (1 indirect) | glyph `✗ ▲ ● ◆` (ASCII `x ! i ?`), four underline styles |
+| 5 | Terminal check | done: `lua/xynovim/term.lua` | 4 | tmux / Ghostty / WezTerm / kitty cases in the spec |
+| 6 | High contrast | done: `:IslandContrast high` | 4 (1 indirect) | muted tones >= 7:1 (comments 4.50 -> 7.09, line numbers 3.46 -> 7.07) |
+| 7 | Transparency / float regression | spec only | 4 (2 indirect) | one border, solid float on a transparent editor |
+| 8 | Narrow statusline | done | 3 | file name whole at 60/80/120/200; `<main` stub gone |
+| 9 | ASCII icons | done (dashboard, tabs, tree, statusline separators, signs, mini.icons); code lens "Debug" icon and a few plugin popups still use their own glyphs | 5 (2 indirect) | child Neovim with `XYNOVIM_ICONS=ascii` |
+| 10 | Width-aware truncation | done | 3 | `…` inside the window at 4 widths |
+| 11 | Debounce | done (120 ms in insert mode) | 2 | not timed |
+| 12 | Dashboard header | done | 2 (1 indirect) | centred at 4 widths |
+| 13-16 | | not done | | |
+
+No light variant was made: nothing in the shortlist asks for one. `unknown` that stayed unknown: how Helix, Zed and RustRover measure on hint contrast (only VS Code and tokyonight were derived from source).

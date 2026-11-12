@@ -1,9 +1,19 @@
 -- Rust server readiness (rust-analyzer indexing / ready, bacon-ls clippy
--- running / stale) in the lualine x section; see xyno_rust.lsp_status (xyno-rust.nvim). The 99 sandbox
--- state (xyno-sandbox.nvim) is appended after the stock lualine_x items.
+-- running / stale) in the lualine x section; see xyno_rust.lsp_status (xyno-rust.nvim). The hint kinds,
+-- the 99 sandbox, the disk guard and local history are appended after the stock lualine_x items
+-- (config/ui.lua).
 return {
   "nvim-lualine/lualine.nvim",
   opts = function(_, opts)
+    local ui = require("config.ui")
+    -- narrow windows: components drop by priority (config/ui.lua PRIORITY); the file name, the
+    -- server state and the mode never do
+    ui.lualine(opts)
+    if ui.ascii_active() then
+      opts.options = opts.options or {}
+      opts.options.section_separators = ""
+      opts.options.component_separators = "|"
+    end
     local status = require("xyno_rust.lsp_status")
     table.insert(opts.sections.lualine_x, 1, {
       status.component,
@@ -11,23 +21,11 @@ return {
         return status.component() ~= ""
       end,
     })
-    -- Sandbox state of the 99 agent (on / checking / OFF / refused). Shown once the sandbox module is
-    -- loaded (99 or a :XynoSandbox* command), so the statusline never loads it at startup.
-    table.insert(opts.sections.lualine_x, {
-      function()
-        return require("xyno_sandbox").statusline()
-      end,
-      cond = function()
-        local sandbox = package.loaded["xyno_sandbox"]
-        return sandbox ~= nil and type(sandbox.statusline) == "function"
-      end,
-      color = function()
-        -- lualine builds its highlights while the module may be absent or an older plugin version
-        local sandbox = package.loaded["xyno_sandbox"]
-        if sandbox and type(sandbox.statusline_hl) == "function" then
-          return sandbox.statusline_hl()
-        end
-      end,
-    })
+    -- Inlay-hint kinds, sandbox state of the 99 agent (on / checking / OFF / refused), auto-save
+    -- guard and local-history failures. Each shows only when it has something to say and the
+    -- window is wide enough; none loads its plugin (config/ui.lua).
+    for _, c in ipairs(ui.lualine_x_components()) do
+      table.insert(opts.sections.lualine_x, c)
+    end
   end,
 }

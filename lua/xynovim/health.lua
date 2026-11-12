@@ -151,6 +151,43 @@ function M.check()
     vim.health.info("no graphical session: clipboard goes through OSC 52 / the terminal")
   end
 
+  require("xynovim.term").report()
+
+  vim.health.start("xynovim: workspace trust")
+  local wt_ok, wt = pcall(require, "config.workspace_trust")
+  if not wt_ok or not wt.enabled() then
+    if vim.g.xynovim_workspace_trust == false then
+      vim.health.warn(
+        "restricted mode is switched off (vim.g.xynovim_workspace_trust = false)",
+        "rust-analyzer and clippy always run build scripts and proc macros"
+      )
+    else
+      vim.health.warn(
+        "xyno-rust.nvim has no workspace trust (older pinned commit): rust-analyzer and clippy are not gated",
+        "update the xyno-rust.nvim pin in lazy-lock.json"
+      )
+    end
+  else
+    local r = wt.report()
+    if not r.workspace then
+      vim.health.info("no Cargo workspace at the current directory")
+    elseif r.trusted then
+      vim.health.ok(
+        ("%s is trusted (%s): rust-analyzer and clippy run with the full settings"):format(r.workspace, r.by or "?")
+      )
+    else
+      vim.health.warn(
+        ("%s is NOT trusted: restricted mode (rust-analyzer without build scripts, proc macros and cargo check; no clippy)"):format(
+          r.workspace
+        ),
+        ":RustTrust add (or answer the prompt) trusts it and restarts the servers"
+      )
+    end
+    for _, key in ipairs(r.restricted) do
+      vim.health.info("restricted in this session: " .. key)
+    end
+  end
+
   vim.health.start("xynovim: rust toolchain")
   if vim.fn.executable("rustup") == 0 then
     vim.health.warn("rustup not found", "components cannot be checked; install rustup")

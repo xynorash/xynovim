@@ -13,6 +13,10 @@ return {
         virtual_text = {
           -- the source is part of the format ("if_many" put it in front)
           source = false,
+          -- a glyph per severity (shape, not only colour), config/ui.lua
+          prefix = function(d)
+            return require("config.ui").prefix(d)
+          end,
           format = function(d)
             return require("config.ux").diagnostic_text(d)
           end,

@@ -461,9 +461,10 @@ describe("island-dark syntax and diagnostics", function()
   end)
 
   it("inlay hints, code lens and window separator", function()
-    H.eq("#868a91", fg("LspInlayHint"))
-    H.eq("#393b40", bg("LspInlayHint"))
-    H.eq("#727782", fg("LspCodeLens"))
+    -- the scheme's #868a91 / #727782 are lifted for legibility (ui-community_spec.lua measures the result)
+    H.ok(ratio(fg("LspInlayHint"), bg("LspInlayHint")) >= 6.0, "hint text >= 6:1 on its chip")
+    H.eq("#2b2d30", bg("LspInlayHint"))
+    H.ok(ratio(fg("LspCodeLens"), "#1e1f22") >= 4.5, "code lens >= 4.5:1")
     H.eq("#393b40", fg("WinSeparator"))
   end)
 

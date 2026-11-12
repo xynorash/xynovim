@@ -64,9 +64,49 @@ local function lift(fg, on, target)
   return out
 end
 
+M.ratio, M.lift = ratio, lift
+
 local function fgof(key)
   return (A[key] or {}).fg
 end
+
+--- Groups whose text the high-contrast variant lifts to 7:1 (see M.setup).
+M.HIGH_CONTRAST_GROUPS = {
+  "Comment",
+  "@comment",
+  "@comment.documentation",
+  "LineNr",
+  "LineNrAbove",
+  "LineNrBelow",
+  "NonText",
+  "Whitespace",
+  "SpecialKey",
+  "Conceal",
+  "SignColumn",
+  "FoldColumn",
+  "LspInlayHint",
+  "LspCodeLens",
+  "DiagnosticHint",
+  "DiagnosticVirtualTextHint",
+  "DiagnosticFloatingHint",
+  "DiagnosticSignHint",
+  "DiagnosticUnnecessary",
+  "FloatFooter",
+  "StatusLineNC",
+  "TabLine",
+  "WinBarNC",
+  "XynoPopupFooter",
+  "XynoPopupMuted",
+  "XynoStatusMuted",
+  "XynoStatusBusy",
+  "SnacksDashboardDir",
+  "ComplHint",
+  "ComplHintMore",
+  "PmenuExtra",
+  "PmenuKind",
+  "Directory",
+  "CursorLineNr",
+}
 
 function M.setup()
   local set = function(name, spec)
@@ -207,9 +247,12 @@ function M.setup()
     DiagnosticUnnecessary = { fg = A.NOT_USED_ELEMENT_ATTRIBUTES.fg },
     DiagnosticDeprecated = at("DEPRECATED_ATTRIBUTES", { fg = muted }),
     DiagnosticUnderlineError = { undercurl = true, sp = err_c },
-    DiagnosticUnderlineWarn = { undercurl = true, sp = warn_c },
-    DiagnosticUnderlineInfo = { undercurl = true, sp = A.INFO_ATTRIBUTES.effect_color },
-    DiagnosticUnderlineHint = { underdotted = true, sp = hint_c },
+    -- Severity is not carried by colour alone (ui-community.md item 4): each severity has its own
+    -- underline STYLE (error curly, warning dashed, info dotted, hint plain line). A terminal
+    -- without that style falls back to a plain underline, the colour still differs.
+    DiagnosticUnderlineWarn = { underdashed = true, sp = warn_c },
+    DiagnosticUnderlineInfo = { underdotted = true, sp = A.INFO_ATTRIBUTES.effect_color },
+    DiagnosticUnderlineHint = { underline = true, sp = hint_c },
     DiagnosticUnderlineOk = { undercurl = true, sp = green },
     DiagnosticVirtualTextError = { fg = lift(red, C.ERROR_HINT, 4.5), bg = C.ERROR_HINT },
     DiagnosticVirtualTextWarn = { fg = yellow },
@@ -483,12 +526,19 @@ function M.setup()
 
   -- LSP / editor features ------------------------------------------------------
   local feat = {
-    LspInlayHint = at("INLAY_DEFAULT"),
+    -- Inlay hints (ui-community.md item 3): the scheme's #868a91 on its #393b40 chip is 3.2:1. The chip
+    -- is darkened to the statusline bar colour (#2b2d30, still a visible chip on #1e1f22) and the text is
+    -- lifted to 6.0:1 on it (VS Code ships 5.3:1, tokyonight 2.5:1). On the old chip 6:1 needed #bcbfc3,
+    -- the code text's own colour; here the hint stays visibly dimmer than code (code 8.9:1).
+    LspInlayHint = {
+      fg = lift(A.INLAY_DEFAULT.fg, C.DIFF_SEPARATORS_BACKGROUND, 6.0),
+      bg = C.DIFF_SEPARATORS_BACKGROUND,
+    },
     LspReferenceText = { bg = A.IDENTIFIER_UNDER_CARET_ATTRIBUTES.bg },
     LspReferenceRead = { bg = A.IDENTIFIER_UNDER_CARET_ATTRIBUTES.bg },
     LspReferenceWrite = { bg = A.WRITE_IDENTIFIER_UNDER_CARET_ATTRIBUTES.bg },
     LspReferenceTarget = { bg = A.IDENTIFIER_UNDER_CARET_ATTRIBUTES.bg },
-    LspCodeLens = { fg = A.INLAY_TEXT_WITHOUT_BACKGROUND.fg },
+    LspCodeLens = { fg = lift(A.INLAY_TEXT_WITHOUT_BACKGROUND.fg, bg, 4.5) }, -- scheme: 3.7:1
     LspCodeLensSeparator = { fg = C.RIGHT_MARGIN_COLOR },
     LspSignatureActiveParameter = at("INLINE_PARAMETER_HINT_HIGHLIGHTED", { bold = true }),
     LspInfoBorder = { link = "FloatBorder" },
@@ -1175,6 +1225,42 @@ function M.setup()
   }
   for name, spec in pairs(ui2) do
     set(name, spec)
+  end
+
+  -- Plugin popups and state (ui-community.md; sandbox / history / guard / macros). The popups
+  -- are plain floats; config.ui maps their windows onto the Xyno* groups below, the
+  -- statusline components use the state groups. All state texts also say the state in words.
+  local xyno = {
+    XynoPopupNormal = { fg = fg, bg = float_bg },
+    XynoPopupBorder = { fg = lift(border, float_bg, 3.0), bg = float_bg }, -- non-text: 3:1
+    XynoPopupTitle = { fg = bright, bg = float_bg, bold = true },
+    XynoPopupFooter = { fg = sub, bg = float_bg },
+    XynoPopupKey = { fg = orange, bg = float_bg, bold = true },
+    XynoPopupMuted = { fg = sub, bg = float_bg },
+    XynoPopupWarn = { fg = yellow, bg = float_bg, bold = true },
+    XynoPopupDanger = { fg = lift(red, float_bg, 4.5), bg = float_bg, bold = true },
+    -- on the statusline bar (lualine's c section): >= 4.5:1 there
+    XynoStatusOk = { fg = lift(green, C.DIFF_SEPARATORS_BACKGROUND, 4.5) },
+    XynoStatusBusy = { fg = lift(hint_c, C.DIFF_SEPARATORS_BACKGROUND, 4.5) },
+    XynoStatusWarn = { fg = lift(yellow, C.DIFF_SEPARATORS_BACKGROUND, 4.5), bold = true },
+    XynoStatusError = { fg = lift(red, C.DIFF_SEPARATORS_BACKGROUND, 4.5), bold = true },
+    XynoStatusMuted = { fg = lift(sub, C.DIFF_SEPARATORS_BACKGROUND, 4.5) },
+  }
+  for name, spec in pairs(xyno) do
+    set(name, spec)
+  end
+
+  -- High-contrast variant (ui-community.md item 6): vim.g.xynovim_contrast = "high" lifts the
+  -- muted tones to 7:1 (AAA) on their own background; everything else is unchanged.
+  if vim.g.xynovim_contrast == "high" then
+    for _, name in ipairs(M.HIGH_CONTRAST_GROUPS) do
+      local h = vim.api.nvim_get_hl(0, { name = name, link = false })
+      if h.fg then
+        local on = h.bg and string.format("#%06x", h.bg) or bg
+        h.fg = tonumber(lift(string.format("#%06x", h.fg), on, 7.0):sub(2), 16)
+        vim.api.nvim_set_hl(0, name, h)
+      end
+    end
   end
 
   -- Terminal ANSI palette (the scheme's own console colours) -------------------------------

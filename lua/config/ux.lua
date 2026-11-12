@@ -77,7 +77,9 @@ function M.diagnostic_text(d)
     end
   end
   local text = head(d.message)
-  return d.source and (text .. " [" .. d.source .. "]") or text
+  text = d.source and (text .. " [" .. d.source .. "]") or text
+  -- cursor-line-first policy, severity filter and the width of the line (config/ui.lua)
+  return require("config.ui").shape_text(d, text)
 end
 
 -- Completion -----------------------------------------------------------------
@@ -237,12 +239,20 @@ function M.setup()
         return
       end
       redraw[buf] = true
-      vim.schedule(function()
+      -- a short delay while typing (ui-community.md item 11): the instant tier keeps arriving
+      -- (update_in_insert), the virtual text is redrawn once it settles
+      local delay = vim.fn.mode():find("^[iR]") and 80 or 0
+      local function show()
         redraw[buf] = nil
         if vim.api.nvim_buf_is_valid(buf) then
           vim.diagnostic.show(nil, buf)
         end
-      end)
+      end
+      if delay > 0 then
+        vim.defer_fn(show, delay)
+      else
+        vim.schedule(show)
+      end
     end,
   })
 
@@ -259,6 +269,8 @@ function M.setup()
   vim.api.nvim_create_user_command("ColorblindDiagnostics", function()
     vim.notify("colourblind diagnostics " .. (M.colorblind() and "on" or "off"))
   end, { desc = "Toggle the Okabe-Ito diagnostic palette" })
+
+  require("config.ui").setup()
 
   -- Opt in permanently with `vim.g.xynovim_colorblind = true` (set before
   -- this runs, e.g. at the top of options.lua).
