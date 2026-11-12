@@ -598,13 +598,125 @@ function M.hint_style()
   return require("config.eolhints").is_active(0) and "eol" or "inline"
 end
 
+-- Defaults, calmer than "everything on": types and parameter names are shown; lifetime-elision hints
+-- (`'self`, `'_`) are not. rust-analyzer's own default for lifetimeElisionHints is "never"
+-- (https://rust-analyzer.github.io/book/configuration.html, read 2026-11-12) and they appear on nearly every
+-- `&self` method. `:Hints lifetimes` / vim.g.xynovim_hints = { lifetimes = true } turn them on.
+M.HINT_DEFAULTS = { types = true, params = true, lifetimes = false }
+
 function M.hint_state()
   local st = vim.g.xynovim_hints
   local out = {}
   for _, k in ipairs(M.HINT_ORDER) do
-    out[k] = type(st) ~= "table" or st[k] ~= false
+    local v
+    if type(st) == "table" then
+      v = st[k]
+    end
+    if v == nil then
+      v = M.HINT_DEFAULTS[k]
+    end
+    out[k] = v == true
   end
   return out
+end
+
+--- Whether the kinds are the defaults.
+function M.hint_state_is_default(st)
+  st = st or M.hint_state()
+  for _, k in ipairs(M.HINT_ORDER) do
+    if st[k] ~= M.HINT_DEFAULTS[k] then
+      return false
+    end
+  end
+  return true
+end
+
+-- Parameter-name hints: rust-analyzer has a switch for them (parameterHints.enable) but none for "only when the
+-- argument does not say it already". An argument that is a plain name or a field path (`user.id`), or a string
+-- literal, names its meaning itself; the hint (`id:`) is noise there. Numbers, booleans, closures, calls and
+-- other expressions keep theirs (`connect(5000)` -> `timeout_ms:`). `vim.g.xynovim_hints_params = "all"` keeps
+-- every parameter hint.
+local function argument_text(buf, pos)
+  local line = vim.api.nvim_buf_get_lines(buf, pos.line, pos.line + 1, false)[1]
+  if not line then
+    return nil
+  end
+  local rest = line:sub(pos.character + 1)
+  local depth = 0
+  for i = 1, #rest do
+    local c = rest:sub(i, i)
+    if c == "(" or c == "[" or c == "{" then
+      depth = depth + 1
+    elseif c == ")" or c == "]" or c == "}" then
+      if depth == 0 then
+        return vim.trim(rest:sub(1, i - 1))
+      end
+      depth = depth - 1
+    elseif c == "," and depth == 0 then
+      return vim.trim(rest:sub(1, i - 1))
+    end
+  end
+  return nil -- the argument continues on the next line: it is an expression, keep the hint
+end
+
+--- True when the argument at `pos` explains itself (see above).
+function M.self_explanatory_argument(text)
+  if not text or text == "" then
+    return false
+  end
+  text = text:gsub("^&%s*mut%s+", ""):gsub("^&%s*", ""):gsub("^%*", "")
+  if text == "true" or text == "false" then
+    return false -- a bare boolean is the case parameter hints are for
+  end
+  return text:match("^[%a_][%w_]*$") ~= nil
+    or text:match("^[%a_][%w_]*%.[%a_][%w_%.]*$") ~= nil
+    or text:match('^"[^"]*"$') ~= nil
+end
+
+--- Drop the parameter hints (kind 2) of self-explanatory arguments from an inlayHint answer.
+function M.filter_param_hints(buf, hints)
+  if vim.g.xynovim_hints_params == "all" or type(hints) ~= "table" then
+    return hints
+  end
+  local out = {}
+  for _, h in ipairs(hints) do
+    local keep = true
+    if h.kind == 2 and h.position then
+      keep = not M.self_explanatory_argument(argument_text(buf, h.position))
+    end
+    if keep then
+      out[#out + 1] = h
+    end
+  end
+  return out
+end
+
+--- Wrap `client:request` of a rust-analyzer client so textDocument/inlayHint answers are filtered (both
+--- renderers, the built-in inline one and the end-of-line one, ask through it). Idempotent.
+function M.wrap_hint_requests(client)
+  if client._xynovim_hint_filter or type(client.request) ~= "function" then
+    return
+  end
+  client._xynovim_hint_filter = true
+  local orig = client.request
+  client.request = function(self, method, params, handler, bufnr)
+    if method == "textDocument/inlayHint" and type(handler) == "function" then
+      local inner = handler
+      handler = function(err, res, ctx, ...)
+        if not err and type(res) == "table" then
+          local b = (ctx and ctx.bufnr) or bufnr
+          if b and vim.api.nvim_buf_is_valid(b) then
+            local ok, filtered = pcall(M.filter_param_hints, b, res)
+            if ok then
+              res = filtered
+            end
+          end
+        end
+        return inner(err, res, ctx, ...)
+      end
+    end
+    return orig(self, method, params, handler, bufnr)
+  end
 end
 
 --- The `inlayHints` settings for a kind state (pure; what the server is told).
@@ -729,10 +841,9 @@ function M.hints_status(width)
   end
   width = width or M.width()
   local st = M.hint_state()
-  local letters, full = {}, true
+  local letters, full = {}, M.hint_state_is_default(st)
   for _, k in ipairs(M.HINT_ORDER) do
     letters[#letters + 1] = st[k] and M.HINT_KINDS[k].label or "-"
-    full = full and st[k]
   end
   if not M.hints_enabled(0) then
     return "hints off"
@@ -1076,8 +1187,8 @@ function M.setup()
             end
           end, 300)
         end
-        local st = M.hint_state()
-        if not (st.types and st.params and st.lifetimes) then
+        M.wrap_hint_requests(c)
+        if not M.hint_state_is_default() then
           apply_client(c)
         end
       end

@@ -333,8 +333,69 @@ local function rust_session(session)
 end
 
 --- Wire the listeners (idempotent: keyed).
+-- ---------------------------------------------------------------- calmer panes
+
+local QUIET_SCOPES = { registers = true, static = true, global = true }
+
+--- Scopes to show in the variables pane. CodeLLDB answers Local, Static, Global and Registers: the last
+--- expands to raw CPU registers and the middle two are empty in nearly every Rust frame, so a pane of four
+--- headers showed one useful list. Only the first (locals) is kept unless `vim.g.xynovim_dap_scopes = "all"`.
+--- Pure: returns the filtered list (never empty: without a match everything stays).
+function M.calm_scopes(scopes)
+  if vim.g.xynovim_dap_scopes == "all" or type(scopes) ~= "table" then
+    return scopes
+  end
+  local keep = {}
+  for _, sc in ipairs(scopes) do
+    local name = tostring(sc.name or ""):lower()
+    if not QUIET_SCOPES[name] then
+      keep[#keep + 1] = sc
+    end
+  end
+  return #keep > 0 and keep or scopes
+end
+
+--- Close nvim-dap-ui when the user ended the session (dap.terminate / <leader>dt). A program that ends by
+--- itself keeps the UI open: its output lives in the Console pane.
+function M.close_ui_on_terminate()
+  local dap = require("dap")
+  if dap._xynovim_terminate_wrapped then
+    return
+  end
+  dap._xynovim_terminate_wrapped = true
+  local asked = false
+  local orig = dap.terminate
+  dap.terminate = function(...)
+    asked = true
+    return orig(...)
+  end
+  local function close()
+    if not asked then
+      return
+    end
+    asked = false
+    local ok, ui = pcall(require, "dapui")
+    if ok then
+      pcall(ui.close)
+    end
+  end
+  for _, ev in ipairs({ "event_terminated", "event_exited", "disconnect" }) do
+    dap.listeners.after[ev]["xynovim_close_on_terminate"] = close
+  end
+  M._terminate_flag = function()
+    return asked
+  end
+end
+
 function M.setup()
   local dap = require("dap")
+  dap.listeners.before.scopes["xynovim_calm_scopes"] = function(session, err, body)
+    if err or not body or not rust_session(session) then
+      return
+    end
+    body.scopes = M.calm_scopes(body.scopes)
+  end
+  M.close_ui_on_terminate()
   dap.listeners.before.stackTrace["xynovim_frames"] = function(session, err, body)
     if err or not body or not rust_session(session) then
       return

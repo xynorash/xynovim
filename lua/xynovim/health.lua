@@ -260,6 +260,14 @@ function M.check()
         or "cargo-nextest not installed: neotest runs `cargo test` (the results panel parses both)"
     )
   end
+
+  vim.health.start("xynovim: rainbow brackets")
+  local ok_rb, rb_err = pcall(function()
+    require("config.rainbow_cmd").health()
+  end)
+  if not ok_rb then
+    vim.health.error("rainbow brackets health check failed: " .. tostring(rb_err))
+  end
 end
 
 return M

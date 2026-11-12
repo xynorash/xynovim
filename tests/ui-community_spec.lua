@@ -410,7 +410,7 @@ describe("ui-community 1: per-kind inlay hints", function()
     local on = ui.hint_settings({ types = true, params = true, lifetimes = true })
     H.eq(true, on.typeHints.enable)
     H.eq("with_block", on.closureReturnTypeHints.enable, "the value rustaceanvim.lua sets")
-    H.eq("skip_trivial", on.lifetimeElisionHints.enable)
+    H.eq("skip_trivial", on.lifetimeElisionHints.enable, "when switched on")
     H.eq(true, on.parameterHints.enable)
     local off = ui.hint_settings({ types = false, params = true, lifetimes = false })
     H.eq(false, off.typeHints.enable)
@@ -445,7 +445,7 @@ describe("ui-community 1: per-kind inlay hints", function()
 
   it(":Hints rejects unknown arguments and reports state", function()
     H.match(ui.hints("bogus"), "unknown argument", true)
-    H.match(ui.hints("status"), "types on, params on, lifetimes on", true)
+    H.match(ui.hints("status"), "types on, params on, lifetimes off", true)
   end)
 
   it(
@@ -456,9 +456,9 @@ describe("ui-community 1: per-kind inlay hints", function()
       vim.bo[b].filetype = "rust"
       vim.lsp.inlay_hint.enable(true, { bufnr = b })
       H.eq("", ui.hints_status(80))
-      H.eq("hints TPL", ui.hints_status(120))
+      H.eq("hints TP-", ui.hints_status(120))
       vim.g.xynovim_hints = { params = false }
-      H.eq("hints T-L", ui.hints_status(80))
+      H.eq("hints T--", ui.hints_status(80))
       vim.lsp.inlay_hint.enable(false, { bufnr = b })
       H.eq("hints off", ui.hints_status(60))
       vim.bo[b].filetype = "text"
@@ -486,13 +486,20 @@ describe("ui-community 1: per-kind inlay hints", function()
 
     local function start()
       H.need_rust()
+      -- lifetime hints are off by default; this block checks all three kinds
+      local was_default = vim.g.xynovim_hints == nil
+      vim.g.xynovim_hints = { types = true, params = true, lifetimes = true }
       if buf and vim.api.nvim_buf_is_valid(buf) then
         vim.api.nvim_set_current_buf(buf)
+        if was_default then
+          ui.apply_hints()
+        end
         return buf
       end
       local _, b = H.open_fixture("basic", "src/main.rs", { git = true })
       buf = b
       H.wait_lsp("rust-analyzer", buf)
+      ui.apply_hints()
       vim.api.nvim_buf_set_lines(buf, 0, -1, false, SRC)
       vim.lsp.inlay_hint.enable(true, { bufnr = buf })
       vim.o.laststatus = 0

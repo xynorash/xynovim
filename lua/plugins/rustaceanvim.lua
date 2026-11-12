@@ -63,6 +63,13 @@ return {
             local ra = settings["rust-analyzer"]
             ra.cargo = vim.tbl_extend("force", ra.cargo or {}, cargo)
           end
+          -- the hint kinds (:Hints, vim.g.xynovim_hints; lifetimes are off unless asked for) are in the settings
+          -- the server starts with, not only sent later
+          local okui, ui = pcall(require, "config.ui")
+          if okui then
+            local ra = settings["rust-analyzer"]
+            ra.inlayHints = vim.tbl_deep_extend("force", ra.inlayHints or {}, ui.hint_settings(ui.hint_state()))
+          end
           -- Restricted mode (config/workspace_trust.lua): in a workspace nobody trusted, no build
           -- scripts, no proc macros, no cargo check; trusted workspaces keep the settings above as is.
           return require("config.workspace_trust").settings_for(ctx.root(root and (root .. "/x")), settings)
@@ -88,7 +95,8 @@ return {
             -- Inline type/lifetime annotations (inspired by JetBrains' inlay hints).
             inlayHints = {
               closureReturnTypeHints = { enable = "with_block" },
-              lifetimeElisionHints = { enable = "skip_trivial", useParameterNames = true },
+              -- off by default (also rust-analyzer's default); :Hints lifetimes turns them on (config/ui.lua)
+              lifetimeElisionHints = { enable = "never", useParameterNames = true },
               expressionAdjustmentHints = { enable = "never" },
             },
             -- Completion niceties: auto-import granularity + fill call args.
