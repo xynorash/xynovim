@@ -448,6 +448,12 @@ local function mode_large()
     last = t
   end)
   R.rss_before_mb = mem_summary(snapshot()).total_mb
+  -- experiment hook: BENCH_PRE=<lua file> runs just before the file is opened (used to switch one
+  -- feature off and attribute a stall; not part of the published numbers)
+  if vim.env.BENCH_PRE and vim.env.BENCH_PRE ~= "" then
+    dofile(vim.env.BENCH_PRE)
+    R.pre = vim.env.BENCH_PRE
+  end
   local t0 = now()
   vim.cmd("silent edit " .. vim.fn.fnameescape(path))
   R.open_ms = since(t0)
@@ -469,7 +475,9 @@ local function mode_large()
     or false
   R.bigfile = (vim.bo[buf].filetype == "bigfile") or vim.b[buf].snacks_bigfile or vim.b[buf].bigfile or false
   R.syntax = vim.bo[buf].syntax
-  R.rss_after_open_mb = mem_summary(snapshot()).total_mb
+  local mem_open = mem_summary(snapshot())
+  R.rss_after_open_mb = mem_open.total_mb
+  R.rss_by_comm_after_open_mb = mem_open.by_comm_mb
   R.ops = {}
   local function timed(name, fn)
     local t = now()
@@ -512,11 +520,92 @@ local function mode_large()
     vim.cmd("silent write")
   end)
   vim.wait(2000)
-  R.rss_after_ops_mb = mem_summary(snapshot()).total_mb
+  local mem_ops = mem_summary(snapshot())
+  R.rss_after_ops_mb = mem_ops.total_mb
+  R.rss_by_comm_after_ops_mb = mem_ops.by_comm_mb
   timer:stop()
 end
 
-local fns = { plugins = mode_plugins, lsp = mode_lsp, large = mode_large }
+--- Typing burst: how many clippy runs (bacon-ls progress "begin" events) a burst of keystrokes
+--- with a given gap starts, and the time from the last key to the last run's end. BENCH_TYPE_GAP_MS
+--- (default 150), BENCH_TYPE_KEYS (default 40); the gap varies +-40 % so it is not a metronome.
+local function mode_typing()
+  wait_started()
+  local gap = tonumber(vim.env.BENCH_TYPE_GAP_MS) or 150
+  local keys = tonumber(vim.env.BENCH_TYPE_KEYS) or 40
+  local file = project .. "/src/lib.rs"
+  local active, last_event, t_open = {}, now(), now()
+  local runs, run_end, attached = 0, nil, false
+  vim.api.nvim_create_autocmd("LspAttach", {
+    callback = function()
+      attached = true
+      last_event = now()
+    end,
+  })
+  vim.api.nvim_create_autocmd("LspProgress", {
+    callback = function(a)
+      local d = a.data or {}
+      local v = d.params and d.params.value or {}
+      local c = vim.lsp.get_client_by_id(d.client_id)
+      local key = tostring(d.client_id) .. ":" .. tostring(d.params and d.params.token)
+      if v.kind == "end" then
+        active[key] = nil
+        if c and c.name == "bacon_ls" then
+          run_end = now()
+        end
+      else
+        active[key] = true
+        if c and c.name == "bacon_ls" and v.kind == "begin" then
+          runs = runs + 1
+        end
+      end
+      last_event = now()
+    end,
+  })
+  vim.cmd("silent edit " .. vim.fn.fnameescape(file))
+  local buf = vim.api.nvim_get_current_buf()
+  vim.wait(120000, function()
+    return attached
+  end, 20)
+  vim.wait(240000, function()
+    return next(active) == nil and now() - last_event > 3000 and now() - t_open > 5000
+  end, 50)
+  -- type inside a new function body at the end of the file
+  vim.api.nvim_buf_set_lines(
+    buf,
+    -1,
+    -1,
+    false,
+    { "", "pub fn typed_burst() {", "    let v = Vec::<u8>::new();", "    ", "}" }
+  )
+  vim.cmd("silent write")
+  vim.wait(3000)
+  runs, run_end = 0, nil
+  local row = vim.api.nvim_buf_line_count(buf) - 2
+  local text = "if v.len() > 0 { let _unused = v.len() == 0; }"
+  math.randomseed(42)
+  local t_first = now()
+  local col = 4
+  for i = 1, keys do
+    local ch = text:sub(((i - 1) % #text) + 1, ((i - 1) % #text) + 1)
+    vim.api.nvim_buf_set_text(buf, row, col, row, col, { ch })
+    col = col + 1
+    vim.wait(math.floor(gap * (0.6 + 0.8 * math.random())))
+  end
+  local t_last = now()
+  local runs_at_last = runs
+  vim.wait(4000)
+  R.gap_ms = gap
+  R.keys = keys
+  R.typing_ms = r1(t_last - t_first)
+  R.clippy_runs = runs
+  R.runs_started_before_last_key = runs_at_last
+  R.last_run_end_after_last_key_ms = run_end and r1(run_end - t_last) or nil
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.api.nvim_buf_get_lines(buf, 0, -5, false))
+  vim.cmd("silent! write")
+end
+
+local fns = { plugins = mode_plugins, lsp = mode_lsp, large = mode_large, typing = mode_typing }
 local ok, err = xpcall(fns[mode], debug.traceback)
 if not ok then
   R.error = tostring(err)

@@ -30,6 +30,8 @@ do
       opts.trials = tonumber(val())
     elseif x == "--large-lines" then
       opts.large_lines = val()
+    elseif x == "--type-gaps" then
+      opts.type_gaps = val() -- e.g. 80,150,250: keystroke gaps (ms) for the opt-in `typing` metric
     elseif x == "--timeout" then
       opts.timeout = tonumber(val())
     elseif x == "--only" then
@@ -378,6 +380,18 @@ if want("lsp") then
     note(err)
   end
 end
+-- opt-in (not part of the default run): clippy runs started by a burst of keystrokes per gap
+if opts.type_gaps and (not opts.only or vim.tbl_contains(opts.only, "typing")) then
+  M.typing = {}
+  for _, g in ipairs(vim.split(tostring(opts.type_gaps), ",", { plain = true })) do
+    local d, err = probe("typing", { BENCH_TYPE_GAP_MS = g }, opts.timeout)
+    if d then
+      table.insert(M.typing, d)
+    else
+      note(err)
+    end
+  end
+end
 if want("large") then
   M.large_file = {}
   for _, n in ipairs(vim.split(tostring(opts.large_lines), ",", { plain = true })) do
@@ -520,6 +534,16 @@ local function table_text()
       )
     end
     add("")
+  end
+  for _, T in ipairs(M.typing or {}) do
+    add(
+      "== Typing burst (%s keys, gap ~%s ms): clippy runs %s (%s started before the last key); last run ended %s ms after the last key ==",
+      f1(T.keys),
+      f1(T.gap_ms),
+      f1(T.clippy_runs),
+      f1(T.runs_started_before_last_key),
+      T.last_run_end_after_last_key_ms and f1(T.last_run_end_after_last_key_ms) or "n/a"
+    )
   end
   for _, Lg in ipairs(M.large_file or {}) do
     add("== Large file (%s lines, %.1f MB, outside a crate) ==", f1(Lg.lines), (Lg.bytes or 0) / 1048576)

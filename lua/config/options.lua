@@ -62,6 +62,10 @@ vim.g.trouble_lualine = false
 -- rustaceanvim.lua switches the native in-memory diagnostics back on.
 vim.g.lazyvim_rust_diagnostics = "bacon-ls"
 
+-- Large buffers shed the features that cost per buffer line (folds, semantic tokens, inlay hints,
+-- indent query, guides ...) in tiers; see lua/config/largefile.lua.
+require("config.largefile").setup()
+
 -- :RustContext, :RustTargets, :RustTools, :RustRoutes, :RustRestart, :ActJob and the server
 -- supervision / statusline autocmds come from the xyno-rust.nvim plugin (lua/plugins/xyno-rust.lua).
 -- :RustNewBin, :RustNewLib, :RustNewWorkspace, :RustNewMember and :EguiNew come from the xyno-new.nvim plugin

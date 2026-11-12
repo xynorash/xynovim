@@ -14,6 +14,11 @@ local function mark(name)
 end
 _G.bench_marks = {}
 mark("hook_loaded")
+-- experiment hook: BENCH_EARLY=<lua file> runs here, before the user config (e.g. to preset
+-- vim.g.rustaceanvim and measure one rust-analyzer setting); not part of the published numbers
+if vim.env.BENCH_EARLY and vim.env.BENCH_EARLY ~= "" then
+  dofile(vim.env.BENCH_EARLY)
+end
 local g = vim.api.nvim_create_augroup("bench_hook", { clear = true })
 local function au(ev, cb, pat)
   vim.api.nvim_create_autocmd(ev, { group = g, pattern = pat, once = true, callback = cb })

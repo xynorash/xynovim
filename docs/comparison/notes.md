@@ -79,6 +79,10 @@ Takeaway [from sources]: only VS Code (preview) and xynovim document an OS-level
 - Competitors' defaults mostly work with system clipboard out of the box (not verified here).
 - Gaps vs RustRover: gutter run/debug icons, call hierarchy, refactoring menu UI (not verified in xynovim).
 
+## 7. Performance re-measured (2026-11-12, [m] unless marked)
+
+Details and method: `docs/bench/perf-2026-11.md`. rust-analyzer idle RSS on a one-dependency crate 702 MB (825 MB before the `MALLOC_ARENA_MAX=2` change), about 450-600 MB of it sysroot analysis (`cargo.sysroot=null`: 249 MB). No published small-crate figure was found (searches 2026-11-12: users.rust-lang.org thread 50420, rust-analyzer discussion 20871 and thread 133914 are 2.5-13 GB big-workspace reports); Neovim startup: 67.4 ms +- 1.0 for `hyperfine nvim --headless +qa` of one personal lazy.nvim config, hardware unstated (https://aliquote.org/post/lazy-nvim/ , [pc]) against 35 ms UIEnter / 64 ms ready here (TUI in tmux, a different method). Edit to clippy diagnostic: 570 ms (debounce 500 + 70); VS Code / Zed / rust-analyzer defaults run clippy on save only [pc, from their docs].
+
 ## Gaps
 
 - No screenshots of other editors' real Rust editing/diagnostics/debugger/test panels (needs install or in-product media; not captured).

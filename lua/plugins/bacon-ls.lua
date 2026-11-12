@@ -28,7 +28,13 @@ local bacon_ls_settings = {
     -- 18-keystroke burst; 300 spawned 18). 500ms is the sweet spot: 0.56s
     -- median latency, no extra churn. The old 800ms was compensating for
     -- the abort bug fixed upstream in 0.31.0.
-    updateOnInsertDebounceMillis = 500,
+    -- Re-measured 2026-11 on the demo crate (scripts/bench --type-gaps, docs/bench/perf-2026-11.md):
+    -- one edit -> diagnostic = debounce + 70 ms (cargo's 44 ms start-up is most of the run; no cargo
+    -- flag, CARGO_INCREMENTAL or --frozen made a run faster). A burst of 40 keystrokes started 1 run
+    -- at 500 ms for gaps of 80-300 ms, but 32 runs at 250 ms with 300 ms gaps and 40 at 150 ms.
+    -- On a big workspace every extra run costs seconds of CPU, so 500 stays; to trade
+    -- runs for latency set `vim.g.xynovim_clippy_debounce_ms` (e.g. 250: 320 ms latency) in options.
+    updateOnInsertDebounceMillis = tonumber(vim.g.xynovim_clippy_debounce_ms) or 500,
     -- OFF deliberately: with ~1s auto-save, checkOnSave is a second run
     -- pipeline racing the updateOnInsert one - runs cancel each other and
     -- serialize on cargo's build-dir lock, stacking "checking (0%)" progress
@@ -85,9 +91,21 @@ return {
               return
             end
           end
-          local root = require("xyno_rust.rust_context").root(name)
-          if root and (root:sub(1, 1) == "/" or root:match("^%a:[/\\]")) then
-            on_dir(root)
+          -- Asynchronous where the plugin has it (xyno-rust.nvim with the async cargo layer): the
+          -- synchronous root() waits for `cargo locate-project` (up to 2 s) when its answer is not
+          -- cached yet, and this runs on the main loop while the file opens. The client starts a
+          -- loop iteration later; the answer is cached by then in the usual case (the plugin
+          -- warms it on BufEnter). An older plugin checkout falls back to the synchronous call.
+          local rc = require("xyno_rust.rust_context")
+          local function start(root)
+            if root and (root:sub(1, 1) == "/" or root:match("^%a:[/\\]")) then
+              on_dir(root)
+            end
+          end
+          if rc.root_async then
+            rc.root_async(name, start)
+          else
+            start(rc.root(name))
           end
         end,
         -- A crashed server is restarted (xyno_rust.rust_restart).
@@ -103,7 +121,10 @@ return {
         -- previous context's args.
         before_init = function(params, config)
           local rc = require("xyno_rust.rust_context")
-          local ctx = rc.get(rc.root((config.root_dir or vim.uv.cwd()) .. "/x"))
+          -- config.root_dir is the workspace root that root_dir above resolved (through cargo): it is
+          -- the key itself, asking cargo for it again would only block the main loop
+          local key = config.root_dir and rc.canon(config.root_dir) or rc.root((vim.uv.cwd() or ".") .. "/x")
+          local ctx = rc.get(key)
           local s = vim.deepcopy(bacon_ls_settings)
           s.cargo.extraArgs = rc.bacon_args(ctx)
           params.initializationOptions = s

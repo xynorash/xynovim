@@ -242,6 +242,10 @@ describe("rust_context", function()
       def.root_dir(b, function(r)
         got = r
       end)
+      -- asynchronous (cargo locate-project off the main loop)
+      vim.wait(10000, function()
+        return got ~= nil
+      end, 20)
       H.eq(ws, got)
       local b2 = vim.api.nvim_create_buf(false, true)
       vim.api.nvim_buf_set_name(b2, H.tmpdir() .. "/solo.rs")
@@ -250,6 +254,7 @@ describe("rust_context", function()
       def.root_dir(b2, function(r)
         got = r
       end)
+      vim.wait(300)
       H.is_nil(got)
     end)
   end)

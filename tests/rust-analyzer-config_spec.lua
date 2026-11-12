@@ -116,9 +116,14 @@ end
 -- =========================================================== plugin specs (no server)
 
 describe("rustaceanvim spec", function()
-  it("1. depends on nvim-dap", function()
-    local deps = Config.plugins["rustaceanvim"].dependencies
-    H.has(deps, "nvim-dap")
+  it("1. nvim-dap: no hard dependency (it ran before the first paint), but the dap module is loaded with it", function()
+    local deps = Config.plugins["rustaceanvim"].dependencies or {}
+    H.not_ok(vim.tbl_contains(deps, "nvim-dap"), "a dependency makes the whole dap stack load before the first paint")
+    require("lazy").load({ plugins = { "rustaceanvim" } })
+    H.ok(package.loaded["dap"], "the dap module is loaded when rustaceanvim loads (debugSingle capability)")
+    -- the plugin proper follows on VeryLazy (or at once when a dap key asks for it)
+    require("lazy").load({ plugins = { "nvim-dap" } })
+    H.ok(Config.plugins["nvim-dap"]._.loaded, "nvim-dap loads through lazy.nvim")
   end)
 
   it("2. init: vim.npcall is vim.F.npcall, dap autoload_configurations stays false", function()
@@ -156,6 +161,8 @@ describe("rustaceanvim spec", function()
     H.eq("clippy", s["rust-analyzer"].check.command)
     H.eq(4, s["rust-analyzer"].cachePriming.numThreads)
     H.eq(8, s["rust-analyzer"].numThreads)
+    -- the malloc arena cap for the server process only (a user's own value wins)
+    H.eq(vim.env.MALLOC_ARENA_MAX or "2", ra_opts().cmd_env.MALLOC_ARENA_MAX)
 
     -- ... and the stored :RustContext cargo settings win over the cargo table
     vim.fn.writefile({ "[package]", 'name = "x"', 'version = "0.1.0"', 'edition = "2021"' }, root .. "/Cargo.toml")

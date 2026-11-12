@@ -1,0 +1,368 @@
+{
+  "clippy_latency_by_debounce": {
+    "150 ms": {
+      "clippy_save_median_ms": 225.2,
+      "clippy_type_median_ms": 220.1,
+      "ra_save_median_ms": 224.7,
+      "ra_type_median_ms": 228.5
+    },
+    "250 ms": {
+      "clippy_save_median_ms": 322.1,
+      "clippy_type_median_ms": 322,
+      "ra_save_median_ms": 319.7,
+      "ra_type_median_ms": 319.2
+    },
+    "500 ms": {
+      "clippy_save_median_ms": 570.7,
+      "clippy_type_median_ms": 574.9,
+      "ra_save_median_ms": 573.5,
+      "ra_type_median_ms": 572.5
+    },
+    "80 ms": {
+      "clippy_save_median_ms": 152.1,
+      "clippy_type_median_ms": 153.9,
+      "ra_save_median_ms": 151.6,
+      "ra_type_median_ms": 150.3
+    }
+  },
+  "clippy_runs_per_typing_burst": {
+    "150 ms": [
+      {
+        "clippy_runs": 40,
+        "gap_ms": 300,
+        "keys": 40,
+        "last_run_end_after_last_key_ms": -8.7,
+        "runs_started_before_last_key": 40
+      },
+      {
+        "clippy_runs": 21,
+        "gap_ms": 150,
+        "keys": 40,
+        "last_run_end_after_last_key_ms": 101.3,
+        "runs_started_before_last_key": 20
+      },
+      {
+        "clippy_runs": 2,
+        "gap_ms": 80,
+        "keys": 40,
+        "last_run_end_after_last_key_ms": 252.2,
+        "runs_started_before_last_key": 1
+      }
+    ],
+    "250 ms": [
+      {
+        "clippy_runs": 32,
+        "gap_ms": 300,
+        "keys": 40,
+        "last_run_end_after_last_key_ms": 95.2,
+        "runs_started_before_last_key": 31
+      },
+      {
+        "clippy_runs": 1,
+        "gap_ms": 150,
+        "keys": 40,
+        "last_run_end_after_last_key_ms": 205.5,
+        "runs_started_before_last_key": 0
+      },
+      {
+        "clippy_runs": 1,
+        "gap_ms": 80,
+        "keys": 40,
+        "last_run_end_after_last_key_ms": 340,
+        "runs_started_before_last_key": 0
+      }
+    ],
+    "500 ms": [
+      {
+        "clippy_runs": 1,
+        "gap_ms": 300,
+        "keys": 40,
+        "last_run_end_after_last_key_ms": 340.8,
+        "runs_started_before_last_key": 0
+      },
+      {
+        "clippy_runs": 1,
+        "gap_ms": 150,
+        "keys": 40,
+        "last_run_end_after_last_key_ms": 460.8,
+        "runs_started_before_last_key": 0
+      },
+      {
+        "clippy_runs": 1,
+        "gap_ms": 80,
+        "keys": 40,
+        "last_run_end_after_last_key_ms": 613.9,
+        "runs_started_before_last_key": 0
+      }
+    ],
+    "80 ms": [
+      {
+        "clippy_runs": 40,
+        "gap_ms": 300,
+        "keys": 40,
+        "last_run_end_after_last_key_ms": -89.1,
+        "runs_started_before_last_key": 40
+      },
+      {
+        "clippy_runs": 40,
+        "gap_ms": 150,
+        "keys": 40,
+        "last_run_end_after_last_key_ms": 22.2,
+        "runs_started_before_last_key": 40
+      },
+      {
+        "clippy_runs": 26,
+        "gap_ms": 80,
+        "keys": 40,
+        "last_run_end_after_last_key_ms": 153.7,
+        "runs_started_before_last_key": 25
+      }
+    ]
+  },
+  "cold_root_blocking_ms": {
+    "async_answer_after_ms_with_shim": 1515.1,
+    "note": "xyno-rust.nvim dev clone (root_async); the lazy-lock pin has no root_async, bacon-ls.lua falls back to the synchronous call there",
+    "root_async_call_returns_ms": 1.1,
+    "sync_root_cold_cargo_warm": [
+      12.5,
+      13.7,
+      11.6
+    ],
+    "sync_root_cold_with_1_5s_cargo_shim": 1520.4
+  },
+  "date_utc": "2026-11-12",
+  "full_run_after": "docs/bench/perf-2026-11-after.json / perf-2026-11-after.md (scripts/bench with --type-gaps 80,150,300, working tree of this commit)",
+  "large_file": {
+    "100000": {
+      "after": {
+        "bigfile": true,
+        "edit_middle_ms": 27,
+        "idle_max_stall_ms": 29.5,
+        "lines": 100003,
+        "open_ms": 71.3,
+        "page_down_x200_ms": 208.1,
+        "rss_after_open_mb": 97,
+        "rss_after_ops_mb": 99.1,
+        "runs": 3
+      },
+      "before": {
+        "bigfile": true,
+        "edit_middle_ms": 25.7,
+        "idle_max_stall_ms": 29.4,
+        "lines": 100003,
+        "open_ms": 70.8,
+        "page_down_x200_ms": 214.9,
+        "rss_after_open_mb": 97.1,
+        "rss_after_ops_mb": 98.9,
+        "runs": 3
+      }
+    },
+    "20000": {
+      "after": {
+        "bigfile": false,
+        "edit_middle_ms": 19,
+        "idle_max_stall_ms": 65.4,
+        "lines": 20007,
+        "open_ms": 159.3,
+        "page_down_x200_ms": 294.5,
+        "rss_after_open_mb": 665.2,
+        "rss_after_ops_mb": 707.5,
+        "runs": 3
+      },
+      "before": {
+        "bigfile": false,
+        "edit_middle_ms": 143.3,
+        "idle_max_stall_ms": 313.3,
+        "lines": 20007,
+        "open_ms": 306.7,
+        "page_down_x200_ms": 582,
+        "rss_after_open_mb": 819.9,
+        "rss_after_ops_mb": 952.7,
+        "runs": 3
+      }
+    },
+    "40000": {
+      "after": {
+        "bigfile": false,
+        "edit_middle_ms": 23.8,
+        "idle_max_stall_ms": 122.7,
+        "lines": 40013,
+        "open_ms": 176.3,
+        "page_down_x200_ms": 335.2,
+        "rss_after_open_mb": 720.6,
+        "rss_after_ops_mb": 846.1,
+        "runs": 5
+      },
+      "before": {
+        "bigfile": false,
+        "edit_middle_ms": 333,
+        "idle_max_stall_ms": 617.1,
+        "lines": 40013,
+        "open_ms": 451.3,
+        "page_down_x200_ms": 920.3,
+        "rss_after_open_mb": 986.7,
+        "rss_after_ops_mb": 1273.4,
+        "runs": 5
+      }
+    },
+    "60000": {
+      "after": {
+        "bigfile": false,
+        "edit_middle_ms": 21.8,
+        "idle_max_stall_ms": 185.1,
+        "lines": 60005,
+        "open_ms": 159.4,
+        "page_down_x200_ms": 310.5,
+        "rss_after_open_mb": 774.7,
+        "rss_after_ops_mb": 942.3,
+        "runs": 3
+      },
+      "before": {
+        "bigfile": false,
+        "edit_middle_ms": 267.7,
+        "idle_max_stall_ms": 855.2,
+        "lines": 60005,
+        "open_ms": 571.4,
+        "page_down_x200_ms": 794.9,
+        "rss_after_open_mb": 1003.7,
+        "rss_after_ops_mb": 1187.6,
+        "runs": 3
+      }
+    }
+  },
+  "load_average": "1-min load 1.4-4.0 during the runs (other agents shared the machine); before/after were run alternately, not one block after the other",
+  "machine": "AMD Ryzen 7 5800X, 16 CPUs, 15903 MB, governor powersave, Linux 7.3.3-1-cachyos-bore, NVIM v0.12.6, rust-analyzer 1.99.1",
+  "method": "scripts/bench (large: tmux pty, generated file outside a crate); 'before' = git HEAD of dev (2bcc531 tree) in a scratch copy, 'after' = working tree of this commit; medians of the runs listed",
+  "rust_analyzer_memory_idle_netwatch": {
+    "arena1": {
+      "runs": 2,
+      "rust_analyzer_mb_median": 691.1,
+      "rust_analyzer_mb_samples": [
+        702.1,
+        680.1
+      ],
+      "total_mb_median": 811.9
+    },
+    "arena2": {
+      "runs": 3,
+      "rust_analyzer_mb_median": 702.3,
+      "rust_analyzer_mb_samples": [
+        702.3,
+        707.6,
+        696.6
+      ],
+      "total_mb_median": 822.4
+    },
+    "arena2trim": {
+      "runs": 2,
+      "rust_analyzer_mb_median": 675.7,
+      "rust_analyzer_mb_samples": [
+        688.2,
+        663.2
+      ],
+      "total_mb_median": 795.7
+    },
+    "base": {
+      "note": "before: no change",
+      "runs": 3,
+      "rust_analyzer_mb_median": 824.7,
+      "rust_analyzer_mb_samples": [
+        816.2,
+        855,
+        824.7
+      ],
+      "total_mb_median": 945.8
+    },
+    "cfg": {
+      "note": "the shipped config (cmd_env MALLOC_ARENA_MAX=2 in lua/plugins/rustaceanvim.lua), measured through the real config path",
+      "runs": 2,
+      "rust_analyzer_mb_median": 693.4,
+      "rust_analyzer_mb_samples": [
+        691.4,
+        695.4
+      ],
+      "total_mb_median": 812.1
+    },
+    "lru16": {
+      "runs": 3,
+      "rust_analyzer_mb_median": 855.1,
+      "rust_analyzer_mb_samples": [
+        855.1,
+        857.8,
+        839.7
+      ],
+      "total_mb_median": 976.4
+    },
+    "noprime": {
+      "runs": 3,
+      "rust_analyzer_mb_median": 746.7,
+      "rust_analyzer_mb_samples": [
+        746.7,
+        767.1,
+        686.8
+      ],
+      "total_mb_median": 867.8
+    },
+    "threads4": {
+      "runs": 3,
+      "rust_analyzer_mb_median": 766.6,
+      "rust_analyzer_mb_samples": [
+        766.6,
+        760.3,
+        774.2
+      ],
+      "total_mb_median": 881.9
+    }
+  },
+  "startup_cost_floor": {
+    "note": "measured with vim.treesitter.query.parse in nvim --headless -u NONE; native ts_query_new, memoised per process afterwards (0.002 ms). Paid by every Neovim config on the first Rust buffer.",
+    "treesitter_query_compile_first_use_ms": {
+      "folds.scm": 4.8,
+      "indents.scm": 5.4,
+      "our after/queries/rust/injections.scm (2.0 KB, sqlx)": 8.2,
+      "rust highlights.scm (8.6 KB)": 36.0,
+      "rust injections.scm base (2.4 KB)": 15.3
+    }
+  },
+  "startup_open_rs_file_ms": {
+    "after": {
+      "ready_median": 295.4,
+      "ready_samples": [
+        296.9,
+        288.0,
+        297.7,
+        294.1
+      ],
+      "uienter_median": 186.4,
+      "uienter_samples_of_medians_n10": [
+        189.9,
+        183.9,
+        186.9,
+        185.9
+      ]
+    },
+    "alternating": true,
+    "before_head": {
+      "ready_median": 309.8,
+      "ready_samples": [
+        300.7,
+        310.4,
+        309.2,
+        312.0
+      ],
+      "uienter_median": 192.5,
+      "uienter_samples_of_medians_n10": [
+        189.4,
+        191.8,
+        193.7,
+        193.2
+      ]
+    },
+    "no_file": {
+      "after_uienter": 34.9,
+      "before_uienter": 34.6,
+      "note": "unchanged"
+    },
+    "rounds": 4
+  }
+}
