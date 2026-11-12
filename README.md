@@ -7,7 +7,7 @@
 [![ci](https://github.com/xynorash/xynovim/actions/workflows/ci.yml/badge.svg)](https://github.com/xynorash/xynovim/actions/workflows/ci.yml)
 ![neovim 0.12](https://img.shields.io/badge/neovim-0.12-57a143?logo=neovim&logoColor=white)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
-![tests](https://img.shields.io/badge/tests-850%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-949%20passing-brightgreen)
 
 Website: https://xynorash.github.io/xynovim/ (with [guides](https://xynorash.github.io/xynovim/#guides) to the workflows below)
 
@@ -38,7 +38,7 @@ The website, <https://xynorash.github.io/xynovim/>, is published from the dedica
 - **A debugger and a test runner that look like the ones in an IDE**: breakpoints with Rust-aware variable views, a test summary tree, coverage in the gutter.
 - **A safety net**: every save is snapshotted as a git ref (a "Local History"), and the AI agent runs inside a sandbox.
 - **Treesitter everywhere**: sticky scope, text objects, SQL injected into `sqlx` strings, a live syntax-tree view.
-- **Tested**: 850 passing checks across 34 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
+- **Tested**: 949 passing checks across 36 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
 
 ## Guides
 
@@ -393,7 +393,7 @@ Video: [14-egui-new.mp4](docs/media/14-egui-new.mp4)
 
 ## Tests: run them yourself
 
-The config ships with an automated suite: **34 spec files, 850 checks passing, 45 skipped with a stated reason, 3 failing**, in about eleven minutes. These are the figures of the last whole-suite run (2026-11-12, Linux, Arch; the plugins restored to the lockfile). The 3 failures are tied to that machine's state, not to a feature found broken: `keymaps-global` runs into its 400 s timeout in the colourscheme-picker test (it did so on the previous commit there as well; cause not found; 74 of its checks had passed before the hang, but a timed-out file counts none), `bacon-ls-config` wants Mason's `tree-sitter` binary, which that install lacks, and `agent-99-guard` found an empty `/tmp/.git` directory (left by the sandbox work), which makes `/tmp` look like a git repository. The 45 skips include the real-debugger specs, which need `debug = true` in `~/.cargo/config.toml`; with that setting and a fake HOME the debugger file ran 56 passed, 1 failed (`<leader>dR`, which also fails without this session's change), 7 skipped. The earlier figure, from a different state of the same machine, was 32 spec files, 906 passing, 35 skipped, 0 failing (2026-10-22). The passing and skipped counts depend on the machine (the Ubuntu CI run 39695896272 shows 1749 passed, 76 skipped, 0 failed). Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
+The config ships with an automated suite: **36 spec files, 949 checks passing, 48 skipped with a stated reason, 2 failing**, in about seven minutes. These are the figures of a whole-suite run on 2026-11-12 (Linux, Arch, `nvim -l scripts/test.lua`; the run itself printed 949 passed, 3 failed, 48 skipped: the third failure was `site_spec` finding this README's old file count, which is corrected here). The 2 failures are tied to that machine's state, not to a feature found broken: `startup-and-options` finds 10 installed plugins off `lazy-lock.json` (`SchemaStore.nvim`, `friendly-snippets`, `grug-far.nvim`, `mason-lspconfig.nvim`, `mini.ai`, `mini.icons`, `mini.pairs`, `neo-tree.nvim`, `nvim-treesitter-context`, `render-markdown.nvim`; `nvim --headless "+Lazy! restore" +qa` puts them back, I did not run it on this install), and `supply-chain-lint` finds `stylua --check .` unhappy about two files that were still uncommitted work in progress (`lua/config/largefile.lua`, `scripts/bench/probe.lua`). The 48 skips include the real-debugger specs, which need `debug = true` in `~/.cargo/config.toml`, `bacon-ls-config`'s Mason check when Mason's `tree-sitter` CLI is absent (it names the file it looked for; every other tool of that test is still checked first), and the specs that need the dev branches of the xyno plugins (`XYNOVIM_DEV_PLUGINS`, [docs/DEV-PLUGINS.md](docs/DEV-PLUGINS.md)). The earlier figure, from a different state of the same machine, was 34 spec files, 850 passing, 45 skipped, 3 failing (the `keymaps-global` colourscheme-picker test then ran into its 400 s timeout, which I could not reproduce afterwards; that test now runs in a child Neovim with a 100 s limit, so a hang can only fail that one test). The passing and skipped counts depend on the machine (the Ubuntu CI run 39695896272 shows 1749 passed, 76 skipped, 0 failed). Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
 
 ```sh
 scripts/test.sh                  # everything (or: make test)
