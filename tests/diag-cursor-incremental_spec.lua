@@ -182,7 +182,13 @@ describe("cursor-mode diagnostics redraw incrementally", function()
     end
     table.sort(inc)
     local med = inc[10]
-    io.stdout:write(("      [measured] %d diagnostics: full vim.diagnostic.show %.1f ms, incremental refresh median %.2f ms\n"):format(#vim.diagnostic.get(buf), full, med))
+    io.stdout:write(
+      ("      [measured] %d diagnostics: full vim.diagnostic.show %.1f ms, incremental refresh median %.2f ms\n"):format(
+        #vim.diagnostic.get(buf),
+        full,
+        med
+      )
+    )
     H.ok(med < 5, ("incremental refresh median %.2f ms"):format(med))
     H.ok(med * 10 < full, ("incremental %.2f ms vs full %.1f ms"):format(med, full))
   end)

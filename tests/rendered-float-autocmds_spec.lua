@@ -7,7 +7,16 @@ local function make()
   local buf = vim.api.nvim_get_current_buf()
   vim.bo[buf].buftype = "nofile"
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "fn a() {}", "fn b() {}", "fn c() {}" })
-  local d = { bufnr = buf, lnum = 0, col = 0, end_lnum = 0, end_col = 2, severity = vim.diagnostic.severity.ERROR, message = "boom", source = "rustc" }
+  local d = {
+    bufnr = buf,
+    lnum = 0,
+    col = 0,
+    end_lnum = 0,
+    end_col = 2,
+    severity = vim.diagnostic.severity.ERROR,
+    message = "boom",
+    source = "rustc",
+  }
   return buf, d
 end
 

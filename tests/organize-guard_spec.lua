@@ -61,7 +61,13 @@ describe("organize_on_save flag", function()
       return vim.b[buf].xynovim_organizing == nil
     end, 2000, "flag released by the timeout")
     local wrote = false
-    vim.api.nvim_create_autocmd("BufWritePre", { buffer = buf, once = true, callback = function() wrote = true end })
+    vim.api.nvim_create_autocmd("BufWritePre", {
+      buffer = buf,
+      once = true,
+      callback = function()
+        wrote = true
+      end,
+    })
     late(1)
     H.eq(false, wrote, "late callback ignored")
     ra.organize_on_save(buf)

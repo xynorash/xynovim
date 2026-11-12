@@ -14,7 +14,12 @@ end
 describe("fonts cache", function()
   local saved, dir, log
   before_each(function()
-    saved = { PATH = vim.env.PATH, HOME = vim.env.HOME, XDG_DATA_HOME = vim.env.XDG_DATA_HOME, XDG_CACHE_HOME = vim.env.XDG_CACHE_HOME }
+    saved = {
+      PATH = vim.env.PATH,
+      HOME = vim.env.HOME,
+      XDG_DATA_HOME = vim.env.XDG_DATA_HOME,
+      XDG_CACHE_HOME = vim.env.XDG_CACHE_HOME,
+    }
     dir = H.tmpdir()
     log = dir .. "/calls"
     vim.env.HOME = dir .. "/home"
@@ -22,7 +27,10 @@ describe("fonts cache", function()
     vim.fn.mkdir(dir .. "/home/.local/share/fonts", "p")
     write(dir .. "/bin/fc-list", ("#!/bin/sh\necho x >> %s\nsleep ${FC_SLEEP:-0}\ncat %s/fonts.txt\n"):format(log, dir))
     vim.fn.system({ "chmod", "+x", dir .. "/bin/fc-list" })
-    write(dir .. "/fonts.txt", "/usr/share/fonts/a.ttf: DejaVu Sans:style=Book\n/x/b.ttf: JetBrainsMono Nerd Font:style=Regular\n")
+    write(
+      dir .. "/fonts.txt",
+      "/usr/share/fonts/a.ttf: DejaVu Sans:style=Book\n/x/b.ttf: JetBrainsMono Nerd Font:style=Regular\n"
+    )
     vim.env.PATH = dir .. "/bin:" .. saved.PATH
     os.remove(vim.fs.joinpath(vim.fn.stdpath("cache"), "xynovim-fonts.json"))
   end)
@@ -104,8 +112,12 @@ describe("fonts cache", function()
   it("two askers at once share one fc-list run", function()
     vim.env.FC_SLEEP = "0.3"
     local n = 0
-    ui.fonts_async(function() n = n + 1 end)
-    ui.fonts_async(function() n = n + 1 end)
+    ui.fonts_async(function()
+      n = n + 1
+    end)
+    ui.fonts_async(function()
+      n = n + 1
+    end)
     H.wait_for(function()
       return n == 2
     end, 5000)
@@ -121,7 +133,8 @@ describe("fonts cache", function()
   end)
 
   it("term.collect runs its commands without a blocking :wait()", function()
-    local src = table.concat(vim.fn.readfile(H.repo .. "/lua/xynovim/term.lua"), "\n") .. table.concat(vim.fn.readfile(H.repo .. "/lua/config/ui.lua"), "\n")
+    local src = table.concat(vim.fn.readfile(H.repo .. "/lua/xynovim/term.lua"), "\n")
+      .. table.concat(vim.fn.readfile(H.repo .. "/lua/config/ui.lua"), "\n")
     H.no_match(src, ":wait(3000)", true)
   end)
 end)

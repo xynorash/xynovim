@@ -158,28 +158,33 @@ function M.fonts_async(cb)
       pcall(f, sample)
     end
   end
-  local ok = pcall(vim.system, { "fc-list" }, { text = true, timeout = 10000 }, vim.schedule_wrap(function(o)
-    if o.code ~= 0 then
-      return done(nil)
-    end
-    local keep = {}
-    for line in (o.stdout or ""):gmatch("[^\n]+") do
-      if M.has_nerd_font(line) then
-        keep[#keep + 1] = line
-        if #keep >= 50 then
-          break
+  local ok = pcall(
+    vim.system,
+    { "fc-list" },
+    { text = true, timeout = 10000 },
+    vim.schedule_wrap(function(o)
+      if o.code ~= 0 then
+        return done(nil)
+      end
+      local keep = {}
+      for line in (o.stdout or ""):gmatch("[^\n]+") do
+        if M.has_nerd_font(line) then
+          keep[#keep + 1] = line
+          if #keep >= 50 then
+            break
+          end
         end
       end
-    end
-    local sample = table.concat(keep, "\n")
-    pcall(function()
-      vim.fn.mkdir(vim.fs.dirname(fonts_cache_file()), "p")
-      local f = assert(io.open(fonts_cache_file(), "w"))
-      f:write(vim.json.encode({ key = key, sample = sample }))
-      f:close()
+      local sample = table.concat(keep, "\n")
+      pcall(function()
+        vim.fn.mkdir(vim.fs.dirname(fonts_cache_file()), "p")
+        local f = assert(io.open(fonts_cache_file(), "w"))
+        f:write(vim.json.encode({ key = key, sample = sample }))
+        f:close()
+      end)
+      done(sample)
     end)
-    done(sample)
-  end))
+  )
   if not ok then
     done(nil)
   end
@@ -425,7 +430,8 @@ local function vt_wrap()
           multi[#multi + 1] = d
         end
       end
-      vt_state[namespace][bufnr] = { lines = lines, multi = multi, opts = opts.virtual_text, row = vt_cursor_row(bufnr) }
+      vt_state[namespace][bufnr] =
+        { lines = lines, multi = multi, opts = opts.virtual_text, row = vt_cursor_row(bufnr) }
     end,
     hide = function(namespace, bufnr)
       orig.hide(namespace, bufnr)
@@ -505,7 +511,10 @@ local function vt_refresh(buf)
     return false
   end
   for namespace in pairs(vim.diagnostic.get_namespaces()) do
-    if not (vt_state[namespace] and vt_state[namespace][buf]) and next(vim.diagnostic.count(buf, { namespace = namespace })) then
+    if
+      not (vt_state[namespace] and vt_state[namespace][buf])
+      and next(vim.diagnostic.count(buf, { namespace = namespace }))
+    then
       return false -- a namespace the wrapper could not follow: draw the long way
     end
   end
@@ -891,8 +900,7 @@ function M.lualine_x_components()
         return M.hints_status()
       end,
       cond = function()
-        return M.hints_status() ~= ""
-          and (M.width() >= M.PRIORITY.hints or not M.hints_enabled(0))
+        return M.hints_status() ~= "" and (M.width() >= M.PRIORITY.hints or not M.hints_enabled(0))
       end,
       color = function()
         return M.hints_enabled(0) and "XynoStatusMuted" or "XynoStatusWarn"
