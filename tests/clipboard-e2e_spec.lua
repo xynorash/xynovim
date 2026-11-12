@@ -77,6 +77,7 @@ local sent = {}
 vim.api.nvim_ui_send = function(s) sent[#sent + 1] = s end
 vim.api.nvim_buf_set_lines(0, 0, -1, false, { "yank me" })
 vim.cmd('normal! gg"+yy')
+vim.wait(500) -- let the provider's wl-copy job run before the probe quits
 local after_yank = #sent
 if vim.env.PROBE_OLD_SWITCH then
   vim.g.xynovim_remote_clipboard_osc52 = false
@@ -127,6 +128,14 @@ end })
   return out.res
 end
 
+--- Neovim's own provider starts wl-copy as a job and the probe's nvim may quit first: wait for the fake's output.
+local function wl_copy_out(sb)
+  H.wait_for(function()
+    return (read(sb.state .. "/wl-copy.out") or "") ~= ""
+  end, 10000, "the fake wl-copy to write its input")
+  return read(sb.state .. "/wl-copy.out")
+end
+
 local function osc52(text)
   return ("\27]52;c;%s\27\\"):format(vim.base64.encode(text))
 end
@@ -145,10 +154,10 @@ describe("clipboard end to end: a plain local session with wl-clipboard", functi
     local sb = sandbox(true)
     local r = child(sb, { WAYLAND_DISPLAY = "wayland-0" })
     H.eq(vim.NIL, r.provider, "xyno-clipboard does not install itself in a plain session that has wl-clipboard")
-    H.eq("yank me\n", read(sb.state .. "/wl-copy.out"))
+    H.eq("yank me\n", wl_copy_out(sb))
     H.eq({}, r.sent, "no OSC 52 in a plain session")
-    -- Neovim's own provider caches what it copied itself, so "+p pastes the yank (wl-paste is not asked)
-    H.eq({ "yank me", "yank me" }, r.pasted)
+    -- Neovim's own provider reads the clipboard again with wl-paste (no longer a cache hit once the probe waited)
+    H.eq({ "yank mepasted-from-wayland" }, r.pasted)
     H.eq("", vim.trim(r.messages))
     H.eq("", r.errmsg)
   end)
@@ -159,7 +168,7 @@ describe("clipboard end to end: tmux / ssh sessions", function()
     local sb = sandbox(true)
     local r = child(sb, { WAYLAND_DISPLAY = "wayland-0", TMUX = "/tmp/fake-tmux,1,0" })
     H.eq("XynoClipboard", r.provider)
-    H.eq("yank me\n", read(sb.state .. "/wl-copy.out"))
+    H.eq("yank me\n", wl_copy_out(sb))
     H.match(read(sb.state .. "/wl-copy.args"), "--sensitive", true)
     H.eq(osc52("yank me\n"), r.sent[1])
     H.eq({ "yank mepasted-from-wayland" }, r.pasted)
@@ -195,7 +204,20 @@ describe("clipboard end to end: no clipboard tool at all (OSC 52 fallback)", fun
     H.eq("XynoClipboard", r.provider)
     H.eq(osc52("yank me\n"), r.sent[1])
     H.eq({ "yank me", "yank me" }, r.pasted, "paste returns the last copy, no terminal query that could hang")
-    H.eq("", vim.trim(r.messages))
+    -- headless nvim has no notifier UI, so the single hint lands in :messages; nothing else may
+    local _, hints = r.messages:gsub("no clipboard tool found", "")
+    H.ok(hints <= 1, "at most one hint, got " .. hints)
+    H.eq(
+      "",
+      vim.trim(
+        (
+          r.messages:gsub(
+            "xyno%-clipboard: no clipboard tool found.-:checkhealth provider shows what Neovim found%.",
+            ""
+          )
+        )
+      )
+    )
   end)
 
   it("in a real TUI the hint appears exactly once and :messages stays empty", function()
