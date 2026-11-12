@@ -1,10 +1,15 @@
 -- Local History: shadow-ref snapshots on every (throttled) save, from the xyno-history.nvim plugin
 -- (refs/lochist/* layout unchanged). Not lazy: setup() starts the snapshots and registers the
--- commands, and it ran at startup before the plugin was split out.
+-- commands, and it ran at startup before the plugin was split out. <leader>gH stays the quick
+-- picker (:LocalHistory); <leader>gP opens the panel (snapshots, changed files, diff preview, revert,
+-- labels, search by content). The statusline keeps showing only failures (config/ui.lua history_status).
 return {
   "xynorash/xyno-history.nvim",
   lazy = false,
-  keys = { { "<leader>gH", "<cmd>LocalHistory<cr>", desc = "Local history (file)" } },
+  keys = {
+    { "<leader>gH", "<cmd>LocalHistory<cr>", desc = "Local history (file)" },
+    { "<leader>gP", "<cmd>LocalHistoryPanel<cr>", desc = "Local history panel" },
+  },
   config = function()
     local history = require("xyno_history")
     history.setup()
