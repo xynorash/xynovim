@@ -20,7 +20,9 @@ local function au(ev, cb, pat)
 end
 local finishing = false
 local function finish()
-  if finishing then return end
+  if finishing then
+    return
+  end
   finishing = true
   if vim.env.BENCH_PROBE and vim.env.BENCH_PROBE ~= "" then
     -- run the probe from the main loop, after startup finished (-S would run it before VimEnter)
@@ -28,7 +30,10 @@ local function finish()
       local ok, err = pcall(dofile, vim.env.BENCH_PROBE)
       if not ok then
         local f = io.open(vim.env.BENCH_OUT, "w")
-        if f then f:write(vim.json.encode({ error = tostring(err) })) f:close() end
+        if f then
+          f:write(vim.json.encode({ error = tostring(err) }))
+          f:close()
+        end
         vim.cmd("qa!")
       end
     end)
@@ -38,10 +43,14 @@ local function finish()
       f:write(vim.json.encode(_G.bench_marks))
       f:close()
     end
-    vim.schedule(function() vim.cmd("qa!") end)
+    vim.schedule(function()
+      vim.cmd("qa!")
+    end)
   end
 end
-au("VimEnter", function() mark("vimenter") end)
+au("VimEnter", function()
+  mark("vimenter")
+end)
 au("UIEnter", function()
   mark("uienter")
   vim.defer_fn(function()
@@ -53,5 +62,8 @@ au("UIEnter", function()
 end)
 au("User", function()
   mark("very_lazy")
-  vim.schedule(function() mark("very_lazy_idle") finish() end)
+  vim.schedule(function()
+    mark("very_lazy_idle")
+    finish()
+  end)
 end, "VeryLazy")

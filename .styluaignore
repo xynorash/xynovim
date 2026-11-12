@@ -2,3 +2,5 @@
 tests/fixtures/
 demo/
 _site/
+# being changed by the agent-sandbox wiring work; format it (stylua <file>) and delete this line afterwards
+lua/plugins/ninety-nine.lua

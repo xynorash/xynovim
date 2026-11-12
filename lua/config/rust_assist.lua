@@ -130,18 +130,24 @@ function M.open_docs()
   if not client then
     return
   end
-  ra.buf_request(0, "experimental/externalDocs", vim.lsp.util.make_position_params(0, client.offset_encoding or "utf-8"), function(_, res)
-    if type(res) ~= "table" then
-      return vim.notify("no documentation for the item under the cursor", vim.log.levels.INFO)
+  ra.buf_request(
+    0,
+    "experimental/externalDocs",
+    vim.lsp.util.make_position_params(0, client.offset_encoding or "utf-8"),
+    function(_, res)
+      if type(res) ~= "table" then
+        return vim.notify("no documentation for the item under the cursor", vim.log.levels.INFO)
+      end
+      local loc = res["local"] ~= nil and res["local"] ~= vim.NIL and tostring(res["local"]) or nil
+      local url = (loc and vim.uv.fs_stat(vim.uri_to_fname(loc))) and loc
+        or (res.web ~= vim.NIL and res.web and tostring(res.web))
+      if url then
+        require("rustaceanvim.config.internal").tools.open_url(url)
+      else
+        vim.notify("no documentation for the item under the cursor", vim.log.levels.INFO)
+      end
     end
-    local loc = res["local"] ~= nil and res["local"] ~= vim.NIL and tostring(res["local"]) or nil
-    local url = (loc and vim.uv.fs_stat(vim.uri_to_fname(loc))) and loc or (res.web ~= vim.NIL and res.web and tostring(res.web))
-    if url then
-      require("rustaceanvim.config.internal").tools.open_url(url)
-    else
-      vim.notify("no documentation for the item under the cursor", vim.log.levels.INFO)
-    end
-  end)
+  )
 end
 
 --- Indented JSON (vim.json.encode has no indent option).

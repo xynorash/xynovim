@@ -71,7 +71,10 @@ end
 
 describe("flow (a): unknown crate -> add crate and import -> builds", function()
   it("Uuid in a crate without dependencies", function()
-    H.known_issue({ "windows" }, "live rust-analyzer flow fails or hangs on Windows (windows-latest run 39647013043; cause not diagnosed)")
+    H.known_issue(
+      { "windows" },
+      "live rust-analyzer flow fails or hangs on Windows (windows-latest run 39647013043; cause not diagnosed)"
+    )
     H.need_rust()
     if not cm.info("uuid", { index_only = true }) then
       return skip("crates.io is not reachable")
@@ -155,7 +158,15 @@ local function derive_buffer(dir)
   H.eq(1, #vim.lsp.get_clients({ bufnr = buf, name = cf.client_name }), "the in-process client attached")
   local ns = vim.api.nvim_create_namespace("flows-spec")
   vim.diagnostic.set(ns, buf, {
-    { lnum = lnum, col = 0, end_lnum = lnum, end_col = 5, severity = 1, message = "cannot find derive macro `Serialize` in this scope", source = "bacon-ls" },
+    {
+      lnum = lnum,
+      col = 0,
+      end_lnum = lnum,
+      end_col = 5,
+      severity = 1,
+      message = "cannot find derive macro `Serialize` in this scope",
+      source = "bacon-ls",
+    },
   })
   return buf, lnum
 end
@@ -236,9 +247,12 @@ describe("flow (c): attribute completion on a crate whose feature was just enabl
         value = it
       end
     end
-    H.ok(value, "the values of rename_all are offered inside the quotes: " .. table.concat(vim.tbl_map(function(i)
-      return i.label
-    end, values), " "))
+    H.ok(value, "the values of rename_all are offered inside the quotes: " .. table.concat(
+      vim.tbl_map(function(i)
+        return i.label
+      end, values),
+      " "
+    ))
     vim.snippet.stop()
     vim.api.nvim_put({ value.insertText }, "c", false, true)
     vim.cmd("stopinsert")
@@ -263,7 +277,12 @@ describe("flow (d): an ambiguous Error import with a remembered choice", functio
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
     local row = #lines - 3 -- the `fn lonely` line, 0-based
     local ecol = lines[row + 1]:find("Error", 1, true) - 1
-    local hits = ca.wait_for(buf, { start = { row, ecol }, ["end"] = { row, ecol + 5 } }, { kind = "quickfix", title = "^Import `std::io::Error`" }, { timeout = 120000, only = { "quickfix" } })
+    local hits = ca.wait_for(
+      buf,
+      { start = { row, ecol }, ["end"] = { row, ecol + 5 } },
+      { kind = "quickfix", title = "^Import `std::io::Error`" },
+      { timeout = 120000, only = { "quickfix" } }
+    )
     H.ok(#hits > 0, "rust-analyzer offers the std::io::Error import")
     vim.api.nvim_buf_call(buf, function()
       vim.cmd("let &undolevels = &undolevels")

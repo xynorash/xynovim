@@ -6,7 +6,8 @@ local here = vim.fs.dirname(vim.fs.normalize(debug.getinfo(1, "S").source:sub(2)
 local repo = vim.fs.dirname(vim.fs.dirname(here))
 
 -- ------------------------------------------------------------------ options
-local opts = { n = 10, trials = 5, only = nil, out = nil, md = nil, large_lines = "40000,100000", timeout = 240, label = nil }
+local opts =
+  { n = 10, trials = 5, only = nil, out = nil, md = nil, large_lines = "40000,100000", timeout = 240, label = nil }
 do
   local a, i = _G.arg, 1
   local function val()
@@ -15,15 +16,24 @@ do
   end
   while a[i] do
     local x = a[i]
-    if x == "--out" then opts.out = val()
-    elseif x == "--md" then opts.md = val()
-    elseif x == "--label" then opts.label = val()
-    elseif x == "--report" then opts.report = val()
-    elseif x == "-n" then opts.n = tonumber(val())
-    elseif x == "--trials" then opts.trials = tonumber(val())
-    elseif x == "--large-lines" then opts.large_lines = val()
-    elseif x == "--timeout" then opts.timeout = tonumber(val())
-    elseif x == "--only" then opts.only = vim.split(val(), ",", { plain = true })
+    if x == "--out" then
+      opts.out = val()
+    elseif x == "--md" then
+      opts.md = val()
+    elseif x == "--label" then
+      opts.label = val()
+    elseif x == "--report" then
+      opts.report = val()
+    elseif x == "-n" then
+      opts.n = tonumber(val())
+    elseif x == "--trials" then
+      opts.trials = tonumber(val())
+    elseif x == "--large-lines" then
+      opts.large_lines = val()
+    elseif x == "--timeout" then
+      opts.timeout = tonumber(val())
+    elseif x == "--only" then
+      opts.only = vim.split(val(), ",", { plain = true })
     elseif x == "-h" or x == "--help" then
       print(table.concat({
         "usage: scripts/bench/bench.sh [--out FILE.json] [--md FILE.md] [--label NAME] [--only startup,plugins,lsp,large]",
@@ -41,15 +51,21 @@ do
   end
 end
 local function want(name)
-  if opts.report then return false end
-  if not opts.only then return true end
+  if opts.report then
+    return false
+  end
+  if not opts.only then
+    return true
+  end
   return vim.tbl_contains(opts.only, name)
 end
 
 -- -------------------------------------------------------------- environment
 local nvim_bin = vim.env.BENCH_NVIM or "nvim"
 local appname = vim.env.NVIM_APPNAME
-if not appname or appname == "" then appname = "nvim" end
+if not appname or appname == "" then
+  appname = "nvim"
+end
 local config_src = vim.env.BENCH_CONFIG or repo
 local work = vim.fn.tempname() -- /tmp/nvim.xxx/N: per-run private dir
 vim.fn.mkdir(work, "p")
@@ -94,7 +110,9 @@ local function run(cmd, o)
   return r
 end
 
-local function shq(x) return "'" .. tostring(x):gsub("'", "'\\''") .. "'" end
+local function shq(x)
+  return "'" .. tostring(x):gsub("'", "'\\''") .. "'"
+end
 
 --- Run a command inside a private tmux server (a real pty: nvim gets a TUI, UIEnter and VeryLazy
 --- fire, redraws happen). Waits until the command exits. Returns timed_out, pane_capture.
@@ -104,15 +122,23 @@ local function run_tui(argv, o)
   o = o or {}
   local e = vim.tbl_extend("force", env, o.env or {})
   local parts = { "env" }
-  for k, v in pairs(e) do table.insert(parts, k .. "=" .. shq(v)) end
+  for k, v in pairs(e) do
+    table.insert(parts, k .. "=" .. shq(v))
+  end
   table.insert(parts, "BENCH_T0_MS=$(date +%s%3N)")
-  for _, a in ipairs(argv) do table.insert(parts, shq(a)) end
+  for _, a in ipairs(argv) do
+    table.insert(parts, shq(a))
+  end
   -- the trailing sleep keeps a fast-quitting nvim from closing the session before tmux returns
   local cmd = table.concat(parts, " ") .. "; sleep 0.3"
   local tm = { "tmux", "-L", tmux_sock, "-f", "/dev/null" }
-  local function T(...) return vim.system(vim.list_extend(vim.deepcopy(tm), { ... }), { text = true }):wait() end
-    local r = T("new-session", "-d", "-x", "200", "-y", "50", "-s", "b", "-c", o.cwd or project, "sh -c " .. shq(cmd))
-  if r.code ~= 0 then return false, "tmux failed: " .. (r.stderr or "") end
+  local function T(...)
+    return vim.system(vim.list_extend(vim.deepcopy(tm), { ... }), { text = true }):wait()
+  end
+  local r = T("new-session", "-d", "-x", "200", "-y", "50", "-s", "b", "-c", o.cwd or project, "sh -c " .. shq(cmd))
+  if r.code ~= 0 then
+    return false, "tmux failed: " .. (r.stderr or "")
+  end
   local deadline = uv.hrtime() / 1e9 + (o.timeout or opts.timeout)
   local capture
   while T("has-session", "-t", "b").code == 0 do
@@ -128,8 +154,12 @@ local function run_tui(argv, o)
 end
 
 local function first_line(cmd)
-  local ok, r = pcall(function() return vim.system(cmd, { text = true }):wait() end)
-  if not ok or r.code ~= 0 then return nil end
+  local ok, r = pcall(function()
+    return vim.system(cmd, { text = true }):wait()
+  end)
+  if not ok or r.code ~= 0 then
+    return nil
+  end
   return vim.trim((r.stdout or ""):match("[^\n]*"))
 end
 
@@ -143,7 +173,9 @@ local target_file = project .. "/src/lib.rs"
 
 local function read_file(p)
   local f = io.open(p)
-  if not f then return nil end
+  if not f then
+    return nil
+  end
   local s = f:read("*a")
   f:close()
   return s
@@ -151,7 +183,9 @@ end
 
 local function mason_bin(name)
   local p = data_home .. "/" .. appname .. "/mason/bin/" .. name
-  if uv.fs_stat(p) then return p end
+  if uv.fs_stat(p) then
+    return p
+  end
   return vim.fn.exepath(name) ~= "" and vim.fn.exepath(name) or nil
 end
 
@@ -161,7 +195,8 @@ local function collect_env()
   local bacon = mason_bin("bacon-ls")
   local sha = first_line({ "git", "-C", config_src, "rev-parse", "--short", "HEAD" })
   -- (the harness's own files and its results do not make a config "dirty")
-  local dirty = first_line({ "git", "-C", config_src, "status", "--porcelain", "--", ".", ":!scripts/bench", ":!docs/bench" })
+  local dirty =
+    first_line({ "git", "-C", config_src, "status", "--porcelain", "--", ".", ":!scripts/bench", ":!docs/bench" })
   return {
     date_utc = os.date("!%Y-%m-%dT%H:%M:%SZ"),
     nvim_appname = appname,
@@ -190,21 +225,29 @@ end
 
 -- --------------------------------------------------------------- statistics
 local function stats(samples)
-  if #samples == 0 then return { n = 0 } end
+  if #samples == 0 then
+    return { n = 0 }
+  end
   local s = vim.deepcopy(samples)
   table.sort(s)
   local n = #s
   local med = n % 2 == 1 and s[(n + 1) / 2] or (s[n / 2] + s[n / 2 + 1]) / 2
   local sum = 0
-  for _, v in ipairs(s) do sum = sum + v end
-  local function r(v) return math.floor(v * 10 + 0.5) / 10 end
+  for _, v in ipairs(s) do
+    sum = sum + v
+  end
+  local function r(v)
+    return math.floor(v * 10 + 0.5) / 10
+  end
   return { n = n, median = r(med), min = r(s[1]), max = r(s[n]), mean = r(sum / n), samples = samples }
 end
 
 local result = { env = collect_env(), notes = {}, metrics = {} }
 local M = result.metrics
 local logdir = (opts.out and vim.fs.dirname(opts.out) or work) .. "/"
-local function note(s) table.insert(result.notes, s) end
+local function note(s)
+  table.insert(result.notes, s)
+end
 
 local function probe(mode, extra_env, timeout)
   local out = work .. "/" .. mode .. ".json"
@@ -226,13 +269,22 @@ local function probe(mode, extra_env, timeout)
   )
   local log = work .. "/" .. mode .. ".log"
   local lf = io.open(log, "w")
-  if lf then lf:write("timed_out=", tostring(timed_out), "\nscreen at end:\n", capture or "(nvim exited)", "\n") lf:close() end
+  if lf then
+    lf:write("timed_out=", tostring(timed_out), "\nscreen at end:\n", capture or "(nvim exited)", "\n")
+    lf:close()
+  end
   local r = { code = timed_out and "timeout" or 0 }
   local raw = read_file(out)
   local ok, data = pcall(vim.json.decode, raw or "")
   if not ok or type(data) ~= "table" then
-    return nil, ("%s probe produced no result (exit %s, signal %s, %.0fs); stderr: %s"):format(
-      mode, tostring(r.code), "-", (uv.hrtime() - t0) / 1e9, vim.trim((capture or ""):sub(1, 300)))
+    return nil,
+      ("%s probe produced no result (exit %s, signal %s, %.0fs); stderr: %s"):format(
+        mode,
+        tostring(r.code),
+        "-",
+        (uv.hrtime() - t0) / 1e9,
+        vim.trim((capture or ""):sub(1, 300))
+      )
   end
   return data
 end
@@ -244,13 +296,19 @@ local function startup()
     os.remove(out)
     os.remove(tf)
     local argv = { nvim_bin, "-n", "--startuptime", tf, "--cmd", "luafile " .. here .. "/hook.lua" }
-    if file_arg then table.insert(argv, file_arg) end
+    if file_arg then
+      table.insert(argv, file_arg)
+    end
     local timed_out = run_tui(argv, { env = { BENCH_MODE = "startup", BENCH_OUT = out }, timeout = 90 })
     local ok, marks = pcall(vim.json.decode, read_file(out) or "")
-    if not ok or timed_out then return nil end
+    if not ok or timed_out then
+      return nil
+    end
     for line in (read_file(tf) or ""):gmatch("[^\n]+") do
       local t = line:match("^%s*(%d+%.%d+)%s+%d+%.%d+:%s+%-%-%- NVIM STARTED")
-      if t then marks.nvim_started = tonumber(t) end
+      if t then
+        marks.nvim_started = tonumber(t)
+      end
     end
     return marks
   end
@@ -261,12 +319,16 @@ local function startup()
       local m = one(file_arg)
       if m then
         for k, list in pairs(acc) do
-          if m[k] then table.insert(list, m[k]) end
+          if m[k] then
+            table.insert(list, m[k])
+          end
         end
       end
     end
     local res = {}
-    for k, list in pairs(acc) do res[k] = stats(list) end
+    for k, list in pairs(acc) do
+      res[k] = stats(list)
+    end
     return res
   end
   M.startup = {
@@ -282,33 +344,60 @@ end
 -- ----------------------------------------------------------------- driver
 local function pre_warm()
   -- compile dependencies once so the first LSP flycheck measures analysis, not downloads/compiles
-  local r = vim.system({ "cargo", "clippy", "--all-targets" }, { cwd = project, env = { CARGO_TARGET_DIR = project .. "/target" }, text = true, timeout = 600000 }):wait()
-  if r.code ~= 0 then note("cargo clippy pre-warm failed: " .. vim.trim((r.stderr or ""):sub(-300))) end
+  local r = vim
+    .system(
+      { "cargo", "clippy", "--all-targets" },
+      { cwd = project, env = { CARGO_TARGET_DIR = project .. "/target" }, text = true, timeout = 600000 }
+    )
+    :wait()
+  if r.code ~= 0 then
+    note("cargo clippy pre-warm failed: " .. vim.trim((r.stderr or ""):sub(-300)))
+  end
 end
 
-if want("startup") then startup() end
+if want("startup") then
+  startup()
+end
 local do_proj = want("plugins") or want("lsp")
-if do_proj then pre_warm() end
+if do_proj then
+  pre_warm()
+end
 if want("plugins") then
   local d, err = probe("plugins", nil, 120)
-  if d then M.plugins = d else note(err) end
+  if d then
+    M.plugins = d
+  else
+    note(err)
+  end
 end
 if want("lsp") then
   local d, err = probe("lsp", nil, opts.timeout * 3)
-  if d then M.lsp = d else note(err) end
+  if d then
+    M.lsp = d
+  else
+    note(err)
+  end
 end
 if want("large") then
   M.large_file = {}
   for _, n in ipairs(vim.split(tostring(opts.large_lines), ",", { plain = true })) do
     local d, err = probe("large", { BENCH_LARGE_LINES = n }, opts.timeout)
-    if d then table.insert(M.large_file, d) else note(err) end
+    if d then
+      table.insert(M.large_file, d)
+    else
+      note(err)
+    end
   end
 end
 
 -- ----------------------------------------------------------------- report
-local function f1(v) return v == nil and "n/a" or (type(v) == "number" and string.format("%.1f", v) or tostring(v)) end
+local function f1(v)
+  return v == nil and "n/a" or (type(v) == "number" and string.format("%.1f", v) or tostring(v))
+end
 local function cell(s)
-  if not s or s.n == 0 then return "n/a" end
+  if not s or s.n == 0 then
+    return "n/a"
+  end
   return string.format("%s (min %s, max %s, n=%d)", f1(s.median), f1(s.min), f1(s.max), s.n)
 end
 
@@ -319,10 +408,18 @@ end
 
 local function table_text()
   local L = {}
-  local function add(...) table.insert(L, string.format(...)) end
+  local function add(...)
+    table.insert(L, string.format(...))
+  end
   local e = result.env
   add("Benchmark: %s   config=%s (%s)   %s", opts.label or appname, e.nvim_appname, e.config_git, e.date_utc)
-  add("%s | %s CPUs | %s MB | %s", e.machine.cpu or "?", e.machine.logical_cpus, e.machine.mem_total_mb, e.tools.nvim or "?")
+  add(
+    "%s | %s CPUs | %s MB | %s",
+    e.machine.cpu or "?",
+    e.machine.logical_cpus,
+    e.machine.mem_total_mb,
+    e.tools.nvim or "?"
+  )
   add("rust-analyzer: %s | bacon-ls: %s", e.tools.rust_analyzer or "n/a", e.tools.bacon_ls or "n/a")
   add("")
   if M.startup then
@@ -342,64 +439,130 @@ local function table_text()
   if P then
     if P.lazy then
       add("== Plugins (lazy.nvim) ==")
-      add("  plugins %s, loaded once the config is up (after VeryLazy) %s; after opening a .rs file: %s; sum of load times %s ms",
-        f1(P.lazy.count), f1(P.lazy.loaded_at_start), f1(P.lazy.loaded_after_rs), f1(P.lazy.sum_load_ms))
+      add(
+        "  plugins %s, loaded once the config is up (after VeryLazy) %s; after opening a .rs file: %s; sum of load times %s ms",
+        f1(P.lazy.count),
+        f1(P.lazy.loaded_at_start),
+        f1(P.lazy.loaded_after_rs),
+        f1(P.lazy.sum_load_ms)
+      )
       add("  slowest to load (ms, all phases):")
       for i, p in ipairs(P.lazy.top or {}) do
-        if i > 12 then break end
+        if i > 12 then
+          break
+        end
         add("    %-34s %7.1f  (%s)", p.name, p.ms, p.phase)
       end
       local by = P.lazy.loaded_by_rs_file or {}
       if #by > 0 then
         add("  loaded by opening a .rs file (top):")
         for i, p in ipairs(by) do
-          if i > 8 then break end
+          if i > 8 then
+            break
+          end
           add("    %-34s %7.1f", p.name, p.ms)
         end
       end
     else
       add("== Plugins == not measured: %s", tostring(P.lazy_note))
     end
-    add("  clipboard: provider=%s, vim.o.clipboard=%q", tostring(P.clipboard and P.clipboard.provider), tostring(P.clipboard and P.clipboard.option))
+    add(
+      "  clipboard: provider=%s, vim.o.clipboard=%q",
+      tostring(P.clipboard and P.clipboard.provider),
+      tostring(P.clipboard and P.clipboard.option)
+    )
     add("")
   end
   local D = M.lsp
   if D then
     add("== LSP on %s ==", vim.fs.basename(result.env.project))
-    if D.error then add("  ERROR: %s", D.error) end
+    if D.error then
+      add("  ERROR: %s", D.error)
+    end
     add("  clients attached (ms after :edit): %s", insp(D.attach_ms))
     add("  server binaries: %s | rust-analyzer version run: %s", insp(D.client_cmds), tostring(D.rust_analyzer_version))
-    add("  settled after (ms, quiet 3 s)    : %s%s", f1(D.settled_ms), D.settled_timeout and " (TIMED OUT, never quiet)" or "")
+    add(
+      "  settled after (ms, quiet 3 s)    : %s%s",
+      f1(D.settled_ms),
+      D.settled_timeout and " (TIMED OUT, never quiet)" or ""
+    )
     if D.memory_idle then
-      add("  idle RSS MB: total %s, nvim %s; by process: %s", f1(D.memory_idle.total_mb), f1(D.memory_idle.nvim_mb), insp(D.memory_idle.by_comm_mb))
-      add("  idle CPU (%% of 1 core, %ss window): total %s; nvim %s; %s", f1(D.cpu_window_s), f1(D.cpu_idle_pct), f1(D.cpu_idle_nvim_pct), insp(D.cpu_idle_by_comm_pct))
+      add(
+        "  idle RSS MB: total %s, nvim %s; by process: %s",
+        f1(D.memory_idle.total_mb),
+        f1(D.memory_idle.nvim_mb),
+        insp(D.memory_idle.by_comm_mb)
+      )
+      add(
+        "  idle CPU (%% of 1 core, %ss window): total %s; nvim %s; %s",
+        f1(D.cpu_window_s),
+        f1(D.cpu_idle_pct),
+        f1(D.cpu_idle_nvim_pct),
+        insp(D.cpu_idle_by_comm_pct)
+      )
     end
-    if D.memory_after_trials then add("  RSS MB after the trials: total %s", f1(D.memory_after_trials.total_mb)) end
+    if D.memory_after_trials then
+      add("  RSS MB after the trials: total %s", f1(D.memory_after_trials.total_mb))
+    end
     add("  edit -> first matching diagnostic (ms; per cell: fastest source overall / per client):")
     for _, c in ipairs(D.trials or {}) do
       local per = {}
-      for name, s in pairs(c.by_client or {}) do table.insert(per, string.format("%s %s [%d/%d]", name, f1(s.median), s.n, c.attempts)) end
+      for name, s in pairs(c.by_client or {}) do
+        table.insert(per, string.format("%s %s [%d/%d]", name, f1(s.median), s.n, c.attempts))
+      end
       table.sort(per)
-      add("    %-7s %-6s first=%-9s %s", c.kind, c.mode, c.first and c.first.n > 0 and f1(c.first.median) or "none", #per > 0 and table.concat(per, "; ") or ("no diagnostic within " .. c.timeout_ms .. " ms"))
+      add(
+        "    %-7s %-6s first=%-9s %s",
+        c.kind,
+        c.mode,
+        c.first and c.first.n > 0 and f1(c.first.median) or "none",
+        #per > 0 and table.concat(per, "; ") or ("no diagnostic within " .. c.timeout_ms .. " ms")
+      )
     end
     add("")
   end
   for _, Lg in ipairs(M.large_file or {}) do
     add("== Large file (%s lines, %.1f MB, outside a crate) ==", f1(Lg.lines), (Lg.bytes or 0) / 1048576)
-    if Lg.error then add("  ERROR: %s", Lg.error) end
-    add("  open: %s ms | max main-loop stall while idle 5 s: %s ms | clients: %s | treesitter hl: %s | bigfile mode: %s | filetype=%s",
-      f1(Lg.open_ms), f1(Lg.idle_max_stall_ms), insp(Lg.clients), tostring(Lg.treesitter), tostring(Lg.bigfile), tostring(Lg.filetype))
+    if Lg.error then
+      add("  ERROR: %s", Lg.error)
+    end
+    add(
+      "  open: %s ms | max main-loop stall while idle 5 s: %s ms | clients: %s | treesitter hl: %s | bigfile mode: %s | filetype=%s",
+      f1(Lg.open_ms),
+      f1(Lg.idle_max_stall_ms),
+      insp(Lg.clients),
+      tostring(Lg.treesitter),
+      tostring(Lg.bigfile),
+      tostring(Lg.filetype)
+    )
     local ops = {}
-    for _, k in ipairs({ "goto_end", "goto_start", "jump_20000_lines", "search", "page_down_x200", "edit_middle", "write" }) do
-      if Lg.ops and Lg.ops[k] then table.insert(ops, string.format("%s %s", k, f1(Lg.ops[k]))) end
+    for _, k in ipairs({
+      "goto_end",
+      "goto_start",
+      "jump_20000_lines",
+      "search",
+      "page_down_x200",
+      "edit_middle",
+      "write",
+    }) do
+      if Lg.ops and Lg.ops[k] then
+        table.insert(ops, string.format("%s %s", k, f1(Lg.ops[k])))
+      end
     end
     add("  ops (ms, each ends with :redraw to a tmux pty): %s", table.concat(ops, " | "))
-    add("  RSS MB: before open %s, after open %s, after ops %s", f1(Lg.rss_before_mb), f1(Lg.rss_after_open_mb), f1(Lg.rss_after_ops_mb))
+    add(
+      "  RSS MB: before open %s, after open %s, after ops %s",
+      f1(Lg.rss_before_mb),
+      f1(Lg.rss_after_open_mb),
+      f1(Lg.rss_after_ops_mb)
+    )
     add("")
   end
   if #result.notes > 0 then
     add("== Notes ==")
-    for _, n in ipairs(result.notes) do add("  - %s", n) end
+    for _, n in ipairs(result.notes) do
+      add("  - %s", n)
+    end
   end
   return table.concat(L, "\n")
 end
@@ -407,21 +570,37 @@ end
 -- pretty json with sorted keys (deterministic diffs)
 local function encode(v, ind)
   ind = ind or ""
-  if type(v) ~= "table" then return vim.json.encode(v) end
+  if type(v) ~= "table" then
+    return vim.json.encode(v)
+  end
   local nxt = ind .. "  "
   if vim.islist(v) and #v > 0 then
     local flat = true
-    for _, x in ipairs(v) do if type(x) == "table" then flat = false end end
-    if flat then return vim.json.encode(v) end
+    for _, x in ipairs(v) do
+      if type(x) == "table" then
+        flat = false
+      end
+    end
+    if flat then
+      return vim.json.encode(v)
+    end
     local parts = {}
-    for _, x in ipairs(v) do table.insert(parts, nxt .. encode(x, nxt)) end
+    for _, x in ipairs(v) do
+      table.insert(parts, nxt .. encode(x, nxt))
+    end
     return "[\n" .. table.concat(parts, ",\n") .. "\n" .. ind .. "]"
   end
   local keys = vim.tbl_keys(v)
-  if #keys == 0 then return "{}" end
-  table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+  if #keys == 0 then
+    return "{}"
+  end
+  table.sort(keys, function(a, b)
+    return tostring(a) < tostring(b)
+  end)
   local parts = {}
-  for _, k in ipairs(keys) do table.insert(parts, nxt .. vim.json.encode(tostring(k)) .. ": " .. encode(v[k], nxt)) end
+  for _, k in ipairs(keys) do
+    table.insert(parts, nxt .. vim.json.encode(tostring(k)) .. ": " .. encode(v[k], nxt))
+  end
   return "{\n" .. table.concat(parts, ",\n") .. "\n" .. ind .. "}"
 end
 
@@ -441,21 +620,65 @@ if opts.out then
   if #result.notes > 0 then
     -- a probe failed: keep its log (tmux screen at the end) next to the results
     local logs = (opts.out:gsub("%.json$", "")) .. ".logs"
-    vim.fn.system({ "sh", "-c", ("mkdir -p '%s' && cp '%s'/plugins.log '%s'/lsp.log '%s'/large.log '%s'/ 2>/dev/null"):format(logs, work, work, work, logs) })
+    vim.fn.system({
+      "sh",
+      "-c",
+      ("mkdir -p '%s' && cp '%s'/plugins.log '%s'/lsp.log '%s'/large.log '%s'/ 2>/dev/null"):format(
+        logs,
+        work,
+        work,
+        work,
+        logs
+      ),
+    })
   end
 end
 if opts.md then
   local e = result.env
   local f = assert(io.open(opts.md, "w"))
-  f:write(("# Benchmark: %s\n\nMeasured %s with `scripts/bench/bench.sh` (see `scripts/bench/README.md`). Raw data: `%s`.\n\n"):format(
-    opts.label or e.nvim_appname, e.date_utc, opts.out and vim.fs.basename(opts.out) or "the .json next to this file"))
+  f:write(
+    ("# Benchmark: %s\n\nMeasured %s with `scripts/bench/bench.sh` (see `scripts/bench/README.md`). Raw data: `%s`.\n\n"):format(
+      opts.label or e.nvim_appname,
+      e.date_utc,
+      opts.out and vim.fs.basename(opts.out) or "the .json next to this file"
+    )
+  )
   f:write("## Machine and tools\n\n")
-  f:write(("- CPU: %s, %s logical CPUs, %s MB RAM, governor `%s`, load average at start `%s`\n"):format(
-    e.machine.cpu or "?", e.machine.logical_cpus, e.machine.mem_total_mb, e.machine.cpu_governor, e.machine.loadavg_at_start))
-  f:write(("- Kernel: %s\n- %s\n- %s\n- %s\n- %s\n- bacon-ls %s\n"):format(
-    e.machine.kernel, e.tools.nvim, e.tools.rust_analyzer, e.tools.cargo, e.tools.clippy, e.tools.bacon_ls))
-  f:write(("- Config: `%s` at git %s, NVIM_APPNAME `%s`\n- Project: `%s`\n"):format(e.config_dir, e.config_git, e.nvim_appname, e.project))
-  f:write(("- Isolation: config %s; state %s; cache %s; data %s\n\n"):format(e.isolation.config, e.isolation.state, e.isolation.cache, e.isolation.data))
+  f:write(
+    ("- CPU: %s, %s logical CPUs, %s MB RAM, governor `%s`, load average at start `%s`\n"):format(
+      e.machine.cpu or "?",
+      e.machine.logical_cpus,
+      e.machine.mem_total_mb,
+      e.machine.cpu_governor,
+      e.machine.loadavg_at_start
+    )
+  )
+  f:write(
+    ("- Kernel: %s\n- %s\n- %s\n- %s\n- %s\n- bacon-ls %s\n"):format(
+      e.machine.kernel,
+      e.tools.nvim,
+      e.tools.rust_analyzer,
+      e.tools.cargo,
+      e.tools.clippy,
+      e.tools.bacon_ls
+    )
+  )
+  f:write(
+    ("- Config: `%s` at git %s, NVIM_APPNAME `%s`\n- Project: `%s`\n"):format(
+      e.config_dir,
+      e.config_git,
+      e.nvim_appname,
+      e.project
+    )
+  )
+  f:write(
+    ("- Isolation: config %s; state %s; cache %s; data %s\n\n"):format(
+      e.isolation.config,
+      e.isolation.state,
+      e.isolation.cache,
+      e.isolation.data
+    )
+  )
   f:write("## Results\n\n```\n", txt, "\n```\n\n")
   f:write(table.concat({
     "## Limits (not measured, or only partly)",

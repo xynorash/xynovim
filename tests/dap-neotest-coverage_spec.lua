@@ -46,7 +46,9 @@ local function crate(files)
 end
 
 local function cargo_meta(dir)
-  local o = vim.system({ "cargo", "metadata", "--format-version", "1", "--no-deps" }, { cwd = dir, text = true }):wait(30000)
+  local o = vim
+    .system({ "cargo", "metadata", "--format-version", "1", "--no-deps" }, { cwd = dir, text = true })
+    :wait(30000)
   H.eq(0, o.code, "cargo metadata of the test crate: " .. (o.stderr or ""))
   return vim.json.decode(o.stdout)
 end
@@ -54,7 +56,7 @@ end
 local function bin_crate(name)
   return crate({
     ["Cargo.toml"] = ('[package]\nname = "%s"\nversion = "0.1.0"\nedition = "2021"\n'):format(name),
-    ["src/main.rs"] = "fn main() { println!(\"hi\"); }\n",
+    ["src/main.rs"] = 'fn main() { println!("hi"); }\n',
   })
 end
 
@@ -133,9 +135,12 @@ describe("codelldb handler: Rust configurations", function()
     p.opts.handlers.codelldb(codelldb_cfg())
     local cfgs = dap.configurations.rust
     H.eq(3, #cfgs)
-    H.eq({ "LLDB: Launch", "LLDB: Launch (args)", "Rust: run current package binary (args prompt)" }, vim.tbl_map(function(c)
-      return c.name
-    end, cfgs))
+    H.eq(
+      { "LLDB: Launch", "LLDB: Launch (args)", "Rust: run current package binary (args prompt)" },
+      vim.tbl_map(function(c)
+        return c.name
+      end, cfgs)
+    )
     for _, c in ipairs(cfgs) do
       H.eq("codelldb", c.type)
       H.eq("launch", c.request)
@@ -204,20 +209,23 @@ describe("configurations: program / args / cwd", function()
     H.eq({ "a", "b" }, c.args())
   end)
 
-  it("config 3: program builds the binary in the package dir (blocking outside a coroutine) and notifies with title 'dap'", function()
-    dap_available()
-    local dir = bin_crate("blockpkg")
-    edit(dir .. "/src/main.rs")
-    local _, cfgs = fresh_setup()
-    local c = by_name(cfgs, "Rust: run current package binary (args prompt)")
-    local n = capture()
-    H.eq(nil, coroutine.running(), "the test runs on the main thread")
-    local path = c.program()
-    H.eq(cargo_meta(dir).target_directory .. "/debug/blockpkg" .. EXE, path)
-    H.ok(vim.uv.fs_stat(path), "binary was built at " .. path)
-    H.eq({ msg = "cargo build --package blockpkg --bin blockpkg", level = vim.log.levels.INFO, title = "dap" }, n[1])
-    H.eq(1, #n)
-  end)
+  it(
+    "config 3: program builds the binary in the package dir (blocking outside a coroutine) and notifies with title 'dap'",
+    function()
+      dap_available()
+      local dir = bin_crate("blockpkg")
+      edit(dir .. "/src/main.rs")
+      local _, cfgs = fresh_setup()
+      local c = by_name(cfgs, "Rust: run current package binary (args prompt)")
+      local n = capture()
+      H.eq(nil, coroutine.running(), "the test runs on the main thread")
+      local path = c.program()
+      H.eq(cargo_meta(dir).target_directory .. "/debug/blockpkg" .. EXE, path)
+      H.ok(vim.uv.fs_stat(path), "binary was built at " .. path)
+      H.eq({ msg = "cargo build --package blockpkg --bin blockpkg", level = vim.log.levels.INFO, title = "dap" }, n[1])
+      H.eq(1, #n)
+    end
+  )
 
   it("config 3: inside a coroutine the build yields (UI not blocked) and resumes with the path", function()
     dap_available()
@@ -299,15 +307,18 @@ describe("current_binary selection (seen through config 3's cwd and config 1's d
     H.eq(target .. "/debug/first" .. EXE, default_for(cfgs))
   end)
 
-  it("a package without a bin is skipped: the file's own package is not chosen, the first package with a bin is", function()
-    dap_available()
-    local dir = workspace()
-    local target = cargo_meta(dir).target_directory
-    local _, cfgs = fresh_setup()
-    edit(dir .. "/libonly/src/lib.rs")
-    H.eq(target .. "/debug/a" .. EXE, default_for(cfgs))
-    H.eq(dir .. "/a", cwd_of(cfgs))
-  end)
+  it(
+    "a package without a bin is skipped: the file's own package is not chosen, the first package with a bin is",
+    function()
+      dap_available()
+      local dir = workspace()
+      local target = cargo_meta(dir).target_directory
+      local _, cfgs = fresh_setup()
+      edit(dir .. "/libonly/src/lib.rs")
+      H.eq(target .. "/debug/a" .. EXE, default_for(cfgs))
+      H.eq(dir .. "/a", cwd_of(cfgs))
+    end
+  )
 
   it("longest directory match: a nested package wins over its parent", function()
     dap_available()
@@ -370,14 +381,17 @@ describe("build_current_binary failures", function()
     local n = capture()
     local r = by_name(cfgs, "Rust: run current package binary (args prompt)").program()
     H.eq(require("dap").ABORT, r)
-    H.eq({ { msg = "no Cargo package with a binary found for this buffer", level = vim.log.levels.ERROR, title = "dap" } }, n)
+    H.eq(
+      { { msg = "no Cargo package with a binary found for this buffer", level = vim.log.levels.ERROR, title = "dap" } },
+      n
+    )
   end)
 
   it("a failing cargo build: ERROR 'cargo build failed:' + stderr and ABORT", function()
     dap_available()
     local dir = crate({
       ["Cargo.toml"] = '[package]\nname = "badbuild"\nversion = "0.1.0"\nedition = "2021"\n',
-      ["src/main.rs"] = "fn main() { let x: u32 = \"no\"; }\n",
+      ["src/main.rs"] = 'fn main() { let x: u32 = "no"; }\n',
     })
     local _, cfgs = fresh_setup()
     edit(dir .. "/src/main.rs")
@@ -594,44 +608,53 @@ describe("dap-ui opts", function()
     H.eq(true, o.wrap)
   end)
 
-  it("the UI stays open when the session terminates or exits (the output is only in the hidden dap-terminal otherwise)", function()
-    local lazy = require("lazy")
-    lazy.load({ plugins = { "nvim-dap-ui" } })
-    local dap = require("dap")
-    H.wait_for(function()
-      return dap.listeners.before.event_terminated["dapui_config"] == nil
-    end, 5000, "LazyVim's closing listener to be removed")
-    H.is_nil(dap.listeners.before.event_exited["dapui_config"])
-    H.eq("function", type(dap.listeners.after.event_initialized["dapui_config"]), "it still opens on start")
-  end)
-
-  it("the console is re-scrolled when its topline is at or past the buffer end; breakpoint signs use the theme's groups", function()
-    H.need_os({ "linux" }, "topline never resets on macos-latest and windows-latest (run 38912021512), cause not diagnosed")
-    require("lazy").load({ plugins = { "nvim-dap-ui" } })
-    local dap = require("dap")
-    H.wait_for(function()
-      return dap.listeners.after.event_stopped["xynovim_console"] ~= nil
-    end, 5000, "the console listener")
-    for _, ev in ipairs({ "event_stopped", "event_terminated", "event_exited" }) do
-      H.eq("function", type(dap.listeners.after[ev]["xynovim_console"]), ev)
+  it(
+    "the UI stays open when the session terminates or exits (the output is only in the hidden dap-terminal otherwise)",
+    function()
+      local lazy = require("lazy")
+      lazy.load({ plugins = { "nvim-dap-ui" } })
+      local dap = require("dap")
+      H.wait_for(function()
+        return dap.listeners.before.event_terminated["dapui_config"] == nil
+      end, 5000, "LazyVim's closing listener to be removed")
+      H.is_nil(dap.listeners.before.event_exited["dapui_config"])
+      H.eq("function", type(dap.listeners.after.event_initialized["dapui_config"]), "it still opens on start")
     end
-    H.eq("DapBreakpoint", vim.fn.sign_getdefined("DapBreakpoint")[1].texthl)
-    H.eq("DapBreakpointCondition", vim.fn.sign_getdefined("DapBreakpointCondition")[1].texthl)
-    -- a window in the state the field test saw: 10 lines, topline 19
-    local b = vim.api.nvim_create_buf(false, true)
-    vim.bo[b].filetype = "dapui_console"
-    vim.api.nvim_buf_set_lines(b, 0, -1, false, vim.fn["repeat"]({ "out" }, 10))
-    vim.cmd("botright 5split")
-    local w = vim.api.nvim_get_current_win()
-    vim.api.nvim_win_set_buf(w, b)
-    vim.fn.winrestview({ topline = 10 })
-    local before = vim.fn.getwininfo(w)[1].topline
-    dap.listeners.after.event_terminated["xynovim_console"]()
-    H.wait_for(function()
-      return vim.fn.getwininfo(w)[1].topline == 1
-    end, 2000, "topline back at 1 (was " .. before .. ")")
-    vim.api.nvim_win_close(w, true)
-  end)
+  )
+
+  it(
+    "the console is re-scrolled when its topline is at or past the buffer end; breakpoint signs use the theme's groups",
+    function()
+      H.need_os(
+        { "linux" },
+        "topline never resets on macos-latest and windows-latest (run 38912021512), cause not diagnosed"
+      )
+      require("lazy").load({ plugins = { "nvim-dap-ui" } })
+      local dap = require("dap")
+      H.wait_for(function()
+        return dap.listeners.after.event_stopped["xynovim_console"] ~= nil
+      end, 5000, "the console listener")
+      for _, ev in ipairs({ "event_stopped", "event_terminated", "event_exited" }) do
+        H.eq("function", type(dap.listeners.after[ev]["xynovim_console"]), ev)
+      end
+      H.eq("DapBreakpoint", vim.fn.sign_getdefined("DapBreakpoint")[1].texthl)
+      H.eq("DapBreakpointCondition", vim.fn.sign_getdefined("DapBreakpointCondition")[1].texthl)
+      -- a window in the state the field test saw: 10 lines, topline 19
+      local b = vim.api.nvim_create_buf(false, true)
+      vim.bo[b].filetype = "dapui_console"
+      vim.api.nvim_buf_set_lines(b, 0, -1, false, vim.fn["repeat"]({ "out" }, 10))
+      vim.cmd("botright 5split")
+      local w = vim.api.nvim_get_current_win()
+      vim.api.nvim_win_set_buf(w, b)
+      vim.fn.winrestview({ topline = 10 })
+      local before = vim.fn.getwininfo(w)[1].topline
+      dap.listeners.after.event_terminated["xynovim_console"]()
+      H.wait_for(function()
+        return vim.fn.getwininfo(w)[1].topline == 1
+      end, 2000, "topline back at 1 (was " .. before .. ")")
+      vim.api.nvim_win_close(w, true)
+    end
+  )
 
   it("wrap on; left sidebar elements and sizes; bottom panel", function()
     local o = opts()
@@ -867,28 +890,31 @@ describe("<leader>dP pause", function()
     return k[2]
   end
 
-  it("a running session with no known threads asks for them and pauses the first (codelldb fills them only on a stop)", function()
-    local dap = require("dap")
-    local pauses, reqs = {}, {}
-    local orig_pause, orig_session = dap.pause, dap.session
-    dap.pause = function(...)
-      pauses[#pauses + 1] = { ... }
+  it(
+    "a running session with no known threads asks for them and pauses the first (codelldb fills them only on a stop)",
+    function()
+      local dap = require("dap")
+      local pauses, reqs = {}, {}
+      local orig_pause, orig_session = dap.pause, dap.session
+      dap.pause = function(...)
+        pauses[#pauses + 1] = { ... }
+      end
+      dap.session = function()
+        return {
+          threads = {},
+          request = function(_, cmd, _, cb)
+            reqs[#reqs + 1] = cmd
+            cb(nil, { threads = { { id = 7, name = "main" } } })
+          end,
+        }
+      end
+      local ok, err = pcall(key_fn())
+      dap.pause, dap.session = orig_pause, orig_session
+      H.ok(ok, tostring(err))
+      H.eq({ "threads" }, reqs)
+      H.eq({ { 7 } }, pauses)
     end
-    dap.session = function()
-      return {
-        threads = {},
-        request = function(_, cmd, _, cb)
-          reqs[#reqs + 1] = cmd
-          cb(nil, { threads = { { id = 7, name = "main" } } })
-        end,
-      }
-    end
-    local ok, err = pcall(key_fn())
-    dap.pause, dap.session = orig_pause, orig_session
-    H.ok(ok, tostring(err))
-    H.eq({ "threads" }, reqs)
-    H.eq({ { 7 } }, pauses)
-  end)
+  )
 
   it("known threads: plain dap.pause(); no session: a notice", function()
     local dap = require("dap")
@@ -1066,7 +1092,14 @@ describe("neotest, overseer", function()
       H.eq(desc, m.desc, lhs)
     end
     require("lazy").load({ plugins = { "overseer.nvim" } })
-    for _, c in ipairs({ "OverseerRun", "OverseerToggle", "OverseerTaskAction", "OverseerOpen", "OverseerClose", "OverseerShell" }) do
+    for _, c in ipairs({
+      "OverseerRun",
+      "OverseerToggle",
+      "OverseerTaskAction",
+      "OverseerOpen",
+      "OverseerClose",
+      "OverseerShell",
+    }) do
       H.eq(2, vim.fn.exists(":" .. c), c)
     end
   end)
@@ -1123,14 +1156,20 @@ describe("coverage honours :RustContext", function()
     if vim.fn.executable("cargo-nextest") == 1 then
       want[#want + 1] = "nextest"
     end
-    vim.list_extend(want, { "--workspace", "--ignore-run-fail", "--lcov", "--output-path", "target/lcov.info", "--all-features" })
+    vim.list_extend(
+      want,
+      { "--workspace", "--ignore-run-fail", "--lcov", "--output-path", "target/lcov.info", "--all-features" }
+    )
     H.eq(want, s.cmd)
   end)
 
   it("a stored context (features, no default, target) is passed on", function()
     H.need_rust()
     local dir = setup_crate()
-    require("xyno_rust.rust_context").apply(dir, { all = false, no_default = true, features = { "b" }, target = "x86_64-unknown-linux-gnu" })
+    require("xyno_rust.rust_context").apply(
+      dir,
+      { all = false, no_default = true, features = { "b" }, target = "x86_64-unknown-linux-gnu" }
+    )
     local s = run_tc(dir)
     local tail = vim.list_slice(s.cmd, #s.cmd - 4)
     H.eq({ "--no-default-features", "--features", "b", "--target", "x86_64-unknown-linux-gnu" }, tail)
@@ -1453,8 +1492,14 @@ describe("real debug session (codelldb + cargo)", function()
 end)
 
 -- 18 -----------------------------------------------------------------------
-pending("interactive prompts with a real terminal (vim.fn.input / vim.ui.select are stubbed here)", "needs a pty-driven nvim session")
-pending("multi-bin workspaces in a real debug session (selection logic is covered above, no launch)", "README: untested")
+pending(
+  "interactive prompts with a real terminal (vim.fn.input / vim.ui.select are stubbed here)",
+  "needs a pty-driven nvim session"
+)
+pending(
+  "multi-bin workspaces in a real debug session (selection logic is covered above, no launch)",
+  "README: untested"
+)
 pending("narrow terminals (dap-ui width is checked through vim.o.columns, not rendered)", "README: untested")
 pending("clicking a Debug codelens", "needs a mouse-driven UI session")
 pending("threads that panic (only the main thread is covered)", "README: untested")

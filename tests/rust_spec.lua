@@ -41,7 +41,11 @@ describe("rust-analyzer on the fixtures", function()
     -- tier (bacon-ls has no code): accept any rendering of E0308.
     H.wait_for(function()
       for _, d in ipairs(H.diagnostics(nil, buf)) do
-        if tostring(d.code) == "E0308" or d.message:find("mismatched types", 1, true) or d.message:find("expected .*, found") then
+        if
+          tostring(d.code) == "E0308"
+          or d.message:find("mismatched types", 1, true)
+          or d.message:find("expected .*, found")
+        then
           return d
         end
       end

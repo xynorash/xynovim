@@ -161,8 +161,20 @@ return {
     opts = function(_, opts)
       opts.kind_filter = opts.kind_filter or {}
       opts.kind_filter.rust = {
-        "Class", "Constructor", "Enum", "Field", "Function", "Interface", "Method", "Module",
-        "Namespace", "Object", "Package", "Property", "Struct", "Trait",
+        "Class",
+        "Constructor",
+        "Enum",
+        "Field",
+        "Function",
+        "Interface",
+        "Method",
+        "Module",
+        "Namespace",
+        "Object",
+        "Package",
+        "Property",
+        "Struct",
+        "Trait",
       }
     end,
   },

@@ -193,7 +193,10 @@ describe("gitsigns attach_to_untracked", function()
   end)
 
   it("an untracked file in a repo without commits gets 3 signs; 0 without the override", function()
-    H.known_issue({ "windows" }, "gitsigns signs for an untracked file not seen on Windows (windows-latest run 39647013043; cause not diagnosed)")
+    H.known_issue(
+      { "windows" },
+      "gitsigns signs for an untracked file not seen on Windows (windows-latest run 39647013043; cause not diagnosed)"
+    )
     local dir = untracked_repo()
     local b = H.open(dir .. "/new.txt")
     H.wait_for(function()
@@ -358,9 +361,12 @@ describe("cargo_deny parser", function()
       list[#list + 1] = diag({ severity = s, code = s, message = s })
     end
     local r = parse("Cargo.toml", TOML, json_lines(list))
-    H.eq({ SEV.ERROR, SEV.WARN, SEV.INFO, SEV.HINT, SEV.WARN }, vim.tbl_map(function(x)
-      return x.severity
-    end, r))
+    H.eq(
+      { SEV.ERROR, SEV.WARN, SEV.INFO, SEV.HINT, SEV.WARN },
+      vim.tbl_map(function(x)
+        return x.severity
+      end, r)
+    )
   end)
 
   it("Cargo.lock: lnum/col are label.line/column minus 1", function()
@@ -415,22 +421,25 @@ describe("cargo_deny parser", function()
     H.eq(0, r[1].col)
   end)
 
-  it("a `log` entry with level ERROR (broken deny.toml, unreachable source) becomes a line-0 WARN 'deny-failed'", function()
-    local r = parse(
-      "Cargo.toml",
-      TOML,
-      json_lines({
-        { type = "log", fields = { level = "INFO", message = "just chatter" } },
-        { type = "log", fields = { level = "ERROR", message = "failed to parse config from 'deny.toml'" } },
-      })
-    )
-    H.eq(1, #r)
-    H.eq(0, r[1].lnum)
-    H.eq(SEV.WARN, r[1].severity)
-    H.eq("cargo-deny", r[1].source)
-    H.eq("deny-failed", r[1].code)
-    H.match(r[1].message, "failed to parse config", true)
-  end)
+  it(
+    "a `log` entry with level ERROR (broken deny.toml, unreachable source) becomes a line-0 WARN 'deny-failed'",
+    function()
+      local r = parse(
+        "Cargo.toml",
+        TOML,
+        json_lines({
+          { type = "log", fields = { level = "INFO", message = "just chatter" } },
+          { type = "log", fields = { level = "ERROR", message = "failed to parse config from 'deny.toml'" } },
+        })
+      )
+      H.eq(1, #r)
+      H.eq(0, r[1].lnum)
+      H.eq(SEV.WARN, r[1].severity)
+      H.eq("cargo-deny", r[1].source)
+      H.eq("deny-failed", r[1].code)
+      H.match(r[1].message, "failed to parse config", true)
+    end
+  )
 
   it("two ERROR log records give one 'deny-failed' warning", function()
     local r = parse(
@@ -454,7 +463,10 @@ describe("cargo_deny parser", function()
           severity = "error",
           code = "wildcard",
           message = "found 2 wildcard dependencies for crate 'p'",
-          labels = { { line = 4, column = 1, message = "wildcard dependency" }, { line = 6, column = 1, message = "wildcard dependency" } },
+          labels = {
+            { line = 4, column = 1, message = "wildcard dependency" },
+            { line = 6, column = 1, message = "wildcard dependency" },
+          },
           graphs = { { Krate = { name = "p", version = "0.1.0" } } },
         }),
       })
@@ -464,7 +476,8 @@ describe("cargo_deny parser", function()
   end)
 
   it("a JSON `null` line (vim.NIL is truthy) does not crash the parser", function()
-    local r = parse("Cargo.toml", TOML, "null\n" .. json_lines({ diag({ severity = "note", code = "ok", message = "kept" }) }))
+    local r =
+      parse("Cargo.toml", TOML, "null\n" .. json_lines({ diag({ severity = "note", code = "ok", message = "kept" }) }))
     H.eq(1, #r)
   end)
 
@@ -551,16 +564,11 @@ describe("cargo_deny parser", function()
   end)
 
   it("ignores malformed lines, summaries, blanks and non-diagnostics", function()
-    local r = parse(
-      "Cargo.toml",
-      TOML,
-      "not json at all\n\n{broken\n"
-        .. json_lines({
-          { type = "summary", fields = { advisories = {} } },
-          diag({ severity = "note", code = "ok", message = "kept" }),
-          "[1,2,3]",
-        })
-    )
+    local r = parse("Cargo.toml", TOML, "not json at all\n\n{broken\n" .. json_lines({
+      { type = "summary", fields = { advisories = {} } },
+      diag({ severity = "note", code = "ok", message = "kept" }),
+      "[1,2,3]",
+    }))
     H.eq(1, #r)
     H.eq("kept", r[1].message)
     H.eq({}, parse("Cargo.toml", TOML, ""))
@@ -638,7 +646,10 @@ describe("cargo_machete", function()
     end)
 
     it("dotted and quoted dependency keys (`serde.workspace = true`) get their own line, not line 1", function()
-      local b = named_buf(d .. "/Cargo.toml", { "[package]", 'name = "p"', "", "[dependencies]", "serde.workspace = true", '"time".workspace = true' })
+      local b = named_buf(
+        d .. "/Cargo.toml",
+        { "[package]", 'name = "p"', "", "[dependencies]", "serde.workspace = true", '"time".workspace = true' }
+      )
       local out = table.concat({ "p -- ./Cargo.toml:", "\tserde", "\ttime", "" }, "\n")
       local r = linter("cargo_machete").parser(out, b)
       H.eq({ 4, 5 }, { r[1].lnum, r[2].lnum })
@@ -707,17 +718,29 @@ local function deny_crate()
   write(d .. "/deny.toml", { "[advisories]", "[bans]", 'wildcards = "deny"' })
   local r = vim.system({ "cargo", "generate-lockfile", "--offline" }, { cwd = d, text = true }):wait(60000)
   if r.code ~= 0 then
-    skip("cargo generate-lockfile --offline failed (time 0.1.45 not in the local registry cache): " .. vim.trim(r.stderr))
+    skip(
+      "cargo generate-lockfile --offline failed (time 0.1.45 not in the local registry cache): " .. vim.trim(r.stderr)
+    )
   end
   return d
 end
 
 --- Raw cargo-deny diagnostics, or skip when the advisory DB is not cached.
 local function raw_deny(d)
-  local r = vim.system(
-    { "cargo", "deny", "--manifest-path", d .. "/Cargo.toml", "--offline", "--format", "json", "check", "advisories", "bans" },
-    { cwd = d, text = true }
-  ):wait(120000)
+  local r = vim
+    .system({
+      "cargo",
+      "deny",
+      "--manifest-path",
+      d .. "/Cargo.toml",
+      "--offline",
+      "--format",
+      "json",
+      "check",
+      "advisories",
+      "bans",
+    }, { cwd = d, text = true })
+    :wait(120000)
   local out = {}
   for line in vim.gsplit(r.stderr or "", "\n", { plain = true, trimempty = true }) do
     local ok, j = pcall(vim.json.decode, line)
@@ -907,7 +930,10 @@ describe("integration: actionlint / zizmor", function()
     end
     for _, names in ipairs(calls) do
       for _, n in ipairs(type(names) == "table" and names or { names }) do
-        H.not_ok(vim.tbl_contains({ "actionlint", "zizmor", "cargo_deny", "cargo_machete" }, n), "try_lint called with " .. n)
+        H.not_ok(
+          vim.tbl_contains({ "actionlint", "zizmor", "cargo_deny", "cargo_machete" }, n),
+          "try_lint called with " .. n
+        )
       end
     end
   end)
@@ -919,7 +945,12 @@ describe("integration: actionlint / zizmor", function()
     local a = vim.system({ "actionlint", ci }, { text = true }):wait(60000)
     H.eq(0, a.code, "actionlint: " .. (a.stdout or "") .. (a.stderr or ""))
     -- the exact invocation of the nvim-lint zizmor definition (stdin)
-    local z = vim.system({ "zizmor", "--format", "json-v1", "-" }, { text = true, stdin = table.concat(vim.fn.readfile(ci), "\n") .. "\n" }):wait(120000)
+    local z = vim
+      .system(
+        { "zizmor", "--format", "json-v1", "-" },
+        { text = true, stdin = table.concat(vim.fn.readfile(ci), "\n") .. "\n" }
+      )
+      :wait(120000)
     local ok, list = pcall(vim.json.decode, z.stdout)
     H.ok(ok, "zizmor output: " .. tostring(z.stdout) .. tostring(z.stderr))
     H.eq(0, #list, "zizmor (regular persona) findings: " .. vim.inspect(vim.tbl_map(function(x)

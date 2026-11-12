@@ -7,7 +7,11 @@ local H = require("xynotest.helpers")
 -- scripts/test.sh, never in the real cache.
 local test_tmp = vim.env.XYNO_TEST_TMP
 local cache = vim.fn.stdpath("cache")
-if not test_tmp or test_tmp == "" or not vim.startswith(vim.fs.normalize(cache), vim.fs.normalize(vim.fs.dirname(test_tmp)) .. "/") then
+if
+  not test_tmp
+  or test_tmp == ""
+  or not vim.startswith(vim.fs.normalize(cache), vim.fs.normalize(vim.fs.dirname(test_tmp)) .. "/")
+then
   H.skip_file("run through scripts/test.sh (stdpath('cache') must be a temp dir, got " .. cache .. ")")
 end
 
@@ -444,7 +448,10 @@ describe("Guarded.make_request", function()
   end)
 
   it("takes a forced 'before 99 request' snapshot of the buffer path before the request starts", function()
-    H.need_os({ "linux" }, "times out waiting for the snapshot commit on macos-latest (run 38912021512), cause not diagnosed")
+    H.need_os(
+      { "linux" },
+      "times out waiting for the snapshot commit on macos-latest (run 38912021512), cause not diagnosed"
+    )
     local dir = H.open_fixture("basic", "src/main.rs", { git = true })
     local lh = require("xyno_history")
     local order, snap = {}, nil
@@ -609,7 +616,7 @@ describe("Guarded.make_request", function()
   end)
 
   it("works for a context without a cancel function", function()
-    local ctx = { }
+    local ctx = {}
     start(ctx)
     H.eq(false, autosave().enabled())
     H.is_nil(ctx.cancel)
@@ -923,67 +930,73 @@ describe("Guarded.make_request with the policy preview (xyno-sandbox.nvim)", fun
     autosave().on()
   end)
 
-  it("shows the policy first; cancelling ends the request as cancelled with no process, no snapshot, auto-save untouched", function()
-    if vim.fn.executable("bwrap") ~= 1 then
-      skip("bwrap not found")
+  it(
+    "shows the policy first; cancelling ends the request as cancelled with no process, no snapshot, auto-save untouched",
+    function()
+      if vim.fn.executable("bwrap") ~= 1 then
+        skip("bwrap not found")
+      end
+      local asked
+      patch(sandbox, {
+        confirm = function(cmd, project, tmp, cb)
+          asked = { cmd = cmd, project = project, tmp = tmp }
+          cb(false, "cancelled")
+        end,
+      })
+      local _, obs = start()
+      H.ok(asked, "confirm was asked")
+      H.eq("claude", asked.cmd[1])
+      H.has(asked.cmd, "--dangerously-skip-permissions")
+      H.eq(tmp_dir, asked.tmp)
+      H.eq(0, rec.n, "claude was not started")
+      H.eq("cancelled", obs.completed[1][1])
+      H.ok(autosave().enabled(), "auto-save untouched")
     end
-    local asked
-    patch(sandbox, {
-      confirm = function(cmd, project, tmp, cb)
-        asked = { cmd = cmd, project = project, tmp = tmp }
-        cb(false, "cancelled")
-      end,
-    })
-    local _, obs = start()
-    H.ok(asked, "confirm was asked")
-    H.eq("claude", asked.cmd[1])
-    H.has(asked.cmd, "--dangerously-skip-permissions")
-    H.eq(tmp_dir, asked.tmp)
-    H.eq(0, rec.n, "claude was not started")
-    H.eq("cancelled", obs.completed[1][1])
-    H.ok(autosave().enabled(), "auto-save untouched")
-  end)
+  )
 
-  it("the plan the operator confirmed is the plan that is wrapped, and the handle is released when the request ends", function()
-    if vim.fn.executable("bwrap") ~= 1 then
-      skip("bwrap not found")
-    end
-    local shown_plan, wrapped_with
-    local released = 0
-    local orig_wrap = sandbox.wrap
-    patch(sandbox, {
-      confirm = function(cmd, project, tmp, cb)
-        shown_plan = sandbox.plan(cmd, project, tmp)
-        cb(true, shown_plan, {})
-      end,
-      wrap = function(cmd, project, tmp, opts)
-        wrapped_with = opts
-        local w, err, h = orig_wrap(cmd, project, tmp, opts)
-        if h then
-          local rel = h.release
-          h.release = function()
-            released = released + 1
-            return rel()
+  it(
+    "the plan the operator confirmed is the plan that is wrapped, and the handle is released when the request ends",
+    function()
+      if vim.fn.executable("bwrap") ~= 1 then
+        skip("bwrap not found")
+      end
+      local shown_plan, wrapped_with
+      local released = 0
+      local orig_wrap = sandbox.wrap
+      patch(sandbox, {
+        confirm = function(cmd, project, tmp, cb)
+          shown_plan = sandbox.plan(cmd, project, tmp)
+          cb(true, shown_plan, {})
+        end,
+        wrap = function(cmd, project, tmp, opts)
+          wrapped_with = opts
+          local w, err, h = orig_wrap(cmd, project, tmp, opts)
+          if h then
+            local rel = h.release
+            h.release = function()
+              released = released + 1
+              return rel()
+            end
           end
-        end
-        return w, err, h
-      end,
-    })
-    patch(claude(), {
-      make_request = function(self, query, context, observer)
-        -- the real provider builds the command from Guarded:_build_command
-        guarded()._build_command(self, query, context)
-        rec.observers[#rec.observers + 1] = observer
-        return "ran"
-      end,
-    })
-    local _, obs = start()
-    H.ok(wrapped_with and wrapped_with.plan == shown_plan, "wrap() got the confirmed plan")
-    H.eq(0, released)
-    rec.observers[1].on_complete("success", "done")
-    H.eq(1, released, "the sandbox handle was released on completion")
-    H.eq("success", obs.completed[1][1])
-  end)
+          return w, err, h
+        end,
+      })
+      patch(claude(), {
+        make_request = function(self, query, context, observer)
+          -- the real provider builds the command from Guarded:_build_command
+          guarded()._build_command(self, query, context)
+          rec.observers[#rec.observers + 1] = observer
+          return "ran"
+        end,
+      })
+      local _, obs = start()
+      H.ok(wrapped_with and wrapped_with.plan == shown_plan, "wrap() got the confirmed plan")
+      H.eq(0, released)
+      rec.observers[1].on_complete("success", "done")
+      H.eq(1, released, "the sandbox handle was released on completion")
+      H.eq("success", obs.completed[1][1])
+    end
+  )
 
   it("a cancelled request releases the handle too", function()
     if vim.fn.executable("bwrap") ~= 1 then
@@ -1055,8 +1068,6 @@ describe("the sandbox commands and statusline in this config", function()
     end
   end)
 end)
-
-
 
 -- ------------------------------------------- the provider picker is guarded
 

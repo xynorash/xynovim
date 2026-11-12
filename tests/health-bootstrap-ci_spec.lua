@@ -38,8 +38,29 @@ local function stubdir(spec)
 end
 
 local HEALTH_BINS = {
-  "git", "curl", "tar", "unzip", "gzip", "gcc", "tree-sitter", "node", "cargo", "rust-analyzer", "bacon-ls", "codelldb", "taplo",
-  "wgsl-analyzer", "cargo-nextest", "cargo-deny", "cargo-expand", "lazygit", "delta", "mold", "clang", "npm", "bwrap",
+  "git",
+  "curl",
+  "tar",
+  "unzip",
+  "gzip",
+  "gcc",
+  "tree-sitter",
+  "node",
+  "cargo",
+  "rust-analyzer",
+  "bacon-ls",
+  "codelldb",
+  "taplo",
+  "wgsl-analyzer",
+  "cargo-nextest",
+  "cargo-deny",
+  "cargo-expand",
+  "lazygit",
+  "delta",
+  "mold",
+  "clang",
+  "npm",
+  "bwrap",
 }
 local ERRORS = { git = 1, cargo = 1, ["rust-analyzer"] = 1, ["bacon-ls"] = 1 }
 local MASON = { ["tree-sitter"] = 1, ["bacon-ls"] = 1, codelldb = 1, taplo = 1, ["wgsl-analyzer"] = 1 }
@@ -55,7 +76,8 @@ local function all_stubs(extra)
   return spec
 end
 
-local RUSTUP_OK = "case \"$*\" in\n  'component list --toolchain stable --installed') printf 'cargo-x86_64\\nclippy-x86_64\\nllvm-tools-x86_64\\nrustfmt-x86_64\\n' ;;\n  *) exit 1 ;;\nesac\n"
+local RUSTUP_OK =
+  "case \"$*\" in\n  'component list --toolchain stable --installed') printf 'cargo-x86_64\\nclippy-x86_64\\nllvm-tools-x86_64\\nrustfmt-x86_64\\n' ;;\n  *) exit 1 ;;\nesac\n"
 
 --- Run health.check() with PATH = `path`, XDG_DATA_HOME = a fresh temp dir (or
 --- `data`), vim.health stubbed. Returns the list of {kind, msg, advice}.
@@ -164,7 +186,7 @@ describe("health: found tools", function()
     local rec = run_check(dir)
     local r = rec_for(rec, "git")
     H.eq("ok", r.kind)
-    H.eq(("git (PATH) git version 2.99: plugin manager (lazy.nvim clones and checks out the lockfile)"), r.msg)
+    H.eq("git (PATH) git version 2.99: plugin manager (lazy.nvim clones and checks out the lockfile)", r.msg)
     H.eq("ok", rec_for(rec, "curl").kind)
     H.has(rec_for(rec, "curl").msg, "curl (PATH) curl 9.9.9 stub: ")
   end)
@@ -183,7 +205,7 @@ describe("health: found tools", function()
 
   it("passes the per-tool version args (unzip -v, others --version)", function()
     local log = H.tmpdir() .. "/args.log"
-    local body = ("echo \"$0 $*\" >> %s\necho ok\n"):format(log)
+    local body = ('echo "$0 $*" >> %s\necho ok\n'):format(log)
     run_check(stubdir(all_stubs({ unzip = body, git = body })))
     local lines = vim.fn.readfile(log)
     local joined = table.concat(lines, "\n")
@@ -252,7 +274,8 @@ describe("health: broken tools", function()
   end)
 
   it("a rustup-style rust-analyzer proxy (version fails) is an error with the rustup advice", function()
-    local rec = run_check(stubdir(all_stubs({ ["rust-analyzer"] = "echo 'error: component not installed' >&2\nexit 1\n" })))
+    local rec =
+      run_check(stubdir(all_stubs({ ["rust-analyzer"] = "echo 'error: component not installed' >&2\nexit 1\n" })))
     local r = rec_for(rec, "rust-analyzer")
     H.eq("error", r.kind)
     H.match(r.msg, "^rust%-analyzer found %(PATH: .*/rust%-analyzer%) but `%-%-version` fails: language server")
@@ -297,7 +320,17 @@ describe("health: xyno plugins", function()
     local rec = run_check(stubdir({}), nil)
     local sec = section(rec, "xynovim: xyno plugins")
     H.eq(9, #sec)
-    for _, name in ipairs({ "xyno-history.nvim", "xyno-sandbox.nvim", "xyno-clipboard.nvim", "xyno-guard.nvim", "xyno-rust.nvim", "xyno-new.nvim", "xyno-imports.nvim", "xyno-crates.nvim", "xyno-macros.nvim" }) do
+    for _, name in ipairs({
+      "xyno-history.nvim",
+      "xyno-sandbox.nvim",
+      "xyno-clipboard.nvim",
+      "xyno-guard.nvim",
+      "xyno-rust.nvim",
+      "xyno-new.nvim",
+      "xyno-imports.nvim",
+      "xyno-crates.nvim",
+      "xyno-macros.nvim",
+    }) do
       local found
       for _, r in ipairs(sec) do
         if r.msg:find(name, 1, true) then
@@ -319,15 +352,24 @@ describe("health: rust toolchain", function()
 
   it("asks rustup for the installed components of the stable toolchain", function()
     local log = H.tmpdir() .. "/rustup.log"
-    toolchain(("echo \"$*\" >> %s\n"):format(log) .. RUSTUP_OK)
-    H.eq({ "component list --toolchain stable --installed", "target list --toolchain stable --installed" }, vim.fn.readfile(log))
+    toolchain(('echo "$*" >> %s\n'):format(log) .. RUSTUP_OK)
+    H.eq(
+      { "component list --toolchain stable --installed", "target list --toolchain stable --installed" },
+      vim.fn.readfile(log)
+    )
   end)
 
   it("ok when clippy and llvm-tools are installed", function()
     local tc = toolchain(RUSTUP_OK)
     H.eq(2, #tc)
-    H.eq({ kind = "ok", msg = "stable has clippy: clippy tier and rust-analyzer lints" }, { kind = tc[1].kind, msg = tc[1].msg })
-    H.eq({ kind = "ok", msg = "stable has llvm-tools: cargo-llvm-cov coverage (<leader>tc)" }, { kind = tc[2].kind, msg = tc[2].msg })
+    H.eq(
+      { kind = "ok", msg = "stable has clippy: clippy tier and rust-analyzer lints" },
+      { kind = tc[1].kind, msg = tc[1].msg }
+    )
+    H.eq(
+      { kind = "ok", msg = "stable has llvm-tools: cargo-llvm-cov coverage (<leader>tc)" },
+      { kind = tc[2].kind, msg = tc[2].msg }
+    )
   end)
 
   it("warns with the rustup command for each missing component", function()
@@ -342,18 +384,26 @@ describe("health: rust toolchain", function()
     H.eq({ "ok", "warn" }, { only_clippy[1].kind, only_clippy[2].kind })
   end)
 
-  it("checks the wasm32-unknown-unknown target: ok when listed, a warn with the rustup command when not, nothing when rustup cannot list", function()
-    local with = "case \"$*\" in\n  'target list --toolchain stable --installed') printf 'x86_64-unknown-linux-gnu\\nwasm32-unknown-unknown\\n' ;;\n" .. RUSTUP_OK:match("^case \"%$%*\" in\n(.*)$")
-    local tc = toolchain(with)
-    H.eq(3, #tc)
-    H.eq({ kind = "ok", msg = "stable has the wasm32-unknown-unknown target: web/WASM crates (:RustContext target)" }, { kind = tc[3].kind, msg = tc[3].msg })
-    local without = "case \"$*\" in\n  'target list --toolchain stable --installed') printf 'x86_64-unknown-linux-gnu\\n' ;;\n" .. RUSTUP_OK:match("^case \"%$%*\" in\n(.*)$")
-    tc = toolchain(without)
-    H.eq(3, #tc)
-    H.eq("warn", tc[3].kind)
-    H.eq("rustup target add --toolchain stable wasm32-unknown-unknown", tc[3].advice)
-    H.eq(2, #toolchain(RUSTUP_OK), "target list fails: no record")
-  end)
+  it(
+    "checks the wasm32-unknown-unknown target: ok when listed, a warn with the rustup command when not, nothing when rustup cannot list",
+    function()
+      local with = "case \"$*\" in\n  'target list --toolchain stable --installed') printf 'x86_64-unknown-linux-gnu\\nwasm32-unknown-unknown\\n' ;;\n"
+        .. RUSTUP_OK:match('^case "%$%*" in\n(.*)$')
+      local tc = toolchain(with)
+      H.eq(3, #tc)
+      H.eq(
+        { kind = "ok", msg = "stable has the wasm32-unknown-unknown target: web/WASM crates (:RustContext target)" },
+        { kind = tc[3].kind, msg = tc[3].msg }
+      )
+      local without = "case \"$*\" in\n  'target list --toolchain stable --installed') printf 'x86_64-unknown-linux-gnu\\n' ;;\n"
+        .. RUSTUP_OK:match('^case "%$%*" in\n(.*)$')
+      tc = toolchain(without)
+      H.eq(3, #tc)
+      H.eq("warn", tc[3].kind)
+      H.eq("rustup target add --toolchain stable wasm32-unknown-unknown", tc[3].advice)
+      H.eq(2, #toolchain(RUSTUP_OK), "target list fails: no record")
+    end
+  )
 
   it("warns 'stable toolchain not installed' when rustup fails", function()
     local tc = toolchain("echo 'error: toolchain stable is not installed' >&2\nexit 1\n")
@@ -415,7 +465,20 @@ exit 0
     --- stub the prerequisite tools (all but `except`); rust-analyzer's version can be made to fail
     stub_prereqs = function(_, except, ra_fails)
       except = except or {}
-      for _, t in ipairs({ "nvim", "git", "curl", "tar", "unzip", "gzip", "gcc", "npm", "node", "cargo", "rustup", "rust-analyzer" }) do
+      for _, t in ipairs({
+        "nvim",
+        "git",
+        "curl",
+        "tar",
+        "unzip",
+        "gzip",
+        "gcc",
+        "npm",
+        "node",
+        "cargo",
+        "rustup",
+        "rust-analyzer",
+      }) do
         if not vim.tbl_contains(except, t) and t ~= "nvim" then
           write_exec(bin .. "/" .. t, (t == "rust-analyzer" and ra_fails) and "exit 1\n" or "echo stub\n")
         end
@@ -506,7 +569,14 @@ describe("bootstrap.sh: config link check", function()
     H.eq(1, r.code)
     sh({ "mv", c.ck, c.root .. "/nvim" })
     local script = c.root .. "/nvim/scripts/bootstrap.sh"
-    local env = { PATH = c.bin, XDG_CONFIG_HOME = c.root, HOME = c.root .. "/home", TMPDIR = c.tmp, BOOTSTRAP_SKIP_PREREQS = "1", LOCK = c.root .. "/nvim/lazy-lock.json" }
+    local env = {
+      PATH = c.bin,
+      XDG_CONFIG_HOME = c.root,
+      HOME = c.root .. "/home",
+      TMPDIR = c.tmp,
+      BOOTSTRAP_SKIP_PREREQS = "1",
+      LOCK = c.root .. "/nvim/lazy-lock.json",
+    }
     local r2 = sh({ H.bash, script }, { env = env, clear_env = true })
     H.eq(0, r2.code, r2.stderr)
   end)
@@ -569,7 +639,9 @@ describe("bootstrap.sh: prerequisites", function()
     local r = c:run({ BOOTSTRAP_SKIP_PREREQS = "1" })
     H.eq(0, r.code, r.stderr)
     H.no_match(r.stderr, "missing prerequisites", true)
-    H.eq(3, #vim.tbl_filter(function(l) return l:find("^nvim ") end, log_lines(c)))
+    H.eq(3, #vim.tbl_filter(function(l)
+      return l:find("^nvim ")
+    end, log_lines(c)))
   end)
 end)
 
@@ -661,7 +733,8 @@ local ci = read(".github/workflows/ci.yml")
 local function ci_steps()
   local steps, cur = {}, nil
   local in_steps = false
-  for _, l in ipairs(vim.split(ci, "\n")) do
+  -- the `lint` job above it has its own steps (checked in supply-chain-lint_spec.lua)
+  for _, l in ipairs(vim.split(ci:match("\n  smoke:\n.*$") or "", "\n")) do
     if l:match("^    steps:") then
       in_steps = true
     elseif in_steps and l:match("^      %- ") then
@@ -700,17 +773,20 @@ describe("ci.yml", function()
     H.has(ci, "\non:\n  push:\n    branches: [main]\n  pull_request:\n")
   end)
 
-  it("has read-only contents permission and one job 'smoke' on ubuntu-latest, 40 minute timeout", function()
-    H.has(ci, "\npermissions:\n  contents: read\n")
-    local jobs = "\n" .. ci:match("\njobs:\n(.*)$")
-    local names = {}
-    for n in jobs:gmatch("\n  ([%w_-]+):") do
-      names[#names + 1] = n
+  it(
+    "has read-only contents permission and the jobs 'lint' and 'smoke' on ubuntu-latest, smoke with a 40 minute timeout",
+    function()
+      H.has(ci, "\npermissions:\n  contents: read\n")
+      local jobs = "\n" .. ci:match("\njobs:\n(.*)$")
+      local names = {}
+      for n in jobs:gmatch("\n  ([%w_-]+):") do
+        names[#names + 1] = n
+      end
+      H.eq({ "lint", "smoke" }, names)
+      H.has(ci, "    runs-on: ubuntu-latest\n")
+      H.has(ci, "    timeout-minutes: 40\n")
     end
-    H.eq({ "smoke" }, names)
-    H.has(ci, "    runs-on: ubuntu-latest\n")
-    H.has(ci, "    timeout-minutes: 40\n")
-  end)
+  )
 
   it("pins actions/checkout to the commit hash with persist-credentials false", function()
     local steps = ci_steps()
@@ -732,7 +808,7 @@ describe("ci.yml", function()
     local steps = ci_steps()
     local want = {
       { "checkout", "uses: actions/checkout@" },
-      { "install nvim", "Install Neovim stable" },
+      { "install nvim", "Install Neovim %(pinned, checksum verified%)" },
       { "link config", "Use the checkout as the Neovim config" },
       { "rust-analyzer", "Add rust%-analyzer" },
       { "bootstrap", "Restore plugins from the lockfile" },
@@ -747,19 +823,26 @@ describe("ci.yml", function()
     end
   end)
 
-  it("step contents: nvim tarball into $HOME/nvim and PATH, symlink, rustup, bootstrap, lockfile checks, test.sh", function()
-    local s = ci_steps()
-    local install = run_block(s[2])
-    H.has(install, "curl -fsSL -o nvim.tar.gz https://github.com/neovim/neovim/releases/download/stable/nvim-linux-x86_64.tar.gz")
-    H.has(install, 'tar -xzf nvim.tar.gz -C "$HOME/nvim" --strip-components=1')
-    H.has(install, 'echo "$HOME/nvim/bin" >> "$GITHUB_PATH"')
-    H.has(run_block(s[3]), 'ln -s "$GITHUB_WORKSPACE" "$HOME/.config/nvim"')
-    H.has(s[4].text, "run: rustup component add rust-analyzer")
-    H.has(s[5].text, "run: scripts/bootstrap.sh")
-    H.has(s[6].text, "run: git diff --exit-code lazy-lock.json")
-    H.has(s[8].text, "run: scripts/test.sh")
-    H.has(s[9].text, "run: git diff --exit-code lazy-lock.json")
-  end)
+  it(
+    "step contents: nvim tarball into $HOME/nvim and PATH, symlink, rustup, bootstrap, lockfile checks, test.sh",
+    function()
+      local s = ci_steps()
+      local install = run_block(s[2])
+      H.has(
+        install,
+        'curl -fsSL -o nvim.tar.gz "https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux-x86_64.tar.gz"'
+      )
+      H.has(install, 'echo "${NVIM_LINUX_SHA256}  nvim.tar.gz" | sha256sum -c -')
+      H.has(install, 'tar -xzf nvim.tar.gz -C "$HOME/nvim" --strip-components=1')
+      H.has(install, 'echo "$HOME/nvim/bin" >> "$GITHUB_PATH"')
+      H.has(run_block(s[3]), 'ln -s "$GITHUB_WORKSPACE" "$HOME/.config/nvim"')
+      H.has(s[4].text, "run: rustup component add rust-analyzer")
+      H.has(s[5].text, "run: scripts/bootstrap.sh")
+      H.has(s[6].text, "run: git diff --exit-code lazy-lock.json")
+      H.has(s[8].text, "run: scripts/test.sh")
+      H.has(s[9].text, "run: git diff --exit-code lazy-lock.json")
+    end
+  )
 
   describe("startup smoke step", function()
     local function run_smoke(nvim_body)
@@ -815,7 +898,10 @@ describe("ci.yml", function()
       skip("zizmor not installed")
     end
     -- --offline: no GitHub API lookups; online-only audits are not run
-    local r = sh({ "zizmor", "--offline", "--no-progress", repo .. "/.github/workflows/ci.yml" }, { env = { HOME = H.tmpdir(), PATH = vim.env.PATH } })
+    local r = sh(
+      { "zizmor", "--offline", "--no-progress", repo .. "/.github/workflows/ci.yml" },
+      { env = { HOME = H.tmpdir(), PATH = vim.env.PATH } }
+    )
     H.eq(0, r.code, r.stdout .. r.stderr)
   end)
 end)
@@ -893,7 +979,20 @@ describe(".gitignore and LICENSE", function()
   end
 
   it("ignores tt.*, .tests, doc/tags, debug, .repro, foo.*, *.log and data", function()
-    local want = { "tt.lua", "tt.out", ".tests", ".tests/x", "doc/tags", "debug", ".repro", "foo.lua", "foo.txt", "a.log", "lua/x/b.log", "data" }
+    local want = {
+      "tt.lua",
+      "tt.out",
+      ".tests",
+      ".tests/x",
+      "doc/tags",
+      "debug",
+      ".repro",
+      "foo.lua",
+      "foo.txt",
+      "a.log",
+      "lua/x/b.log",
+      "data",
+    }
     local got = ignored(want)
     for _, p in ipairs(want) do
       H.ok(got[p], p .. " should be ignored")
@@ -901,7 +1000,16 @@ describe(".gitignore and LICENSE", function()
   end)
 
   it("does not ignore ordinary files", function()
-    local keep = { "lua/config/lazy.lua", "README.md", "lazy-lock.json", "doc/other.txt", "tests/foo_spec.lua", "scripts/bootstrap.sh", "tt", "foo" }
+    local keep = {
+      "lua/config/lazy.lua",
+      "README.md",
+      "lazy-lock.json",
+      "doc/other.txt",
+      "tests/foo_spec.lua",
+      "scripts/bootstrap.sh",
+      "tt",
+      "foo",
+    }
     local got = ignored(keep)
     for _, p in ipairs(keep) do
       H.not_ok(got[p], p .. " should not be ignored")
@@ -977,7 +1085,12 @@ describe("README prerequisites vs health TOOLS and bootstrap", function()
       shfmt = "Mason package",
     }
     local all = {}
-    for _, p in ipairs({ "- Required to bring the config up", "- Required for the Rust workflow", "- Installed by Mason", "- Optional" }) do
+    for _, p in ipairs({
+      "- Required to bring the config up",
+      "- Required for the Rust workflow",
+      "- Installed by Mason",
+      "- Optional",
+    }) do
       for _, n in ipairs((names(p))) do
         all[#all + 1] = n
       end
@@ -985,15 +1098,61 @@ describe("README prerequisites vs health TOOLS and bootstrap", function()
     local seen = {}
     for _, n in ipairs(all) do
       seen[n] = true
-      if n:match("^[%l-]+$") and n ~= "bacon" and n ~= "rustup" and n ~= "stable" and n ~= "clippy" and n ~= "llvm-tools" and n ~= "lazy" then
-        H.ok(health[n] or boot[n] or explained[n] or n == "wgsl-analyzer", n .. " is named by the README but neither checked nor explained")
+      if
+        n:match("^[%l-]+$")
+        and n ~= "bacon"
+        and n ~= "rustup"
+        and n ~= "stable"
+        and n ~= "clippy"
+        and n ~= "llvm-tools"
+        and n ~= "lazy"
+      then
+        H.ok(
+          health[n] or boot[n] or explained[n] or n == "wgsl-analyzer",
+          n .. " is named by the README but neither checked nor explained"
+        )
       end
     end
-    for _, n in ipairs({ "nvim", "git", "curl", "tar", "unzip", "gcc", "node", "npm", "cargo", "rustup", "rust-analyzer", "bacon-ls", "codelldb", "taplo", "wgsl-analyzer", "mold", "clang", "cargo-nextest", "cargo-deny", "lazygit", "delta", "bwrap" }) do
+    for _, n in ipairs({
+      "nvim",
+      "git",
+      "curl",
+      "tar",
+      "unzip",
+      "gcc",
+      "node",
+      "npm",
+      "cargo",
+      "rustup",
+      "rust-analyzer",
+      "bacon-ls",
+      "codelldb",
+      "taplo",
+      "wgsl-analyzer",
+      "mold",
+      "clang",
+      "cargo-nextest",
+      "cargo-deny",
+      "lazygit",
+      "delta",
+      "bwrap",
+    }) do
       H.ok(seen[n], "README no longer names " .. n)
     end
     -- the required bring-up tools are all in bootstrap's prerequisite loop
-    for _, n in ipairs({ "nvim", "git", "curl", "tar", "unzip", "gcc", "node", "npm", "cargo", "rustup", "rust-analyzer" }) do
+    for _, n in ipairs({
+      "nvim",
+      "git",
+      "curl",
+      "tar",
+      "unzip",
+      "gcc",
+      "node",
+      "npm",
+      "cargo",
+      "rustup",
+      "rust-analyzer",
+    }) do
       H.ok(boot[n], n .. " missing from bootstrap's prerequisite loop")
     end
     -- every health tool the README calls required/optional is listed in README text somewhere

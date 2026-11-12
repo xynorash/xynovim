@@ -338,8 +338,11 @@ function H.write_icls(path)
     return h:sub(2)
   end
   local fx = { underline = 1, undercurl = 2, strikethrough = 3, underdotted = 5 }
-  local out = { '<scheme name="' .. P.name .. '" version="142" parent_scheme="Darcula">',
-    '<metaInfo><property name="ide">TestIDE</property><property name="ideVersion">1.0</property></metaInfo>', "<colors>" }
+  local out = {
+    '<scheme name="' .. P.name .. '" version="142" parent_scheme="Darcula">',
+    '<metaInfo><property name="ide">TestIDE</property><property name="ideVersion">1.0</property></metaInfo>',
+    "<colors>",
+  }
   local names = vim.tbl_keys(P.colors)
   table.sort(names)
   for _, n in ipairs(names) do
@@ -350,13 +353,25 @@ function H.write_icls(path)
   table.sort(names)
   for _, n in ipairs(names) do
     local a, v = P.attrs[n], {}
-    if a.fg then v[#v + 1] = ('<option name="FOREGROUND" value="%s"/>'):format(raw(a.fg)) end
-    if a.bg then v[#v + 1] = ('<option name="BACKGROUND" value="%s"/>'):format(raw(a.bg)) end
+    if a.fg then
+      v[#v + 1] = ('<option name="FOREGROUND" value="%s"/>'):format(raw(a.fg))
+    end
+    if a.bg then
+      v[#v + 1] = ('<option name="BACKGROUND" value="%s"/>'):format(raw(a.bg))
+    end
     local font = (a.bold and 1 or 0) + (a.italic and 2 or 0)
-    if font > 0 then v[#v + 1] = ('<option name="FONT_TYPE" value="%d"/>'):format(font) end
-    if a.effect then v[#v + 1] = ('<option name="EFFECT_TYPE" value="%d"/>'):format(fx[a.effect]) end
-    if a.effect_color then v[#v + 1] = ('<option name="EFFECT_COLOR" value="%s"/>'):format(raw(a.effect_color)) end
-    if a.stripe then v[#v + 1] = ('<option name="ERROR_STRIPE_COLOR" value="%s"/>'):format(raw(a.stripe)) end
+    if font > 0 then
+      v[#v + 1] = ('<option name="FONT_TYPE" value="%d"/>'):format(font)
+    end
+    if a.effect then
+      v[#v + 1] = ('<option name="EFFECT_TYPE" value="%d"/>'):format(fx[a.effect])
+    end
+    if a.effect_color then
+      v[#v + 1] = ('<option name="EFFECT_COLOR" value="%s"/>'):format(raw(a.effect_color))
+    end
+    if a.stripe then
+      v[#v + 1] = ('<option name="ERROR_STRIPE_COLOR" value="%s"/>'):format(raw(a.stripe))
+    end
     out[#out + 1] = ('<option name="%s"><value>%s</value></option>'):format(n, table.concat(v))
   end
   out[#out + 1] = "</attributes></scheme>"

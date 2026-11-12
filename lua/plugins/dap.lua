@@ -348,7 +348,10 @@ return {
                 vim.defer_fn(function()
                   for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
                     local b = vim.api.nvim_win_get_buf(w)
-                    if vim.bo[b].filetype == "dapui_console" and vim.fn.getwininfo(w)[1].topline >= vim.api.nvim_buf_line_count(b) then
+                    if
+                      vim.bo[b].filetype == "dapui_console"
+                      and vim.fn.getwininfo(w)[1].topline >= vim.api.nvim_buf_line_count(b)
+                    then
                       vim.api.nvim_win_call(w, function()
                         vim.cmd("normal! gg")
                       end)
@@ -361,7 +364,11 @@ return {
               end
               -- LazyVim gives the breakpoint signs DiagnosticInfo (blue) unless the icon carries a group;
               -- the theme's red / yellow / grey groups exist
-              for name, hl in pairs({ DapBreakpoint = "DapBreakpoint", DapBreakpointCondition = "DapBreakpointCondition", DapBreakpointRejected = "DapBreakpointRejected" }) do
+              for name, hl in pairs({
+                DapBreakpoint = "DapBreakpoint",
+                DapBreakpointCondition = "DapBreakpointCondition",
+                DapBreakpointRejected = "DapBreakpointRejected",
+              }) do
                 local def = vim.fn.sign_getdefined(name)[1]
                 if def then
                   vim.fn.sign_define(name, { text = def.text, texthl = hl, linehl = def.linehl, numhl = def.numhl })

@@ -5,7 +5,10 @@
 local win = vim.fn.has("win32") == 1
 local sep = win and ";" or ":"
 local cargo_home = vim.env.CARGO_HOME
-local cargo_bin = vim.fs.joinpath(cargo_home and cargo_home ~= "" and cargo_home or vim.fs.joinpath(vim.uv.os_homedir(), ".cargo"), "bin")
+local cargo_bin = vim.fs.joinpath(
+  cargo_home and cargo_home ~= "" and cargo_home or vim.fs.joinpath(vim.uv.os_homedir(), ".cargo"),
+  "bin"
+)
 local function norm(p)
   p = vim.fs.normalize(p):gsub("/+$", "")
   return win and p:lower() or p

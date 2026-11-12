@@ -283,13 +283,16 @@ describe("config/lazy.lua", function()
   it("an unwritable XDG_CACHE_HOME turns lazy's module cache off instead of aborting init.lua (E739)", function()
     local env = xdg_env()
     env.XDG_CACHE_HOME = "/proc/xyno-unwritable-cache"
-    local r = child([[
+    local r = child(
+      [[
       return {
         cache = require("lazy.core.config").options.performance.cache.enabled,
         lazyvim = package.loaded["lazyvim.config"] ~= nil,
         messages = vim.api.nvim_exec2("messages", { output = true }).output,
       }
-    ]], { env = env })
+    ]],
+      { env = env }
+    )
     H.eq(false, r.cache)
     H.eq(true, r.lazyvim, "LazyVim was set up")
     H.no_match(r.messages, "E739", true)
@@ -393,8 +396,7 @@ describe("config/options.lua", function()
     if type(cfg) == "function" then
       cfg = cfg()
     end
-    local settings = vim.tbl_get(cfg or {}, "server", "default_settings", "rust-analyzer")
-      or ra
+    local settings = vim.tbl_get(cfg or {}, "server", "default_settings", "rust-analyzer") or ra
     H.ok(settings and next(settings), "no rust-analyzer default_settings visible")
     H.eq(false, settings.checkOnSave)
   end)
@@ -428,23 +430,33 @@ describe("config/options.lua", function()
     end
   end)
 
-  it("xyno-rust.nvim is installed and loaded at startup, its keys stay in keymaps.lua, no local copy is left", function()
-    local plugin = require("lazy.core.config").plugins["xyno-rust.nvim"]
-    H.ok(plugin and plugin._.installed, "xyno-rust.nvim is not installed")
-    H.eq("xynorash/xyno-rust.nvim", plugin[1])
-    H.ok(plugin._.loaded, "xyno-rust.nvim is lazy: the supervision autocmds must exist from startup")
-    -- setup() ran with keymaps = false: its own FileType keymap group does not exist
-    H.ok(#vim.api.nvim_get_autocmds({ group = "xyno_rust_restart" }) > 0, "setup() did not run")
-    local ok = pcall(vim.api.nvim_get_autocmds, { group = "xyno_rust_keymaps" })
-    H.not_ok(ok, "keymaps = false, so xyno_rust_keymaps must not exist")
-    for _, m in ipairs({
-      "fsutil", "rust_context", "code_actions", "crate_meta", "lsp_status", "rust_restart", "rust_tasks",
-      "rust_routes", "rust_nav",
-    }) do
-      H.eq(0, vim.fn.filereadable(H.repo .. "/lua/config/" .. m .. ".lua"), "lua/config/" .. m .. ".lua is back")
-      H.ok(pcall(require, "xyno_rust." .. m), "xyno_rust." .. m .. " does not load")
+  it(
+    "xyno-rust.nvim is installed and loaded at startup, its keys stay in keymaps.lua, no local copy is left",
+    function()
+      local plugin = require("lazy.core.config").plugins["xyno-rust.nvim"]
+      H.ok(plugin and plugin._.installed, "xyno-rust.nvim is not installed")
+      H.eq("xynorash/xyno-rust.nvim", plugin[1])
+      H.ok(plugin._.loaded, "xyno-rust.nvim is lazy: the supervision autocmds must exist from startup")
+      -- setup() ran with keymaps = false: its own FileType keymap group does not exist
+      H.ok(#vim.api.nvim_get_autocmds({ group = "xyno_rust_restart" }) > 0, "setup() did not run")
+      local ok = pcall(vim.api.nvim_get_autocmds, { group = "xyno_rust_keymaps" })
+      H.not_ok(ok, "keymaps = false, so xyno_rust_keymaps must not exist")
+      for _, m in ipairs({
+        "fsutil",
+        "rust_context",
+        "code_actions",
+        "crate_meta",
+        "lsp_status",
+        "rust_restart",
+        "rust_tasks",
+        "rust_routes",
+        "rust_nav",
+      }) do
+        H.eq(0, vim.fn.filereadable(H.repo .. "/lua/config/" .. m .. ".lua"), "lua/config/" .. m .. ".lua is back")
+        H.ok(pcall(require, "xyno_rust." .. m), "xyno_rust." .. m .. " does not load")
+      end
     end
-  end)
+  )
 end)
 
 describe("after/ftplugin/http.lua", function()
@@ -621,7 +633,8 @@ describe("lazy-lock.json", function()
     --   nvim --headless '+Lazy! restore' +qa     (offline when the commits are already fetched)
     H.eq({}, bad, "plugins off lazy-lock.json; restore: nvim --headless '+Lazy! restore' +qa")
     -- kulala sits exactly on its tag
-    local r = vim.system({ "git", "-C", dir .. "/kulala.nvim", "describe", "--tags", "--exact-match" }, { text = true })
+    local r = vim
+      .system({ "git", "-C", dir .. "/kulala.nvim", "describe", "--tags", "--exact-match" }, { text = true })
       :wait(10000)
     H.eq("v5.3.4", vim.trim(r.stdout or ""))
   end)
@@ -978,8 +991,12 @@ describe("clipboard through xyno-clipboard.nvim (plugins/xyno-clipboard.lua)", f
 
   it("vim.g.xynovim_remote_clipboard_osc52 = false still suppresses the OSC52 emit at run time", function()
     local saved = {
-      g = vim.g.clipboard, flag = vim.g.xynovim_remote_clipboard_osc52, new = vim.g.xyno_clipboard_osc52,
-      TMUX = vim.env.TMUX, WAYLAND_DISPLAY = vim.env.WAYLAND_DISPLAY, osc52 = package.loaded["vim.ui.clipboard.osc52"],
+      g = vim.g.clipboard,
+      flag = vim.g.xynovim_remote_clipboard_osc52,
+      new = vim.g.xyno_clipboard_osc52,
+      TMUX = vim.env.TMUX,
+      WAYLAND_DISPLAY = vim.env.WAYLAND_DISPLAY,
+      osc52 = package.loaded["vim.ui.clipboard.osc52"],
     }
     local emitted = 0
     package.loaded["vim.ui.clipboard.osc52"] = {

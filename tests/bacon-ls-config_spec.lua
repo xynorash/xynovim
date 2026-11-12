@@ -43,7 +43,10 @@ describe("bacon-ls config", function()
 
   -- 1
   it("declares the bacon_ls server with the cargo/clippy settings", function()
-    H.known_issue({ "windows" }, "bacon_ls never attaches on Windows (windows-latest run 39647013043; Mason installed bacon-ls but no client starts, cause not found)")
+    H.known_issue(
+      { "windows" },
+      "bacon_ls never attaches on Windows (windows-latest run 39647013043; Mason installed bacon-ls but no client starts, cause not found)"
+    )
     local srv = plugin_server()
     local want = {
       backend = "cargo",
@@ -67,7 +70,10 @@ describe("bacon-ls config", function()
 
   -- 2 + 3
   it("sends updateOnInsert in init_options and runs Mason's bacon-ls >= 0.31.0", function()
-    H.known_issue({ "windows" }, "bacon_ls never attaches on Windows (windows-latest run 39647013043; Mason installed bacon-ls but no client starts, cause not found)")
+    H.known_issue(
+      { "windows" },
+      "bacon_ls never attaches on Windows (windows-latest run 39647013043; Mason installed bacon-ls but no client starts, cause not found)"
+    )
     local _, _, c = open_bacon("basic", "src/lib.rs")
     H.eq(true, c.config.init_options.cargo.updateOnInsert)
     -- advertised sync kind (TextDocumentSyncKind.Full = 1)
@@ -85,7 +91,10 @@ describe("bacon-ls config", function()
 
   -- 4
   it("roots a workspace member at the outermost [workspace] and keeps ONE client", function()
-    H.known_issue({ "windows" }, "bacon_ls never attaches on Windows (windows-latest run 39647013043; Mason installed bacon-ls but no client starts, cause not found)")
+    H.known_issue(
+      { "windows" },
+      "bacon_ls never attaches on Windows (windows-latest run 39647013043; Mason installed bacon-ls but no client starts, cause not found)"
+    )
     local dir = H.fixture("workspace")
     vim.cmd.cd(vim.fn.fnameescape(dir))
     local b1 = H.open(dir .. "/core/src/lib.rs")
@@ -135,7 +144,10 @@ describe("bacon-ls config", function()
       end)
       return got
     end
-    for _, name in ipairs({ "diffview://" .. H.fixture("basic") .. "/.git/:0:/src/lib.rs", "fugitive:///x/.git//0/src/lib.rs" }) do
+    for _, name in ipairs({
+      "diffview://" .. H.fixture("basic") .. "/.git/:0:/src/lib.rs",
+      "fugitive:///x/.git//0/src/lib.rs",
+    }) do
       local b = vim.fn.bufadd(name)
       H.eq("none", root_of(b), name)
     end
@@ -173,13 +185,17 @@ describe("bacon-ls config", function()
     H.eq(1, #cap.list, "told once")
     H.eq(vim.log.levels.WARN, cap.list[1].level)
     H.match(cap.list[1].msg, "cargo is not on PATH", true)
-    H.eq(dir, (function()
-      local r
-      srv.root_dir(b, function(x)
-        r = x
-      end)
-      return r
-    end)(), "with cargo again it roots normally")
+    H.eq(
+      dir,
+      (function()
+        local r
+        srv.root_dir(b, function(x)
+          r = x
+        end)
+        return r
+      end)(),
+      "with cargo again it roots normally"
+    )
   end)
 
   it("a standalone .rs file attaches rust-analyzer but not bacon_ls", function()
@@ -237,7 +253,16 @@ describe("bacon-ls config", function()
       local cap = H.capture_notify()
       rc.apply(dir, { all = false, no_default = true, features = { "csr", "ssr" }, target = "wasm32-unknown-unknown" })
       cap.restore()
-      local want = { "--workspace", "--no-default-features", "--features", "csr,ssr", "--target", "wasm32-unknown-unknown", "--no-deps", "--keep-going" }
+      local want = {
+        "--workspace",
+        "--no-default-features",
+        "--features",
+        "csr,ssr",
+        "--target",
+        "wasm32-unknown-unknown",
+        "--no-deps",
+        "--keep-going",
+      }
       local params, config = run_before_init(srv, dir)
       H.eq(want, params.initializationOptions.cargo.extraArgs)
       H.eq(want, config.settings.bacon_ls.cargo.extraArgs)
@@ -264,12 +289,16 @@ describe("bacon-ls config", function()
       cap.restore()
       H.is_nil(rc.get(dir))
       -- a config.settings left over from the previous client start
-      local params, config = { initializationOptions = {} }, {
-        root_dir = dir,
-        settings = { bacon_ls = { cargo = { extraArgs = { "--features", "x" } } } },
-      }
+      local params, config =
+        { initializationOptions = {} }, {
+          root_dir = dir,
+          settings = { bacon_ls = { cargo = { extraArgs = { "--features", "x" } } } },
+        }
       srv.before_init(params, config)
-      H.eq({ "--workspace", "--all-features", "--no-deps", "--keep-going" }, params.initializationOptions.cargo.extraArgs)
+      H.eq(
+        { "--workspace", "--all-features", "--no-deps", "--keep-going" },
+        params.initializationOptions.cargo.extraArgs
+      )
       H.eq({ "--workspace", "--all-features", "--no-deps", "--keep-going" }, config.settings.bacon_ls.cargo.extraArgs)
     end)
   end)
@@ -433,10 +462,24 @@ describe("bacon-ls config", function()
 
   -- 15
   it("has the Mason tools the README names", function()
-    H.known_issue({ "macos" }, "codelldb does not install through Mason on macos-latest (run 39647013043: install aborted, retries return at once)")
+    H.known_issue(
+      { "macos" },
+      "codelldb does not install through Mason on macos-latest (run 39647013043: install aborted, retries return at once)"
+    )
     for _, t in ipairs({
-      "bacon-ls", "codelldb", "taplo", "wgsl-analyzer", "stylua", "shfmt", "marksman", "markdownlint-cli2",
-      "markdown-toc", "yaml-language-server", "vscode-json-language-server", "lua-language-server", "tree-sitter",
+      "bacon-ls",
+      "codelldb",
+      "taplo",
+      "wgsl-analyzer",
+      "stylua",
+      "shfmt",
+      "marksman",
+      "markdownlint-cli2",
+      "markdown-toc",
+      "yaml-language-server",
+      "vscode-json-language-server",
+      "lua-language-server",
+      "tree-sitter",
     }) do
       H.ok(exists(mason_bin .. "/" .. t), t .. " missing from " .. mason_bin)
     end

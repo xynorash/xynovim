@@ -118,8 +118,36 @@ after_each(function()
 end)
 
 local RA_MAPS_N = {
-  "ra", "rv", "rf", "rc", "ri", "rs", "rj", "rm", "rh", "rH", "rS", "rp", "rt", "rC", "rd", "rE", "re",
-  "rw", "rW", "tD", "rT", "ru", "rl", "rF", "rX", "rZ", "rN", "rR", "rP", "cR",
+  "ra",
+  "rv",
+  "rf",
+  "rc",
+  "ri",
+  "rs",
+  "rj",
+  "rm",
+  "rh",
+  "rH",
+  "rS",
+  "rp",
+  "rt",
+  "rC",
+  "rd",
+  "rE",
+  "re",
+  "rw",
+  "rW",
+  "tD",
+  "rT",
+  "ru",
+  "rl",
+  "rF",
+  "rX",
+  "rZ",
+  "rN",
+  "rR",
+  "rP",
+  "cR",
 }
 local RA_MAPS_X = { "ra", "rv", "rf", "rc", "rM", "ri", "rs", "rj", "rk" }
 
@@ -247,16 +275,35 @@ describe("buffer-local maps on a Rust buffer", function()
 
   it("27. the complete normal / visual map list is buffer-local with the documented descs", function()
     local expect_desc = {
-      ra = "Refactor actions", rv = "Extract variable", rf = "Extract function", rc = "Extract constant",
-      ri = "Inline", rs = "Structural search & replace", rj = "Join lines (semantic)",
-      rm = "Expand macro (recursive)", rh = "View HIR", rH = "View MIR", rS = "Syntax tree",
-      rp = "Parent module", rt = "Related tests", rC = "Open Cargo.toml", rd = "Open docs (local rustup, else docs.rs)",
-      rE = "Open docs (same as rd)", re = "Explain error code", rw = "Workspace symbol",
-      rW = "Workspace symbol (+ dependencies, all kinds)", tD = "Doctests (cargo test --doc)",
-      rT = "Toggle tests in find usages", ru = "Go to super method (trait item)",
-      rl = "Usages in file (R/W)", rF = "Cargo features / target (both diagnostic tiers)",
-      rX = "Cargo targets: run / test / bench", rZ = "Cargo tools (deny, audit, bloat, timings, ...)",
-      rN = "HTTP routes (axum / actix / rocket)", rR = "Reload workspace", rP = "Rebuild proc macros",
+      ra = "Refactor actions",
+      rv = "Extract variable",
+      rf = "Extract function",
+      rc = "Extract constant",
+      ri = "Inline",
+      rs = "Structural search & replace",
+      rj = "Join lines (semantic)",
+      rm = "Expand macro (recursive)",
+      rh = "View HIR",
+      rH = "View MIR",
+      rS = "Syntax tree",
+      rp = "Parent module",
+      rt = "Related tests",
+      rC = "Open Cargo.toml",
+      rd = "Open docs (local rustup, else docs.rs)",
+      rE = "Open docs (same as rd)",
+      re = "Explain error code",
+      rw = "Workspace symbol",
+      rW = "Workspace symbol (+ dependencies, all kinds)",
+      tD = "Doctests (cargo test --doc)",
+      rT = "Toggle tests in find usages",
+      ru = "Go to super method (trait item)",
+      rl = "Usages in file (R/W)",
+      rF = "Cargo features / target (both diagnostic tiers)",
+      rX = "Cargo targets: run / test / bench",
+      rZ = "Cargo tools (deny, audit, bloat, timings, ...)",
+      rN = "HTTP routes (axum / actix / rocket)",
+      rR = "Reload workspace",
+      rP = "Rebuild proc macros",
       cR = "Rename File",
     }
     for _, k in ipairs(RA_MAPS_N) do
@@ -447,32 +494,35 @@ describe("buffer-local maps on a Rust buffer", function()
     H.match(n[1].msg, "pattern ==>> replacement", true)
   end)
 
-  it("8. a query rust-analyzer cannot parse gives a WARN notice, not rustaceanvim's traceback (real rust-analyzer)", function()
-    local ra = require("config.rust_assist")
-    local n = notifications()
-    local errs = {}
-    stub(vim.api, "nvim_err_writeln", function(m)
-      errs[#errs + 1] = m
-    end)
-    answer_input("nonsense ==>>")
-    ra.ssr()
-    local ssr = H.wait_for(function()
-      for _, x in ipairs(n) do
-        if x.msg:find("^SSR") then
-          return x
+  it(
+    "8. a query rust-analyzer cannot parse gives a WARN notice, not rustaceanvim's traceback (real rust-analyzer)",
+    function()
+      local ra = require("config.rust_assist")
+      local n = notifications()
+      local errs = {}
+      stub(vim.api, "nvim_err_writeln", function(m)
+        errs[#errs + 1] = m
+      end)
+      answer_input("nonsense ==>>")
+      ra.ssr()
+      local ssr = H.wait_for(function()
+        for _, x in ipairs(n) do
+          if x.msg:find("^SSR") then
+            return x
+          end
         end
-      end
-    end, 30000, "a notice for the SSR parse error")
-    -- WARN with rust-analyzer's parse error; INFO "SSR: no matches" when the
-    -- server answers an unloaded workspace with an empty result instead
-    H.ok(ssr.level == vim.log.levels.WARN or ssr.level == vim.log.levels.INFO, "level " .. tostring(ssr.level))
-    H.match(ssr.msg, "SSR: ", true)
-    H.eq({}, errs)
-    -- the wrapper is gone again
-    local rv = require("rustaceanvim.rust_analyzer")
-    H.eq(rv.buf_request, rv.buf_request)
-    H.is_nil(debug.getinfo(rv.buf_request, "S").source:find("rust_assist", 1, true))
-  end)
+      end, 30000, "a notice for the SSR parse error")
+      -- WARN with rust-analyzer's parse error; INFO "SSR: no matches" when the
+      -- server answers an unloaded workspace with an empty result instead
+      H.ok(ssr.level == vim.log.levels.WARN or ssr.level == vim.log.levels.INFO, "level " .. tostring(ssr.level))
+      H.match(ssr.msg, "SSR: ", true)
+      H.eq({}, errs)
+      -- the wrapper is gone again
+      local rv = require("rustaceanvim.rust_analyzer")
+      H.eq(rv.buf_request, rv.buf_request)
+      H.is_nil(debug.getinfo(rv.buf_request, "S").source:find("rust_assist", 1, true))
+    end
+  )
 
   it("8. a query that matches nothing says 'SSR: no matches' (real rust-analyzer)", function()
     local ra = require("config.rust_assist")
@@ -563,8 +613,11 @@ describe("buffer-local maps on a Rust buffer", function()
       sent[#sent + 1] = { method, params.direction }
       -- unescaped snippet edit like rust-analyzer's: `$e` and the `$0` marker
       handler(nil, {
-        { range = { start = { line = 0, character = 0 }, ["end"] = { line = 0, character = 3 } },
-          newText = "($e:expr) => { $e + $e$0 };", insertTextFormat = 2 },
+        {
+          range = { start = { line = 0, character = 0 }, ["end"] = { line = 0, character = 3 } },
+          newText = "($e:expr) => { $e + $e$0 };",
+          insertTextFormat = 2,
+        },
       }, { bufnr = S.buf, client_id = S.client.id })
     end)
     vim.api.nvim_buf_set_lines(S.buf, 0, -1, false, { "aaa", "bbb" })
@@ -1120,7 +1173,11 @@ describe("global maps of keymaps.lua", function()
     stub(vim.cmd, "packadd", function(name)
       packadd[#packadd + 1] = name
     end)
-    local fake = { open = function() opened = opened + 1 end }
+    local fake = {
+      open = function()
+        opened = opened + 1
+      end,
+    }
     local orig = package.loaded["undotree"]
     package.loaded["undotree"] = fake
     undo[#undo + 1] = function()
@@ -1199,47 +1256,50 @@ describe("after/ftplugin/rust.lua", function()
     H.not_ok(vim.wo.spell and false)
   end)
 
-  it("33. the \" map inserts a plain quote behind an odd number of backslashes, every other one goes to mini.pairs", function()
-    -- (typing it through feedkeys evaluates expr maps before the preceding keys of the same
-    -- batch are inserted, so the map is called directly with the line state of each case)
-    local buf = scratch("rust")
-    H.very_lazy()
-    local m = vim.api.nvim_buf_call(buf, function()
-      return vim.fn.maparg('"', "i", false, true)
-    end)
-    H.eq(1, m.buffer)
-    H.eq(1, m.expr)
-    local function press(line, col, fn)
-      vim.api.nvim_buf_set_lines(buf, 0, -1, false, { line })
-      -- (normal mode clamps the cursor onto the last character; insert mode may sit behind it)
-      local orig = vim.api.nvim_win_get_cursor
-      vim.api.nvim_win_get_cursor = function()
-        return { 1, col or #line }
-      end
-      local ok, res = pcall(fn or m.callback)
-      vim.api.nvim_win_get_cursor = orig
-      assert(ok, res)
-      return res
-    end
-    H.eq('"', press('let f = "a\\'), "one backslash: escaped quote")
-    H.eq('"', press('let f = "a\\\\\\'), "three backslashes")
-    -- every other state is delegated to the global mini.pairs mapping
-    local global
-    for _, g in ipairs(vim.api.nvim_get_keymap("i")) do
-      if g.lhs == '"' then
-        global = g
-      end
-    end
-    H.ok(global and global.expr == 1, "mini.pairs' global map")
-    for _, line in ipairs({ "let f = ", 'let f = "a\\\\' }) do
-      local got = press(line)
-      local expected = press(line, nil, function()
-        return vim.api.nvim_eval(global.rhs)
+  it(
+    '33. the " map inserts a plain quote behind an odd number of backslashes, every other one goes to mini.pairs',
+    function()
+      -- (typing it through feedkeys evaluates expr maps before the preceding keys of the same
+      -- batch are inserted, so the map is called directly with the line state of each case)
+      local buf = scratch("rust")
+      H.very_lazy()
+      local m = vim.api.nvim_buf_call(buf, function()
+        return vim.fn.maparg('"', "i", false, true)
       end)
-      H.eq(expected, got, "delegated: " .. line)
+      H.eq(1, m.buffer)
+      H.eq(1, m.expr)
+      local function press(line, col, fn)
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, { line })
+        -- (normal mode clamps the cursor onto the last character; insert mode may sit behind it)
+        local orig = vim.api.nvim_win_get_cursor
+        vim.api.nvim_win_get_cursor = function()
+          return { 1, col or #line }
+        end
+        local ok, res = pcall(fn or m.callback)
+        vim.api.nvim_win_get_cursor = orig
+        assert(ok, res)
+        return res
+      end
+      H.eq('"', press('let f = "a\\'), "one backslash: escaped quote")
+      H.eq('"', press('let f = "a\\\\\\'), "three backslashes")
+      -- every other state is delegated to the global mini.pairs mapping
+      local global
+      for _, g in ipairs(vim.api.nvim_get_keymap("i")) do
+        if g.lhs == '"' then
+          global = g
+        end
+      end
+      H.ok(global and global.expr == 1, "mini.pairs' global map")
+      for _, line in ipairs({ "let f = ", 'let f = "a\\\\' }) do
+        local got = press(line)
+        local expected = press(line, nil, function()
+          return vim.api.nvim_eval(global.rhs)
+        end)
+        H.eq(expected, got, "delegated: " .. line)
+      end
+      H.ok(press("let f = ") ~= '"', "a plain quote still pairs")
     end
-    H.ok(press("let f = ") ~= '"', "a plain quote still pairs")
-  end)
+  )
 
   it("31. the ' map exists only in Rust buffers (not toml / lua)", function()
     for _, ft in ipairs({ "toml", "lua" }) do
@@ -1309,7 +1369,10 @@ describe("after/ftplugin/rust.lua", function()
       end
       H.ok(found["misspeled"], "doc comment word flagged: " .. vim.inspect(found))
       H.ok(found["bdword"], "line comment word flagged: " .. vim.inspect(found))
-      H.not_ok(found["wrdx"] or found["name_wrdx"] or found["strng"], "identifier/string flagged: " .. vim.inspect(found))
+      H.not_ok(
+        found["wrdx"] or found["name_wrdx"] or found["strng"],
+        "identifier/string flagged: " .. vim.inspect(found)
+      )
       H.ok(vim.api.nvim_buf_is_valid(buf))
     end)
 

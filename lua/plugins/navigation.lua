@@ -19,8 +19,16 @@ return {
   {
     "folke/trouble.nvim",
     keys = {
-      { "<leader>cI", "<cmd>Trouble lsp_incoming_calls toggle focus=true auto_refresh=false<cr>", desc = "Incoming calls (tree)" },
-      { "<leader>cO", "<cmd>Trouble lsp_outgoing_calls toggle focus=true auto_refresh=false<cr>", desc = "Outgoing calls (tree)" },
+      {
+        "<leader>cI",
+        "<cmd>Trouble lsp_incoming_calls toggle focus=true auto_refresh=false<cr>",
+        desc = "Incoming calls (tree)",
+      },
+      {
+        "<leader>cO",
+        "<cmd>Trouble lsp_outgoing_calls toggle focus=true auto_refresh=false<cr>",
+        desc = "Outgoing calls (tree)",
+      },
     },
   },
 

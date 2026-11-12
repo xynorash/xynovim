@@ -16,7 +16,11 @@ local function not_bound(key)
     vim.notify("<leader>r" .. key .. what, vim.log.levels.INFO)
   end
 end
-for _, key in ipairs(vim.split("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{};:'\",.<>/?|~`", "")) do
+for _, key in
+  ipairs(
+    vim.split("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{};:'\",.<>/?|~`", "")
+  )
+do
   vim.keymap.set({ "n", "x" }, "<leader>r" .. key, not_bound(key), { desc = "which_key_ignore" })
 end
 
@@ -37,7 +41,11 @@ vim.api.nvim_create_autocmd("LspAttach", {
   group = vim.api.nvim_create_augroup("xynovim_rust_keymaps", { clear = true }),
   callback = function(ev)
     local client = vim.lsp.get_client_by_id(ev.data.client_id)
-    if client and client.name ~= "rust-analyzer" and #vim.lsp.get_clients({ bufnr = ev.buf, name = "rust-analyzer" }) > 0 then
+    if
+      client
+      and client.name ~= "rust-analyzer"
+      and #vim.lsp.get_clients({ bufnr = ev.buf, name = "rust-analyzer" }) > 0
+    then
       vim.schedule(function()
         if vim.api.nvim_buf_is_valid(ev.buf) then
           set_rename(ev.buf)

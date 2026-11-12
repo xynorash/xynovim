@@ -6,7 +6,15 @@
 return {
   "andythigpen/nvim-coverage",
   dependencies = { "nvim-lua/plenary.nvim" },
-  cmd = { "Coverage", "CoverageLoad", "CoverageShow", "CoverageHide", "CoverageToggle", "CoverageSummary", "CoverageClear" },
+  cmd = {
+    "Coverage",
+    "CoverageLoad",
+    "CoverageShow",
+    "CoverageHide",
+    "CoverageToggle",
+    "CoverageSummary",
+    "CoverageClear",
+  },
   keys = {
     {
       "<leader>tc",

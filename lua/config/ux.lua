@@ -181,7 +181,13 @@ local function apply_palette()
   for kind, color in pairs(OKABE_ITO) do
     -- fg for text/sign/float groups, sp for underlines; virtual text/lines
     -- lose their theme-tinted bg (it was derived from the old colour).
-    for _, prefix in ipairs({ "Diagnostic", "DiagnosticSign", "DiagnosticFloating", "DiagnosticVirtualText", "DiagnosticVirtualLines" }) do
+    for _, prefix in ipairs({
+      "Diagnostic",
+      "DiagnosticSign",
+      "DiagnosticFloating",
+      "DiagnosticVirtualText",
+      "DiagnosticVirtualLines",
+    }) do
       local name = prefix .. kind
       local hl = vim.api.nvim_get_hl(0, { name = name, link = false })
       hl.fg = tonumber(color:sub(2), 16)

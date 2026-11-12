@@ -37,7 +37,13 @@ local TOOLS = {
   { "unzip", "Mason package archives", false, { "-v" }, "warn" },
   { "gzip", "Mason unpacks .gz archives", false, { "--version" }, "warn" },
   { "gcc", "compiles tree-sitter parsers", false, { "--version" }, "warn" },
-  { "tree-sitter", "CLI nvim-treesitter builds parsers with (Mason supplies it as tree-sitter-cli)", true, { "--version" }, "warn" },
+  {
+    "tree-sitter",
+    "CLI nvim-treesitter builds parsers with (Mason supplies it as tree-sitter-cli)",
+    true,
+    { "--version" },
+    "warn",
+  },
   { "node", "Mason's npm tools and yaml-language-server", false, { "--version" }, "warn" },
   { "cargo", "builds, clippy, tests (every Rust key)", false, { "--version" }, "error" },
   { "rust-analyzer", "language server (rustaceanvim)", false, { "--version" }, "error" },
@@ -53,7 +59,13 @@ local TOOLS = {
   { "mold", "fast linker (~/.cargo/config.toml)", false, { "--version" }, "warn" },
   { "clang", "linker driver for mold (~/.cargo/config.toml)", false, { "--version" }, "warn" },
   { "npm", "Mason installs markdownlint-cli2, markdown-toc, yaml-language-server", false, { "--version" }, "warn" },
-  { "bwrap", "bubblewrap sandbox for the 99 agent (Linux only; without it 99 refuses to run unless vim.g.xynovim_99_allow_unsandboxed = true)", false, { "--version" }, "warn" },
+  {
+    "bwrap",
+    "bubblewrap sandbox for the 99 agent (Linux only; without it 99 refuses to run unless vim.g.xynovim_99_allow_unsandboxed = true)",
+    false,
+    { "--version" },
+    "warn",
+  },
 }
 
 -- Not needed (or not available) on Windows: Mason there unpacks with PowerShell / tar,
@@ -102,7 +114,17 @@ function M.check()
   -- the parts of the config that are plugins of their own (lua/plugins/xyno-*.lua), restored from the lockfile
   vim.health.start("xynovim: xyno plugins")
   local plugins = require("lazy.core.config").plugins
-  for _, name in ipairs({ "xyno-history.nvim", "xyno-sandbox.nvim", "xyno-clipboard.nvim", "xyno-guard.nvim", "xyno-rust.nvim", "xyno-new.nvim", "xyno-imports.nvim", "xyno-crates.nvim", "xyno-macros.nvim" }) do
+  for _, name in ipairs({
+    "xyno-history.nvim",
+    "xyno-sandbox.nvim",
+    "xyno-clipboard.nvim",
+    "xyno-guard.nvim",
+    "xyno-rust.nvim",
+    "xyno-new.nvim",
+    "xyno-imports.nvim",
+    "xyno-crates.nvim",
+    "xyno-macros.nvim",
+  }) do
     local plugin = plugins[name]
     if plugin and plugin._.installed then
       vim.health.ok(name .. " installed (" .. plugin[1] .. ")")
@@ -120,7 +142,9 @@ function M.check()
     vim.health.ok("xclip/xsel found")
   elseif wayland or x11 then
     vim.health.warn(
-      "no clipboard tool for this " .. (wayland and "Wayland" or "X11") .. " session: yanks only reach the terminal via OSC 52",
+      "no clipboard tool for this "
+        .. (wayland and "Wayland" or "X11")
+        .. " session: yanks only reach the terminal via OSC 52",
       "pacman -S wl-clipboard (Wayland) or xclip / xsel (X11)"
     )
   else
@@ -132,7 +156,8 @@ function M.check()
     vim.health.warn("rustup not found", "components cannot be checked; install rustup")
     return
   end
-  local out = vim.system({ "rustup", "component", "list", "--toolchain", "stable", "--installed" }, { text = true })
+  local out = vim
+    .system({ "rustup", "component", "list", "--toolchain", "stable", "--installed" }, { text = true })
     :wait(10000)
   if out.code ~= 0 then
     vim.health.warn("stable toolchain not installed", "rustup toolchain install stable")
@@ -150,7 +175,9 @@ function M.check()
     end
   end
   -- :RustContext's target step lists the installed targets: web/WASM crates need this one
-  local targets = vim.system({ "rustup", "target", "list", "--toolchain", "stable", "--installed" }, { text = true }):wait(10000)
+  local targets = vim
+    .system({ "rustup", "target", "list", "--toolchain", "stable", "--installed" }, { text = true })
+    :wait(10000)
   if targets.code == 0 then
     if (targets.stdout or ""):find("wasm32-unknown-unknown", 1, true) then
       vim.health.ok("stable has the wasm32-unknown-unknown target: web/WASM crates (:RustContext target)")
