@@ -231,6 +231,7 @@ function M.collect()
     f:close()
   end
   if vim.fn.executable("fc-list") == 1 then
+    require("config.ui").fonts_forget() -- :checkhealth is the refresh: never serve an old "no Nerd Font"
     env.fonts = require("config.ui").fonts_wait(3000) -- background fc-list + cache (stdpath("cache")), not a blocking run
   end
   return env

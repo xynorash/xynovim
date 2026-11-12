@@ -302,18 +302,22 @@ function M.organize_on_save(buf)
   -- never answers (timeout), or a buffer that goes away. Before, only the callback cleared it, and then
   -- organize-on-save was off for that buffer for the rest of the session.
   local cleared = false
+  -- one BufUnload autocmd per buffer, in a group that is replaced on the next save and removed when this run
+  -- ends (an ungrouped one was added by EVERY save and stayed until the buffer was unloaded)
+  local group = vim.api.nvim_create_augroup("xynovim_organize_" .. buf, { clear = true })
   local function clear()
     if cleared then
       return false
     end
     cleared = true
+    pcall(vim.api.nvim_del_augroup_by_id, group)
     if vim.api.nvim_buf_is_valid(buf) then
       vim.b[buf].xynovim_organizing = nil
     end
     return true
   end
   local timer = vim.defer_fn(clear, M.organize_timeout_ms)
-  vim.api.nvim_create_autocmd("BufUnload", { buffer = buf, once = true, callback = clear })
+  vim.api.nvim_create_autocmd("BufUnload", { group = group, buffer = buf, once = true, callback = clear })
   local started, err = pcall(engine.organize, buf, function(applied)
     pcall(function()
       timer:stop()

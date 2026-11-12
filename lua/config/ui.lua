@@ -92,6 +92,12 @@ function M.fonts_key()
   local xdg_cache = vim.env.XDG_CACHE_HOME or vim.fs.joinpath(home, ".cache")
   local xdg_data = vim.env.XDG_DATA_HOME or vim.fs.joinpath(home, ".local", "share")
   local parts = {}
+  local font_dirs = {
+    "/usr/share/fonts",
+    "/usr/local/share/fonts",
+    vim.fs.joinpath(xdg_data, "fonts"),
+    vim.fs.joinpath(home, ".fonts"),
+  }
   for _, path in ipairs({
     "/etc/fonts/fonts.conf",
     "/var/cache/fontconfig",
@@ -104,7 +110,38 @@ function M.fonts_key()
     local st = vim.uv.fs_stat(path)
     parts[#parts + 1] = st and (st.mtime.sec .. "." .. st.mtime.nsec) or "-"
   end
+  -- Fonts are usually installed into a SUBDIRECTORY (~/.local/share/fonts/NerdFonts/...), which does not touch
+  -- the mtime of the font directory itself: also stamp the directories two levels down (cheap, capped).
+  local budget = 300
+  local function stamp_children(dir, depth)
+    local handle = vim.uv.fs_scandir(dir)
+    while handle and budget > 0 do
+      local name, kind = vim.uv.fs_scandir_next(handle)
+      if not name then
+        break
+      end
+      if kind == "directory" then
+        budget = budget - 1
+        local sub = dir .. "/" .. name
+        local st = vim.uv.fs_stat(sub)
+        parts[#parts + 1] = st and (st.mtime.sec .. "." .. st.mtime.nsec) or "-"
+        if depth < 2 then
+          stamp_children(sub, depth + 1)
+        end
+      end
+    end
+  end
+  for _, dir in ipairs(font_dirs) do
+    stamp_children(dir, 1)
+  end
   return table.concat(parts, "|")
+end
+
+M.fonts_negative_ttl = 600 -- seconds a "no Nerd Font" answer is served from the cache (a positive one: until the key changes)
+
+--- Forget the cached fc-list answer (`:XynoIcons`, `:checkhealth` ask afresh).
+function M.fonts_forget()
+  os.remove(fonts_cache_file())
 end
 
 local function read_fonts_cache()
@@ -124,6 +161,11 @@ end
 function M.fonts_cached()
   local c = read_fonts_cache()
   if c and c.key == M.fonts_key() then
+    -- "no Nerd Font" is not trusted for long: a font installed by a means the key does not see (a package
+    -- hook that does not touch the directories, a font added to another path) would be hidden for ever
+    if c.sample == "" and os.time() - (tonumber(c.at) or 0) > M.fonts_negative_ttl then
+      return nil
+    end
     return c.sample
   end
 end
@@ -179,7 +221,7 @@ function M.fonts_async(cb)
       pcall(function()
         vim.fn.mkdir(vim.fs.dirname(fonts_cache_file()), "p")
         local f = assert(io.open(fonts_cache_file(), "w"))
-        f:write(vim.json.encode({ key = key, sample = sample }))
+        f:write(vim.json.encode({ key = key, sample = sample, at = os.time() }))
         f:close()
       end)
       done(sample)
@@ -988,6 +1030,7 @@ function M.setup()
     elseif a ~= "" then
       return vim.notify("XynoIcons: nerd, ascii or auto", vim.log.levels.WARN)
     else
+      M.fonts_forget() -- asking again is how a font installed meanwhile is noticed
       M.font_hint_async(function(hint)
         vim.notify("icons: " .. M.icon_mode() .. (hint and ("\n" .. hint) or ""))
       end)

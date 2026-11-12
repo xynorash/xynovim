@@ -43,6 +43,28 @@ describe("organize_on_save flag", function()
     H.eq(2, calls, "not stuck behind the flag")
   end)
 
+  it("saving many times leaves no BufUnload autocmd behind (one group per buffer, removed when a run ends)", function()
+    package.loaded["xyno_imports.engine"] = {
+      organize = function(_, cb)
+        cb(0)
+      end,
+    }
+    local function unloads()
+      return #vim.api.nvim_get_autocmds({ event = "BufUnload", buffer = buf })
+    end
+    local before = unloads()
+    for _ = 1, 25 do
+      ra.organize_on_save(buf)
+    end
+    H.eq(before, unloads(), "no autocmd per save")
+    -- a run that is still going has its one autocmd, and the next save replaces it rather than adding
+    package.loaded["xyno_imports.engine"] = {
+      organize = function() end,
+    }
+    ra.organize_on_save(buf)
+    H.eq(before + 1, unloads())
+  end)
+
   it("an engine that never calls back is released after the timeout, and a late callback writes nothing", function()
     ra.organize_timeout_ms = 60
     local late, calls = nil, 0
