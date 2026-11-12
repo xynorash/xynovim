@@ -754,6 +754,30 @@ function M.wrap_crates()
   return true
 end
 
+--- The RESTRICTED marker in the lsp_status component: xyno_rust.lsp_status.add_part where the plugin has it; the
+--- pinned xyno-rust.nvim has none, so its `component` is wrapped once (plugins/lualine.lua calls this before it
+--- takes the function, so lualine holds the wrapper). Idempotent.
+function M.patch_status()
+  local ok, status = pcall(require, "xyno_rust.lsp_status")
+  if not ok then
+    return
+  end
+  if type(status.add_part) == "function" then
+    status.add_part(M.status)
+  elseif type(status.component) == "function" and not status._xynovim_gate_part then
+    status._xynovim_gate_part = true
+    local orig = status.component
+    status.component = function(...)
+      local rest = orig(...)
+      local okp, mark = pcall(M.status, vim.api.nvim_get_current_buf())
+      if okp and mark ~= "" then
+        return rest ~= "" and (mark .. " | " .. rest) or mark
+      end
+      return rest
+    end
+  end
+end
+
 --- Hook the trust store (so `:RustTrust add` / revoke restart the servers at once), the statusline, the
 --- guards of rustaceanvim, and the content checks (saves inside Neovim re-record, FocusGained re-checks).
 --- Idempotent. Without xyno_rust.trust only the guards are installed.
@@ -772,22 +796,7 @@ function M.setup()
       return unpack(r)
     end
   end
-  local ok, status = pcall(require, "xyno_rust.lsp_status")
-  if ok and type(status.add_part) == "function" then
-    status.add_part(M.status)
-  elseif ok and type(status.component) == "function" and not status._xynovim_gate_part then
-    -- the pinned xyno-rust.nvim has no add_part: put the marker in front of the component ourselves
-    status._xynovim_gate_part = true
-    local orig = status.component
-    status.component = function(...)
-      local rest = orig(...)
-      local okp, mark = pcall(M.status, vim.api.nvim_get_current_buf())
-      if okp and mark ~= "" then
-        return rest ~= "" and (mark .. " | " .. rest) or mark
-      end
-      return rest
-    end
-  end
+  M.patch_status()
   if type(t.rehash) == "function" then
     local group = vim.api.nvim_create_augroup("xynovim_workspace_trust", { clear = true })
     vim.api.nvim_create_autocmd("BufWritePost", {

@@ -22,10 +22,9 @@ return {
       opts.options.component_separators = { left = "\xee\x82\xb1", right = "\xee\x82\xb3" } -- U+E0B1, U+E0B3
     end
     local status = require("xyno_rust.lsp_status")
+    require("config.workspace_trust").patch_status() -- RESTRICTED marker (wraps the pinned plugin's component first)
     table.insert(opts.sections.lualine_x, 1, {
-      function()
-        return status.component() -- looked up at draw time: config.workspace_trust may wrap it
-      end,
+      status.component,
       cond = function()
         return status.component() ~= ""
       end,
