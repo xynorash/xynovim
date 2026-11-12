@@ -641,23 +641,26 @@ describe("rainbow brackets: unmatched brackets", function()
   end)
 
   it("valid code never shows a mismatch: every Rust and Lua file of this repo", function()
+    -- scratch buffers with a string parser: no file is opened, so no language server starts in a fixture crate
     local files = vim.fn.globpath(H.repo, "{demo,tests,tools,scripts}/**/*.rs", false, true)
     vim.list_extend(files, vim.fn.globpath(H.repo, "{lua,tests}/**/*.lua", false, true))
     local checked, marks, bad = 0, 0, {}
     for _, f in ipairs(files) do
-      pcall(vim.cmd, "silent keepalt edit " .. vim.fn.fnameescape(f))
-      local buf = vim.api.nvim_get_current_buf()
-      local hl = vim.treesitter.highlighter.active[buf]
-      if hl then
-        hl.tree:parse(true)
+      local lang = f:match("%.rs$") and "rust" or "lua"
+      local buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.readfile(f))
+      local ok, parser = pcall(vim.treesitter.get_parser, buf, lang)
+      if ok and parser then
+        parser:parse(true)
         checked = checked + 1
-        for _, m in ipairs(R.collect(buf, hl.tree, 0, vim.api.nvim_buf_line_count(buf) - 1)) do
+        for _, m in ipairs(R.collect(buf, parser, 0, vim.api.nvim_buf_line_count(buf) - 1)) do
           marks = marks + 1
           if m[4] == "XynoRainbowMismatch" then
             bad[#bad + 1] = ("%s:%d:%d"):format(f, m[1] + 1, m[2] + 1)
           end
         end
       end
+      vim.api.nvim_buf_delete(buf, { force = true })
     end
     H.ok(checked >= 40, "enough files checked: " .. checked)
     H.ok(marks > 5000, "brackets were found: " .. marks)
