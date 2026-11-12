@@ -292,6 +292,7 @@ local ANGLE_HOSTS = {
   kotlin = { type_arguments = 1, type_parameters = 1 },
   swift = { type_arguments = 1, type_parameters = 1 },
 }
+local TEMPLATE_LANGS = { javascript = true, typescript = true, tsx = true }
 -- Rust closure parameters: `|a, b|` (the same character opens and closes)
 local PIPE_HOSTS = { rust = { closure_parameters = 1 } }
 
@@ -326,7 +327,10 @@ local function query_for(lang)
   if q ~= nil then
     return q
   end
-  local cand = { "(", ")", "[", "]", "{", "}", "${" }
+  local cand = { "(", ")", "[", "]", "{", "}" }
+  if TEMPLATE_LANGS[lang] then
+    cand[#cand + 1] = "${" -- template literal substitutions open with `${` and close with a plain `}`
+  end
   if ANGLE_HOSTS[lang] then
     cand[#cand + 1] = "<"
     cand[#cand + 1] = ">"
@@ -773,7 +777,7 @@ end
 
 -- ---------------------------------------------------------------------------------------- public
 
---- Forget every cache and redraw (options or colours changed).
+--- Forget every cache and queue a redraw (options or colours changed).
 function M.refresh()
   S.version = S.version + 1
   S.lang_off = {}
@@ -782,7 +786,8 @@ function M.refresh()
     S.lang_off[(vim.treesitter.language.get_lang(e) or e)] = true
   end
   S.cache, S.mem_static = {}, nil
-  pcall(vim.cmd, "redraw!")
+  -- queued, not forced: a forced redraw at startup would put the first (cold) draw into the VeryLazy phase
+  pcall(api.nvim__redraw, { valid = false, flush = false })
 end
 
 function M.apply_colors()

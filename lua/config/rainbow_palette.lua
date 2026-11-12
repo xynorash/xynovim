@@ -48,8 +48,8 @@ M.BASE = {
   -- hue (+-14 degrees) to maximise the smallest OKLab distance between any two colours as seen with normal
   -- vision and under simulated protanopia, deuteranopia and tritanopia (Machado et al. 2009, severity 1;
   -- tritan distances weighted 1.4), with every colour >= 3:1 on the editor and caret-row backgrounds.
-  -- Smallest pair distance (OKLab x 100, 60 000 steps, seed 7): dark 7.1 (tritan-weighted 10.0), light 4.9
-  -- (weighted 6.9); the stock Okabe-Ito set lifted to 3:1 had 5.9 and 1.0. tests/rainbow_spec.lua recomputes them.
+  -- Smallest pair distance (OKLab x 100, all pairs, four vision types): dark 7.2, light 5.1; the stock Okabe-Ito
+  -- set lifted to 3:1 had 5.9 and 1.0. tests/rainbow_spec.lua recomputes them.
   colorblind = {
     dark = { "#efb31a", "#36adf6", "#04a76d", "#ffe73e", "#5981be", "#df711f", "#d290b1", "#c8ccd4" },
     light = { "#7d4b05", "#1562a4", "#166745", "#717316", "#2d7aad", "#c77160", "#9e3578", "#45484e" },
