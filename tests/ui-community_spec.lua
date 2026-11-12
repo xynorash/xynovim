@@ -1011,6 +1011,15 @@ describe("ui-community: popup highlight groups (sandbox, history, guard, macros)
     end)
   end
 
+  it("a plugin popup wraps at words with a hanging indent; another float keeps the defaults", function()
+    local b = vim.api.nvim_create_buf(false, true)
+    vim.bo[b].filetype = "xyno-sandbox"
+    local w = vim.api.nvim_open_win(b, false, { relative = "editor", row = 1, col = 1, width = 20, height = 3 })
+    H.ok(ui.style_popup(w))
+    H.ok(vim.wo[w].linebreak and vim.wo[w].breakindent, "word wrap with hanging indent")
+    vim.api.nvim_win_close(w, true)
+  end)
+
   it("a float of another filetype is left alone", function()
     local b = vim.api.nvim_create_buf(false, true)
     local w = vim.api.nvim_open_win(

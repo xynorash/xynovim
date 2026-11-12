@@ -921,6 +921,12 @@ function M.style_popup(win)
     return false
   end
   vim.wo[win].winhighlight = WINHL
+  -- a long line (a path, a rule) wraps at a word with a small hanging indent instead of at the cell
+  -- where it ran out, which cut words in half and put the continuation under the label (seen on the
+  -- real sandbox policy window)
+  vim.wo[win].linebreak = true
+  vim.wo[win].breakindent = true
+  vim.wo[win].breakindentopt = "shift:4"
   return true
 end
 
