@@ -22,8 +22,9 @@ trap 'rm -rf "$work"' EXIT
 mkdir -p "$work"/{config,state,cache,files}
 ln -s "$cfg" "$work/config/nvim"
 data=${XDG_DATA_HOME:-$HOME/.local/share}
-for m in off on; do
-  for r in $(seq "$rounds"); do
+# interleaved (off, on, off, on, ...): a load change on the machine hits both columns alike
+for r in $(seq "$rounds"); do
+  for m in off on; do
     env XDG_CONFIG_HOME="$work/config" XDG_STATE_HOME="$work/state" XDG_CACHE_HOME="$work/cache" XDG_DATA_HOME="$data" \
       RB_MODE=$m RB_LINES=$lines RB_OUT="$work/$m.$r.json" RB_FILE_DIR="$work/files" \
       timeout 300 nvim --headless --cmd "lua vim.g.xynovim_workspace_trust=false" -c "luafile $repo/scripts/bench/rainbow.lua" </dev/null >/dev/null 2>&1

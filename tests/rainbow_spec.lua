@@ -647,9 +647,15 @@ describe("rainbow brackets: unmatched brackets", function()
     local checked, marks, bad = 0, 0, {}
     for _, f in ipairs(files) do
       local lang = f:match("%.rs$") and "rust" or "lua"
+      if f:find("mismatch.rs", 1, true) then
+        lang = nil -- the deliberately broken capture scene
+      end
       local buf = vim.api.nvim_create_buf(false, true)
       vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.fn.readfile(f))
-      local ok, parser = pcall(vim.treesitter.get_parser, buf, lang)
+      local ok, parser = false, nil
+      if lang then
+        ok, parser = pcall(vim.treesitter.get_parser, buf, lang)
+      end
       if ok and parser then
         parser:parse(true)
         checked = checked + 1
@@ -1497,6 +1503,75 @@ describe("rainbow brackets: :XynoRainbow", function()
       H.ok(vim.fn.maparg(lhs, "n") ~= "", lhs .. " is mapped")
     end
   end)
+end)
+
+-- ------------------------------------------------------------------ every feature at every width
+
+describe("rainbow brackets: each feature at 60, 120 and 200 columns", function()
+  local S
+
+  before_each(function()
+    load()
+    defaults(nil)
+    vim.cmd("colorscheme island-dark")
+    S = require("config.rainbow_scope")
+  end)
+  after_each(function()
+    S.clear()
+    defaults(nil)
+    pcall(vim.cmd, "silent! %bwipeout!")
+  end)
+
+  local SRC = table.concat({
+    "fn f(a: Vec<Vec<u8>>, k: u8) -> u8 {",
+    "    let s = a.iter().map(|x| (x.len() as u8) * k).sum();",
+    "    if s < 3 && k > 1 { return s; }",
+    "    foo( (1",
+    "}",
+    "",
+    "",
+  }, "\n")
+
+  for _, cols in ipairs({ 60, 120, 200 }) do
+    it(
+      ("generics, pipes, comparison, unmatched, kinds, palette, restrain, variables (%d columns)"):format(cols),
+      function()
+        open_text("w.rs", SRC, cols)
+        local c = cycle()
+        -- generics and closure pipes coloured, the comparison not
+        H.eq(c[2], fg_of(1, "<", 1), "inside the parameter list: level 1")
+        H.eq(c[3], fg_of(1, "<", 2))
+        H.eq(c[3], fg_of(2, "|", 1), "fn body {, map( and then the pipes: level 2")
+        H.not_ok(is_rainbow(fg_of(3, "<")))
+        -- unmatched
+        H.eq(mismatch_fg(), fg_of(4, "(", 1))
+        -- a kind switch
+        R.set("pipe", false)
+        vim.cmd("redraw!")
+        H.not_ok(is_rainbow(fg_of(2, "|", 1)))
+        R.set("pipe", true)
+        -- the colour-blind palette
+        R.set("palette", "colorblind")
+        vim.cmd("redraw!")
+        local cb = cycle()
+        H.eq(cb[2], fg_of(1, "<", 1))
+        R.set("palette", "auto")
+        -- restrain
+        vim.api.nvim_win_set_cursor(0, { 2, col_of(2, "x.len") - 1 })
+        H.eq(true, (S.at_cursor("restrain")))
+        vim.cmd("redraw!")
+        local dim = hex(vim.api.nvim_get_hl(0, { name = "XynoRainbowRestrain", link = false }).fg)
+        H.eq(dim, (cell(1, 1)))
+        S.clear()
+        -- variables
+        R.set("variables.enabled", true)
+        vim.cmd("redraw!")
+        H.eq(fg_of(2, "k"), fg_of(1, "k"), "k: parameter and use share a colour")
+        H.not_ok(fg_of(1, "k") == fg_of(2, "s"), "k and s differ (their hashes land on different colours)")
+        R.set("variables.enabled", false)
+      end
+    )
+  end
 end)
 
 -- ------------------------------------------------------------------ health, performance

@@ -137,8 +137,37 @@ keyed on the tree object and `changedtick`. The provider never parses (nvim 0.12
 a synchronous `parse()` from the provider forced a 900 ms reparse after an unbalanced `{` in a 38 000-line file, found
 with the latency probe and removed). While the highlighter is parsing, the edited old tree is used and nothing is cached.
 
-Measured with `scripts/bench/rainbow.sh` (headless, full config, brackets on versus off, median of 3 rounds, ms per
-redraw; the table is filled in [bench results](#measured)).
+Measured with `scripts/bench/rainbow.sh` ([results below](#measured)).
+
+### Measured
+
+2026-11-12, this machine (Ryzen 7 5800X, Neovim 0.12.6), **under load**: other jobs were running (load average 5-6 of 16
+threads), so absolute numbers are inflated and noisy; on and off ran interleaved so a load change hits both columns.
+
+**Redraw latency** (`scripts/bench/rainbow.sh --rounds 5`: headless, full config, `redraw!` after each step, ms; each cell
+is the median of the five rounds' medians; brackets off = `enabled = false`, the same code path without the provider's
+work):
+
+| | off | on | on minus off |
+| --- | --- | --- | --- |
+| 1 888-line file: jump (cold window) | 4.5 | 7.0 | +2.4 |
+| 1 888-line file: scroll 3 lines | 2.8 | 4.1 | +1.3 |
+| 1 888-line file: type one character | 2.6 | 4.4 | +1.8 |
+| 37 648-line file (large-file tier 1): jump | 2.3 | 4.6 | +2.3 |
+| 37 648-line file: scroll 3 lines | 2.2 | 3.3 | +1.1 |
+| 37 648-line file: type one character | 1.8 | 3.5 | +1.7 |
+
+The 95th percentile of typing was 13.8 ms off and 24.9 ms on in the small file and 9.5 / 20.7 ms in the large one: an
+edit that is slower than the median costs about 10 ms more with the brackets on. Before the fix described above, typing
+`{` into the large file took 909 ms (median) in this probe.
+
+**Startup** (`scripts/bench/bench.sh --only startup -n 10`, five interleaved pairs of the config before this work against
+the config with it, real TUI in a tmux pty; medians, ms): no file, VeryLazy fired 51.2 -> 50.2, ready 82.6 -> 81.0; with a
+`.rs` file, UIEnter 224.2 -> 224.8, ready 360.2 -> 357.3. The paired differences range from -26 to +35 ms because of the
+load, so **no change is measurable at this noise level**; the in-process cost of loading the module and running its
+`setup()` at VeryLazy was 0.9 to 2.6 ms in five runs (`require("lazy").load` of the virtual spec, no file open), which is
+the number to compare with the 3 ms budget. The first draw of a Rust buffer also compiles the bracket query once (a
+few milliseconds, inside the first redraw, after the first screen).
 
 ## Not implemented, and why
 
