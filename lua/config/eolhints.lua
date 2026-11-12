@@ -9,6 +9,8 @@ local ns = vim.api.nvim_create_namespace("xynovim.eolhints")
 local active = {} -- bufnr -> true
 local timers = {} -- bufnr -> uv timer
 
+local schedule
+
 local function label_text(h)
   local l = h.label
   if type(l) == "table" then
@@ -96,6 +98,8 @@ local function render(buf, hints)
   end
 end
 
+local tries = {} -- bufnr -> empty answers in a row (rust-analyzer answers [] while it still loads)
+
 local function refresh(buf)
   if not active[buf] or not vim.api.nvim_buf_is_valid(buf) then
     return
@@ -114,11 +118,19 @@ local function refresh(buf)
   c:request("textDocument/inlayHint", params, function(err, res)
     if not err and active[buf] and vim.api.nvim_buf_is_valid(buf) and vim.b[buf].changedtick == tick then
       render(buf, res or {})
+      -- an empty answer from a server that is still loading: ask again a few times (the built-in renderer
+      -- gets workspace/inlayHint/refresh for this; a plain request does not)
+      if #(res or {}) == 0 and (tries[buf] or 0) < 8 then
+        tries[buf] = (tries[buf] or 0) + 1
+        schedule(buf, 1500)
+      else
+        tries[buf] = nil
+      end
     end
   end, buf)
 end
 
-local function schedule(buf, delay)
+schedule = function(buf, delay)
   local t = timers[buf]
   if not t then
     t = assert(vim.uv.new_timer())
@@ -151,7 +163,7 @@ function M.enable(buf)
   active[buf] = true
   pcall(vim.lsp.inlay_hint.enable, false, { bufnr = buf })
   local g = vim.api.nvim_create_augroup("xynovim_eolhints_" .. buf, { clear = true })
-  vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "LspAttach", "WinResized", "BufEnter" }, {
+  vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "LspAttach", "LspProgress", "WinResized", "BufEnter" }, {
     group = g,
     buffer = buf,
     callback = function()
