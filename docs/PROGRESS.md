@@ -1,6 +1,6 @@
 # Progress since the baseline
 
-State of branch `dev` on 2026-11-12. **Nothing in this work is pushed**: no commit, tag, issue, pull request or reply left this machine. The nine plugin clones in `~/projects/xyno-plugins` carry their own `dev` branches that are ahead of what `lazy-lock.json` pins; xynovim uses them only with `XYNOVIM_DEV_PLUGINS` ([DEV-PLUGINS.md](DEV-PLUGINS.md)).
+State of branch `dev` on 2026-11-12, final numbers and statuses of the integration round 2026-11-13. **Nothing in this work is pushed**: no commit, tag, issue, pull request or reply left this machine. The nine plugin clones in `~/projects/xyno-plugins` carry their own `dev` branches that are ahead of what `lazy-lock.json` pins; xynovim uses them only with `XYNOVIM_DEV_PLUGINS` ([DEV-PLUGINS.md](DEV-PLUGINS.md)).
 
 The standard the work was held to: on every item, better than RustRover, VS Code, Zed, Helix and the popular Neovim configurations. What I could show is in the tables below with the evidence file next to it. **Where I could not run the other product (RustRover, Zed, VS Code were not installed or run; the starter configs are for you to run) the table says `unknown` or compares documents, not measurements.** The plan areas A to I are the ones of the approved master plan.
 
@@ -10,24 +10,26 @@ Machine: AMD Ryzen 7 5800X, 15.9 GB, Linux 7.3.3 (CachyOS), Neovim 0.12.6, rust-
 
 | Run | Result |
 |---|---|
-| `scripts/test.sh` (pinned plugins), 57 spec files | 1286 passed, 1 failed, 49 skipped (583 s, 2026-11-12, last run). The failure was the README spec count (fixed). Before the rainbow work: 49 files, 1137 passed, 1 failed (lockfile drift below), 67 skipped. An earlier full run the same day: 1136 passed, 2 failed (the second was the README spec count, 43 against 49 files, fixed) |
-| `scripts/dev-plugins.sh test` (plugin clones on `dev`) | 1185 passed, 1 failed (the same drift), 32 skipped (539 s, last run). The earlier full dev run had 1181 passed, 5 failed: the spec count, the drift, and three fixed or load-dependent specs (`agent-99-guard` absolute `/usr/bin/env` and `bwrap` paths of the newer plugin, `debug-values` Noice notice racing the notify capture, `keymaps-rust` "rv" timing out under load); all three pass in the last run |
-| `stylua --check .` (StyLua 2.6.0 from Mason) | clean in xynovim and in all nine plugin clones (each with its own `.stylua.toml`; xyno-history has none and uses xynovim's settings); the lint spec (`supply-chain-lint`) passes |
-| xyno-clipboard `nvim -l tests/run.lua` | 41 passed, 0 failed, 0 skipped |
-| xyno-crates | 113 passed, 0 failed, 1 skipped |
+| `scripts/test.sh` (pinned plugins), 57 spec files | 1287 passed, 0 failed, 49 skipped (568 s, 2026-11-13, whole suite in one run). The runs of 2026-11-12: 1286 passed, 1 failed (the README spec count, fixed), and before the rainbow work 49 files, 1137 passed, 1 failed (lockfile drift, gone now, see below), 67 skipped |
+| `scripts/dev-plugins.sh test` (plugin clones on `dev`) | 1304 passed, 0 failed, 32 skipped (580 s, 2026-11-13, whole suite in one run). The earlier dev run of 2026-11-12 (49 files): 1185 passed, 1 failed (the drift), 32 skipped; the full dev run before it had three fixed or load-dependent specs (`agent-99-guard` absolute `/usr/bin/env` and `bwrap` paths, `debug-values` Noice notice racing the notify capture, `keymaps-rust` "rv" timing out under load) |
+| `stylua --check .` (StyLua 2.6.0 from Mason) | clean in xynovim and in all nine plugin clones (each with its own `.stylua.toml`; xyno-history's was added on 2026-11-13, same settings as the others); five sandbox spec files were reformatted the same day; the lint spec (`supply-chain-lint`) passes |
+| xyno-clipboard `nvim -l tests/run.lua` (2026-11-13) | 42 passed, 0 failed, 0 skipped |
+| xyno-crates | 114 passed, 0 failed, 1 skipped |
 | xyno-guard | 63 passed, 0 failed, 7 skipped |
 | xyno-history | 158 passed, 0 failed, 6 skipped |
 | xyno-imports | 67 passed, 0 failed, 0 skipped |
 | xyno-macros | 283 passed, 0 failed, 2 skipped |
 | xyno-new | 230 passed, 0 failed, 0 skipped |
-| xyno-rust | 405 passed, 0 failed, 1 skipped |
-| xyno-sandbox | 897 passed, 0 failed, 0 skipped, 1 expected failure (run with the real HOME) |
+| xyno-rust | 414 passed, 0 failed, 1 skipped |
+| xyno-sandbox | 1102 passed, 0 failed, 0 skipped, 1 expected failure (run with the real HOME; was 897 before the git write mode and round 8 and 9 specs) |
 
-The one failure with the pinned plugins is `startup-and-options` "every locked plugin is installed with its git HEAD at the pinned commit": ten installed plugins sit on newer commits than `lazy-lock.json` (SchemaStore.nvim, friendly-snippets, grug-far.nvim, mason-lspconfig.nvim, mini.ai, mini.icons, mini.pairs, neo-tree.nvim, nvim-treesitter-context, render-markdown.nvim). It is drift of this machine's install, not a defect of the config; `nvim --headless "+Lazy! restore" +qa` fixes it and is yours to run (section 5). The spec's message names that command. `lazy-lock.json` itself is unmodified (`git status` is clean, its last commit is not from this work); the earlier suspicion that a run had modified it came from a failing `test-infra-readme-claims` check, which passes in both final runs (86 checks) and whose throwaway spec only ever writes into a fake config copy. Nobody ran Lazy update or restore on the real install.
+The one failure of the earlier runs, `startup-and-options` "every locked plugin is installed with its git HEAD at the pinned commit", came from ten installed plugins sitting on newer commits than `lazy-lock.json`. On 2026-11-13 the check passes: the four I compared (SchemaStore.nvim, friendly-snippets, mini.ai, neo-tree.nvim) are at the pinned commits. I did not run Lazy update or restore and do not know who or what moved them back; on an install that drifts again, `nvim --headless "+Lazy! restore" +qa` fixes it and is yours to run (section 5). `lazy-lock.json` itself is unmodified (`git status` is clean, its last commit is from 2026-10-22, not from this work).
 
 Skips are listed with their reasons by the runner; the biggest groups are the specs that need the plugin `dev` branches (they skip against the pinned plugins with a message naming `XYNOVIM_DEV_PLUGINS`), the real-debugger specs (`~/.cargo/config.toml` lacks `debug = true`), `cargo-nextest`, `pwsh`, `shellcheck` and the offline cargo-deny advisory database.
 
 Benchmarks, second run ([bench/final-2026-11b.md](bench/final-2026-11b.md), raw [bench/final-2026-11b.json](bench/final-2026-11b.json)): the machine was loaded by a game and Discord (load 7 to 9), so its raw timings are 40 to 60 % slower than the first run and must not be read against it; the paired check of the previous benchmarked commit against current `dev`, alternated under the same load, shows **no regression** (startup, 40 013-line file, memory), and memory matches the quiet run to 1 MB. The re-run also found that the harness measured an untrusted workspace (bacon-ls off, restricted rust-analyzer) now that the trust gate fails closed with the pinned plugins; `hook.lua` switches the gate off for the temp crate (`BENCH_TRUST=0` measures restricted mode). First run ([bench/final-2026-11.md](bench/final-2026-11.md), raw [bench/final-2026-11.json](bench/final-2026-11.json), against [bench/baseline.json](bench/baseline.json)): **no regression.** Startup without a file 33.2 to 33.5 ms, with a `.rs` file 177.3 to 176.1 ms, rust-analyzer diagnostic 25.6/32.3 to 28.1/30.6 ms, clippy 562 to 565 ms (all inside run-to-run noise); idle memory 1002 to 805 MB; a 40 013-line Rust file: longest stall 527 to 100 ms, edit 243 to 19 ms, RSS after use 1207 to 798 MB. The 100 003-line file looked 4 to 13 ms slower in one run; re-measured, the baseline commit gives the same numbers today, so it is the day, not the config.
+
+Benchmarks, third run, 2026-11-13 ([bench/final-2026-11c.md](bench/final-2026-11c.md), raw [bench/final-2026-11c.json](bench/final-2026-11c.json)): not a quiet machine (load 3.7, another session compiling and running a Rust program, Discord, governor `powersave`; I waited about ten minutes and it did not clear), so the raw numbers are 10 to 15 % above the quiet runs (no file 38.0 ms against 33.5, with a `.rs` file 201.7 against 175.8, UIEnter). A paired alternating run of the `final-2026-11` code (85db1a3) against this checkout in the same conditions shows no start-up or large-file difference (no file 39.5 ms old, 38.9 ms new; `.rs` file 204 old, 204 new), and one small difference: edit to first rust-analyzer diagnostic 33.5 ms old, 34.5 ms with the rainbow brackets off, 36.2 ms on (spread of single trials 28 to 46 ms), which is the documented redraw cost of the brackets. No regression found in start-up, memory, the large-file paths or bacon-ls; the +1 to +3 ms on the first diagnostic is the price of a feature, stated, not hidden. A quiet-machine run is open.
 
 ## 2. What changed per area
 
@@ -72,6 +74,8 @@ Commits are on `dev` of this repository unless a plugin is named. Evidence for e
 ### G. UX and onboarding
 
 - Done: `:checkhealth` for each plugin except xyno-sandbox (the sandbox has `:XynoSandboxStatus` instead; I did not check whether it also registers a health check), failures made visible (history snapshots, clipboard, sandbox refusal), accessibility options (ASCII icons, high contrast, colourblind palette, severity shapes).
+- Done, rainbow brackets (2026-11-12 and 13; [RAINBOW.md](RAINBOW.md), `tests/rainbow_spec.lua` 87 checks on the real grid, captures in `comparison/screenshots/rainbow/`): nesting colours from the syntax tree, per-kind switches, scope highlight (mouse, keys, commands), unmatched marking, contrast-checked palettes including a colour-blind one, locals-based variable colours, keywords and tags by depth (Python, C `#if`, HTML / XML / JSX, YAML keys; off by default), started from `options.lua` by a boot module (no lazy spec). Not done: Ruby, C++ and Kotlin rules (grammars not installed here, none downloaded), the rectangular scope box, the debugger Execution Point colour. Cost measured under load: +1.1 to +2.4 ms redraw, start-up not measurable.
+- Done, review round U1 to U11 (CHANGELOG): `:RustRun` picker no longer shadowed by rust.vim, trust prompt wrapped and sized, vendored trust fallback for the pinned xyno-rust.nvim, `cargo add` re-records trust, calmer inlay hints, one popup per test run, quieter clipboard notice on a local Wayland session, once-only blink.cmp library download. The trust prompt was captured on the tmux grid, not in Ghostty pixels, and the pinned set was exercised through the vendored `xyno_rust.trust` module, not with a real `lazy-lock.json` bump.
 - Not done: timed common tasks against the other editors (G4), a clean-machine first run on this machine (`XYNO_TEST_NETWORK=1`, skipped).
 
 ### H. Architecture and maintenance
@@ -89,6 +93,9 @@ Against the strongest of RustRover, VS Code, Zed, Helix and the popular Neovim c
 
 | Item | Status | Evidence |
 |---|---|---|
+| Rainbow brackets: depth colouring, scope highlight, contrast guarantee, colour-blind palette | tied on depth colouring and scope (the JetBrains plugin has both); ahead on the contrast guarantee and colour-blind palette by documentation; behind on Ruby / C++ / Kotlin rules, the scope box and the Execution Point colour | MATRIX RB1 to RB6 |
+| Sandbox git write mode (opt-in, plugin `dev`) | ahead by documentation; two critical bypasses found and closed, not audited | MATRIX ST1 |
+| Workspace trust through the pinned plugin set | tied | MATRIX ST2 |
 | Agent sandbox on Linux (credentials hidden, fail closed) | ahead on defaults; behind on macOS / Windows and credential masking | S 1 |
 | Network egress control (plugin `dev`; pinned version is open) | tied (default-deny like Zed, Claude Code, Codex; ahead of VS Code) | S 2 |
 | Sandbox in other Neovim agent plugins | ahead (none of seven read ships one) | S 15 |
@@ -126,14 +133,15 @@ Against the strongest of RustRover, VS Code, Zed, Helix and the popular Neovim c
 ## 4. Blocked on you
 
 - Install `wl-clipboard` (needs `sudo`): without it the clipboard specs cover only the fake tools and the OSC 52 fallback path.
-- Run `Lazy! restore` (it moves ten plugins on this install to the pinned commits, so I did not).
+- `Lazy! restore` is no longer needed on this install (the lockfile check passes on 2026-11-13); run it only if the check fails again.
 - Mason's `tree-sitter-cli` (one `bacon-ls-config` check skips without it).
 - Optional: `cargo-nextest` (`cargo install cargo-nextest --locked`, or `sudo pacman -S cargo-nextest`); I did not install it, so nextest runs and debugging under nextest are unverified.
 - Ghostty setting for OSC 52 (reading is `ask` by default).
 - Pushing the plugin `dev` branches, tagging, and bumping `lazy-lock.json`: until then everything marked "needs the `dev` branch" is not what an installed xynovim runs.
 - Decisions: credential masking (TLS interception), opening the three issues, the dev.to reply.
 - Things I cannot do here: macOS Seatbelt (no Mac), RustRover / Zed / VS Code side-by-side numbers (not installed, one needs a licence), `cargo-nextest` runs (not installed), Reddit (unreachable).
-- A quiet-machine benchmark repeat (the run in this file was under game load): `scripts/bench/bench.sh --out docs/bench/final-2026-11c.json`, with nothing else running.
+- A quiet-machine benchmark repeat (the run in this file was under game load): `scripts/bench/bench.sh --out docs/bench/final-quiet.json`, with nothing else running (the 2026-11-13 run was under load, see third run above).
+- Leftovers in `/tmp` that I was not allowed to delete: about 144 `xyno-run-*` directories (the xyno-sandbox test runner of earlier rounds; a complete run now leaves none), `xynotest.*`, `xyno_clippy.log`, `xyno_fmt.log`, `xyno_test.log`, `xyno_done`: `rm -rf /tmp/xyno-run-* /tmp/xynotest.* /tmp/xyno_*` when no test is running.
 - Running `scripts/bench/compare.sh`: it clones and executes the starter configs' code, so it is yours.
 
 ## 5. Commands for you
@@ -142,7 +150,7 @@ Against the strongest of RustRover, VS Code, Zed, Helix and the popular Neovim c
 # 1. Clipboard tool (Wayland); X11 uses xclip instead
 sudo pacman -S wl-clipboard
 
-# 2. Put the ten drifted plugins back on lazy-lock.json (fixes the one failing spec)
+# 2. Only if the lockfile-drift spec fails on your install: put the plugins back on lazy-lock.json
 cd ~/projects/xynovim && nvim --headless "+Lazy! restore" +qa
 
 # 2b. Optional: nextest (nextest runs and nextest debugging are unverified here)
