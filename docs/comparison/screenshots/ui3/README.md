@@ -11,8 +11,8 @@ How: a private Ghostty 1.4.0 (`GDK_BACKEND=x11`, `--background-opacity=1 --minim
 | `lighthigh-{80,120,200}.png` | `island-light` + `:IslandContrast high` | 80: 78x39; 120: 117x60; 200: 234x113 |
 | `eol-{80,120,200}.png` | `:Hints eol` (dark) | 80: 78x39; 120: 117x60; 200: 210x51 |
 | `eollight-{80,120,200}.png` | `:Hints eol` in island-light | 80: 78x18; 120: 118x28; 200: 210x51 |
-| `sandbox-{80,120,200}.png` | `:XynoSandboxPolicy` | 80: 78x39; 120: 117x60; 200: 234x113 |
-| `history2-{80,120,200}.png` | `:LocalHistoryPanel` after three snapshots and one unsaved-to-history edit | 80: 78x39; 120: 117x60; 200: 234x113 |
+| `sandbox-{80,120,200}.png` | `:XynoSandboxPolicy` (**[dev]**: absent with the pinned plugins) | 80: 78x39; 120: 117x60; 200: 234x113 |
+| `history2-{80,120,200}.png` | `:LocalHistoryPanel` (**[dev]**) after three snapshots and one unsaved-to-history edit | 80: 78x39; 120: 117x60; 200: 234x113 |
 | `macros6-{80,120,200}.png` | `:MacroSignature` inside `pair!(1, 2)` (`src/macros.rs`) | 80: 78x18; 120: 118x28; 200: 210x51 |
 | `procmacro-{80,120,200}.png` | `:ProcMacroStatus` (after the wrap fix) | 80: 78x39; 120: 117x60; 200: 234x113 |
 | `results-{80,120,200}.png` | test results panel fed by a real `cargo test` (2 pass, 2 fail) of a second crate | 80: 78x39; 120: 117x60; 200: 234x113 |

@@ -44,7 +44,7 @@ scripts/bench/rainbow.sh --rounds 5          # rainbow redraw latency, brackets 
 nvim --headless "+Lazy! restore" +qa         # only if the lockfile-drift check fails on your install
 ```
 
-In the editor: `:XynoRainbow` (tab-completes; `palette next`, `scope`, `restrain`, `keywords`, `tags`, `colors show|save|freeze`), `<leader>uk` / `uj` / `uJ`; `:RustRun` (run-configuration picker); `:RustTrust` (trust list); `:XynoSandboxPolicy` (policy preview, "Git write mode" section on the plugin `dev` branch); `:checkhealth xynovim`.
+In the editor: `:XynoRainbow` (tab-completes; `palette next`, `scope`, `restrain`, `keywords`, `tags`, `colors show|save|freeze`), `<leader>uk` / `uj` / `uJ`; `:RustRun` (run-configuration picker, **[dev]**: only with `XYNOVIM_DEV_PLUGINS`, absent from the pinned plugins); `:RustTrust` (trust list, **[dev]**); `:XynoSandboxPolicy` (**[dev]** policy preview, "Git write mode" section on the plugin `dev` branch); `:checkhealth xynovim`.
 
 ## What is unknown
 

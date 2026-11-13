@@ -2,7 +2,7 @@
 
 Retrieved/compiled 2026-11-12. Baseline from the user: every item must end better than RustRover, VS Code, Zed, Helix and the popular Neovim configs. Evidence and sources are in [security-and-features.md](security-and-features.md), [notes.md](notes.md) and [ui-community.md](ui-community.md); this file only orders the work. Nothing below was implemented by this document. "Ordered by user impact" is a judgement: items that affect safety when opening any repo, or that every user hits daily, come first; the score for UI items is taken from ui-community.md.
 
-Status words: `behind`, `tied`, `unknown`. Items where xynovim is `ahead` are not listed.
+Mode: rows that name `:RustRun`, `:RustActions`, `:RustRename`, `:RustUsages`, `:RustProfile`, `:TokioConsole`, `:RustTrust`, `:RustNewFrom`, `:RustFixAll`, `:LocalHistoryPanel` or `:XynoSandboxPolicy` describe the plugins' `dev` branches; with the pinned plugins of `lazy-lock.json` those commands do not exist (see the legend in the README, "Keys you will use"). Status words: `behind`, `tied`, `unknown`. Items where xynovim is `ahead` are not listed.
 
 | # | Item | Status | Against | Evidence | Concrete next step | Test that proves it | Blocker |
 |---|---|---|---|---|---|---|---|
