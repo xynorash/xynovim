@@ -61,13 +61,13 @@ message that names `XYNOVIM_DEV_PLUGINS`; with the clones they run.
 
 ## Results of the integration run (2026-11-13)
 
-Same machine, `scripts/test.sh` (pinned plugins) against `scripts/dev-plugins.sh test` (clones on `dev`), 57 spec files each, one whole-suite run per mode:
+Same machine, `scripts/test.sh` (pinned plugins) against `scripts/dev-plugins.sh test` (clones on `dev`), 64 spec files each, one whole-suite run per mode:
 
 | Mode | Passed | Failed | Skipped | Time |
 |---|---|---|---|---|
-| pinned (`lazy-lock.json`) | 1287 | 0 | 49 | 568 s |
-| dev clones | 1304 | 0 | 32 | 580 s |
+| pinned (`lazy-lock.json`) | 1368 | 1 (README spec count, fixed) | 43 | 660 s |
+| dev clones | 1386 | 1 (same) | 25 | 666 s |
 
-The 17 extra passes in dev mode are the specs of the newer plugin features that skip against the pinned plugins. The run of 2026-11-12 (49 files: 1137 and 1185 passed, 1 failed each) failed `startup-and-options` on 10 installed plugins that were off the lockfile; on 2026-11-13 the installed plugins are at the pinned commits again and the check passes (I did not run `Lazy restore`; if it fails on your install, `nvim --headless "+Lazy! restore" +qa` is the fix and is yours to run).
+The 18 extra passes in dev mode (the 18 skips that turn into runs) are the specs of the newer plugin features that skip against the pinned plugins. The run of 2026-11-12 (49 files: 1137 and 1185 passed, 1 failed each) failed `startup-and-options` on 10 installed plugins that were off the lockfile; on 2026-11-13 the installed plugins are at the pinned commits again and the check passes (I did not run `Lazy restore`; if it fails on your install, `nvim --headless "+Lazy! restore" +qa` is the fix and is yours to run).
 
 Specs that failed in an earlier full dev run and were fixed or are load-dependent: `agent-99-guard` (the plugin now starts `/usr/bin/env` and `/usr/bin/bwrap` by absolute path; the spec compares base names), `debug-values` (a Noice notice raced the notify capture; the spec now looks for its message among the captured ones) and `keymaps-rust` "rv extracts into a variable" (timed out once under load, passed in the final run and in two reruns). Specs that skip against the pinned plugins with a message naming `XYNOVIM_DEV_PLUGINS`: `rust-ide-features` (run configurations, the code-action menu, organize on save), the real-popup checks of `ui-community`, the policy-preview and checkpoint specs of `agent-99-guard`, the OSC 52 fallback in `clipboard-e2e`. Each clone's own suite (`nvim -l tests/run.lua`): clipboard 41, crates 113, guard 63, history 158, imports 67, macros 283, new 230, rust 405, sandbox 897 passed, none failed (sandbox: 1 expected failure).

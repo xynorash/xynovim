@@ -32,7 +32,7 @@ Only where a page or a measurement shows the others lack it or do it worse.
 - Run configurations are not shared through the repository. Deliberate: a config from a cloned repo would run on your machine.
 - Credential masking (VS Code) needs TLS interception; macOS and Windows are unsupported and unverified (no Mac here).
 - The light theme is derived, not designed.
-- Rainbow brackets: Ruby keywords, C++ `#if`, Kotlin arrows (grammars not installed here), the plugin's rectangular scope box and the debugger Execution Point colour are not built (RB5).
+- Rainbow brackets: the Ruby, C++ and Kotlin word rules are written but have never run (the grammars are not installed here; `:TSInstall ruby cpp kotlin` activates them); the scope box is an outline of virtual-line borders, an approximation of the plugin's rectangle that was asserted by specs but not captured in Ghostty pixels; the tint skips the debugger's stopped line (RB5).
 
 ## Commands to run yourself
 
@@ -42,6 +42,13 @@ scripts/dev-plugins.sh test                  # the same against the plugin clone
 scripts/bench/bench.sh --out my.json         # the benchmarks (run it on a quiet machine)
 scripts/bench/rainbow.sh --rounds 5          # rainbow redraw latency, brackets on against off
 nvim --headless "+Lazy! restore" +qa         # only if the lockfile-drift check fails on your install
+rm -rf /tmp/xyno-run-* /tmp/xynotest.* /tmp/xyno_*.log        # test leftovers I was not allowed to delete
+nvim --headless "+TSInstall ruby cpp kotlin" +qa              # activates the dormant Ruby / C++ / Kotlin rainbow rules
+cargo install cargo-nextest --locked                          # optional: nextest runs and debugging under nextest
+env -u XDG_CONFIG_HOME scripts/bench/bench.sh --out docs/bench/final-quiet.json   # on a quiet machine
+scripts/bench/compare.sh ~/bench-compare     # clones and runs the starter configs' code: read it first
+# publishing (yours): push order xyno-rust, xyno-imports, xyno-crates, xyno-macros, xyno-new, xyno-history,
+# xyno-sandbox, xyno-clipboard, xyno-guard (dev branches), tags, then "Lazy! update" for the lock; exact commands: PROGRESS.md section 5
 ```
 
 In the editor: `:XynoRainbow` (tab-completes; `palette next`, `scope`, `restrain`, `keywords`, `tags`, `colors show|save|freeze`), `<leader>uk` / `uj` / `uJ`; `:RustRun` (run-configuration picker, **[dev]**: only with `XYNOVIM_DEV_PLUGINS`, absent from the pinned plugins); `:RustTrust` (trust list, **[dev]**); `:XynoSandboxPolicy` (**[dev]** policy preview, "Git write mode" section on the plugin `dev` branch); `:checkhealth xynovim`.
@@ -52,4 +59,4 @@ Same-machine startup, latency and memory against RustRover, VS Code, Zed and Hel
 
 ## Caveats
 
-Everything here is on the `dev` branch. Several features need plugin `dev` branches that are not pushed or pinned in `lazy-lock.json`; an installed xynovim does not have them yet. With the pinned plugins the whole suite (57 files, 2026-11-13) had 1287 passed, 0 failed and 49 skipped; with the plugin `dev` clones 1304 passed, 0 failed, 32 skipped. That says the code does what its tests check, not that it beats anything.
+Everything here is on the `dev` branch. Several features need plugin `dev` branches that are not pushed or pinned in `lazy-lock.json`; an installed xynovim does not have them yet. With the pinned plugins the whole suite (64 files, 2026-11-13) printed 1368 passed, 1 failed (the README spec count, fixed) and 43 skipped, and 1370 passed, 0 failed, 43 skipped after the fixes; with the plugin `dev` clones 1386 passed, 1 failed (the same), 25 skipped. Every remaining warning and skip is in [KNOWN-WARNINGS](../KNOWN-WARNINGS.md). That says the code does what its tests check, not that it beats anything.
