@@ -362,7 +362,18 @@ return {
           end
           if not ok then
             release(token)
-            error(res, 0)
+            -- a throw from the spawn (no `claude` on PATH: ENOENT; the sandbox refusing the command) would reach
+            -- the keymap as an "E5108: Error executing lua" with a stack trace: one message instead
+            local why = tostring(res)
+            local msg = "99: could not start the agent: "
+              .. (
+                why:find("ENOENT", 1, true)
+                  and "the `claude` command was not found on PATH (install Claude Code, then retry)"
+                or why
+              )
+            vim.notify(msg, vim.log.levels.ERROR)
+            pcall(observer.on_complete, "failed", msg)
+            return
           end
           result = res
         end

@@ -564,17 +564,27 @@ describe("Guarded.make_request", function()
     H.eq(true, autosave().enabled())
   end)
 
-  it("releases and re-raises on a synchronous throw from Claude.make_request", function()
+  it("releases and reports one message on a synchronous throw from Claude.make_request (no Lua error)", function()
     restore_claude()
     restore_claude = patch(claude(), {
       make_request = function()
-        error("spawn failed", 0)
+        error("ENOENT: no such file or directory", 0)
+      end,
+    })
+    local notes = {}
+    patch(vim, {
+      notify = function(m, l)
+        notes[#notes + 1] = { m, l }
       end,
     })
     vim.cmd("enew!")
-    local ok, e = pcall(guarded().make_request, guarded(), "q", new_context(), new_observer())
-    H.not_ok(ok)
-    H.eq("spawn failed", e)
+    local obs = new_observer()
+    local ok, e = pcall(guarded().make_request, guarded(), "q", new_context(), obs)
+    H.ok(ok, tostring(e))
+    H.eq("failed", obs.completed[1][1])
+    H.has(obs.completed[1][2], "`claude` command was not found")
+    H.has(notes[#notes][1], "could not start the agent")
+    H.eq(vim.log.levels.ERROR, notes[#notes][2])
     H.eq(true, autosave().enabled(), "auto-save stayed off after a throw")
     H.eq(1, as_on_calls)
   end)
