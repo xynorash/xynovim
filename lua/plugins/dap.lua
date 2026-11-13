@@ -405,6 +405,27 @@ return {
           -- default_setup extends c/cpp/rust with the same shared tables;
           -- give Rust its own list.
           require("dap").configurations.rust = rust_configurations()
+          -- nvim-dap's answer to a missing adapter binary is "Executable `...` not found, fix the adapter
+          -- definition" and then "Couldn't connect to 127.0.0.1:${port}": a message for the author of the
+          -- config, and a second one with an unexpanded placeholder. One message with the way out instead.
+          local adapter = require("dap").adapters.codelldb
+          if type(adapter) == "table" and adapter.executable and adapter.executable.command then
+            require("dap").adapters.codelldb = function(on_adapter)
+              local cmd = adapter.executable.command
+              if vim.fn.executable(cmd) ~= 1 then
+                vim.notify(
+                  "The debugger (codelldb) is not installed: "
+                    .. cmd
+                    .. " does not exist.\n"
+                    .. "Install it with :MasonInstall codelldb, then start the session again.",
+                  vim.log.levels.ERROR,
+                  { title = "debugger" }
+                )
+                return
+              end
+              on_adapter(adapter)
+            end
+          end
           require("dap").listeners.on_config["xynovim_rust_lldb"] = rust_lldb_init
           require("config.dap_panic").setup()
           require("config.dap_values").setup()

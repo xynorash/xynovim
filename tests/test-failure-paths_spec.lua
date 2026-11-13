@@ -72,3 +72,35 @@ describe("rust-analyzer unhealthy toast", function()
     H.eq(false, vim.g.rustaceanvim.server.status_notify_level)
   end)
 end)
+
+describe("debugger without codelldb", function()
+  it("one message with the way out, no placeholder error, no session", function()
+    require("lazy").load({ plugins = { "nvim-dap", "mason-nvim-dap.nvim" } })
+    local dap = require("dap")
+    local fn = dap.adapters.codelldb
+    if type(fn) ~= "function" then
+      return skip("mason-nvim-dap did not register codelldb here")
+    end
+    -- the adapter table the wrapper closes over: point it at a binary that does not exist
+    local adapter
+    for i = 1, 5 do
+      local _, v = debug.getupvalue(fn, i)
+      if type(v) == "table" and v.executable then
+        adapter = v
+      end
+    end
+    H.ok(adapter, "adapter upvalue")
+    local old = adapter.executable.command
+    adapter.executable.command = "/nonexistent/codelldb"
+    local notes = capture(function()
+      dap.run({ type = "codelldb", request = "launch", name = "x", program = "/bin/true" })
+      vim.wait(500)
+    end)
+    adapter.executable.command = old
+    H.eq(1, #notes, vim.inspect(notes))
+    H.has(notes[1].msg, "codelldb) is not installed")
+    H.has(notes[1].msg, "MasonInstall codelldb")
+    H.no_match(notes[1].msg, "${port}")
+    H.is_nil(dap.session())
+  end)
+end)
