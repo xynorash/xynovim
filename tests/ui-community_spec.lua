@@ -944,7 +944,10 @@ describe("ui-community 8: narrow-window statusline", function()
     H.no_match(s60, "NORMAL", true)
     H.match(s60, "N", true)
     -- the path in front of the name shrinks, the name stays
-    H.match(s200, "folder/important_notes.txt", true)
+    H.ok(
+      s200:find("folder[/\\]important_notes%.txt"),
+      "the path in front of the name (LazyVim pretty_path uses the OS separator)"
+    )
     H.no_match(s60, "nested/", true)
   end)
 

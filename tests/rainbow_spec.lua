@@ -732,8 +732,22 @@ describe("rainbow brackets: unmatched brackets", function()
 
   it("valid code never shows a mismatch: every Rust and Lua file of this repo", function()
     -- scratch buffers with a string parser: no file is opened, so no language server starts in a fixture crate
-    local files = vim.fn.globpath(H.repo, "{demo,tests,tools,scripts}/**/*.rs", false, true)
-    vim.list_extend(files, vim.fn.globpath(H.repo, "{lua,tests}/**/*.lua", false, true))
+    local files = {}
+    for _, spec in ipairs({
+      { { "demo", "tests", "tools", "scripts" }, "%.rs$" },
+      { { "lua", "tests" }, "%.lua$" },
+    }) do
+      for _, d in ipairs(spec[1]) do
+        if vim.uv.fs_stat(H.repo .. "/" .. d) then
+          vim.list_extend(
+            files,
+            vim.fs.find(function(name)
+              return name:match(spec[2]) ~= nil
+            end, { path = H.repo .. "/" .. d, type = "file", limit = math.huge })
+          )
+        end
+      end
+    end
     local checked, marks, bad = 0, 0, {}
     for _, f in ipairs(files) do
       local lang = f:match("%.rs$") and "rust" or "lua"
@@ -1927,12 +1941,20 @@ describe("rainbow brackets: keywords and tags by depth", function()
     pcall(vim.cmd, "silent! %bwipeout!")
   end)
 
+  -- a hosted runner builds only the parsers this config pins for Rust and Lua: skip, loudly, when one is absent
+  local function need_parser(lang)
+    if not pcall(vim.treesitter.language.add, lang) then
+      skip(lang .. " tree-sitter parser not installed in this environment")
+    end
+  end
+
   local PY = "if a:\n    for i in b:\n        while c:\n            pass\n    else:\n        pass\nelse:\n    pass\n"
   local function normal_fg()
     return hex(vim.api.nvim_get_hl(0, { name = "Normal", link = false }).fg)
   end
 
   it("both are off by default and the keywords keep their syntax colour", function()
+    need_parser("python")
     open_text("w1.py", PY)
     local off_if, off_for = fg_of(1, "if"), fg_of(2, "for")
     H.eq(off_if, off_for, "both are plain syntax keywords")
@@ -1944,6 +1966,7 @@ describe("rainbow brackets: keywords and tags by depth", function()
   end)
 
   it("Python keywords take the colour of their block depth, an else matches its if", function()
+    need_parser("python")
     open_text("w2.py", PY)
     local off_pass = fg_of(4, "pass")
     defaults({ words = { keywords = true } })
@@ -2047,6 +2070,7 @@ describe("rainbow brackets: keywords and tags by depth", function()
 
   local HTML = "<div>\n  <p>\n    <b>x</b>\n    <br/>\n  </p>\n</div>\n"
   it("HTML tag names and brackets follow the element depth, open and close tags match", function()
+    need_parser("html")
     defaults({ words = { tags = true } })
     open_text("w4.html", HTML)
     vim.cmd("redraw!")
@@ -2065,6 +2089,7 @@ describe("rainbow brackets: keywords and tags by depth", function()
   end)
 
   it("XML and JSX tags too; JSX text and comparisons are untouched", function()
+    need_parser("xml")
     defaults({ words = { tags = true } })
     open_text("w5.xml", '<a>\n  <b k="1"/>\n  <c>t</c>\n</a>\n')
     vim.cmd("redraw!")
@@ -2082,6 +2107,7 @@ describe("rainbow brackets: keywords and tags by depth", function()
   end)
 
   it("YAML mapping keys follow the mapping depth", function()
+    need_parser("yaml")
     defaults({ words = { tags = true } })
     open_text("w7.yaml", "a:\n  b:\n    c: 1\n  d: 2\n")
     vim.cmd("redraw!")
@@ -2093,6 +2119,7 @@ describe("rainbow brackets: keywords and tags by depth", function()
   end)
 
   it("switched by :XynoRainbow keywords / tags, validated, shown in the status", function()
+    need_parser("python")
     open_text("w8.py", PY)
     vim.cmd("XynoRainbow keywords on")
     H.eq(true, R.get("words.keywords"))

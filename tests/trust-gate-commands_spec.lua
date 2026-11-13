@@ -146,7 +146,10 @@ describe("coverage (<leader>tc)", function()
     vim.wait(300)
     H.eq({}, ran)
     H.eq(1, calls.n, "asked once")
-    H.match(calls.prompts[1], ws, true)
+    H.ok(
+      calls.prompts[1]:lower():find(ws:lower(), 1, true),
+      "the prompt names the workspace (a Windows drive letter is spelled either way)"
+    )
   end)
 
   it("untrusted + headless: nothing runs and nothing is asked", function()

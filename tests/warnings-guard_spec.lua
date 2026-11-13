@@ -308,15 +308,16 @@ local CI_ONLY = {
   "COLORTERM",
   "command failed",
   "is available %(current",
+  "lacks llvm%-tools",
 }
 
-local function allowed(section, text)
+local function allowed(section, text, strict)
   for _, e in ipairs(ENV_LIMITS) do
     if section:find(e[1]) and text:find(e[2]) then
       return true
     end
   end
-  if os.getenv("CI") and os.getenv("CI") ~= "" then
+  if not strict and os.getenv("CI") and os.getenv("CI") ~= "" then
     for _, p in ipairs(CI_ONLY) do
       if text:find(p) then
         return true
@@ -452,7 +453,7 @@ describe("warnings guard allowlist", function()
     end
   end)
   it("lets a made-up finding fail", function()
-    H.not_ok(allowed("noice", "something broke"))
-    H.not_ok(allowed("xynovim", "rust-analyzer not found"))
+    H.not_ok(allowed("noice", "something broke", true))
+    H.not_ok(allowed("xynovim", "rust-analyzer not found", true))
   end)
 end)

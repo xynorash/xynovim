@@ -45,6 +45,7 @@ describe("clipboard statusline hint", function()
   end)
 
   it("a local Wayland session with wl-copy / wl-paste does not warn that tmux drops OSC 52", function()
+    H.need_posix("fake wl-copy / wl-paste are sh scripts made executable with chmod, PATH is joined with ':'")
     fake_tools()
     env("WAYLAND_DISPLAY", "wayland-test")
     H.ok(clip.local_native())

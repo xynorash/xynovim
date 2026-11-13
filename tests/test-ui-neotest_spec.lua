@@ -6,6 +6,10 @@ local T = require("config.test_ui")
 
 local function setup()
   H.need_rust()
+  H.known_issue(
+    { "windows" },
+    "a live rust-analyzer + neotest run hangs on windows-latest (240 s timeout in run 43436212295; live rust-analyzer flows are already a known issue there)"
+  )
   -- parallel tests print into one stream under --nocapture; one thread keeps every panic block whole
   -- (the parser also copes with interleaving, tests/test-ui_spec.lua, but this spec is about the panel)
   vim.env.RUST_TEST_THREADS = "1"

@@ -304,11 +304,20 @@ local function is_dir(p)
   return st and st.type == "directory"
 end
 
+--- The spelling M.normalize gives a directory: vim.fs.normalize upper-cases a Windows drive letter, M.normalize
+--- lower-cases it, and names are made relative to root by prefix.
+local function drive_lower(p)
+  if vim.fn.has("win32") == 1 then
+    p = p:gsub("^(%a):", string.lower)
+  end
+  return p
+end
+
 local function join(dir, rel)
   if rel:sub(1, 1) == "/" then
-    return vim.fs.normalize(rel)
+    return drive_lower(vim.fs.normalize(rel))
   end
-  return vim.fs.normalize(dir .. "/" .. rel)
+  return drive_lower(vim.fs.normalize(dir .. "/" .. rel))
 end
 
 --- The text of the `[section]` table of a manifest (up to the next table header), or "".
@@ -573,6 +582,7 @@ function M.fingerprint(root, opts)
   local files, n, truncated, ndirs = {}, 0, false, 0
   local stamps = {}
   local function name_of(full)
+    full = drive_lower(full)
     if path and full:sub(1, #path + 1) == path .. "/" then
       return full:sub(#path + 2)
     end

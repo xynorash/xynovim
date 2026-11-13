@@ -228,6 +228,9 @@ function M.winbar_text()
     return ""
   end
   local rel = vim.fn.fnamemodify(name, ":.")
+  if vim.fn.has("win32") == 1 then
+    rel = rel:gsub("\\", "/") -- Windows spells it with backslashes
+  end
   local sep = ui().ascii_active() and " > " or " › " -- (U+203A, plain Unicode, no Nerd Font)
   local parts = vim.split(rel, "/", { plain = true })
   local text = table.concat(parts, sep)

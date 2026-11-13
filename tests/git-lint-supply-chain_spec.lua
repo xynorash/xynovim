@@ -883,7 +883,8 @@ describe("integration: actionlint / zizmor", function()
     local orig = lint.try_lint
     local calls = {}
     lint.try_lint = function(names, ...)
-      calls[#calls + 1] = names
+      -- remember which buffer asked: a debounced call of an earlier test's buffer can land in this window
+      calls[#calls + 1] = { names = names, file = vim.fs.normalize(vim.api.nvim_buf_get_name(0)) }
       return orig(names, ...)
     end
     H._restore[#H._restore + 1] = function()
@@ -928,13 +929,22 @@ describe("integration: actionlint / zizmor", function()
       H.eq({}, by_source(b, "cargo-deny"), f)
       H.eq({}, by_source(b, "cargo-machete"), f)
     end
-    for _, names in ipairs(calls) do
+    local mine = {}
+    for _, f in ipairs({ "rustfmt.toml", "compose.yml", "other.yaml", ".github/dependabot.yml" }) do
+      mine[vim.fs.normalize(d .. "/" .. f)] = true
+    end
+    for _, call in ipairs(calls) do
+      local names = call.names
+      if not mine[call.file] then
+        goto continue
+      end
       for _, n in ipairs(type(names) == "table" and names or { names }) do
         H.not_ok(
           vim.tbl_contains({ "actionlint", "zizmor", "cargo_deny", "cargo_machete" }, n),
-          "try_lint called with " .. n
+          "try_lint called with " .. n .. " for " .. call.file
         )
       end
+      ::continue::
     end
   end)
 
