@@ -15,6 +15,12 @@ local repo = vim.fs.dirname(vim.fs.dirname(debug.getinfo(1, "S").source:sub(2)))
 if not pcall(require, "xyno_rust.trust") and not pcall(require, "xynovim.trust_fallback") then
   vim.g.xynovim_workspace_trust = false
 end
+-- Specs never download blink.cmp's native library into the shared plugin directory (every spec instance is a
+-- fresh Neovim that may exit mid-download and leave a `v0.0.0` marker): the Lua matcher is used unless the
+-- library is already there. XYNO_TEST_BLINK_DOWNLOAD=1 lifts this.
+if vim.g.xynovim_blink_download == nil and vim.env.XYNO_TEST_BLINK_DOWNLOAD ~= "1" then
+  vim.g.xynovim_blink_download = false
+end
 -- "tests.*" would also match other plugins' lua/tests/ modules (lazy's loader
 -- runs before package.path), so the helpers live under a private name.
 for _, name in ipairs({ "helpers", "harness" }) do
