@@ -1502,6 +1502,13 @@ describe("real debug session (codelldb + cargo)", function()
       end
       error("no 'bin panicker (panicker)' entry in " .. vim.inspect(vim.tbl_map(opts.format_item, items)))
     end)
+    -- Same as the <leader>dr spec below: the real rust-analyzer does not answer experimental/runnables in
+    -- time right after the builds of the earlier specs (90 s without an answer, seen twice), so its answer
+    -- is "no runnables for this file"; the bins come from `cargo metadata`, which is what is under test.
+    stub(require("rustaceanvim.rust_analyzer"), "buf_request", function(_, method, _, handler)
+      H.eq("experimental/runnables", method)
+      handler(nil, {})
+    end)
     press("<leader>dR")
     assert_panic_stop(stopped())
     release()
