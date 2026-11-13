@@ -358,6 +358,29 @@ local function trunc(text, width)
 end
 M.truncate = trunc
 
+--- Cells other plugins' virtual text takes on the row: inline inlay hints push the code to the right and
+--- end-of-line hints sit before the diagnostic. Diagnostic namespaces are not counted (their text is what is
+--- being placed).
+local function hint_cells(buf, lnum)
+  local skip = {}
+  for ns in pairs(vim.diagnostic.get_namespaces()) do
+    local vns = vim.diagnostic.get_namespace(ns).user_data
+    if vns and vns.virt_text_ns then
+      skip[vns.virt_text_ns] = true
+    end
+  end
+  local cells = 0
+  for _, m in ipairs(vim.api.nvim_buf_get_extmarks(buf, -1, { lnum, 0 }, { lnum, -1 }, { details = true })) do
+    local det = m[4]
+    if not skip[det.ns_id] and det.virt_text and (det.virt_text_pos == "inline" or det.virt_text_pos == "eol") then
+      for _, chunk in ipairs(det.virt_text) do
+        cells = cells + vim.fn.strdisplaywidth(chunk[1])
+      end
+    end
+  end
+  return cells
+end
+
 --- Columns left on the line for the message of virtual text.
 local function room(d)
   local win = vim.fn.bufwinid(d.bufnr)
@@ -367,6 +390,7 @@ local function room(d)
   local info = vim.fn.getwininfo(win)[1]
   local line = vim.api.nvim_buf_get_lines(d.bufnr, d.lnum, d.lnum + 1, false)[1] or ""
   local used = vim.fn.strdisplaywidth(line:gsub("\t", string.rep(" ", vim.bo[d.bufnr].tabstop)))
+    + hint_cells(d.bufnr, d.lnum)
   -- nvim draws one prefix glyph per diagnostic on the line, then the last one's message
   local glyphs_on_line = math.max(#vim.diagnostic.get(d.bufnr, { lnum = d.lnum }), 1)
   -- 4 cells of spacing, the glyph(s), the space before the message, one spare cell
@@ -415,10 +439,116 @@ function M.shape_text(d, text)
     text = compact(d, text)
   end
   local avail = room(d)
+  if on_cursor(d) and M.needs_block(d, text, avail) then
+    return nil -- drawn under the line by M.block_draw
+  end
   if avail < 6 then
     return nil
   end
   return trunc(text, avail)
+end
+
+-- A message under a long cursor line ----------------------------------------------------------
+-- Beside a long line (or one with inlay hints) the cursor line's message started so far right that a few
+-- characters were left (`× expecte`). When less than MIN_INLINE columns are left and the message does not fit
+-- whole, it is not drawn at the end of the line; M.block_draw puts it in a virt_lines block under the
+-- line instead, wrapped at words to the window, indented like the code. Other lines keep the compact form.
+local MIN_INLINE = 24
+local MAX_BLOCK_LINES = 6
+local block_ns = vim.api.nvim_create_namespace("xynovim_diag_block")
+M.block_ns = block_ns
+
+--- Whether `text` of `d` (a diagnostic on the cursor line) goes under the line.
+function M.needs_block(d, text, avail)
+  avail = avail or room(d)
+  return avail < MIN_INLINE and vim.fn.strdisplaywidth(text) > avail
+end
+
+--- Wrap `text` at words to `width` cells (a word longer than the width is cut).
+local function wrap(text, width)
+  local lines, cur = {}, ""
+  for word in text:gmatch("%S+") do
+    while vim.fn.strdisplaywidth(word) > width do
+      local cut = vim.fn.strcharpart(word, 0, width)
+      if cur ~= "" then
+        lines[#lines + 1] = cur
+        cur = ""
+      end
+      lines[#lines + 1] = cut
+      word = vim.fn.strcharpart(word, vim.fn.strchars(cut))
+    end
+    if cur == "" then
+      cur = word
+    elseif vim.fn.strdisplaywidth(cur .. " " .. word) <= width then
+      cur = cur .. " " .. word
+    else
+      lines[#lines + 1] = cur
+      cur = word
+    end
+  end
+  if cur ~= "" then
+    lines[#lines + 1] = cur
+  end
+  return lines
+end
+
+local SEV_HL = {
+  "DiagnosticVirtualTextError",
+  "DiagnosticVirtualTextWarn",
+  "DiagnosticVirtualTextInfo",
+  "DiagnosticVirtualTextHint",
+}
+
+--- Draw (or clear) the blocks of `buf`'s cursor row.
+function M.block_draw(buf)
+  if not vim.api.nvim_buf_is_valid(buf) then
+    return
+  end
+  vim.api.nvim_buf_clear_namespace(buf, block_ns, 0, -1)
+  local mode = M.diag_mode()
+  local win = vim.fn.bufwinid(buf)
+  if mode == "off" or win == -1 then
+    return
+  end
+  local row = vim.api.nvim_win_get_cursor(win)[1] - 1
+  local diags = vim.diagnostic.get(buf, { lnum = row })
+  if #diags == 0 then
+    return
+  end
+  local info = vim.fn.getwininfo(win)[1]
+  local line = vim.api.nvim_buf_get_lines(buf, row, row + 1, false)[1] or ""
+  local indent =
+    math.min(vim.fn.strdisplaywidth((line:match("^%s*"):gsub("\t", string.rep(" ", vim.bo[buf].tabstop)))), 24)
+  local width = info.width - info.textoff - indent - 3
+  if width < 12 then
+    indent = 0
+    width = info.width - info.textoff - 3
+  end
+  if width < 8 then
+    return
+  end
+  local ux = require("config.ux")
+  local virt = {}
+  local seen_text = {}
+  for _, d in ipairs(diags) do
+    local text = ux.base_text(d)
+    if text and not seen_text[text] and M.needs_block(d, text) then
+      seen_text[text] = true
+      local g = glyphs()[d.severity] or "●"
+      local hl = SEV_HL[d.severity] or SEV_HL[4]
+      local lines = wrap(text, width)
+      if #lines > MAX_BLOCK_LINES then
+        lines = vim.list_slice(lines, 1, MAX_BLOCK_LINES)
+        lines[#lines] = trunc(lines[#lines] .. " …", width)
+      end
+      for i, l in ipairs(lines) do
+        virt[#virt + 1] = { { string.rep(" ", indent), "Normal" }, { (i == 1 and g or " ") .. " ", hl }, { l, hl } }
+      end
+    end
+  end
+  if #virt > 0 then
+    vim.api.nvim_buf_set_extmark(buf, block_ns, row, 0, { virt_lines = virt, virt_lines_above = false, priority = 200 })
+  end
 end
 
 local last_row = {}
@@ -1210,6 +1340,7 @@ function M.setup()
         if not done then
           pcall(vim.diagnostic.show, nil, buf)
         end
+        pcall(M.block_draw, buf)
       end
     end
     pending = {}
@@ -1232,6 +1363,16 @@ function M.setup()
       last_row[args.buf] = row
       if next(vim.diagnostic.count(args.buf)) ~= nil then
         later(args.buf)
+      end
+    end,
+  })
+  vim.api.nvim_create_autocmd("DiagnosticChanged", {
+    group = group,
+    callback = function(args)
+      if args.buf and vim.api.nvim_buf_is_valid(args.buf) then
+        vim.schedule(function()
+          pcall(M.block_draw, args.buf)
+        end)
       end
     end,
   })

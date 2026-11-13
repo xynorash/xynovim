@@ -60,7 +60,7 @@ end
 --- problem both tiers report on the same line (E0308 from rust-analyzer and
 --- from clippy) is shown once: the diagnostic with a `code` (rust-analyzer's,
 --- the more specific text), else the one from the earlier namespace.
-function M.diagnostic_text(d)
+function M.base_text(d)
   if d.bufnr and vim.api.nvim_buf_is_valid(d.bufnr) then
     local key = same_key(d)
     for _, o in ipairs(vim.diagnostic.get(d.bufnr, { lnum = d.lnum })) do
@@ -77,8 +77,16 @@ function M.diagnostic_text(d)
     end
   end
   local text = head(d.message)
-  text = d.source and (text .. " [" .. d.source .. "]") or text
-  -- cursor-line-first policy, severity filter and the width of the line (config/ui.lua)
+  return d.source and (text .. " [" .. d.source .. "]") or text
+end
+
+--- virtual_text.format: base_text, then the cursor-line-first policy, the severity filter and the width of
+--- the line (config/ui.lua); a message that does not fit beside a long cursor line is drawn under it instead.
+function M.diagnostic_text(d)
+  local text = M.base_text(d)
+  if text == nil then
+    return nil
+  end
   return require("config.ui").shape_text(d, text)
 end
 
