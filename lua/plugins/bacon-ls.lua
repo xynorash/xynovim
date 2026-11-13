@@ -112,6 +112,13 @@ return {
             start(rc.root(name))
           end
         end,
+        -- bacon-ls publishes one identical diagnostic per span of a lint (an `unused imports` warning three
+        -- times): drop exact duplicates before they reach vim.diagnostic (config/diag_dedup.lua)
+        handlers = {
+          ["textDocument/publishDiagnostics"] = function(...)
+            return require("config.diag_dedup").publish_handler(...)
+          end,
+        },
         -- A crashed server is restarted (xyno_rust.rust_restart).
         on_exit = function(...)
           return require("xyno_rust.rust_restart").on_exit("bacon_ls")(...)
