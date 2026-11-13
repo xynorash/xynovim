@@ -219,36 +219,31 @@ describe("LspAttach autocmd", function()
     H.not_ok(vim.api.nvim_buf_is_valid(b))
   end)
 
-  it("26. adds the which-key group <leader>r = rust buffer-locally (pcall protected)", function()
-    local added
-    local orig = package.loaded["which-key"]
-    package.loaded["which-key"] = {
-      add = function(spec)
-        if type(spec) == "table" and type(spec[1]) == "table" and spec[1][1] == "<leader>r" then
-          added = spec
-        end
-      end,
-    }
-    undo[#undo + 1] = function()
-      package.loaded["which-key"] = orig
+  it(
+    "26. <leader>r is one global which-key group: attaching adds no buffer-local copy, and the maps do not need which-key",
+    function()
+      -- (a buffer-local second copy made :checkhealth which-key report <leader>r as a duplicate; the name comes from
+      -- the global spec in lua/plugins/editing-ui.lua)
+      local added
+      local orig = package.loaded["which-key"]
+      package.loaded["which-key"] = {
+        add = function(spec)
+          if type(spec) == "table" and type(spec[1]) == "table" and spec[1][1] == "<leader>r" then
+            added = spec
+          end
+          error("boom") -- a throwing which-key must not stop the other maps either
+        end,
+      }
+      undo[#undo + 1] = function()
+        package.loaded["which-key"] = orig
+      end
+      local b = fake_attach("rust-analyzer")
+      H.wait_for(function()
+        return has_map(b, "<leader>cR")
+      end, 2000, "the maps after the attach")
+      H.is_nil(added, "no buffer-local <leader>r group from the LspAttach handler")
     end
-    local b = fake_attach("rust-analyzer")
-    H.wait_for(function()
-      return added
-    end, 2000, "which-key add")
-    H.eq({ { "<leader>r", group = "rust", buffer = b } }, added)
-
-    -- a throwing which-key must not stop the other maps
-    package.loaded["which-key"] = {
-      add = function()
-        error("boom")
-      end,
-    }
-    local b2 = fake_attach("rust-analyzer")
-    H.wait_for(function()
-      return has_map(b2, "<leader>cR")
-    end, 2000, "maps despite a failing which-key")
-  end)
+  )
 end)
 
 describe("buffer-local maps on a Rust buffer", function()

@@ -1957,12 +1957,15 @@ describe("README roadmap 'done' items that can be checked mechanically", functio
     H.ok(exists(repo .. "/snippets"), "blink's default search path stdpath('config')/snippets")
   end)
 
-  it("which-key group names: '99 (agent)' is in the plugin spec, 'rust' for <leader>r is added", function()
+  it("which-key group names: '99 (agent)' and 'rust' for <leader>r are in the plugin spec", function()
     -- read from the plugin spec file: at runtime which-key has already
     -- consumed (and reshaped) opts.spec once it is loaded
     local src = read(repo .. "/lua/plugins/editing-ui.lua")
     H.match(src, '{ "<leader>9", group = "99 (agent)" }', true)
-    H.match(read(repo .. "/lua/config/keymaps.lua"), '{ "<leader>r", group = "rust"', true)
+    -- one global group (a second, buffer-local copy from the LspAttach handler made :checkhealth which-key
+    -- report <leader>r as a duplicate)
+    H.match(src, '{ "<leader>r", group = "rust"', true)
+    H.no_match(read(repo .. "/lua/config/keymaps.lua"), 'group = "rust"', true)
   end)
 end)
 
