@@ -679,6 +679,57 @@ describe("rainbow brackets: unmatched brackets", function()
     R.set("mismatch", true)
   end)
 
+  it("brackets in the middle of a big ERROR node (more than 128 flat children) are coloured too", function()
+    local lines = { "fn f() {" }
+    for _ = 1, 300 do
+      lines[#lines + 1] = "  ) ( a [b] $$ c ) ]"
+    end
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    local parser = vim.treesitter.get_parser(buf, "rust")
+    parser:parse(true)
+    local want = 0
+    for _, l in ipairs(lines) do
+      for _ in l:gmatch("[%(%)%[%]{}]") do
+        want = want + 1
+      end
+    end
+    local marks = R.collect(buf, parser, 0, #lines - 1)
+    H.eq(want, #marks, "every bracket has a mark, the middle of the node included")
+    local mid_stray = 0
+    for _, m in ipairs(marks) do
+      if m[1] == 150 and m[4] == "XynoRainbowMismatch" then
+        mid_stray = mid_stray + 1
+      end
+    end
+    H.eq(2, mid_stray, "the stray ) and ] of a line in the middle are marked unmatched")
+    vim.api.nvim_buf_delete(buf, { force = true })
+  end)
+
+  it("an invalid line ('{[<x]}') does not shift the levels of the valid code around it", function()
+    local lines = vim.split("fn main() {\n    let a = {[<x]};\n    if y {\n        z(1);\n    }\n}\n", "\n")
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    local parser = vim.treesitter.get_parser(buf, "rust")
+    parser:parse(true)
+    local by = {}
+    for _, m in ipairs(R.collect(buf, parser, 0, #lines - 1)) do
+      by[m[1] .. ":" .. m[2]] = m[4]
+    end
+    local g = function(n)
+      return "XynoRainbow" .. n
+    end
+    H.eq(g(1), by["0:10"], "fn body brace: level 1")
+    H.eq(g(2), by["1:12"], "{ of the invalid line")
+    H.eq(g(3), by["1:13"], "[")
+    H.eq(g(3), by["1:16"], "]")
+    H.eq(g(2), by["1:17"], "}")
+    H.eq(g(2), by["2:9"], "if block after the invalid line: level 2")
+    H.eq(g(3), by["3:9"], "call inside it: level 3")
+    H.eq(g(1), by["5:0"], "closing brace: level 1")
+    vim.api.nvim_buf_delete(buf, { force = true })
+  end)
+
   it("valid code never shows a mismatch: every Rust and Lua file of this repo", function()
     -- scratch buffers with a string parser: no file is opened, so no language server starts in a fixture crate
     local files = vim.fn.globpath(H.repo, "{demo,tests,tools,scripts}/**/*.rs", false, true)

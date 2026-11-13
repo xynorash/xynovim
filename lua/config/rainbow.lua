@@ -369,7 +369,12 @@ end
 
 -- ---------------------------------------------------------------------------------------- host scan
 
-local FULL_SCAN = 128 -- hosts with more children are only looked at at both ends (a block is `{ ... }`)
+local FULL_SCAN = 128 -- hosts with more children are only looked at at both ends (a block is `{ ... }`) ...
+-- ... except a host the parser could not make sense of (an ERROR node, or any node holding one): after
+-- error recovery the brackets are flat children anywhere in it, so such a host is scanned in full up to this
+-- many children. Beyond it only the ends are scanned and the brackets in the middle get no colour (the bound
+-- keeps one scan under about a millisecond-scale cost; a 5000-child ERROR node is a file that is mostly broken).
+local ERROR_SCAN = 5000
 
 local function build_host(node, lang, toks, full)
   local ntype = node:type()
@@ -454,7 +459,8 @@ local function host_info(m, node, lang)
         end
       end
     end
-    local full = n <= FULL_SCAN
+    local limit = (node:type() == "ERROR" or node:has_error()) and ERROR_SCAN or FULL_SCAN
+    local full = n <= limit
     if full then
       for c in node:iter_children() do
         consider(c)
