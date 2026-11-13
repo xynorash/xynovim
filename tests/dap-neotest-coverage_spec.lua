@@ -674,7 +674,12 @@ describe("dap-ui opts", function()
     end
   )
 
-  it("wrap on; left sidebar elements and sizes; bottom panel", function()
+  it("wrap on; left sidebar elements and sizes; bottom panel (a wide window)", function()
+    local real = vim.o
+    undo[#undo + 1] = function()
+      vim.o = real
+    end
+    vim.o = setmetatable({ columns = 160 }, { __index = real })
     local o = opts()
     H.eq(true, o.wrap)
     H.eq("left", o.layouts[1].position)
@@ -695,9 +700,22 @@ describe("dap-ui opts", function()
     undo[#undo + 1] = function()
       vim.o = real
     end
-    for cols, want in pairs({ [80] = 40, [100] = 40, [140] = 49, [171] = 59, [200] = 60, [400] = 60 }) do
+    for cols, want in pairs({ [120] = 42, [140] = 49, [171] = 59, [200] = 60, [400] = 60 }) do
       vim.o = setmetatable({ columns = cols }, { __index = real })
       H.eq(want, opts().layouts[1].size, "columns=" .. cols)
+    end
+  end)
+
+  it("below 120 columns: one bottom strip, no sidebar (config/narrow.lua; tests/layout-narrow_spec.lua)", function()
+    local real = vim.o
+    undo[#undo + 1] = function()
+      vim.o = real
+    end
+    for _, cols in ipairs({ 80, 93, 119 }) do
+      vim.o = setmetatable({ columns = cols }, { __index = real })
+      local o = opts()
+      H.eq(1, #o.layouts, "columns=" .. cols)
+      H.eq("bottom", o.layouts[1].position)
     end
   end)
 end)
@@ -1014,7 +1032,7 @@ describe("neotest, overseer", function()
       local opts = spec.opts
       H.eq(false, opts.output.open_on_run)
       H.eq("botright split | resize 14", opts.output_panel.open)
-      H.eq("botright vsplit | vertical resize 48", opts.summary.open)
+      H.eq("function", type(opts.summary.open), "a 48-column split when wide, a float when narrow (config/narrow.lua)")
       H.eq(true, opts.status.virtual_text)
       H.eq(false, opts.quickfix.open, "no second (Trouble quickfix) panel next to the results panel")
       H.eq("function", type(opts.consumers.xyno_panel), "the results panel consumer")
@@ -1052,7 +1070,7 @@ describe("neotest, overseer", function()
     local cfg = require("neotest.config")
     H.eq("rustaceanvim", cfg.adapters[1].name)
     H.eq("botright split | resize 14", cfg.output_panel.open)
-    H.eq("botright vsplit | vertical resize 48", cfg.summary.open)
+    H.eq("function", type(cfg.summary.open))
     H.eq(false, cfg.output.open_on_run)
     H.eq("function", type(nt.xyno_panel) == "table" and "function" or type(nt.xyno_panel), "xyno_panel consumer ran")
     H.eq("function", type(nt.watch.toggle))
@@ -1279,15 +1297,21 @@ describe("real debug session (codelldb + cargo)", function()
   }, "\n")
   local MAIN_LINE = 19 -- `check(x);`
 
+  local isolated_cargo
   local function need()
     H.need_rust()
     if vim.fn.stdpath("data") and not vim.uv.fs_stat(vim.fn.stdpath("data") .. "/mason/bin/codelldb") then
       H.skip_file("Mason's codelldb is not installed")
     end
-    local cfg = vim.fn.expand("~/.cargo/config.toml")
-    local txt = vim.uv.fs_stat(cfg) and table.concat(vim.fn.readfile(cfg), "\n") or ""
-    if not txt:find("[profile.dev]", 1, true) or not txt:find("debug%s*=%s*true") then
-      H.skip_file("~/.cargo/config.toml lacks profile.dev debug = true (locals need full debuginfo)")
+    -- Hermetic: the spec brings its own CARGO_HOME with the profile it needs (locals need full debuginfo), so
+    -- neither the user's ~/.cargo/config.toml nor $CARGO_HOME/config.toml decides whether this runs. The fixture
+    -- crate has no dependencies, so an empty registry is fine; RUSTUP_HOME is untouched (the toolchain stays).
+    if not isolated_cargo then
+      isolated_cargo = vim.uv.fs_realpath(H.tmpdir()) .. "/cargo-home"
+      vim.fn.mkdir(isolated_cargo, "p")
+      vim.fn.writefile({ "[profile.dev]", "debug = true" }, isolated_cargo .. "/config.toml")
+      vim.env.CARGO_HOME = isolated_cargo
+      vim.env.CARGO_PROFILE_DEV_DEBUG = "true"
     end
   end
 

@@ -430,6 +430,7 @@ return {
         callback = function(ev)
           if ev.data == "nvim-dap-ui" then
             vim.schedule(function()
+              require("config.narrow").follow_dapui()
               local l = require("dap").listeners.before
               l.event_terminated["dapui_config"] = nil
               l.event_exited["dapui_config"] = nil
@@ -472,31 +473,13 @@ return {
       })
     end,
     opts = function()
-      -- wide enough for `alloc::vec::Vec<alloc::string::String, alloc::alloc::Global>`
-      -- on a normal terminal, but never more than a third of a narrow one.
-      local width = math.max(40, math.min(60, math.floor(vim.o.columns * 0.35)))
+      -- the sidebar is wide enough for `alloc::vec::Vec<alloc::string::String, alloc::alloc::Global>`
+      -- on a normal terminal, but never more than a third of it.
       return {
         wrap = true,
-        layouts = {
-          {
-            elements = {
-              { id = "scopes", size = 0.4 },
-              { id = "breakpoints", size = 0.15 },
-              { id = "stacks", size = 0.25 },
-              { id = "watches", size = 0.2 },
-            },
-            position = "left",
-            size = width,
-          },
-          {
-            elements = {
-              { id = "repl", size = 0.5 },
-              { id = "console", size = 0.5 },
-            },
-            position = "bottom",
-            size = 10,
-          },
-        },
+        -- a side bar plus a bottom strip on a wide window, one bottom strip below 120 columns
+        -- (config/narrow.lua; the layouts are read again before the UI opens when the width class changed)
+        layouts = require("config.narrow").dapui_layouts(),
       }
     end,
   },

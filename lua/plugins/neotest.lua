@@ -17,7 +17,11 @@ return {
         animated = false,
         follow = true,
         expand_errors = true,
-        open = "botright vsplit | vertical resize 48",
+        -- a 48-column split on a wide window, a float over the right edge below 120 columns
+        -- (config/narrow.lua): the split left ~30 columns for the code at 93
+        open = function()
+          return require("config.narrow").summary_open()
+        end,
       },
       -- LazyVim opens Trouble's quickfix on a failed run; the results panel already lists the failures
       quickfix = { enabled = true, open = false },
