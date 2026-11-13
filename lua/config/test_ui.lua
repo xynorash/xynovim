@@ -317,7 +317,7 @@ function M.assert_diff(output)
           diff[#diff + 1] = { sign = "-", text = vim.trim(a[1]), span = { sa[1], sa[2] } }
           diff[#diff + 1] = { sign = "+", text = vim.trim(b[1]), span = { sb[1], sb[2] } }
         else
-          local hunks = vim.diff(
+          local hunks = vim.text.diff(
             table.concat(a, "\n") .. "\n",
             table.concat(b, "\n") .. "\n",
             { result_type = "indices", algorithm = "myers" }
@@ -331,7 +331,7 @@ function M.assert_diff(output)
           end
           for _, h in ipairs(hunks) do
             local sa, ca, sb, cb = h[1], h[2], h[3], h[4]
-            -- vim.diff reports the line before an insertion/deletion when the count is 0
+            -- vim.text.diff reports the line before an insertion/deletion when the count is 0
             local a_from = ca == 0 and sa + 1 or sa
             local b_from = cb == 0 and sb + 1 or sb
             same(a_from - 1, b_from - 1)
