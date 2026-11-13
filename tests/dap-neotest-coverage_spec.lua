@@ -1385,7 +1385,7 @@ describe("real debug session (codelldb + cargo)", function()
     local vars, frames = locals_of(s, "check")
     H.match(frames[1].name, "rust_panic", true, "top frame")
     H.eq('"hello"', vars.owned)
-    H.eq("size=4", vars.v)
+    H.eq("size=4 [1, 2, 3, 4]", vars.v) -- rust summary "size=4" plus the xyno_rust_preview element list
     H.eq("B(7)", vars.k)
   end
 
