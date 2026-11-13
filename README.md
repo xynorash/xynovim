@@ -462,7 +462,6 @@ scripts/test.sh                  # everything (or: make test)
 scripts/test.sh routes smoke     # only spec files whose path contains one of the words
 scripts/test.sh --list           # the spec files, nothing run
 scripts/test.sh --coverage       # also a per-file line-coverage report
-scripts/plugin-tests.sh         # the nine plugin suites (clones in ~/projects/xyno-plugins) with the parsers and optional plugins found in this install, so their parser-dependent specs run instead of skipping
 ```
 
 ![the test runner finishing four spec files: 129 passed, 0 failed](docs/media/10-test-suite.png)

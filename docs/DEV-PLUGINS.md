@@ -15,6 +15,7 @@ or through the wrapper, which also prints what is checked out:
 scripts/dev-plugins.sh status       # plugin, branch, last commit, "(uncommitted changes)"
 scripts/dev-plugins.sh nvim         # nvim with the clones
 scripts/dev-plugins.sh test         # scripts/test.sh with the clones (same arguments), e.g. test macros-deps clipboard
+scripts/plugin-tests.sh              # each clone's own suite (nvim -l tests/run.lua), with the parsers, snacks.nvim, blink.cmp and auto-save.nvim of this install pointed at, so the specs that need them run instead of skipping
 scripts/dev-plugins.sh bench        # scripts/bench/bench.sh with the clones
 ```
 
