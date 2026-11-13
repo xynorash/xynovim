@@ -13,11 +13,12 @@ do
       vim.fn["rust#Run"](a.bang and 1 or 0, a.args)
     end, { nargs = "*", complete = "file", bang = true, desc = "rust.vim's :RustRun (cargo run of this file)" })
     -- rust.vim's b:undo_ftplugin runs `delcommand -buffer RustRun` when the filetype is set again: that would
-    -- raise E1237 for the command removed above
+    -- raise E1237 for the command removed above. `silent!` hides the message but still sets v:errmsg
+    -- (tests/warnings-guard_spec.lua saw it); a caught exception sets neither.
     vim.b.undo_ftplugin = (vim.b.undo_ftplugin or ""):gsub(
       "delcommand %-buffer RustRun",
-      "silent! delcommand -buffer RustRun"
-    ) .. "|silent! delcommand -buffer RustVimRun"
+      "try|delcommand -buffer RustRun|catch|endtry"
+    ) .. "|try|delcommand -buffer RustVimRun|catch|endtry"
   end
 end
 

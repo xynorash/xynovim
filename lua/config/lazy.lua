@@ -48,6 +48,19 @@ if dev_dir and dev_dir ~= "" then
   end
 end
 
+-- LazyVim (the pinned commit) still calls vim.lsp.codelens.refresh(), deprecated in Neovim 0.12 (removed in
+-- 0.13): every code-lens attach printed a vim.deprecate notice (tests/warnings-guard_spec.lua found it).
+-- The replacement is what Neovim's own wrapper forwards to; this runs before LazyVim's spec is read, so
+-- its <leader>cC key and the attach autocmd both get the shim. Delete it when LazyVim moves to enable().
+do
+  local lens = vim.lsp and vim.lsp.codelens
+  if lens and type(lens.enable) == "function" then
+    lens.refresh = function(opts)
+      lens.enable(true, { bufnr = type(opts) == "table" and opts.bufnr or nil })
+    end
+  end
+end
+
 require("lazy").setup({
   dev = dev,
   spec = {
