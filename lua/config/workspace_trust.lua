@@ -494,7 +494,10 @@ local function restart_ra(keys)
   local ids = {}
   for _, c in ipairs(clients) do
     ids[#ids + 1] = c.id
-    c:stop(true)
+    -- graceful (shutdown + exit, code 0): a forced stop ends the process by SIGTERM and rust_restart's
+    -- on_exit then reported "rust-analyzer exited (code 0, signal 15); restarting" as a WARN for what
+    -- is a deliberate restart. A server that is still there after 2 s is forced below.
+    c:stop()
   end
   local tries = 0
   local timer = vim.uv.new_timer()
@@ -506,6 +509,14 @@ local function restart_ra(keys)
       local alive = false
       for _, id in ipairs(ids) do
         alive = alive or vim.lsp.get_client_by_id(id) ~= nil
+      end
+      if alive and tries == 20 then
+        for _, id in ipairs(ids) do
+          local c = vim.lsp.get_client_by_id(id)
+          if c then
+            c:stop(true)
+          end
+        end
       end
       if alive and tries < 50 then
         return
