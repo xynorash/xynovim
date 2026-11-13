@@ -199,24 +199,70 @@ end)
 -- ------------------------------------------------------------- 5 - 9 lazy.lua
 
 describe("PATH", function()
-  it("~/.cargo/bin is appended when a non-login start lacks it (rust-analyzer not found)", function()
-    local cargo_bin = vim.uv.os_homedir() .. "/.cargo/bin"
-    if vim.fn.isdirectory(cargo_bin) == 0 then
-      return require("xynotest.harness").skip("no ~/.cargo/bin on this machine")
-    end
+  -- Hermetic: the cargo bin directory is made in a temp dir (as $CARGO_HOME, and as ~/.cargo under a fake $HOME), so
+  -- the spec runs on a machine without ~/.cargo/bin as well and never looks at the real one.
+  local function path_of(env)
+    return child("return { path = vim.env.PATH }", { env = env }).path
+  end
+
+  it("$CARGO_HOME/bin is appended when a non-login start lacks it, and not added twice", function()
+    local cargo_bin = vim.uv.fs_realpath(H.tmpdir()) .. "/cargo-home/bin"
+    vim.fn.mkdir(cargo_bin, "p")
     local env = xdg_env()
+    env.CARGO_HOME = vim.fs.dirname(cargo_bin)
     env.PATH = "/usr/bin:/bin"
-    local res = child("return { path = vim.env.PATH }", { env = env })
-    H.eq("/usr/bin:/bin:" .. cargo_bin, res.path)
+    H.eq("/usr/bin:/bin:" .. cargo_bin, path_of(env))
     env.PATH = cargo_bin .. ":/usr/bin"
-    H.eq(cargo_bin .. ":/usr/bin", child("return { path = vim.env.PATH }", { env = env }).path, "not added twice")
+    H.eq(cargo_bin .. ":/usr/bin", path_of(env), "not added twice")
+  end)
+
+  it("~/.cargo/bin is appended when $CARGO_HOME is unset", function()
+    local home = vim.uv.fs_realpath(H.tmpdir())
+    vim.fn.mkdir(home .. "/.cargo/bin", "p")
+    local env = xdg_env()
+    env.HOME = home
+    env.CARGO_HOME = "" -- empty counts as unset (lua/config/options.lua)
+    env.PATH = "/usr/bin:/bin"
+    H.eq("/usr/bin:/bin:" .. home .. "/.cargo/bin", path_of(env))
   end)
 end)
 
 describe("config/lazy.lua", function()
-  pending(
-    "clones lazy.nvim with --filter=blob:none --branch=stable when missing, 'Failed to clone lazy.nvim' + exit 1 on failure",
-    "needs network (or a faked git on PATH) and an empty stdpath('data'): not testable offline without touching the shared data dir"
+  it(
+    "clones lazy.nvim with --filter=blob:none --branch=stable when missing; a failing clone prints the reason and exits 1",
+    function()
+      -- Hermetic: an empty data dir in a temp dir and a stub `git` first on PATH that records its arguments and fails,
+      -- so nothing is cloned and the shared data dir is not touched.
+      local dir = vim.uv.fs_realpath(H.tmpdir())
+      vim.fn.mkdir(dir .. "/bin", "p")
+      vim.fn.mkdir(dir .. "/data", "p")
+      local rec = dir .. "/git-args"
+      write(
+        dir .. "/bin/git",
+        table.concat(
+          { "#!/bin/sh", 'printf "%s\\n" "$@" > "' .. rec .. '"', "echo 'fatal: stub git refuses'", "exit 128", "" },
+          "\n"
+        )
+      )
+      vim.uv.fs_chmod(dir .. "/bin/git", 493) -- 0755
+      local env = xdg_env()
+      env.XDG_DATA_HOME = dir .. "/data"
+      env.PATH = dir .. "/bin:" .. vim.env.PATH
+      local r = vim
+        .system({ vim.fn.exepath("nvim"), "--headless", "+qa" }, { text = true, env = env, cwd = dir })
+        :wait(60000)
+      H.eq(1, r.code, "exit status of a failed bootstrap: " .. (r.stderr or ""))
+      local out = (r.stdout or "") .. (r.stderr or "")
+      H.match(out, "Failed to clone lazy.nvim", true)
+      H.match(out, "fatal: stub git refuses", true)
+      H.eq({
+        "clone",
+        "--filter=blob:none",
+        "--branch=stable",
+        "https://github.com/folke/lazy.nvim.git",
+        dir .. "/data/nvim/lazy/lazy.nvim",
+      }, vim.fn.readfile(rec))
+    end
   )
 
   it("bootstrap code targets stdpath('data')/lazy/lazy.nvim with a blobless stable clone", function()
@@ -283,13 +329,16 @@ describe("config/lazy.lua", function()
   it("an unwritable XDG_CACHE_HOME turns lazy's module cache off instead of aborting init.lua (E739)", function()
     local env = xdg_env()
     env.XDG_CACHE_HOME = "/proc/xyno-unwritable-cache"
-    local r = child([[
+    local r = child(
+      [[
       return {
         cache = require("lazy.core.config").options.performance.cache.enabled,
         lazyvim = package.loaded["lazyvim.config"] ~= nil,
         messages = vim.api.nvim_exec2("messages", { output = true }).output,
       }
-    ]], { env = env })
+    ]],
+      { env = env }
+    )
     H.eq(false, r.cache)
     H.eq(true, r.lazyvim, "LazyVim was set up")
     H.no_match(r.messages, "E739", true)
@@ -393,8 +442,7 @@ describe("config/options.lua", function()
     if type(cfg) == "function" then
       cfg = cfg()
     end
-    local settings = vim.tbl_get(cfg or {}, "server", "default_settings", "rust-analyzer")
-      or ra
+    local settings = vim.tbl_get(cfg or {}, "server", "default_settings", "rust-analyzer") or ra
     H.ok(settings and next(settings), "no rust-analyzer default_settings visible")
     H.eq(false, settings.checkOnSave)
   end)
@@ -428,23 +476,33 @@ describe("config/options.lua", function()
     end
   end)
 
-  it("xyno-rust.nvim is installed and loaded at startup, its keys stay in keymaps.lua, no local copy is left", function()
-    local plugin = require("lazy.core.config").plugins["xyno-rust.nvim"]
-    H.ok(plugin and plugin._.installed, "xyno-rust.nvim is not installed")
-    H.eq("xynorash/xyno-rust.nvim", plugin[1])
-    H.ok(plugin._.loaded, "xyno-rust.nvim is lazy: the supervision autocmds must exist from startup")
-    -- setup() ran with keymaps = false: its own FileType keymap group does not exist
-    H.ok(#vim.api.nvim_get_autocmds({ group = "xyno_rust_restart" }) > 0, "setup() did not run")
-    local ok = pcall(vim.api.nvim_get_autocmds, { group = "xyno_rust_keymaps" })
-    H.not_ok(ok, "keymaps = false, so xyno_rust_keymaps must not exist")
-    for _, m in ipairs({
-      "fsutil", "rust_context", "code_actions", "crate_meta", "lsp_status", "rust_restart", "rust_tasks",
-      "rust_routes", "rust_nav",
-    }) do
-      H.eq(0, vim.fn.filereadable(H.repo .. "/lua/config/" .. m .. ".lua"), "lua/config/" .. m .. ".lua is back")
-      H.ok(pcall(require, "xyno_rust." .. m), "xyno_rust." .. m .. " does not load")
+  it(
+    "xyno-rust.nvim is installed and loaded at startup, its keys stay in keymaps.lua, no local copy is left",
+    function()
+      local plugin = require("lazy.core.config").plugins["xyno-rust.nvim"]
+      H.ok(plugin and plugin._.installed, "xyno-rust.nvim is not installed")
+      H.eq("xynorash/xyno-rust.nvim", plugin[1])
+      H.ok(plugin._.loaded, "xyno-rust.nvim is lazy: the supervision autocmds must exist from startup")
+      -- setup() ran with keymaps = false: its own FileType keymap group does not exist
+      H.ok(#vim.api.nvim_get_autocmds({ group = "xyno_rust_restart" }) > 0, "setup() did not run")
+      local ok = pcall(vim.api.nvim_get_autocmds, { group = "xyno_rust_keymaps" })
+      H.not_ok(ok, "keymaps = false, so xyno_rust_keymaps must not exist")
+      for _, m in ipairs({
+        "fsutil",
+        "rust_context",
+        "code_actions",
+        "crate_meta",
+        "lsp_status",
+        "rust_restart",
+        "rust_tasks",
+        "rust_routes",
+        "rust_nav",
+      }) do
+        H.eq(0, vim.fn.filereadable(H.repo .. "/lua/config/" .. m .. ".lua"), "lua/config/" .. m .. ".lua is back")
+        H.ok(pcall(require, "xyno_rust." .. m), "xyno_rust." .. m .. " does not load")
+      end
     end
-  end)
+  )
 end)
 
 describe("after/ftplugin/http.lua", function()
@@ -597,6 +655,12 @@ describe("lazy-lock.json", function()
         spec = spec + 1
       end
     end
+    -- with XYNOVIM_DEV_PLUGINS the xyno-* plugins are local clones: still locked, not counted above
+    for _, n in ipairs(names) do
+      if Config.plugins[n]._.is_local then
+        spec = spec + 1
+      end
+    end
     H.eq(spec, #names, "spec plugins vs lockfile entries")
   end)
 
@@ -605,7 +669,13 @@ describe("lazy-lock.json", function()
     local bad = {}
     for _, n in ipairs(names) do
       local plugin_dir = (Config.plugins[n] and Config.plugins[n].dir) or (dir .. "/" .. n)
-      if vim.fn.isdirectory(plugin_dir) ~= 1 then
+      if Config.plugins[n] and Config.plugins[n]._.is_local then
+        -- run with XYNOVIM_DEV_PLUGINS (docs/DEV-PLUGINS.md): a local clone is not the pinned commit by design
+        plugin_dir = nil
+      end
+      if not plugin_dir then
+        -- nothing to compare
+      elseif vim.fn.isdirectory(plugin_dir) ~= 1 then
         bad[#bad + 1] = n .. ": not installed"
       else
         local r = vim.system({ "git", "-C", plugin_dir, "rev-parse", "HEAD" }, { text = true }):wait(10000)
@@ -614,9 +684,19 @@ describe("lazy-lock.json", function()
         end
       end
     end
-    H.eq({}, bad)
+    -- A mismatch is drift of the local install, not of the repo: the install was made (or
+    -- updated) without scripts/bootstrap.sh, e.g. a one-step `Lazy install` that leaves the
+    -- plugins discovered in a later round on their newest commit, or a `:Lazy update` that
+    -- was not committed. Put the plugins back on the lockfile with
+    --   nvim --headless '+Lazy! restore' +qa     (offline when the commits are already fetched)
+    H.eq(
+      {},
+      bad,
+      'installed plugins are off lazy-lock.json (local drift, not a code failure); put them back with: nvim --headless "+Lazy! restore" +qa'
+    )
     -- kulala sits exactly on its tag
-    local r = vim.system({ "git", "-C", dir .. "/kulala.nvim", "describe", "--tags", "--exact-match" }, { text = true })
+    local r = vim
+      .system({ "git", "-C", dir .. "/kulala.nvim", "describe", "--tags", "--exact-match" }, { text = true })
       :wait(10000)
     H.eq("v5.3.4", vim.trim(r.stdout or ""))
   end)
@@ -758,9 +838,32 @@ describe("plugins/codelens.lua", function()
     H.eq(1, cC.buffer, "<leader>cC buffer-local")
     H.match(cc.desc, "Run Codelens", true)
     H.match(cC.desc, "Refresh & Display Codelens", true)
+    -- the deprecation shim (LazyVim still calls vim.lsp.codelens.refresh): neither the key nor a direct call
+    -- reaches vim.deprecate
+    local deprecated = {}
+    local orig = vim.deprecate
+    vim.deprecate = function(...)
+      deprecated[#deprecated + 1] = { ... }
+    end
+    local ok, err = pcall(function()
+      vim.lsp.codelens.refresh({ bufnr = buf })
+      if cC.callback then
+        cC.callback()
+      end
+    end)
+    vim.deprecate = orig
+    H.ok(ok, tostring(err))
+    H.eq({}, deprecated, "vim.deprecate calls from codelens.refresh")
     for _, c in ipairs(H.clients(buf, "xyno-fake-codelens")) do
       c:stop(true)
     end
+  end)
+
+  it("vim.lsp.codelens is not loaded before the first file (the shim lives in nvim-lspconfig's opts)", function()
+    -- a start-up cost of 2 to 3 ms when lazy.lua touched it (docs/bench/final-2026-11d.md)
+    local res =
+      child([[ return { loaded = package.loaded["vim.lsp.codelens"] ~= nil } ]], { env = xdg_env(), clear_env = true })
+    H.eq(false, res.loaded, "vim.lsp.codelens loaded at start")
   end)
 end)
 
@@ -973,8 +1076,12 @@ describe("clipboard through xyno-clipboard.nvim (plugins/xyno-clipboard.lua)", f
 
   it("vim.g.xynovim_remote_clipboard_osc52 = false still suppresses the OSC52 emit at run time", function()
     local saved = {
-      g = vim.g.clipboard, flag = vim.g.xynovim_remote_clipboard_osc52, new = vim.g.xyno_clipboard_osc52,
-      TMUX = vim.env.TMUX, WAYLAND_DISPLAY = vim.env.WAYLAND_DISPLAY, osc52 = package.loaded["vim.ui.clipboard.osc52"],
+      g = vim.g.clipboard,
+      flag = vim.g.xynovim_remote_clipboard_osc52,
+      new = vim.g.xyno_clipboard_osc52,
+      TMUX = vim.env.TMUX,
+      WAYLAND_DISPLAY = vim.env.WAYLAND_DISPLAY,
+      osc52 = package.loaded["vim.ui.clipboard.osc52"],
     }
     local emitted = 0
     package.loaded["vim.ui.clipboard.osc52"] = {

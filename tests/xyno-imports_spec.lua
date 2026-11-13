@@ -77,13 +77,20 @@ describe("xyno-imports.nvim glue", function()
   end)
 
   it("a child nvim started with vim.g.xynovim_auto_import = 'off' reports off", function()
-    local out = vim.system({
-      vim.v.progpath, "--headless",
-      "--cmd", "lua vim.g.xynovim_auto_import = 'off'",
-      "-c", "doautocmd User VeryLazy",
-      "-c", "lua io.stdout:write(require('xyno_imports.engine').mode())",
-      "-c", "qa!",
-    }, { text = true, timeout = 60000 }):wait()
+    local out = vim
+      .system({
+        vim.v.progpath,
+        "--headless",
+        "--cmd",
+        "lua vim.g.xynovim_auto_import = 'off'",
+        "-c",
+        "doautocmd User VeryLazy",
+        "-c",
+        "lua io.stdout:write(require('xyno_imports.engine').mode())",
+        "-c",
+        "qa!",
+      }, { text = true, timeout = 60000 })
+      :wait()
     H.eq(0, out.code, out.stderr)
     H.eq("off", out.stdout)
   end)

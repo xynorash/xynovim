@@ -146,7 +146,10 @@ describe("deps-freshness: Cargo.toml / Cargo.lock saved from nvim restarts bacon
   end)
 
   it("BufWritePost of Cargo.toml: one debounced restart and 'deps resolving' on the crate's buffers", function()
-    H.known_issue({ "windows" }, "bacon_ls never attaches on Windows (windows-latest run 39647013043; Mason installed bacon-ls but no client starts, cause not found)")
+    H.known_issue(
+      { "windows" },
+      "bacon_ls never attaches on Windows (windows-latest run 39647013043; Mason installed bacon-ls but no client starts, cause not found)"
+    )
     local mb, rb = buf_of(d .. "/Cargo.toml"), buf_of(d .. "/src/main.rs")
     fire("BufWritePost", RR_GROUP, nil, mb)
     H.eq("deps resolving", require("xyno_rust.lsp_status").deps(rb))
@@ -160,24 +163,33 @@ describe("deps-freshness: Cargo.toml / Cargo.lock saved from nvim restarts bacon
   end)
 
   it("auto-save's User AutoSaveWritePost (saved_buffer) does the same, for Cargo.lock too", function()
-    H.known_issue({ "windows" }, "bacon_ls never attaches on Windows (windows-latest run 39647013043; Mason installed bacon-ls but no client starts, cause not found)")
+    H.known_issue(
+      { "windows" },
+      "bacon_ls never attaches on Windows (windows-latest run 39647013043; Mason installed bacon-ls but no client starts, cause not found)"
+    )
     local lb = buf_of(d .. "/Cargo.lock")
     fire("User", RR_GROUP, { saved_buffer = lb }, nil)
     -- (User pattern is matched on the event's pattern: exec with it)
-    vim.api.nvim_exec_autocmds("User", { pattern = "AutoSaveWritePost", group = RR_GROUP, data = { saved_buffer = lb }, modeline = false })
+    vim.api.nvim_exec_autocmds(
+      "User",
+      { pattern = "AutoSaveWritePost", group = RR_GROUP, data = { saved_buffer = lb }, modeline = false }
+    )
     H.wait_for(function()
       return s.restarts() > 0
     end, 3000, "restart after the Cargo.lock auto-save")
   end)
 
   it("a burst of saves is one restart (500 ms debounce)", function()
-    H.known_issue({ "windows" }, "bacon_ls never attaches on Windows (windows-latest run 39647013043; Mason installed bacon-ls but no client starts, cause not found)")
+    H.known_issue(
+      { "windows" },
+      "bacon_ls never attaches on Windows (windows-latest run 39647013043; Mason installed bacon-ls but no client starts, cause not found)"
+    )
     local mb = buf_of(d .. "/Cargo.toml")
+    -- back to back: the saves must all fall inside one 500 ms window, which a loaded runner's settle(100) steps did not guarantee
     for _ = 1, 4 do
       fire("BufWritePost", RR_GROUP, nil, mb)
-      settle(100)
     end
-    settle(1200)
+    settle(1500)
     H.eq(1, s.restarts())
   end)
 
@@ -191,7 +203,10 @@ describe("deps-freshness: Cargo.toml / Cargo.lock saved from nvim restarts bacon
   end)
 
   it("loop guard: FocusGained after the save's restart does not restart again", function()
-    H.known_issue({ "windows" }, "bacon_ls never attaches on Windows (windows-latest run 39647013043; Mason installed bacon-ls but no client starts, cause not found)")
+    H.known_issue(
+      { "windows" },
+      "bacon_ls never attaches on Windows (windows-latest run 39647013043; Mason installed bacon-ls but no client starts, cause not found)"
+    )
     local mb = buf_of(d .. "/Cargo.toml")
     fire("LspAttach", RR_GROUP, { client_id = bacon.id })
     vim.fn.writefile({ "[package]", 'name = "t"', 'version = "0.1.1"' }, d .. "/Cargo.toml")
@@ -292,63 +307,68 @@ end)
 
 describe("deps-freshness: live servers on deps-lab", function()
   local function online()
-    local r = vim.system({ "curl", "-sS", "-o", "/dev/null", "--max-time", "6", "https://index.crates.io/config.json" }):wait(10000)
+    local r = vim
+      .system({ "curl", "-sS", "-o", "/dev/null", "--max-time", "6", "https://index.crates.io/config.json" })
+      :wait(10000)
     return r.code == 0
   end
 
-  it("adding rand to Cargo.toml: the stale 'cannot find crate' clippy error is gone within 8 s, status says deps resolving meanwhile", function()
-    H.need_rust()
-    if vim.fn.executable("bacon-ls") ~= 1 then
-      skip("bacon-ls not found")
-    end
-    if not online() then
-      skip("crates.io not reachable (rand must be fetched)")
-    end
-    local dir, main = H.open_fixture("deps-lab", "src/main.rs")
-    local status = require("xyno_rust.lsp_status")
-    H.wait_for(function()
-      return status.component() == "RA ready | clippy ok"
-    end, 180000, "ready; is " .. status.component())
-    local function bacon_msgs()
-      local t = {}
-      for _, dg in ipairs(vim.diagnostic.get(main)) do
-        if dg.source == "bacon-ls" then
-          t[#t + 1] = dg.message
+  it(
+    "adding rand to Cargo.toml: the stale 'cannot find crate' clippy error is gone within 8 s, status says deps resolving meanwhile",
+    function()
+      H.need_rust()
+      if vim.fn.executable("bacon-ls") ~= 1 then
+        skip("bacon-ls not found")
+      end
+      if not online() then
+        skip("crates.io not reachable (rand must be fetched)")
+      end
+      local dir, main = H.open_fixture("deps-lab", "src/main.rs")
+      local status = require("xyno_rust.lsp_status")
+      H.wait_for(function()
+        return status.component() == "RA ready | clippy ok"
+      end, 180000, "ready; is " .. status.component())
+      local function bacon_msgs()
+        local t = {}
+        for _, dg in ipairs(vim.diagnostic.get(main)) do
+          if dg.source == "bacon-ls" then
+            t[#t + 1] = dg.message
+          end
+        end
+        return table.concat(t, "\n")
+      end
+      local lines = vim.api.nvim_buf_get_lines(main, 0, -1, false)
+      for i, l in ipairs(lines) do
+        if l:find("Ok(())", 1, true) then
+          table.insert(lines, i, "    let _r: u8 = rand::random();")
+          break
         end
       end
-      return table.concat(t, "\n")
-    end
-    local lines = vim.api.nvim_buf_get_lines(main, 0, -1, false)
-    for i, l in ipairs(lines) do
-      if l:find("Ok(())", 1, true) then
-        table.insert(lines, i, "    let _r: u8 = rand::random();")
-        break
-      end
-    end
-    vim.api.nvim_buf_set_lines(main, 0, -1, false, lines)
-    vim.cmd("silent write")
-    H.wait_for(function()
-      return bacon_msgs():find("rand", 1, true) ~= nil
-    end, 90000, "the stale 'cannot find crate rand' error; component " .. status.component())
+      vim.api.nvim_buf_set_lines(main, 0, -1, false, lines)
+      vim.cmd("silent write")
+      H.wait_for(function()
+        return bacon_msgs():find("rand", 1, true) ~= nil
+      end, 90000, "the stale 'cannot find crate rand' error; component " .. status.component())
 
-    local old = H.clients(nil, "bacon_ls")[1]
-    vim.cmd("edit " .. vim.fn.fnameescape(dir .. "/Cargo.toml"))
-    vim.api.nvim_buf_set_lines(0, -1, -1, false, { 'rand = "0.9"' })
-    vim.cmd("silent write")
-    local t0 = vim.uv.now()
-    vim.cmd.buffer(main)
-    H.eq("deps resolving", status.deps(main), "shown right after the write")
-    H.match(status.component(), "deps resolving", true)
-    H.wait_for(function()
-      local c = H.clients(nil, "bacon_ls")[1]
-      return c and c.id ~= old.id
-    end, 8000, "bacon-ls restarted by the Cargo.toml save")
-    H.wait_for(function()
-      return bacon_msgs():find("cannot find module or crate `rand`", 1, true) == nil
-    end, 8000, "the stale error gone")
-    H.ok(vim.uv.now() - t0 <= 8000, "within 8 s")
-    H.wait_for(function()
-      return status.deps(main) == nil
-    end, 120000, "deps resolving ends with rust-analyzer's quiescence; " .. status.component())
-  end)
+      local old = H.clients(nil, "bacon_ls")[1]
+      vim.cmd("edit " .. vim.fn.fnameescape(dir .. "/Cargo.toml"))
+      vim.api.nvim_buf_set_lines(0, -1, -1, false, { 'rand = "0.9"' })
+      vim.cmd("silent write")
+      local t0 = vim.uv.now()
+      vim.cmd.buffer(main)
+      H.eq("deps resolving", status.deps(main), "shown right after the write")
+      H.match(status.component(), "deps resolving", true)
+      H.wait_for(function()
+        local c = H.clients(nil, "bacon_ls")[1]
+        return c and c.id ~= old.id
+      end, 8000, "bacon-ls restarted by the Cargo.toml save")
+      H.wait_for(function()
+        return bacon_msgs():find("cannot find module or crate `rand`", 1, true) == nil
+      end, 8000, "the stale error gone")
+      H.ok(vim.uv.now() - t0 <= 8000, "within 8 s")
+      H.wait_for(function()
+        return status.deps(main) == nil
+      end, 120000, "deps resolving ends with rust-analyzer's quiescence; " .. status.component())
+    end
+  )
 end)

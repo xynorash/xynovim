@@ -136,18 +136,25 @@ describe("ux.diagnostic_text dedupe across namespaces", function()
     H.eq("mismatched types [rust-analyzer]", text_of(buf, b))
   end)
 
-  it("rust-analyzer's lint name unsafe_op_in_unsafe_fn and clippy's warning[E0133] are one problem (field test: shown twice)", function()
-    local buf = track(scratch())
-    local a, b = two_ns()
-    vim.diagnostic.set(a, buf, {
-      diag(1, "warning[E0133]: dereference of raw pointer is unsafe and requires unsafe block\n  --> src/lib.rs:2", { source = "bacon-ls" }),
-    })
-    vim.diagnostic.set(b, buf, {
-      diag(1, "unsafe operation in unsafe function", { code = "unsafe_op_in_unsafe_fn", source = "rust-analyzer" }),
-    })
-    H.is_nil(text_of(buf, a), "clippy duplicate has no virtual text")
-    H.eq("unsafe operation in unsafe function [rust-analyzer]", text_of(buf, b))
-  end)
+  it(
+    "rust-analyzer's lint name unsafe_op_in_unsafe_fn and clippy's warning[E0133] are one problem (field test: shown twice)",
+    function()
+      local buf = track(scratch())
+      local a, b = two_ns()
+      vim.diagnostic.set(a, buf, {
+        diag(
+          1,
+          "warning[E0133]: dereference of raw pointer is unsafe and requires unsafe block\n  --> src/lib.rs:2",
+          { source = "bacon-ls" }
+        ),
+      })
+      vim.diagnostic.set(b, buf, {
+        diag(1, "unsafe operation in unsafe function", { code = "unsafe_op_in_unsafe_fn", source = "rust-analyzer" }),
+      })
+      H.is_nil(text_of(buf, a), "clippy duplicate has no virtual text")
+      H.eq("unsafe operation in unsafe function [rust-analyzer]", text_of(buf, b))
+    end
+  )
 
   it("matches by the code inside the first line when `code` is absent on both", function()
     local buf = track(scratch())

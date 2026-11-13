@@ -42,7 +42,17 @@ do
 end
 
 local function run(dir, args, stdin)
-  local cmd = { REAL_GIT, "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "-c", "core.quotepath=false" }
+  local cmd = {
+    REAL_GIT,
+    "-c",
+    "user.name=t",
+    "-c",
+    "user.email=t@t",
+    "-c",
+    "commit.gpgsign=false",
+    "-c",
+    "core.quotepath=false",
+  }
   vim.list_extend(cmd, args)
   return vim.system(cmd, { cwd = dir, text = true, stdin = stdin }):wait(60000)
 end
@@ -119,7 +129,11 @@ local function chain(root, ref, items, file)
   for i, it in ipairs(items) do
     local msg = it.msg or ("snap" .. i)
     s[#s + 1] = ("commit %s\nmark :%d\ncommitter xynovim <lochist@xynovim> %d +0000\ndata %d\n%s\n"):format(
-      ref, i, now - (it.days or 0) * 86400, #msg, msg
+      ref,
+      i,
+      now - (it.days or 0) * 86400,
+      #msg,
+      msg
     )
     if i > 1 then
       s[#s + 1] = ("from :%d\n"):format(i - 1)
@@ -154,7 +168,6 @@ local function note_matching(pat)
   end
   return out
 end
-
 
 before_each(function()
   vim.cmd("silent! %bwipeout!")
@@ -237,16 +250,19 @@ describe("wiring", function()
 end)
 
 describe("the old vim.g caps still apply (mapped onto max_bytes and max_total_bytes)", function()
-  it("max_bytes and max_total_bytes follow vim.g.xynovim_lochist_* at run time and fall back to the plugin defaults", function()
-    H.is_nil(LH.config.max_bytes)
-    H.is_nil(LH.config.max_total_bytes)
-    vim.g.xynovim_lochist_max_bytes = 123
-    vim.g.xynovim_lochist_max_total_bytes = 456
-    H.eq(123, LH.config.max_bytes)
-    H.eq(456, LH.config.max_total_bytes)
-    vim.g.xynovim_lochist_max_bytes = nil
-    H.is_nil(LH.config.max_bytes)
-  end)
+  it(
+    "max_bytes and max_total_bytes follow vim.g.xynovim_lochist_* at run time and fall back to the plugin defaults",
+    function()
+      H.is_nil(LH.config.max_bytes)
+      H.is_nil(LH.config.max_total_bytes)
+      vim.g.xynovim_lochist_max_bytes = 123
+      vim.g.xynovim_lochist_max_total_bytes = 456
+      H.eq(123, LH.config.max_bytes)
+      H.eq(456, LH.config.max_total_bytes)
+      vim.g.xynovim_lochist_max_bytes = nil
+      H.is_nil(LH.config.max_bytes)
+    end
+  )
 
   it("vim.g.xynovim_lochist_max_bytes leaves a big untracked file out of the snapshot, with one notice", function()
     vim.g.xynovim_lochist_max_bytes = MB
@@ -282,78 +298,87 @@ describe("the old vim.g caps still apply (mapped onto max_bytes and max_total_by
 end)
 
 describe("integrations", function()
-  it("User AutoSaveWritePost snapshots only when the buffer is no longer modified (a refused write leaves none)", function()
-    local root = mkrepo()
-    local buf = open_file(root, "a.txt")
-    -- refused write (xyno-guard): still modified -> no snapshot
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "unsaved" })
-    H.eq(true, vim.bo[buf].modified)
-    vim.api.nvim_exec_autocmds("User", { pattern = "AutoSaveWritePost", data = { saved_buffer = buf } })
-    vim.wait(700)
-    H.is_nil(tip(root, "refs/lochist/main"))
-    -- written: snapshot (content of the disk file)
-    write(root .. "/a.txt", "on disk\n")
-    vim.cmd("silent! checktime")
-    vim.api.nvim_buf_call(buf, function()
-      vim.cmd("silent! edit!")
-    end)
-    H.eq(false, vim.bo[buf].modified)
-    vim.api.nvim_exec_autocmds("User", { pattern = "AutoSaveWritePost", data = { saved_buffer = buf } })
-    H.wait_for(function() return tip(root, "refs/lochist/main") end, 15000, "snapshot")
-    H.eq("on disk\n", blob(root, "refs/lochist/main", "a.txt"))
-    -- no data / invalid buffer: no error
-    H.ok(pcall(vim.api.nvim_exec_autocmds, "User", { pattern = "AutoSaveWritePost" }))
-    H.ok(pcall(vim.api.nvim_exec_autocmds, "User", { pattern = "AutoSaveWritePost", data = { saved_buffer = 99999 } }))
-  end)
+  it(
+    "User AutoSaveWritePost snapshots only when the buffer is no longer modified (a refused write leaves none)",
+    function()
+      local root = mkrepo()
+      local buf = open_file(root, "a.txt")
+      -- refused write (xyno-guard): still modified -> no snapshot
+      vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "unsaved" })
+      H.eq(true, vim.bo[buf].modified)
+      vim.api.nvim_exec_autocmds("User", { pattern = "AutoSaveWritePost", data = { saved_buffer = buf } })
+      vim.wait(700)
+      H.is_nil(tip(root, "refs/lochist/main"))
+      -- written: snapshot (content of the disk file)
+      write(root .. "/a.txt", "on disk\n")
+      vim.cmd("silent! checktime")
+      vim.api.nvim_buf_call(buf, function()
+        vim.cmd("silent! edit!")
+      end)
+      H.eq(false, vim.bo[buf].modified)
+      vim.api.nvim_exec_autocmds("User", { pattern = "AutoSaveWritePost", data = { saved_buffer = buf } })
+      H.wait_for(function()
+        return tip(root, "refs/lochist/main")
+      end, 15000, "snapshot")
+      H.eq("on disk\n", blob(root, "refs/lochist/main", "a.txt"))
+      -- no data / invalid buffer: no error
+      H.ok(pcall(vim.api.nvim_exec_autocmds, "User", { pattern = "AutoSaveWritePost" }))
+      H.ok(
+        pcall(vim.api.nvim_exec_autocmds, "User", { pattern = "AutoSaveWritePost", data = { saved_buffer = 99999 } })
+      )
+    end
+  )
 
-  it("99 guard: a forced snapshot labelled 'before 99 request' is taken before every request, throttle or not", function()
-    local ok = pcall(function()
-      require("lazy").load({ plugins = { "99" } })
-    end)
-    local ok2, _99 = pcall(require, "99")
-    if not (ok and ok2) then
-      skip("the 99 plugin cannot be loaded here")
+  it(
+    "99 guard: a forced snapshot labelled 'before 99 request' is taken before every request, throttle or not",
+    function()
+      local ok = pcall(function()
+        require("lazy").load({ plugins = { "99" } })
+      end)
+      local ok2, _99 = pcall(require, "99")
+      if not (ok and ok2) then
+        skip("the 99 plugin cannot be loaded here")
+      end
+      local providers = require("99.providers")
+      local provider = _99.get_provider()
+      H.ok(provider ~= providers.OpenCodeProvider, "the guarded provider is configured")
+      local Claude = providers.ClaudeCodeProvider
+      local orig = Claude.make_request
+      local observers = {}
+      Claude.make_request = function(_, _, _, obs)
+        observers[#observers + 1] = obs
+      end
+      H._restore[#H._restore + 1] = function()
+        Claude.make_request = orig
+      end
+      -- (this test is about the checkpoint, not the sandbox: without bwrap, e.g. on
+      -- a CI runner, the guarded provider would refuse to start at all)
+      local old_sandbox = vim.g.xynovim_99_sandbox
+      vim.g.xynovim_99_sandbox = false
+      H._restore[#H._restore + 1] = function()
+        vim.g.xynovim_99_sandbox = old_sandbox
+      end
+      local root = mkrepo()
+      open_file(root, "a.txt")
+      H.ok(snap(root, { force = false }), "normal autosave first: the throttle window is open")
+      for i = 1, 2 do
+        write(root .. "/a.txt", "request " .. i .. "\n")
+        local before = tip(root, "refs/lochist/main")
+        provider:make_request("prompt", {}, { on_complete = function() end })
+        H.eq(i - 1, #observers, "the agent must not start before its checkpoint")
+        H.wait_for(function()
+          return tip(root, "refs/lochist/main") ~= before
+        end, 15000, "labelled snapshot " .. i)
+        H.wait_for(function()
+          return #observers == i
+        end, 15000, "the real provider got the request, after the snapshot")
+        H.eq("before 99 request", subject(root, "refs/lochist/main"))
+        H.eq("request " .. i .. "\n", blob(root, "refs/lochist/main", "a.txt"))
+        observers[i].on_complete()
+      end
+      pcall(function()
+        require("auto-save").off()
+      end)
     end
-    local providers = require("99.providers")
-    local provider = _99.get_provider()
-    H.ok(provider ~= providers.OpenCodeProvider, "the guarded provider is configured")
-    local Claude = providers.ClaudeCodeProvider
-    local orig = Claude.make_request
-    local observers = {}
-    Claude.make_request = function(_, _, _, obs)
-      observers[#observers + 1] = obs
-    end
-    H._restore[#H._restore + 1] = function()
-      Claude.make_request = orig
-    end
-    -- (this test is about the checkpoint, not the sandbox: without bwrap, e.g. on
-    -- a CI runner, the guarded provider would refuse to start at all)
-    local old_sandbox = vim.g.xynovim_99_sandbox
-    vim.g.xynovim_99_sandbox = false
-    H._restore[#H._restore + 1] = function()
-      vim.g.xynovim_99_sandbox = old_sandbox
-    end
-    local root = mkrepo()
-    open_file(root, "a.txt")
-    H.ok(snap(root, { force = false }), "normal autosave first: the throttle window is open")
-    for i = 1, 2 do
-      write(root .. "/a.txt", "request " .. i .. "\n")
-      local before = tip(root, "refs/lochist/main")
-      provider:make_request("prompt", {}, { on_complete = function() end })
-      H.eq(i - 1, #observers, "the agent must not start before its checkpoint")
-      H.wait_for(function()
-        return tip(root, "refs/lochist/main") ~= before
-      end, 15000, "labelled snapshot " .. i)
-      H.wait_for(function()
-        return #observers == i
-      end, 15000, "the real provider got the request, after the snapshot")
-      H.eq("before 99 request", subject(root, "refs/lochist/main"))
-      H.eq("request " .. i .. "\n", blob(root, "refs/lochist/main", "a.txt"))
-      observers[i].on_complete()
-    end
-    pcall(function()
-      require("auto-save").off()
-    end)
-  end)
+  )
 end)
-

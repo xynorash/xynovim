@@ -1,0 +1,20 @@
+    Starting 5 tests across 2 binaries (run ID: 5d1b9e0e-0000-0000-0000-000000000000, nextest profile: ci)
+        PASS [   0.004s] netwatch tests::parses_lists_and_ranges
+        PASS [   0.004s] netwatch tests::rejects_bad_input
+        FAIL [   0.006s] netwatch more::vec_mismatch
+
+  stdout ───
+
+    running 1 test
+    test more::vec_mismatch ... FAILED
+
+  stderr ───
+
+    thread 'more::vec_mismatch' panicked at src/lib.rs:154:9:
+    assertion `left == right` failed: ports differ
+      left: [1, 2, 3]
+     right: [1, 2, 4]
+
+────────────
+     Summary [   0.032s] 3 tests run: 2 passed, 1 failed, 0 skipped
+        FAIL [   0.006s] netwatch more::vec_mismatch

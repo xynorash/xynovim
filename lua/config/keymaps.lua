@@ -2,6 +2,9 @@
 -- Default keymaps that are always set: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/keymaps.lua
 -- Add any additional keymaps here
 
+-- `u` / <C-r> after a multi-file LSP edit (rename...) go through all the files it changed
+require("config.rename_undo").setup()
+
 -- Global <leader>r<key> stubs: the r* maps below are buffer-local (rust-analyzer attached), so
 -- in Cargo.toml / Lua / markdown buffers (and for a key nothing binds) Vim parsed <Space>rv as
 -- `l` + `rv`, replaced a character and auto-save wrote it. A real buffer-local map wins. These
@@ -13,7 +16,11 @@ local function not_bound(key)
     vim.notify("<leader>r" .. key .. what, vim.log.levels.INFO)
   end
 end
-for _, key in ipairs(vim.split("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{};:'\",.<>/?|~`", "")) do
+for _, key in
+  ipairs(
+    vim.split("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{};:'\",.<>/?|~`", "")
+  )
+do
   vim.keymap.set({ "n", "x" }, "<leader>r" .. key, not_bound(key), { desc = "which_key_ignore" })
 end
 
@@ -34,7 +41,11 @@ vim.api.nvim_create_autocmd("LspAttach", {
   group = vim.api.nvim_create_augroup("xynovim_rust_keymaps", { clear = true }),
   callback = function(ev)
     local client = vim.lsp.get_client_by_id(ev.data.client_id)
-    if client and client.name ~= "rust-analyzer" and #vim.lsp.get_clients({ bufnr = ev.buf, name = "rust-analyzer" }) > 0 then
+    if
+      client
+      and client.name ~= "rust-analyzer"
+      and #vim.lsp.get_clients({ bufnr = ev.buf, name = "rust-analyzer" }) > 0
+    then
       vim.schedule(function()
         if vim.api.nvim_buf_is_valid(ev.buf) then
           set_rename(ev.buf)
@@ -69,9 +80,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
       end
 
       -- Refactor
-      map({ "n", "x" }, "<leader>ra", function()
-        vim.lsp.buf.code_action({ context = { only = { "refactor" }, diagnostics = {} } })
-      end, "Refactor actions")
+      map({ "n", "x" }, "<leader>ra", "<cmd>RustRefactor<cr>", "Refactor menu (diff preview)")
       map({ "n", "x" }, "<leader>rv", assist("^Extract into variable"), "Extract variable")
       map({ "n", "x" }, "<leader>rf", assist("^Extract into function"), "Extract function")
       map({ "n", "x" }, "<leader>rc", assist("^Extract into constant"), "Extract constant")
@@ -182,8 +191,25 @@ vim.api.nvim_create_autocmd("LspAttach", {
         require("xyno_rust.rust_nav").local_usages()
       end, "Usages in file (R/W)")
 
+      -- newer xyno-rust.nvim commands (rename preview, grouped usages, profile view, tokio-console);
+      -- a pinned older plugin lacks them, so each key is set only when its command exists
+      for _, k in ipairs({
+        { "<leader>rn", "RustRename", "Rename with a per-file diff preview" },
+        { "<leader>rU", "RustUsages", "Usages in the workspace, grouped (code / imports / tests / docs)" },
+        { "<leader>rY", "RustProfile", "Profile view (hot functions, call tree)" },
+        { "<leader>rA", "TokioConsole", "Async: tokio-console check / launch" },
+      }) do
+        if vim.fn.exists(":" .. k[2]) == 2 then
+          map("n", k[1], "<cmd>" .. k[2] .. "<cr>", k[3])
+        end
+      end
+
       map("n", "<leader>rF", "<cmd>RustContext<cr>", "Cargo features / target (both diagnostic tiers)")
       map("n", "<leader>rX", "<cmd>RustTargets<cr>", "Cargo targets: run / test / bench")
+      -- run configurations saved per project (args, env, profiler): xyno-rust.nvim, :RustRun
+      map("n", "<leader>rb", "<cmd>RustRun<cr>", "Run configurations (args, env, profiler)")
+      map("n", "<leader>rB", "<cmd>RustRunLast<cr>", "Run the last configuration again")
+      map("n", "<leader>rQ", "<cmd>RustFixAll<cr>", "Quick-fix all (preferred fixes, one undo step)")
 
       map("n", "<leader>rZ", "<cmd>RustTools<cr>", "Cargo tools (deny, audit, bloat, timings, ...)")
       map("n", "<leader>rN", "<cmd>RustRoutes<cr>", "HTTP routes (axum / actix / rocket)")
@@ -195,9 +221,8 @@ vim.api.nvim_create_autocmd("LspAttach", {
       -- (code actions: <leader>ca)
       set_rename(ev.buf)
 
-      pcall(function()
-        require("which-key").add({ { "<leader>r", group = "rust", buffer = ev.buf } })
-      end)
+      -- (the "rust" group name of <leader>r comes from which-key's global spec in plugins/editing-ui.lua;
+      -- a second, buffer-local copy made :checkhealth which-key report the key as a duplicate)
     end)
   end,
 })
@@ -207,6 +232,16 @@ vim.keymap.set("n", "<leader>uu", function()
   vim.cmd.packadd("nvim.undotree")
   require("undotree").open()
 end, { desc = "Undotree" })
+
+-- Organize imports after :w for Rust files, opt-in (vim.g.xynovim_organize_on_save = true); see
+-- config/rust_assist.lua. The check is inside the callback, so the option can change at any time.
+vim.api.nvim_create_autocmd("BufWritePost", {
+  group = vim.api.nvim_create_augroup("xynovim_organize_on_save", { clear = true }),
+  pattern = "*.rs",
+  callback = function(ev)
+    require("config.rust_assist").organize_on_save(ev.buf)
+  end,
+})
 
 -- Okabe-Ito diagnostic colours (off by default; also :ColorblindDiagnostics).
 Snacks.toggle({

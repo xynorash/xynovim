@@ -38,11 +38,17 @@ local function settle(max_ms)
   end, 1000)
 end
 settle(900000)
+local ts_locks = dofile(vim.fs.dirname(debug.getinfo(1, "S").source:sub(2)) .. "/ts_locks.lua")
 local missing
 for round = 1, 3 do
   missing = absent()
   if #missing == 0 then
     break
+  end
+  -- locks of builds that were killed or that timed out: the retry would fail on them ("appears stale")
+  local cleared = ts_locks.clear_all(60)
+  if cleared > 0 then
+    say(("removed %d stale tree-sitter lock file(s)"):format(cleared))
   end
   say(("installing %d treesitter parsers (round %d): %s"):format(#missing, round, table.concat(missing, ", ")))
   TS.install(missing, { summary = true }):wait(900000)
@@ -63,7 +69,21 @@ end, 100)
 -- Language servers and tools the README promises. LazyVim only installs the
 -- server of a filetype when you first open such a file; do it up front so the
 -- specs (and a first Rust session) do not wait for downloads.
-local TOOLS = { "bacon-ls", "taplo", "yaml-language-server", "marksman", "lua-language-server", "json-lsp", "codelldb", "wgsl-analyzer", "tree-sitter-cli", "shfmt", "stylua", "markdownlint-cli2", "markdown-toc" }
+local TOOLS = {
+  "bacon-ls",
+  "taplo",
+  "yaml-language-server",
+  "marksman",
+  "lua-language-server",
+  "json-lsp",
+  "codelldb",
+  "wgsl-analyzer",
+  "tree-sitter-cli",
+  "shfmt",
+  "stylua",
+  "markdownlint-cli2",
+  "markdown-toc",
+}
 for _, name in ipairs(TOOLS) do
   local ok, pkg = pcall(reg.get_package, name)
   if ok and not pkg:is_installed() and not pkg:is_installing() then

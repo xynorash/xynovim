@@ -96,7 +96,11 @@ local function read(path)
   return s
 end
 
-local work = assert(uv.fs_mkdtemp((vim.env.TMPDIR or vim.env.RUNNER_TEMP or vim.fn.fnamemodify(vim.fn.tempname(), ":h")) .. "/xynotest.XXXXXX"))
+local work = assert(
+  uv.fs_mkdtemp(
+    (vim.env.TMPDIR or vim.env.RUNNER_TEMP or vim.fn.fnamemodify(vim.fn.tempname(), ":h")) .. "/xynotest.XXXXXX"
+  )
+)
 work = vim.fs.normalize(work)
 for _, d in ipairs({ "config", "state", "cache", "tmp" }) do
   vim.fn.mkdir(work .. "/" .. d, "p")
@@ -106,7 +110,9 @@ local lock_before = read(repo .. "/lazy-lock.json")
 -- The checkout as <XDG_CONFIG_HOME>/nvim: a symlink, or a junction on Windows (no admin rights needed).
 local link = work .. "/config/nvim"
 if is_win then
-  local r = vim.system({ "cmd", "/c", "mklink", "/J", (link:gsub("/", "\\")), (repo:gsub("/", "\\")) }, { text = true }):wait()
+  local r = vim
+    .system({ "cmd", "/c", "mklink", "/J", (link:gsub("/", "\\")), (repo:gsub("/", "\\")) }, { text = true })
+    :wait()
   if r.code ~= 0 then
     io.stderr:write("test.lua: mklink /J failed: " .. (r.stderr or r.stdout or "") .. "\n")
     os.exit(2)
@@ -153,11 +159,20 @@ local function kill_tree(obj)
   end
 end
 
-out_line(("xynovim tests: %d spec file(s), timeout %ds each (portable runner, %s)"):format(#specs, timeout_s, uv.os_uname().sysname))
+out_line(
+  ("xynovim tests: %d spec file(s), timeout %ds each (portable runner, %s)"):format(
+    #specs,
+    timeout_s,
+    uv.os_uname().sysname
+  )
+)
 if vim.env.XYNO_TEST_SKIP_RUST == "1" then
   out_line("  XYNO_TEST_SKIP_RUST=1 (Rust specs will skip)")
-elseif vim.fn.executable("cargo") == 1 and vim.fn.executable("rust-analyzer") == 1
-  and vim.system({ "rust-analyzer", "--version" }):wait(10000).code == 0 then
+elseif
+  vim.fn.executable("cargo") == 1
+  and vim.fn.executable("rust-analyzer") == 1
+  and vim.system({ "rust-analyzer", "--version" }):wait(10000).code == 0
+then
   out_line("  rust-analyzer + cargo: found (Rust specs run)")
 else
   out_line("  rust-analyzer/cargo: NOT usable (Rust specs will skip)")
@@ -242,7 +257,8 @@ for _, rel in ipairs(specs) do
   elseif not res then
     status, p, f, s = "CRASH", 0, 1, 0
   else
-    p, f, s = tonumber(res:match("passed=(%d+)")), tonumber(res:match("failed=(%d+)")), tonumber(res:match("skipped=(%d+)"))
+    p, f, s =
+      tonumber(res:match("passed=(%d+)")), tonumber(res:match("failed=(%d+)")), tonumber(res:match("skipped=(%d+)"))
     if hung then
       code = 0
     end
@@ -286,7 +302,14 @@ if read(repo .. "/lazy-lock.json") ~= lock_before then
   out_line("WARNING: lazy-lock.json changed during the run (git diff lazy-lock.json)")
 end
 cleanup()
-out_line(("\ntotal: %d passed, %d failed, %d skipped in %ds"):format(tot.passed, tot.failed, tot.skipped, math.floor((uv.now() - t_all) / 1000)))
+out_line(
+  ("\ntotal: %d passed, %d failed, %d skipped in %ds"):format(
+    tot.passed,
+    tot.failed,
+    tot.skipped,
+    math.floor((uv.now() - t_all) / 1000)
+  )
+)
 if #failed_files > 0 then
   out_line("failed: " .. table.concat(failed_files, " "))
   os.exit(1)

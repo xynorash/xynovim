@@ -5,7 +5,10 @@
 local win = vim.fn.has("win32") == 1
 local sep = win and ";" or ":"
 local cargo_home = vim.env.CARGO_HOME
-local cargo_bin = vim.fs.joinpath(cargo_home and cargo_home ~= "" and cargo_home or vim.fs.joinpath(vim.uv.os_homedir(), ".cargo"), "bin")
+local cargo_bin = vim.fs.joinpath(
+  cargo_home and cargo_home ~= "" and cargo_home or vim.fs.joinpath(vim.uv.os_homedir(), ".cargo"),
+  "bin"
+)
 local function norm(p)
   p = vim.fs.normalize(p):gsub("/+$", "")
   return win and p:lower() or p
@@ -58,6 +61,14 @@ vim.g.trouble_lualine = false
 -- turns off rust-analyzer's checkOnSave and diagnostics so cargo runs once;
 -- rustaceanvim.lua switches the native in-memory diagnostics back on.
 vim.g.lazyvim_rust_diagnostics = "bacon-ls"
+
+-- Large buffers shed the features that cost per buffer line (folds, semantic tokens, inlay hints,
+-- indent query, guides ...) in tiers; see lua/config/largefile.lua.
+require("config.largefile").setup()
+
+-- Rainbow brackets (lua/config/rainbow.lua): this requires only a command and a VeryLazy autocmd; the engine
+-- loads after the first screen. Options: vim.g.xynovim_rainbow, docs/RAINBOW.md.
+require("config.rainbow_boot").setup()
 
 -- :RustContext, :RustTargets, :RustTools, :RustRoutes, :RustRestart, :ActJob and the server
 -- supervision / statusline autocmds come from the xyno-rust.nvim plugin (lua/plugins/xyno-rust.lua).

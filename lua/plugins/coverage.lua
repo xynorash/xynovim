@@ -6,7 +6,15 @@
 return {
   "andythigpen/nvim-coverage",
   dependencies = { "nvim-lua/plenary.nvim" },
-  cmd = { "Coverage", "CoverageLoad", "CoverageShow", "CoverageHide", "CoverageToggle", "CoverageSummary", "CoverageClear" },
+  cmd = {
+    "Coverage",
+    "CoverageLoad",
+    "CoverageShow",
+    "CoverageHide",
+    "CoverageToggle",
+    "CoverageSummary",
+    "CoverageClear",
+  },
   keys = {
     {
       "<leader>tc",
@@ -26,21 +34,55 @@ return {
         -- same features/target as the diagnostics (:RustContext)
         local rc = require("xyno_rust.rust_context")
         vim.list_extend(cmd, rc.cargo_flags(rc.get(root)))
-        vim.notify("coverage: running " .. table.concat(cmd, " "))
-        vim.system(cmd, { cwd = root, text = true }, function(o)
+        -- cargo llvm-cov builds the workspace (build.rs, proc macros) and runs its tests: workspace trust first
+        require("config.workspace_trust").system(cmd, {
+          cwd = root,
+          text = true,
+          on_start = function()
+            vim.notify("coverage: running " .. table.concat(cmd, " "))
+          end,
+        }, function(o)
           vim.schedule(function()
+            if o.denied then
+              return -- refused: the gate said so already
+            end
             if o.code ~= 0 then
               return vim.notify("coverage run failed:\n" .. (o.stderr or ""):sub(-600), vim.log.levels.ERROR)
             end
             vim.cmd("CoverageLoad")
             vim.cmd("CoverageShow")
             vim.notify("coverage loaded (" .. root .. "/target/lcov.info)")
+            -- total and the weakest files; the results panel (<leader>tp) header carries the total too
+            local ui = require("config.test_ui")
+            local sum = ui.lcov_summary(root .. "/target/lcov.info")
+            if sum then
+              ui.state.coverage = sum
+              local weak = {}
+              for i = 1, math.min(3, #sum.files) do
+                local f = sum.files[i]
+                weak[#weak + 1] = ("  %5.1f%%  %s"):format(f.pct, vim.fn.fnamemodify(f.path, ":."))
+              end
+              vim.notify(
+                ("coverage: %.1f%% of %d lines (%d files). Lowest:\n%s"):format(
+                  sum.pct,
+                  sum.found,
+                  #sum.files,
+                  table.concat(weak, "\n")
+                ),
+                vim.log.levels.INFO,
+                { title = "coverage" }
+              )
+              if ui.state.run and ui.state.win and vim.api.nvim_win_is_valid(ui.state.win) then
+                ui.state.run.coverage = sum
+                ui.show(ui.state.run, {})
+              end
+            end
             -- cargo test: "1 failed;", nextest: "1 failed,"
             if (o.stderr or ""):find("[1-9]%d* failed") or (o.stdout or ""):find("[1-9]%d* failed") then
               vim.notify("coverage: some tests FAILED (the report is still written)", vim.log.levels.WARN)
             end
           end)
-        end)
+        end, "coverage (" .. table.concat(cmd, " ") .. ")")
       end,
       desc = "Coverage: run + show",
     },

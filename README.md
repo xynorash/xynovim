@@ -7,7 +7,7 @@
 [![ci](https://github.com/xynorash/xynovim/actions/workflows/ci.yml/badge.svg)](https://github.com/xynorash/xynovim/actions/workflows/ci.yml)
 ![neovim 0.12](https://img.shields.io/badge/neovim-0.12-57a143?logo=neovim&logoColor=white)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
-![tests](https://img.shields.io/badge/tests-906%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-1370%20passing-brightgreen)
 
 Website: https://xynorash.github.io/xynovim/ (with [guides](https://xynorash.github.io/xynovim/#guides) to the workflows below)
 
@@ -38,7 +38,8 @@ The website, <https://xynorash.github.io/xynovim/>, is published from the dedica
 - **A debugger and a test runner that look like the ones in an IDE**: breakpoints with Rust-aware variable views, a test summary tree, coverage in the gutter.
 - **A safety net**: every save is snapshotted as a git ref (a "Local History"), and the AI agent runs inside a sandbox.
 - **Treesitter everywhere**: sticky scope, text objects, SQL injected into `sqlx` strings, a live syntax-tree view.
-- **Tested**: 906 passing checks across 32 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
+- **Rainbow brackets** after the JetBrains plugin (nesting colours, per-kind switches, scope highlight, unmatched marking, contrast-checked palettes), natively on the syntax tree ([below](#rainbow-brackets)).
+- **Tested**: 1370 passing checks across 64 spec files, one per feature area, runnable with one command after a clone ([below](#tests-run-them-yourself)).
 
 ## Guides
 
@@ -58,19 +59,19 @@ These are the original parts of my config that I extracted into standalone plugi
 Standalone:
 
 - [xyno-history.nvim](https://github.com/xynorash/xyno-history.nvim): Local History, every throttled save snapshotted into private git refs.
-- [xyno-sandbox.nvim](https://github.com/xynorash/xyno-sandbox.nvim): runs a command-line coding agent in bubblewrap and refuses to start it without one (Linux only).
+- [xyno-sandbox.nvim](https://github.com/xynorash/xyno-sandbox.nvim): runs a command-line coding agent in bubblewrap and refuses to start it without one (Linux only; on its `dev` branch: policy preview and approval log, default-deny network through an allowlist proxy, `home` allowlist view).
 - [xyno-clipboard.nvim](https://github.com/xynorash/xyno-clipboard.nvim): an OSC 52 clipboard provider for tmux, SSH and herdr (Linux only).
 - [xyno-guard.nvim](https://github.com/xynorash/xyno-guard.nvim): keeps auto-save away from dependency sources and files changed on disk.
 
 Rust toolkit (xyno-rust.nvim is the base):
 
-- [xyno-rust.nvim](https://github.com/xynorash/xyno-rust.nvim): Cargo context, targets, routes, navigation, server restart handling and a statusline indicator.
+- [xyno-rust.nvim](https://github.com/xynorash/xyno-rust.nvim): Cargo context, targets, routes, navigation, server restart handling and a statusline indicator (on its `dev` branch: workspace trust, saved run configurations `:RustRun`, diff-preview code actions `:RustActions` / `:RustRefactor`, `:RustFixAll`).
 - [xyno-new.nvim](https://github.com/xynorash/xyno-new.nvim): new Rust binary, library, workspace and egui projects; needs xyno-rust.nvim.
 - [xyno-imports.nvim](https://github.com/xynorash/xyno-imports.nvim): auto-import, ranked choice and organize imports; needs xyno-rust.nvim.
 - [xyno-crates.nvim](https://github.com/xynorash/xyno-crates.nvim): crates.io search, crate add, features and crate import; needs xyno-rust.nvim and xyno-imports.nvim.
 - [xyno-macros.nvim](https://github.com/xynorash/xyno-macros.nvim): macro attribute completion, signature help and `:MacroExpand`; needs xyno-rust.nvim and xyno-imports.nvim.
 
-xynovim still carries its own in-tree copies of this code; the plugins are the same code under another namespace.
+xynovim still carries its own in-tree copies of this code; the plugins are the same code under another namespace. The `dev` branches of the plugins are ahead of what `lazy-lock.json` pins (nothing is pushed yet); [docs/DEV-PLUGINS.md](docs/DEV-PLUGINS.md) runs xynovim against the local clones and lists which specs need them.
 
 ## Tour
 
@@ -126,6 +127,8 @@ Video: [03-refactor.mp4](docs/media/03-refactor.mp4)
 
 Video: [05-tests.mp4](docs/media/05-tests.mp4)
 
+A failed run opens the **results panel** (`<leader>tp` toggles it): the counts, the wall time, the failures with `file:line` and the first message, then one fold per test with its output (failed ones open, `za` / `zM` / `zR`). `assert_eq!` / `assert_ne!` failures are shown as a diff of left and right (a `Vec` element by element, a string with the differing word marked). `<CR>` jumps to the test, `r` (or `<leader>tf`) reruns the failed ones, `<leader>tE` runs the doc-tests into the same panel (`<leader>tD` is the terminal run), `<leader>tP` picks a nextest profile from `.config/nextest.toml`, and `<leader>tc` shows the coverage total and the least covered files and puts the total in the panel header. Per-test times are shown only for nextest runs (plain `cargo test` prints none on stable); the nextest path was never run on the machine that wrote this (`cargo-nextest` is not installed there), only its output parser was tested. Evidence and screenshots: [docs/comparison/debug-test-ux.md](docs/comparison/debug-test-ux.md).
+
 ### Debugging
 
 nvim-dap with codelldb, a dap-ui layout sized for Rust's long type names, and lldb's Rust formatters loaded automatically (a `String` shows as text and a struct as `{host:"127.0.0.1", ...}`, not as raw memory). `<leader>db` sets a breakpoint, `<leader>dR` lists every debuggable target of the workspace, and a panic stops at the panicking frame.
@@ -133,6 +136,8 @@ nvim-dap with codelldb, a dap-ui layout sized for Rust's long type names, and ll
 ![dap-ui stopped at a breakpoint: locals, stack, console and inline values](docs/media/06-debug-stopped.png)
 
 Video: [06-debug.mp4](docs/media/06-debug.mp4)
+
+Containers show their content, not just their size: `Vec<int> = size=3 [1, 2, 3]`, `HashMap<String, int> = size=1 {"a": 1}`, `Rc<String> = strong=2, weak=0 "rc"`, `RefCell<int> = borrow=0 5` (lldb summaries in `scripts/lldb/xyno_rust_preview.py`, loaded after rust's own formatters; type names are shortened, `vim.g.xynovim_dap_full_types = true` keeps the full ones). `<leader>dv` (and `K` while stopped) opens the whole value of the expression under the cursor in a wrapped float with its children; inline values are one line each. Runtime frames (`lang_start`, `catch_unwind`, ...) are hidden in the stack view (`t` in it shows them); closures and async frames get readable names. `<leader>dL` sets a logpoint, `<leader>dH` a hit-count breakpoint, `<leader>dB` a condition, `<leader>dX` lists the adapter's exception breakpoints (codelldb offers `rust_panic` only; a panic already stops at the panicking frame). `<leader>td` debugs the nearest test through neotest. If the Rust formatters do not load, one warning says so, and `:checkhealth xynovim` has a section for it. Not covered: a disassembly view, a tokio task list (a debugger cannot list tasks), debugging a nextest run (untested). Screenshots and what was and was not run: [docs/comparison/debug-test-ux.md](docs/comparison/debug-test-ux.md).
 
 ### One feature set for both tiers: `:RustContext`
 
@@ -150,7 +155,7 @@ The choice is stored per workspace and survives restarts. `:RustTargets` lists e
 
 ### Git, and a safety net
 
-lazygit (with `delta`), diffview for diffs, merge conflicts and file history, `mergiraf` as a syntax-aware merge driver, and **Local History**: every save (manual or auto-save, throttled) also writes the whole worktree, untracked files included, as a commit under `refs/lochist/` using a private index. Deleted files and `git reset --hard` become recoverable without touching your real index, stash or branches. `:LocalHistory` browses and diffs, `:LocalHistoryRestore` restores, `:LocalHistoryPrune` cleans up.
+lazygit (with `delta`), diffview for diffs, merge conflicts and file history, `mergiraf` as a syntax-aware merge driver, and **Local History**: every save (manual or auto-save, throttled) also writes the whole worktree, untracked files included, as a commit under `refs/lochist/` using a private index. Deleted files and `git reset --hard` become recoverable without touching your real index, stash or branches. `:LocalHistory` browses and diffs, `:LocalHistoryRestore` restores, `:LocalHistoryPrune` cleans up. Snapshots are plain git objects in the repository's `.git`, so likely secrets (`.env*`, `*.pem`, `*.key`, `id_rsa*`, `.npmrc`, `.netrc`, `credentials.json` and similar names, not file contents) are left out, and `git push --mirror` or `git clone --mirror` would still carry `refs/lochist/*` (an opt-in pre-push guard refuses that); git runs with the repository's own `core.fsmonitor`, hooks and filter drivers neutralised; saves after the first take a fast path (about 0.12 s instead of 0.9 s on a generated 100,000-file tree, new files created outside Neovim wait for the next full scan, at most five minutes); old snapshots are pruned in the background (30 days or 1000 per branch). Details, measurements and limits are in the [xyno-history.nvim README](https://github.com/xynorash/xyno-history.nvim) (these changes are on its `dev` branch and not released yet; `lazy-lock.json` still pins the previous version).
 
 | lazygit | local history |
 | --- | --- |
@@ -170,9 +175,40 @@ The colour scheme is generated from my own colour-scheme export, which is not di
 
 Video: [09-theme.mp4](docs/media/09-theme.mp4)
 
+**UI switches** (from [docs/comparison/ui-community.md](docs/comparison/ui-community.md); the numbers there are the shortlist items):
+
+- **Inlay hints, per kind** (#1): `:Hints` toggles them in the buffer, `:Hints types|params|lifetimes` switches one kind (rust-analyzer is told, so nothing is hidden client-side), `:Hints status`. Defaults are calm: types and parameter names on, **lifetime-elision hints off** (rust-analyzer's own default is `never`, [configuration](https://rust-analyzer.github.io/book/configuration.html), read 2026-11-12), and a parameter-name hint is dropped where the argument already says what it is (a plain name, a field path, a string literal; `connect(5000)` and `f(true)` keep theirs; `vim.g.xynovim_hints_params = "all"` keeps every one). `vim.g.xynovim_hints = { lifetimes = true }` or `:Hints lifetimes` turns lifetimes on; `{ params = false }` is the default for a session; the statusline shows `hints TP-` by default and wide (letters of switched-off kinds become `-`) (letters of switched-off kinds become `-`, `hints off` when off). Hint text is lifted to 6:1 on a darker chip (#3; was 3.2:1; VS Code's default measures 5.3:1, tokyonight's 2.5:1, both from their sources). Before/after captures: [docs/comparison/screenshots/ui/](docs/comparison/screenshots/ui/README.md).
+- **Diagnostics, cursor line first** (#2, #10, #11): the full text only on the cursor line; other lines show Error and Warning as a code or a few words, Info and Hint not at all. Text is cut with `…` to the room the line has left (nothing is drawn when there are fewer than 6 cells), redraws are debounced while typing. `:DiagnosticsView cursor|all|off` (`vim.g.xynovim_diagnostics`). Severity is also a shape (#4): signs and virtual-text prefix are `✗ ▲ ● ◆` (`x ! i ?` in ASCII mode), underlines are curly / dashed / dotted / plain.
+- **Icons without a Nerd Font** (#9): `:XynoIcons ascii|nerd|auto` (`vim.g.xynovim_icons`, or `XYNOVIM_ICONS=ascii`). `auto` chooses ASCII on the Linux console, `TERM=dumb` and non-UTF-8 locales; it cannot see the terminal's font, so `:checkhealth xynovim` and `:XynoIcons` warn when `fc-list` shows no Nerd Font. Signs apply at once; the statusline, tabs, tree and dashboard pick it up on the next start.
+- **High contrast** (#6): `:IslandContrast high` (`vim.g.xynovim_contrast = "high"`) lifts every highlight group with a foreground to 7:1 against its own background (frames and separators to 4.5:1, hue kept); groups that are invisible on purpose (end-of-buffer fillers) are left alone. Checked group by group in `tests/ui-community_spec.lua`.
+- **Light variant**: `:colorscheme island-light`. A hand-tuned palette (`lua/island/light_palette.lua`: one chosen light colour per Island Dark colour, same hue roles), designed after JetBrains Light / Islands Light, GitHub Light, catppuccin-latte and tokyonight-day; white editor, normal text 15.9:1, syntax colours 5.2 to 7:1, comments 5.3:1, line numbers 4.5:1 (checked on the real groups by the spec). Not a JetBrains scheme. Colours the palette does not list (tints plugins derive at run time) fall back to a lightness flip with a per-group contrast floor. It keeps its own background (transparency only with `vim.g.xynovim_transparent = true`).
+- **Error colour in the file tree** (#14): a file or folder with an error in it is drawn in the error colour (`XynoTreeError`). The tab keeps bufferline's own error count after the name; the name itself is not recoloured (bufferline cannot).
+- **Rendered compiler output** (#13): `<leader>cD` / `:DiagnosticRendered` shows the diagnostic under the cursor as rustc prints it (rust-analyzer's `rendered` text, or a multi-line clippy message), with `error[E...]`, the location, the gutter, the carets and `note:` / `help:` coloured. A one-line message is shown as it is, with a note.
+- **Winbar breadcrumbs** (#15, off by default): `:XynoWinbar on` (`vim.g.xynovim_winbar = true`). End-of-line hints (#16) were not built: Neovim has no clean way to draw them that does not shift text.
+- `:XynoIcons ascii|nerd` now rebuilds the statusline, tabs, dashboard, file icons (mini.icons), dap-ui and code-lens titles at run time. Not at run time: the tree's expander arrows, git and diagnostic symbols (they are read at startup; calling neo-tree's setup twice drops its event subscriptions).
+- **Narrow windows** (#8): the statusline drops the clock below 120 columns, progress, diff and notifications below 100, the branch below 90, the project root below 85, diagnostics and the cursor position below 70, the file icon below 64; the mode shortens to one letter below 70, the path shrinks to the file name below 80. The file name and the Rust server state stay.
+- **State in the statusline**: `hints …`, `sandbox: on/OFF/…`, `guard: auto-save paused` and `history: failing` appear only when they have something to say; popups of the sandbox, history, guard and macros plugins use the `XynoPopup*` highlight groups.
+- **Terminals** (#5): `:checkhealth xynovim` has a terminal section (truecolor, curly/coloured underlines in tmux with the exact `terminal-features` lines, Ghostty `minimum-contrast`, WezTerm and kitty notes).
+- The dashboard header is xynovim's own (#12).
+
+### Rainbow brackets
+
+Every bracket pair is coloured by nesting depth from the syntax tree (`lua/config/rainbow*.lua`; no plugin to install), after JetBrains' Rainbow Brackets, the plugin RustRover users have. Strings, comments, char literals and lifetimes are never touched; generics and turbofish `::<T>` are pairs, a comparison `<` is not; closure pipes `|a, b|`, macro bodies and `#[attributes]` are coloured; an unmatched bracket is marked red with a curl (the JetBrains plugin does not do that). Each kind has its own switch, the number of colours and the palette are options, the colours are lifted to at least 3:1 against the editor and the caret row (7:1 in the high-contrast variant) in Island Dark and Island Light, and there is a colour-blind palette whose colours stay apart under simulated protanopia, deuteranopia and tritanopia.
+
+**Scope highlighting** like the plugin: `Ctrl`+right-click tints the innermost pair with its own colour (alpha 0.2) and marks the two brackets, `Alt`+right-click dims everything outside it, ESC clears (`<leader>uj` / `uJ`, `:XynoRainbow scope|restrain`). The plugin's rectangular outline is approximated (`scope.box = "outline"`): `╭──╮` / `╰──╯` borders as virtual lines, `│` side edges where the cells are blank, the two brackets inverted; the tint keeps off the debugger's stopped line. **Rainbow variables** (locals coloured by name) are an option, off by default. **Rainbow keywords and tags** are options, off by default (`:XynoRainbow keywords on`, `tags on`): Python `if/for/while/try/def...` and C `#if/#else/#endif` by depth, HTML / XML / JSX tags with their brackets by element depth, YAML keys by mapping depth (real-pixel captures in `docs/comparison/screenshots/rainbow/`). Rules for Ruby keywords, C++ `#if` and Kotlin lambda arrows are written but never run (those grammars are not installed here; `:TSInstall ruby cpp kotlin` makes them work, untested); the rainbow indent guides were excluded by request.
+
+`:XynoRainbow` (tab-completes) switches every option, cycles the palette (`palette next`), shows and saves the colours and sets any option by name; `vim.g.xynovim_rainbow = { ... }` is validated and the table of options is in [docs/RAINBOW.md](docs/RAINBOW.md). Only the visible lines are processed: in a 37 000-line Rust file scrolling three lines costs about 1.1 ms more with the brackets on and typing one character 1.7 ms more (medians, measured under load) (`scripts/bench/rainbow.sh`, [numbers](docs/RAINBOW.md#measured)).
+
+| Island Dark, brackets on | off (before) | scope highlight |
+| --- | --- | --- |
+| ![rainbow brackets on a Rust file, real Ghostty window](docs/comparison/screenshots/rainbow/on-120.png) | ![same file without them](docs/comparison/screenshots/rainbow/off-120.png) | ![scope highlight](docs/comparison/screenshots/rainbow/scope-120.png) |
+
 ### The AI agent, sandboxed
 
-[99](https://github.com/ThePrimeagen/99) with the Claude Code provider is wired in (`<leader>9`), and its `claude --dangerously-skip-permissions` runs inside **bubblewrap**, which exists only on Linux, so the agent **only runs where a sandbox exists** (Linux with `bwrap`; WSL2 with `bwrap` is the route on Windows, not tested here). Without one (Windows, macOS, Linux without `bwrap`) 99 **refuses** to start a request and says why. Two explicit booleans override that, and either one warns on every request: `vim.g.xynovim_99_sandbox = false` turns the sandbox off on purpose (even where `bwrap` works), `vim.g.xynovim_99_allow_unsandboxed = true` runs the agent anyway only when there is no backend (it never disables a working sandbox); `0`, `"false"` or `1` count as nothing. The `<leader>9P` provider picker only accepts the guarded Claude Code provider under the same rule (the other CLIs would run with no sandbox or checkpoint). Where `bwrap` works: the filesystem is read-only except the project and Claude's own state, credentials and agent sockets are hidden, `.git/hooks`, `.git/config` and Claude's settings are locked read-only, the environment is scrubbed of tokens, and every request is preceded by a Local History snapshot with auto-save paused. It is a seatbelt, not a jail: the network stays open (details in [docs/DETAILS.md](docs/DETAILS.md)). There are no screenshots: the sandbox has no UI, and a real request needs an account.
+[99](https://github.com/ThePrimeagen/99) with the Claude Code provider is wired in (`<leader>9`), and its `claude --dangerously-skip-permissions` runs inside **bubblewrap**, which exists only on Linux, so the agent **only runs where a sandbox exists** (Linux with `bwrap`; WSL2 with `bwrap` is the route on Windows, not tested here). Without one (Windows, macOS, Linux without `bwrap`) 99 **refuses** to start a request and says why. Two explicit booleans override that, and either one warns on every request: `vim.g.xynovim_99_sandbox = false` turns the sandbox off on purpose (even where `bwrap` works), `vim.g.xynovim_99_allow_unsandboxed = true` runs the agent anyway only when there is no backend (it never disables a working sandbox); `0`, `"false"` or `1` count as nothing. The `<leader>9P` provider picker only accepts the guarded Claude Code provider under the same rule (the other CLIs would run with no sandbox or checkpoint). Where `bwrap` works: the filesystem is read-only except the project and Claude's own state, credentials and agent sockets are hidden, `.git/hooks`, `.git/config` and Claude's settings are locked read-only, the environment is scrubbed of tokens, and every request is preceded by a Local History snapshot with auto-save paused. It is a seatbelt, not a jail, and **only the AI agent is sandboxed**: rust-analyzer, build scripts and proc macros, `cargo`, the debuggee, tests and every plugin run with your full privileges (the restricted mode for untrusted workspaces limits what rust-analyzer executes; it is not a sandbox). With the pinned xyno-sandbox.nvim the network stays open; the plugin's `dev` branch (not pinned yet) starts the agent without a network and lets HTTPS through only to an allowlist proxy, failing closed (its README, "Network") (details in [docs/DETAILS.md](docs/DETAILS.md)). With the xyno-sandbox.nvim version that has the policy preview (not yet in `lazy-lock.json`, see the changelog), `:XynoSandboxPolicy` and the first request of a project show what is writable, read-only, hidden and stripped before anything starts, exceptions are approved one by one and logged, and the statusline shows the sandbox state. There are no screenshots of it (not recorded yet): the sandbox has no UI, and a real request needs an account.
+
+**The sandboxed agent cannot commit by default**: the project's `.git` is mounted read-only (so no hook, `core.fsmonitor` or alias can be planted for your next unsandboxed `git status`); `git log` / `git status` / `git diff` work, `git add` and `git commit` fail. `policy = { git_write = true }` (xyno-sandbox.nvim `dev`, shown as a "Git write mode" section of `:XynoSandboxPolicy`) is the opt-in: the agent can commit while `hooks/`, `config`, `info/` and `config.worktree` stay read-only; it can still move refs and rewrite history of that repository.
+
 
 ## Install
 
@@ -184,7 +220,7 @@ The shell scripts (`scripts/bootstrap.sh`, `scripts/test.sh`) are bash convenien
 | --- | --- | --- |
 | Linux | Developed on (Arch); fully tested. | Ubuntu, `ci` run 39695896272: bootstrap, startup and the whole suite: 1749 passed, 0 failed, 76 skipped. |
 | Windows | Works in CI: the plugin restore from the lockfile (`scripts/bootstrap.ps1`), a silent headless start, and the specs that are not Linux-only. 10 of the 38 spec files of that run are skipped whole there and not demonstrated. | `platforms` run 39673715062: 1077 passed, 0 failed, 87 skipped. Green in 5 of the 6 runs from 39660597368 on (39660597368, 39663956677, 39673715062, 39679589563, 39679743409); the one red run (39668277143) was a path assertion in a spec, fixed afterwards. |
-| macOS | **Not reliably green.** Neovim starts and most specs pass, but the job did not pass in 4 of the 5 runs that finished from 39660597368 on (39679589563 was cancelled). | Green once: run 39663956677 (1431 passed, 0 failed, 73 skipped). Red in 39660597368 (2 timing specs failed), 39668277143 (a live `:MacroExpand` spec timed out), 39673715062 (a treesitter parser would not compile during the plugin restore, so nothing after it ran) and 39679743409 (an auto-import timing spec failed). |
+| macOS | **Not reliably green.** Neovim starts and most specs pass, but the macOS job passed in 8 of the 20 runs that finished from 39660597368 through 39779852292 (the last one, 2026-10-22, is green; 39679589563 was cancelled). | Green: 39663956677 (1431 passed, 0 failed, 73 skipped), 39682866562, 39685304990, 39685340055, 39687595350, 39736274036, 39738986558 and 39779852292 (the last: both jobs, the whole suite). The reds were mostly timing-dependent specs against a live rust-analyzer: an auto-import `single` spec (39679743409, 39695896363, 39701794116, 39727973489, 39732897360, 39746701940, 39756026137; that spec now lives in xyno-imports.nvim and no longer runs here), a live `:MacroExpand` (39668277143), `rv` extract (39729998314), two timing specs (39660597368). One red (39673715062) was the plugin restore: the treesitter parsers failed with `Lock file ... appears stale` because two builds of one parser contended for the CLI's lock; `scripts/provision.lua` now waits for LazyVim's own installs and retries (green runs show no such error) and, since this change, also clears stale lock files before a retry (a macOS run has not shown that last part yet). |
 
 Linux-only by design, so nothing of it works on Windows or macOS: the **99 agent sandbox** (bubblewrap; without a backend 99 refuses to start, see [The AI agent, sandboxed](#the-ai-agent-sandboxed)), the remote clipboard, the **tmux-based** and bash-stub test tooling (`scripts/test.sh`, `--coverage`; use `scripts/test.lua` or `scripts/test.ps1` elsewhere) and the **mold** linker setup (a Linux speed-up; `mold` and `clang` are optional anyway).
 
@@ -194,7 +230,7 @@ Prerequisites (`scripts/bootstrap.sh` checks the ones it needs itself (see the s
 
 - Required to bring the config up: `nvim` 0.12, `git`, `curl`, `tar`, `unzip`, `gcc` (tree-sitter parsers), the `tree-sitter` CLI (nvim-treesitter builds parsers with it; Mason installs it as the tree-sitter-cli package, `:checkhealth xynovim` warns when it is missing), `gzip`, `node` and `npm` (Mason's `markdownlint-cli2`, `markdown-toc`, `yaml-language-server`).
 - Required for the Rust workflow: `cargo`, `rustup` (with the `stable` toolchain, its `clippy` and `llvm-tools` components) and `rust-analyzer` on PATH (`rustup component add rust-analyzer`).
-- Installed by Mason (`scripts/bootstrap.sh` step 3 runs `scripts/provision.lua`, which also downloads the treesitter parsers; otherwise they come with the first interactive start): `bacon-ls` >= 0.31.0, `codelldb`, `taplo`, `wgsl-analyzer`, `marksman`, `lua-language-server`, `json-lsp`, `yaml-language-server`, `tree-sitter-cli`, `markdownlint-cli2`, `markdown-toc`, `stylua`, `shfmt`. The `bacon` package is a separate Mason package (also pulled in with `bacon-ls`); its binary is **not** used: bacon-ls runs cargo/clippy directly. `bootstrap.sh` stops without `cargo`, `rustup` or `rust-analyzer`; `BOOTSTRAP_SKIP_PREREQS=1` goes on anyway (a machine without Rust).
+- Installed by Mason (`scripts/bootstrap.sh` step 3 runs `scripts/provision.lua`, which also downloads the treesitter parsers; otherwise they come with the first interactive start): `bacon-ls` >= 0.31.0, `codelldb`, `taplo`, `wgsl-analyzer`, `marksman`, `lua-language-server`, `json-lsp`, `yaml-language-server`, `tree-sitter-cli`, `markdownlint-cli2`, `markdown-toc`, `stylua`, `shfmt`. Their versions are fixed by pinning the Mason **registry** to a release tag (`lua/plugins/mason-pin.lua`; LazyVim's `ensure_installed` takes no `name@version`); that fixes which version Mason resolves, it does not audit the downloads. The `bacon` package is a separate Mason package (also pulled in with `bacon-ls`); its binary is **not** used: bacon-ls runs cargo/clippy directly. `bootstrap.sh` stops without `cargo`, `rustup` or `rust-analyzer`; `BOOTSTRAP_SKIP_PREREQS=1` goes on anyway (a machine without Rust).
 - Optional, each one only costs its feature: `mold` + `clang` (linker, see below), `cargo-nextest`, `cargo-deny`, `cargo-expand`, `lazygit`, `delta`, `bwrap` (the 99 sandbox, Linux only; without it 99 refuses to run, see above).
 
 ```sh
@@ -215,25 +251,75 @@ $env:USERPROFILE\xynovim\scripts\bootstrap.ps1
 
 Why a script and not just `nvim --headless '+Lazy! restore' +qa`: on an empty plugin directory lazy.nvim installs in several rounds (a plugin's own specs, such as LazyVim's extras, are only read once it is cloned) and rewrites `lazy-lock.json` after every round with the plugins it knows so far. The pins of the ones found later are dropped, so those land on their newest commit (5 of 79 did in the first fresh-install tests, before 18 theme-only plugins were dropped (61 plugins are locked now), and the lockfile changed; kulala was a sixth until `submodules = false` fixed its pin, see step 10). The script runs `Lazy! install`, puts the original lockfile back, runs `Lazy! restore` and fails if `lazy-lock.json` differs afterwards; CI runs it and then `git diff --exit-code lazy-lock.json`. A plain `Lazy! restore` on an install that already holds every plugin ended with an identical lockfile in the same test.
 
+## Clipboard: tmux, SSH, Ghostty
+
+Yanks reach the system clipboard in three ways, chosen by [xyno-clipboard.nvim](https://github.com/xynorash/xyno-clipboard.nvim):
+
+| Session | What happens on `"+y` | Paste (`"+p`) |
+| --- | --- | --- |
+| Plain local terminal with `wl-clipboard` (Wayland) or `xclip`/`xsel` (X11) | Neovim's own provider | the system clipboard |
+| Inside tmux, over SSH, or under herdr | `wl-copy` if there is one **and** an OSC 52 sequence to the terminal (tmux turns it into a tmux buffer and passes it on to every client) | `wl-paste` if there is one, otherwise an OSC 52 query |
+| No clipboard tool at all (a fresh machine) | an OSC 52 sequence only, and one hint on startup saying what to install | what this session copied last (an OSC 52 query would freeze Neovim in terminals that never answer) |
+
+On Arch/CachyOS under Wayland: `sudo pacman -S wl-clipboard`. On X11: `sudo pacman -S xclip`. `:checkhealth xynovim` reports what is missing.
+
+**OSC 52 needs the terminal's permission.** [Ghostty](https://ghostty.org/docs/config/reference) (`TERM=xterm-ghostty`) accepts OSC 52
+writes by default (`clipboard-write = allow`; the values are `ask`, `allow`, `deny`), while reading is `clipboard-read = ask`, i.e. a
+prompt on every request. In `~/.config/ghostty/config`:
+
+```
+clipboard-write = allow
+clipboard-read = ask      # or allow; Neovim's fallback never reads through the terminal, only tmux/ssh pastes do
+```
+
+If yanks inside tmux do not arrive, tmux must accept applications' OSC 52: `set -g set-clipboard on` in `~/.tmux.conf` (the default,
+`external`, ignores them; the `clipboard-e2e` spec runs a real tmux with `on`). Retrieved 2026-11-12 from the Ghostty option reference.
+
 ## Keys you will use
 
 `<leader>` is Space; which-key shows the menu of every prefix.
 
+**Mode legend.** Out of the box the plugins are the pinned versions of `lazy-lock.json` (*pinned*). Features marked **[dev]** exist only on the `dev` branches of the xyno plugins and are live when you start Neovim with `XYNOVIM_DEV_PLUGINS` pointing at the clones ([docs/DEV-PLUGINS.md](docs/DEV-PLUGINS.md)); with the pinned plugins their commands do not exist (checked by loading every xyno plugin in a headless Neovim in both modes: `:RustRun`, `:RustRunLast`, `:RustRunEdit`, `:RustRunDelete`, `:RustRunShare`, `:RustActions`, `:RustRefactor`, `:RustFixAll`, `:RustRename`, `:RustUsages`, `:RustProfile`, `:TokioConsole`, `:RustTrust`, `:RustNewFrom`, `:LocalHistoryPanel` and `:XynoSandboxPolicy` are missing; `<leader>rn`, `rU`, `rY` and `rA` are mapped only when their command exists; `rb`, `rB`, `ra` and `rQ` are always mapped and then report the missing command). Unmarked entries work in both modes. The restricted mode for untrusted workspaces works in both (the pinned set uses the vendored trust copy), but its `:RustTrust` command is **[dev]**.
+
+
 | Keys | What |
 | --- | --- |
-| `<leader>r…` | rust-analyzer: `rv` extract variable, `rf` function, `rc` constant, `ri` inline, `rs` structural search / replace, `rj` join lines, `rm` expand macro, `rh` / `rH` HIR / MIR, `re` explain error code, `rl` usages in file (read / write), `ru` go to super method, `rw` / `rW` workspace symbol (+ dependencies), `rF` features / target, `rX` targets, `rZ` cargo tools, `rN` HTTP routes, `rR` reload workspace; dependencies and macros: `rA` add crate, `rG` enable the missing feature, `rI` import name (ranked), `rO` organize imports, `rx` expand macro (lens), `rq` proc-macro status; `<A-j>` / `<A-k>` move item |
-| `<leader>d…` | debugger: `db` breakpoint, `dc` continue, `dr` / `dR` debuggables (file / workspace), `du` dap-ui |
-| `<leader>t…` | tests: `tt` file, `tr` nearest, `tT` all, `ts` summary, `to` output, `tw` watch, `tD` doc-tests, `tc` run coverage, `tg` toggle coverage signs |
+| `<leader>r…` | rust-analyzer: `ra` refactor menu with a diff preview of the highlighted action **[dev]**, `rv` extract variable, `rf` function, `rc` constant, `ri` inline, `rs` structural search / replace, `rj` join lines, `rm` expand macro, `rh` / `rH` HIR / MIR, `re` explain error code, `rl` usages in file (read / write), `ru` go to super method, `rw` / `rW` workspace symbol (+ dependencies), `rF` features / target, `rX` targets, `rZ` cargo tools, `rN` HTTP routes, `rR` reload workspace; dependencies and macros: `rA` add crate, `rG` enable the missing feature, `rI` import name (ranked), `rO` organize imports, `rb` / `rB` run configurations (args, env, profiler; saved per project) / run the last again **[dev]**, `rQ` apply the preferred quick fixes of the buffer **[dev]**, `rx` expand macro (lens), `rq` proc-macro status; `<A-j>` / `<A-k>` move item |
+| `<leader>d…` | debugger: `db` breakpoint, `dB` condition, `dL` logpoint, `dH` hit count, `dX` exception breakpoints, `dc` continue, `dv` value float, `dr` / `dR` debuggables (file / workspace), `du` dap-ui |
+| `<leader>t…` | tests: `tt` file, `tr` nearest, `tT` all, `ts` summary, `to` output, `tw` watch, `tD` doc-tests (terminal), `tE` doc-tests (panel), `tp` results panel, `tf` rerun failed, `tP` nextest profile, `tc` run coverage, `tg` toggle coverage signs |
 | `<leader>g…` | git: `gg` lazygit, `gv` diffview, `gV` branch vs origin, `gF` file history, `gH` local history |
-| `<leader>c…` | `cd` diagnostic float, `cj` split / join (treesj), `cI` / `cO` incoming / outgoing call trees, `cn` doc comment stub |
+| `<leader>c…` | `ca` code actions with a diff preview (Rust buffers, **[dev]**), `cd` diagnostic float, `cj` split / join (treesj), `cI` / `cO` incoming / outgoing call trees, `cn` doc comment stub |
 | `<leader>9…` | the 99 agent: `9v` vibe, `9s` search, `9o` last interaction, `9x` stop |
 | `<leader>H`, `<C-e>`, `<M-1..4>` | harpoon: add file, menu, jump |
 | `<leader>uO`, `uB`, `uu` | toggle editor transparency, colour-blind diagnostics, undotree |
+| `<leader>uk`, `uj`, `uJ` | rainbow brackets: toggle, highlight the scope at the cursor, dim everything outside it (ESC clears; `Ctrl` / `Alt` + right-click does the same under the pointer) |
 | dashboard `b`, `i`, `w`, `e` | new Rust binary, library, workspace, egui project |
 
 ## Commands
 
-`:RustContext` (features and target for both tiers), `:RustTargets`, `:RustTools`, `:RustNew`, `:RustNewBin`, `:RustNewLib`, `:RustNewWorkspace`, `:RustNewMember` (new binary, library or workspace, also on the dashboard), `:EguiNew` (new egui project from the current eframe_template, also on the dashboard), `:RustRoutes` (axum / actix / rocket routes), `:RustRestart`, `:CrateAdd`, `:CrateFeatures`, `:ImportName`, `:ImportForget`, `:ImportOrganize`, `:MacroAttrs`, `:MacroExpand`, `:MacroSignature`, `:MacroFormatFix`, `:ProcMacroStatus`, `:ActJob` (run the GitHub Actions job under the cursor with `act`), `:LocalHistory`, `:LocalHistoryRestore`, `:LocalHistoryPrune`, `:ColorblindDiagnostics`, `:checkhealth xynovim`. Plugin management is stock LazyVim: `:Lazy sync` updates (the update checker is off), `:LazyExtras` toggles extras, `:Mason` manages language servers.
+Mode: **[dev]** = needs the `dev` xyno plugins, see the legend under [Keys you will use](#keys-you-will-use). Everything else works with the pinned plugins.
+
+`:RustContext` (features and target for both tiers), `:RustTargets`, `:RustTools`, `:RustNew`, `:RustNewBin`, `:RustNewLib`, `:RustNewWorkspace`, `:RustNewMember` (new binary, library or workspace, also on the dashboard), `:EguiNew` (new egui project from the current eframe_template, also on the dashboard), `:RustRoutes` (axum / actix / rocket routes), `:RustRun` / `:RustRunLast` / `:RustRunEdit` / `:RustRunDelete` (run configurations, **[dev]**), `:RustActions` / `:RustRefactor` (code actions with a diff preview, **[dev]**), `:RustFixAll` (**[dev]**), `:RustRename`, `:RustUsages`, `:RustProfile`, `:TokioConsole`, `:RustTrust`, `:RustNewFrom`, `:LocalHistoryPanel`, `:XynoSandboxPolicy` (all **[dev]**), `:RustRestart`, `:CrateAdd`, `:CrateFeatures`, `:ImportName`, `:ImportForget`, `:ImportOrganize`, `:MacroAttrs`, `:MacroExpand`, `:MacroSignature`, `:MacroFormatFix`, `:ProcMacroStatus`, `:ActJob` (run the GitHub Actions job under the cursor with `act`), `:LocalHistory`, `:LocalHistoryRestore`, `:LocalHistoryPrune`, `:ColorblindDiagnostics`, `:XynoRainbow` (rainbow brackets: switches, palette, scope, options), `:Hints`, `:DiagnosticsView`, `:XynoIcons`, `:IslandContrast`, `:checkhealth xynovim`. Plugin management is stock LazyVim: `:Lazy sync` updates (the update checker is off), `:LazyExtras` toggles extras, `:Mason` manages language servers.
+
+## Run configurations, previews and Problems
+
+| Keys / command | Mode | What it does |
+| --- | --- | --- |
+| `<leader>rb`, `:RustRun [name]` | dev | run configurations saved per project: cargo command, target, program arguments, cargo arguments, environment variables, optional `samply` / `cargo flamegraph` profiler. `<CR>` runs, `<C-e>` edits, `<C-x>` deletes; stored in the state directory; asks for workspace trust once. Opt-in sharing: a committed `.xynovim/run.toml` (read only in a trusted workspace, merged with the personal ones; `:RustRunShare`) |
+| `<leader>rn`, `<leader>rU`, `<leader>rY`, `<leader>rA` | dev | `:RustRename` (per-file diff preview, untick files), `:RustUsages` (grouped code / imports / tests / docs), `:RustProfile` (hot functions and call tree of a `perf script` / folded-stacks file), `:TokioConsole` (project check and launcher). A mouse click on rust-analyzer's Run / Debug lens line runs it. Present only with the xyno-rust.nvim `dev` commits (see CHANGELOG), not with the pinned plugin |
+| `<leader>rB`, `:RustRunLast` | dev | run the previous one again |
+| `<leader>ca`, `<leader>ra` (Rust buffers) | dev | code actions / refactorings in a picker; the preview is the diff the highlighted action would make |
+| `<leader>rQ`, `:RustFixAll` | dev | apply rust-analyzer's preferred quick fixes of the buffer as one undo step; fixes from `cargo check` are skipped while the buffer has unsaved changes (they describe the saved text) |
+| `<leader>xx`, `<leader>xe`, then `e` / `w` / `S` / `a` | pinned and dev | Problems panel (Trouble): all files; `xe` opens it errors-only; inside it `e` errors only, `w` errors and warnings, `S` next source, `a` clear (Trouble's own `s` cycles one severity, `gb` limits to the buffer) |
+| `vim.g.xynovim_organize_on_save = true` | dev (the engine is xyno-imports) | opt-in: organize imports (merge, normalise, remove unused) after `:w` in Rust files, then write again. Off by default; not triggered by auto-save |
+
+## Untrusted workspaces, large files, history panel, benchmarks
+
+- **Restricted mode** (`lua/config/workspace_trust.lua`, uses the trust list of the `dev` xyno-rust.nvim, or, while `lazy-lock.json` pins one without the module, the vendored `lua/xynovim/trust_fallback.lua` (same API and file, used only when the plugin has none; `:checkhealth xynovim` says which): in a Rust workspace that is not in the `:RustTrust` list, rust-analyzer starts with build scripts, proc macros and `cargo check` off, and bacon-ls (clippy) is not started. One prompt per workspace and session, a wrapped float that fits 60 columns (trust, trust everything under the parent, run once, stay restricted; "run once" ends when a manifest changes behind the editor; the editor's own `cargo add` and saves do not re-ask); `RESTRICTED` shows in the statusline; trusting restarts rust-analyzer with the full settings. `vim.g.xynovim_workspace_trust = false` turns it off. The same check guards the commands of this config that run project code: coverage, the doc-tests panel run, the debug build before a launch, rustaceanvim runnables / testables / debuggables, every neotest run and the cargo-deny / cargo-machete linters (`:RustRun`, `:RustTargets`, profiling and `:MacroExpand` ask inside their plugins). Trust follows the content: a Cargo.toml, build.rs (also one at a custom `package.build` path and the modules it declares), a path dependency or workspace member outside the root (manifest and build script), the sources of a proc-macro crate, `.cargo/config(.toml)` or `rust-toolchain(.toml)` that changed since you trusted a workspace (a pull, another branch) asks again and names the files; saving one in Neovim does not. The list comes from `cargo metadata --no-deps --offline` (read in the background; it runs no build script, rustc or wrapper) plus a bounded manifest scan; files are hashed whole up to 32 MiB. Entries from before this change ask once more for a workspace that has such files. With an xyno-rust.nvim that has no trust list, a Rust workspace stays restricted (it cannot be asked) until you update the pin or set the switch above. It limits what rust-analyzer executes; it is not a sandbox (only the AI agent is sandboxed).
+- **Large files** (`lua/config/largefile.lua`, `:LargeFile`, `vim.g.xynovim_largefile = false` to disable): from 20 000 lines, 512 KB or 300-byte average lines a buffer sheds folds, treesitter indent, semantic tokens, inlay hints, code lens, spell, indent guides, word illumination, the breadcrumb and nested-language injections; above snacks.nvim's bigfile limit there is no LSP and no treesitter. Measured on a 40 013-line Rust file: [docs/bench/perf-2026-11.md](docs/bench/perf-2026-11.md). `vim.g.xynovim_clippy_debounce_ms` (default 500) is the pause between the last edit and a clippy run.
+- **Local History panel** (`<leader>gP`, `:LocalHistoryPanel`, needs the `dev` xyno-history.nvim): snapshots, changed files, a diff preview, labels, content search, revert of a file or a hunk.
+- **Benchmarks** (`scripts/bench/bench.sh`, [scripts/bench/README.md](scripts/bench/README.md)): startup, per-plugin load, edit-to-diagnostic latency, idle memory and a large file, in an isolated Neovim. The baseline and the latest run are in [docs/bench/](docs/bench/); [docs/bench/final-2026-11.md](docs/bench/final-2026-11.md) compares them. `scripts/bench/compare.sh` runs the same harness on the starter configs of LazyVim, kickstart, AstroNvim and NvChad; it downloads and runs their code, so read it and run it yourself.
+- **Where the work stands**: [docs/PROGRESS.md](docs/PROGRESS.md) (what changed per area, what is ahead or behind, what waits for the owner).
 
 ## Macros and dependencies
 
@@ -369,7 +455,7 @@ Video: [14-egui-new.mp4](docs/media/14-egui-new.mp4)
 
 ## Tests: run them yourself
 
-The config ships with an automated suite: **32 spec files, 906 checks passing, 35 skipped with a stated reason, 0 failing**, in about six minutes. The passing and skipped counts depend on the machine (the figures are from my Linux machine (Arch), which has `debug = true` in `~/.cargo/config.toml`, a `~/.cargo/bin` and no `pwsh`; the Ubuntu CI run 39695896272 shows 1749 passed, 76 skipped, 0 failed). Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
+The config ships with an automated suite: **64 spec files, 1370 checks passing, 43 skipped with a stated reason, 0 failing**, in about twelve minutes. These are the figures of the last whole-suite run of 2026-11-13 (Linux, Arch, `scripts/test.sh`, the pinned plugins from `lazy-lock.json`, a machine that was not idle): 1370 passed, 0 failed, 43 skipped in 727 s. The run before it (660 s) printed 1368 passed, 1 failed, 43 skipped: the failed check was `site_spec` comparing this README's spec-file count (57) with the directory (64), corrected since, and the other two checks are the one it fixed and a new one in `startup-and-options`. The 43 skips each carry a reason in the runner output; the groups are the specs that need the `dev` branches of the xyno plugins (18 of the 43: they run in dev mode, which has 25 skips), the optional tools missing on this machine (`cargo-nextest`, `pwsh`, `shellcheck`, Mason's `tree-sitter` CLI, `lldb-dap`, the `wasm32-unknown-unknown` target), the offline cargo-deny advisory database, and checks that are documentation only or covered by another spec. The full list with who decides each is [docs/KNOWN-WARNINGS.md](docs/KNOWN-WARNINGS.md). With the local clones of the plugins' `dev` branches (`XYNOVIM_DEV_PLUGINS`, [docs/DEV-PLUGINS.md](docs/DEV-PLUGINS.md)) the whole-suite run of the same day (64 files) printed 1386 passed, 1 failed (the same README count), 25 skipped in 666 s: the specs for the newer plugin features run there and skip with a stated reason against the pinned plugins. The suite includes `warnings-guard`, which starts the editor with empty state in both plugin modes and fails on any unexpected `:messages` line, E-code, `vim.deprecate`, WARN notification or `:checkhealth` finding outside a commented allowlist of limits of this machine. Each plugin's own suite (`scripts/plugin-tests.sh`, which also points the optional specs at the parsers and plugins of this install; dev branches, same day): xyno-clipboard 42, xyno-crates 115, xyno-guard 70, xyno-history 158, xyno-imports 67, xyno-macros 285, xyno-new 230, xyno-rust 438, xyno-sandbox 1161 passed, 0 failed (skips: history 6, rust 1). The passing and skipped counts depend on the machine (the Ubuntu CI run 39695896272, an older commit, shows 1749 passed, 76 skipped, 0 failed). Each file runs in its own headless Neovim with the full config and a hard timeout, so a hanging test cannot stall the rest. After cloning and bootstrapping:
 
 ```sh
 scripts/test.sh                  # everything (or: make test)
@@ -385,7 +471,7 @@ Video: [10-test-suite.mp4](docs/media/10-test-suite.mp4)
 - **Nothing of yours is touched**: the specs run against a temp config / state / cache; only the installed plugins are reused. Missing tools (rust-analyzer, tmux, bubblewrap, lazygit, ...) make their specs **skip with a message**, never fail.
 - **One spec per feature area**: startup and options, the Island theme, every `<leader>r` command, `:RustContext`, `:RustTargets`, Local History, auto-save guards, the agent sandbox and the 99 guard, the two diagnostic tiers' configuration, server supervision, debugger and test integration, git and lint tooling, snippets and treesitter injections, the UI helpers, health / bootstrap / CI, and the claims this documentation makes, and the website. [tests/COVERAGE.md](tests/COVERAGE.md) maps every feature to the spec that tests it and lists what has no test and why.
 - **Line coverage** of the repo's own Lua was about 86 % before the macros and dependencies modules (`--coverage`, not re-run since; the denominator is estimated, treat it as a guide).
-- **CI**: the [ci workflow](.github/workflows/ci.yml) runs `scripts/bootstrap.sh` (clone plugins on their locked commits, download parsers and Mason tools), a startup smoke test, then `scripts/test.sh`, on a clean Ubuntu machine for every push.
+- **CI**: the [ci workflow](.github/workflows/ci.yml) runs `scripts/bootstrap.sh` (clone plugins on their locked commits, download parsers and Mason tools), a startup smoke test, then `scripts/test.sh`, on a clean Ubuntu machine for every push. The same workflow has a `lint` job (`stylua --check .` and `lua-language-server --check`, config in `stylua.toml` and `.luarc.json`), and its Neovim, StyLua and lua-language-server downloads are pinned by version and sha256 like the ones in the [platforms workflow](.github/workflows/platforms.yml); the Actions are pinned by commit SHA and Dependabot proposes updates. Ready-to-copy lint and security files for the nine plugin repositories are in [docs/plugin-ci-templates](docs/plugin-ci-templates) (not applied to those repositories).
 - How the harness works, how to write a spec and what the helpers offer: [docs/TESTING.md](docs/TESTING.md).
 
 ## The demo project and the recordings
@@ -402,8 +488,13 @@ docs/media/record.sh 05-tests   # one tape
 ## More documentation
 
 - [docs/DETAILS.md](docs/DETAILS.md): the engineering notes behind each setting, what was measured and what was **not** verified.
-- [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md): limitations that were found and deliberately left alone.
+- [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md): limitations that were found and deliberately left alone, and the ones fixed since.
+- [docs/KNOWN-WARNINGS.md](docs/KNOWN-WARNINGS.md): every warning, error and skip that remains in a start and in the suite, with its reason and who decides.
+- [SECURITY.md](SECURITY.md): how to report a problem, what the agent sandbox is and is not (a seatbelt, not a jail), and what is pinned and what is not.
 - [docs/TESTING.md](docs/TESTING.md) and [tests/COVERAGE.md](tests/COVERAGE.md): the test suite.
+- [docs/PROGRESS.md](docs/PROGRESS.md): what changed since the baseline per area, the comparison status table, what waits for the owner, the commands to run.
+- [docs/comparison/](docs/comparison/README.md): the comparison with RustRover, VS Code, Zed, Helix and the popular Neovim configurations, with sources and dates.
+- [docs/DEV-PLUGINS.md](docs/DEV-PLUGINS.md): run xynovim, its specs and the benchmarks against local clones of the `xyno-*` plugins (`XYNOVIM_DEV_PLUGINS`).
 - [CHANGELOG.md](CHANGELOG.md): every notable change.
 
 ### Website
@@ -418,7 +509,7 @@ Thank you to JetBrains for their amazing products. I am a full-in JetBrains user
 ## Layout
 
 ```
-lua/config/    options, keymaps, autocmds, statusline/UX helpers, rust_assist, lazy
+lua/config/    options, keymaps, autocmds, statusline/UX helpers, rust_assist, lazy, rainbow* (the rainbow brackets)
 lua/xynovim/   :checkhealth xynovim
 snippets/       rust.json (registered with blink)
 lua/plugins/   one spec per concern (bacon-ls, rustaceanvim, ninety-nine, auto-save, dap, gitsigns, telescope, island-theme, xyno-history, xyno-sandbox, xyno-clipboard, xyno-guard, xyno-rust, xyno-new, xyno-imports, xyno-crates, xyno-macros, …)

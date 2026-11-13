@@ -69,7 +69,11 @@ return {
         elseif vim.bo[buf].filetype == "rust" and package.loaded["neotest.client"] then
           -- only neotest's own rediscovery (group neotest.Client): the tree kept the old
           -- tests after an autosave, so <leader>tr on a new test ran another one
-          pcall(vim.api.nvim_exec_autocmds, "BufWritePost", { group = "neotest.Client", buffer = buf, modeline = false })
+          pcall(
+            vim.api.nvim_exec_autocmds,
+            "BufWritePost",
+            { group = "neotest.Client", buffer = buf, modeline = false }
+          )
         end
       end,
     })

@@ -23,10 +23,36 @@ end
 --- differently, so the two never matched; known pairs.
 local LINT_CODES = { unsafe_op_in_unsafe_fn = "E0133" }
 
+-- The naming lints. rust-analyzer words them "Function `BadName` should have snake_case name, e.g.
+-- `bad_name`" with `code = "non_snake_case"`; rustc/clippy (bacon-ls, no `code`) "function `BadName`
+-- should have a snake case name". Same lint and identifier on one line: one problem (field test: both
+-- were shown). rustc's phrase picks the lint.
+local NAMING_LINTS = { non_camel_case_types = true, non_snake_case = true, non_upper_case_globals = true }
+local NAMING_PHRASES = {
+  ["upper camel case"] = "non_camel_case_types",
+  ["snake case"] = "non_snake_case",
+  ["upper case"] = "non_upper_case_globals",
+}
+
+--- "<lint>:<identifier>" for a naming-lint diagnostic of either tier, else nil.
+local function naming_key(d)
+  local first = head(d.message)
+  local ident = first:match("`([^`]+)`")
+  if not ident then
+    return nil
+  end
+  if type(d.code) == "string" and NAMING_LINTS[d.code] then
+    return d.code .. ":" .. ident
+  end
+  local phrase = first:match("should have an? (.-) name")
+  local lint = phrase and NAMING_PHRASES[phrase]
+  return lint and (lint .. ":" .. ident) or nil
+end
+
 local function same_key(d)
   local code = type(d.code) == "string" and (d.code:match("^E%d+$") or LINT_CODES[d.code])
     or head(d.message):match("^%a+%[(E%d+)%]")
-  return code or (head(d.message):gsub("^%a+: ", ""):gsub("[%s%p]+$", ""):lower())
+  return code or naming_key(d) or (head(d.message):gsub("^%a+: ", ""):gsub("[%s%p]+$", ""):lower())
 end
 
 --- virtual_text.format: only the first line (clippy sends the whole rendered
@@ -34,7 +60,7 @@ end
 --- problem both tiers report on the same line (E0308 from rust-analyzer and
 --- from clippy) is shown once: the diagnostic with a `code` (rust-analyzer's,
 --- the more specific text), else the one from the earlier namespace.
-function M.diagnostic_text(d)
+function M.base_text(d)
   if d.bufnr and vim.api.nvim_buf_is_valid(d.bufnr) then
     local key = same_key(d)
     for _, o in ipairs(vim.diagnostic.get(d.bufnr, { lnum = d.lnum })) do
@@ -52,6 +78,16 @@ function M.diagnostic_text(d)
   end
   local text = head(d.message)
   return d.source and (text .. " [" .. d.source .. "]") or text
+end
+
+--- virtual_text.format: base_text, then the cursor-line-first policy, the severity filter and the width of
+--- the line (config/ui.lua); a message that does not fit beside a long cursor line is drawn under it instead.
+function M.diagnostic_text(d)
+  local text = M.base_text(d)
+  if text == nil then
+    return nil
+  end
+  return require("config.ui").shape_text(d, text)
 end
 
 -- Completion -----------------------------------------------------------------
@@ -155,7 +191,13 @@ local function apply_palette()
   for kind, color in pairs(OKABE_ITO) do
     -- fg for text/sign/float groups, sp for underlines; virtual text/lines
     -- lose their theme-tinted bg (it was derived from the old colour).
-    for _, prefix in ipairs({ "Diagnostic", "DiagnosticSign", "DiagnosticFloating", "DiagnosticVirtualText", "DiagnosticVirtualLines" }) do
+    for _, prefix in ipairs({
+      "Diagnostic",
+      "DiagnosticSign",
+      "DiagnosticFloating",
+      "DiagnosticVirtualText",
+      "DiagnosticVirtualLines",
+    }) do
       local name = prefix .. kind
       local hl = vim.api.nvim_get_hl(0, { name = name, link = false })
       hl.fg = tonumber(color:sub(2), 16)
@@ -205,12 +247,20 @@ function M.setup()
         return
       end
       redraw[buf] = true
-      vim.schedule(function()
+      -- a short delay while typing (ui-community.md item 11): the instant tier keeps arriving
+      -- (update_in_insert), the virtual text is redrawn once it settles
+      local delay = vim.fn.mode():find("^[iR]") and 80 or 0
+      local function show()
         redraw[buf] = nil
         if vim.api.nvim_buf_is_valid(buf) then
           vim.diagnostic.show(nil, buf)
         end
-      end)
+      end
+      if delay > 0 then
+        vim.defer_fn(show, delay)
+      else
+        vim.schedule(show)
+      end
     end,
   })
 
@@ -227,6 +277,8 @@ function M.setup()
   vim.api.nvim_create_user_command("ColorblindDiagnostics", function()
     vim.notify("colourblind diagnostics " .. (M.colorblind() and "on" or "off"))
   end, { desc = "Toggle the Okabe-Ito diagnostic palette" })
+
+  require("config.ui").setup()
 
   -- Opt in permanently with `vim.g.xynovim_colorblind = true` (set before
   -- this runs, e.g. at the top of options.lua).

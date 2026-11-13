@@ -113,7 +113,15 @@ describe("live servers", function()
   before_each(function()
     H.need_rust()
     if vim.fn.executable("bacon-ls") ~= 1 then
-      skip("bacon-ls not found")
+      -- Mason's bin directory is put on PATH when mason.nvim loads, which a spec that never loads it does not
+      -- see; the file is where `:MasonInstall bacon-ls` puts it
+      local mason_bin = vim.fn.stdpath("data") .. "/mason/bin"
+      if vim.fn.executable(mason_bin .. "/bacon-ls") == 1 then
+        vim.env.PATH = vim.env.PATH .. ":" .. mason_bin
+      end
+    end
+    if vim.fn.executable("bacon-ls") ~= 1 then
+      skip("bacon-ls not found (not on PATH, not in " .. vim.fn.stdpath("data") .. "/mason/bin)")
     end
     if not crate then
       crate = H.fixture("basic", { git = true })
@@ -122,49 +130,56 @@ describe("live servers", function()
     end
   end)
 
-  it("status sequence on a scratch crate: starting/running -> loading/indexing -> ready/ok, then stale -> running -> ok", function()
-    local samples = {}
-    local function sample()
-      local c = comp()
-      if c ~= "" and samples[#samples] ~= c then
-        samples[#samples + 1] = c
+  it(
+    "status sequence on a scratch crate: starting/running -> loading/indexing -> ready/ok, then stale -> running -> ok",
+    function()
+      local samples = {}
+      local function sample()
+        local c = comp()
+        if c ~= "" and samples[#samples] ~= c then
+          samples[#samples + 1] = c
+        end
       end
-    end
-    local au = vim.api.nvim_create_autocmd({ "LspAttach", "LspProgress" }, { callback = sample })
-    buf = H.open(lib)
-    if not vim.wait(120000, function()
-      sample()
-      return comp() == "RA ready | clippy ok"
-    end, 20) then
-      error("ready and ok: " .. state() .. " samples: " .. vim.inspect(samples))
-    end
-    vim.api.nvim_del_autocmd(au)
-    local seq = table.concat(samples, "\n")
-    H.match(seq, "RA starting", true)
-    H.match(seq, "clippy running", true)
-    H.match(seq, "RA %S.* %d+%%", false, "a progress line with a percentage")
-    H.eq("RA ready | clippy ok", samples[#samples])
+      local au = vim.api.nvim_create_autocmd({ "LspAttach", "LspProgress" }, { callback = sample })
+      buf = H.open(lib)
+      if
+        not vim.wait(120000, function()
+          sample()
+          return comp() == "RA ready | clippy ok"
+        end, 20)
+      then
+        error("ready and ok: " .. state() .. " samples: " .. vim.inspect(samples))
+      end
+      vim.api.nvim_del_autocmd(au)
+      local seq = table.concat(samples, "\n")
+      H.match(seq, "RA starting", true)
+      H.match(seq, "clippy running", true)
+      H.match(seq, "RA %S.* %d+%%", false, "a progress line with a percentage")
+      H.eq("RA ready | clippy ok", samples[#samples])
 
-    -- an edit: stale -> running -> ok
-    samples = {}
-    local au2 = vim.api.nvim_create_autocmd({ "LspProgress" }, { callback = sample })
-    vim.api.nvim_buf_set_lines(buf, -1, -1, false, { "// edit" })
-    sample()
-    H.eq("RA ready | clippy stale", comp())
-    H.wait_for(function()
+      -- an edit: stale -> running -> ok
+      samples = {}
+      local au2 = vim.api.nvim_create_autocmd({ "LspProgress" }, { callback = sample })
+      vim.api.nvim_buf_set_lines(buf, -1, -1, false, { "// edit" })
       sample()
-      return #samples > 1 and comp() == "RA ready | clippy ok"
-    end, 60000, "stale -> running -> ok; samples: " .. vim.inspect(samples))
-    vim.api.nvim_del_autocmd(au2)
-    H.eq({ "RA ready | clippy stale", "RA ready | clippy running", "RA ready | clippy ok" }, samples)
-  end)
+      H.eq("RA ready | clippy stale", comp())
+      H.wait_for(function()
+        sample()
+        return #samples > 1 and comp() == "RA ready | clippy ok"
+      end, 60000, "stale -> running -> ok; samples: " .. vim.inspect(samples))
+      vim.api.nvim_del_autocmd(au2)
+      H.eq({ "RA ready | clippy stale", "RA ready | clippy running", "RA ready | clippy ok" }, samples)
+    end
+  )
 
   it("typing with auto-save on settles on 'clippy ok', not stale", function()
     vim.cmd.buffer(buf)
     H.feed("Goconst TYPED: i32 = 1;<Esc>")
-    if not vim.wait(20000, function()
-      return table.concat(vim.fn.readfile(lib), "\n"):find("TYPED", 1, true) ~= nil
-    end, 50) then
+    if
+      not vim.wait(20000, function()
+        return table.concat(vim.fn.readfile(lib), "\n"):find("TYPED", 1, true) ~= nil
+      end, 50)
+    then
       error("auto-save did not write the typed line: " .. vim.inspect(vim.api.nvim_buf_get_lines(buf, -5, -1, false)))
     end
     H.wait_for(function()
@@ -185,7 +200,12 @@ describe("live servers", function()
     sh([[sed -i 's/return 42;/if 1 == 1 { return 1; } return 42;/' src/lib.rs]])
     focus()
     local new = new_bacon(old.id)
-    H.match(vim.api.nvim_buf_get_lines(buf, 0, -1, false)[17] or table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), "\n"), "1 == 1", true)
+    H.match(
+      vim.api.nvim_buf_get_lines(buf, 0, -1, false)[17]
+        or table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), "\n"),
+      "1 == 1",
+      true
+    )
     H.wait_for(function()
       return #bacon_diags(new) > 0
     end, 90000, "clippy diagnostics from the new bacon-ls")
@@ -267,26 +287,29 @@ describe("live servers", function()
     vim.cmd.buffer(buf)
   end)
 
-  it("kill -9 of both servers: 'RA stopped | clippy stopped', then both back with new pids and ok + clippy diagnostics", function()
-    vim.cmd.buffer(buf)
-    fresh_restart()
-    local ra_old, bc_old = ra(), bacon()
-    local pids = { ra = pid(ra_old), bc = pid(bc_old) }
-    H.ok(pids.ra and pids.bc, "client pids")
-    H.ok(pids.ra ~= pids.bc)
-    vim.uv.kill(pids.ra, "sigkill")
-    vim.uv.kill(pids.bc, "sigkill")
-    H.wait_for(function()
-      return comp() == "RA stopped | clippy stopped"
-    end, 15000, "'RA stopped | clippy stopped'; is " .. comp())
-    wait_ready("both servers back; is " .. comp())
-    local ra_new, bc_new = ra(), bacon()
-    H.ok(ra_new.id ~= ra_old.id and bc_new.id ~= bc_old.id, "new clients")
-    H.ok(pid(ra_new) ~= pids.ra and pid(bc_new) ~= pids.bc, "new pids")
-    H.wait_for(function()
-      return #bacon_diags(bc_new) > 0
-    end, 90000, "clippy diagnostics from the new bacon-ls")
-  end)
+  it(
+    "kill -9 of both servers: 'RA stopped | clippy stopped', then both back with new pids and ok + clippy diagnostics",
+    function()
+      vim.cmd.buffer(buf)
+      fresh_restart()
+      local ra_old, bc_old = ra(), bacon()
+      local pids = { ra = pid(ra_old), bc = pid(bc_old) }
+      H.ok(pids.ra and pids.bc, "client pids")
+      H.ok(pids.ra ~= pids.bc)
+      vim.uv.kill(pids.ra, "sigkill")
+      vim.uv.kill(pids.bc, "sigkill")
+      H.wait_for(function()
+        return comp() == "RA stopped | clippy stopped"
+      end, 15000, "'RA stopped | clippy stopped'; is " .. comp())
+      wait_ready("both servers back; is " .. comp())
+      local ra_new, bc_new = ra(), bacon()
+      H.ok(ra_new.id ~= ra_old.id and bc_new.id ~= bc_old.id, "new clients")
+      H.ok(pid(ra_new) ~= pids.ra and pid(bc_new) ~= pids.bc, "new pids")
+      H.wait_for(function()
+        return #bacon_diags(bc_new) > 0
+      end, 90000, "clippy diagnostics from the new bacon-ls")
+    end
+  )
 
   it(":RustRestart revives SIGSTOPped (hung) rust-analyzer and bacon-ls: new pids, ok again", function()
     vim.cmd.buffer(buf)

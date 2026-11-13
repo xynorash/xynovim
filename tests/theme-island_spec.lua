@@ -15,9 +15,15 @@ local function hex(n)
   return n and string.format("#%06x", n) or nil
 end
 
-local function fg(name) return hex(hl(name).fg) end
-local function bg(name) return hex(hl(name).bg) end
-local function sp(name) return hex(hl(name).sp) end
+local function fg(name)
+  return hex(hl(name).fg)
+end
+local function bg(name)
+  return hex(hl(name).bg)
+end
+local function sp(name)
+  return hex(hl(name).sp)
+end
 
 local function lum(h)
   local ch = {}
@@ -161,10 +167,14 @@ describe("palette.lua", function()
     local P = pal()
     H.eq("Dark", P.name)
     local n = 0
-    for _ in pairs(P.colors) do n = n + 1 end
+    for _ in pairs(P.colors) do
+      n = n + 1
+    end
     H.eq(63, n, "colors")
     n = 0
-    for _ in pairs(P.attrs) do n = n + 1 end
+    for _ in pairs(P.attrs) do
+      n = n + 1
+    end
     H.eq(173, n, "attrs")
     H.eq("#666870", P.derived.BORDER)
     H.eq("#2d416b", P.derived.SELECTION_BACKGROUND)
@@ -228,18 +238,21 @@ describe("tools/icls2nvim.py", function()
     H.is_nil(vim.uv.fs_stat(work .. "/lua/island/palette.lua"), "nothing written")
   end)
 
-  it("round trip: a synthetic .icls rebuilt from lua/island/palette.lua converts back to the same colours and attributes", function()
-    H.write_icls(work .. "/fixture.icls")
-    local r = py({ H.repo .. "/tools/icls2nvim.py", work .. "/fixture.icls", work .. "/out.lua" })
-    H.eq(0, r.code, r.stderr)
-    local got, want = dofile(work .. "/out.lua"), dofile(H.repo .. "/lua/island/palette.lua")
-    H.eq(want.colors, got.colors)
-    H.eq(want.attrs, got.attrs)
-    H.eq(want.derived, got.derived)
-    H.eq(want.name, got.name)
-    H.match(r.stdout, "fixture.icls", true)
-    H.ok(vim.tbl_count(want.attrs) > 100, "a real palette, not an empty one")
-  end)
+  it(
+    "round trip: a synthetic .icls rebuilt from lua/island/palette.lua converts back to the same colours and attributes",
+    function()
+      H.write_icls(work .. "/fixture.icls")
+      local r = py({ H.repo .. "/tools/icls2nvim.py", work .. "/fixture.icls", work .. "/out.lua" })
+      H.eq(0, r.code, r.stderr)
+      local got, want = dofile(work .. "/out.lua"), dofile(H.repo .. "/lua/island/palette.lua")
+      H.eq(want.colors, got.colors)
+      H.eq(want.attrs, got.attrs)
+      H.eq(want.derived, got.derived)
+      H.eq(want.name, got.name)
+      H.match(r.stdout, "fixture.icls", true)
+      H.ok(vim.tbl_count(want.attrs) > 100, "a real palette, not an empty one")
+    end
+  )
 
   it("is stdlib only (runs with -I -S: no site-packages)", function()
     H.write_icls(work .. "/fixture.icls")
@@ -301,14 +314,17 @@ end)
 describe("island-dark colours", function()
   before_each(reset)
 
-  it("Normal fg is #bcbec4, the scheme's solid bg #1e1f22 backs terminal colours; Normal bg is nil when transparent", function()
-    H.eq("#bcbec4", fg("Normal"))
-    H.is_nil(bg("Normal"), "transparent by default")
-    -- the solid colour of the scheme
-    H.eq("#1e1f22", pal().attrs.TEXT.bg)
-    H.eq("#1e1f22", vim.g.terminal_color_background)
-    H.eq("#1e1f22", vim.g.terminal_color_0)
-  end)
+  it(
+    "Normal fg is #bcbec4, the scheme's solid bg #1e1f22 backs terminal colours; Normal bg is nil when transparent",
+    function()
+      H.eq("#bcbec4", fg("Normal"))
+      H.is_nil(bg("Normal"), "transparent by default")
+      -- the solid colour of the scheme
+      H.eq("#1e1f22", pal().attrs.TEXT.bg)
+      H.eq("#1e1f22", vim.g.terminal_color_background)
+      H.eq("#1e1f22", vim.g.terminal_color_0)
+    end
+  )
 
   it("Normal has the solid #1e1f22 bg when transparency is off", function()
     vim.g.xynovim_transparent = false
@@ -360,7 +376,10 @@ describe("contrast", function()
   it("comment, doc comment and error virtual text reach 4.5:1", function()
     H.ok(ratio(fg("Comment"), base) >= 4.5, "comment " .. ratio(fg("Comment"), base))
     H.ok(ratio(fg("@comment.documentation"), base) >= 4.5, "doc comment")
-    H.ok(ratio(fg("DiagnosticVirtualTextError"), bg("DiagnosticVirtualTextError")) >= 4.5, "error virtual text on its own bg")
+    H.ok(
+      ratio(fg("DiagnosticVirtualTextError"), bg("DiagnosticVirtualTextError")) >= 4.5,
+      "error virtual text on its own bg"
+    )
     -- the lift stops at the first 1% step that reaches the target: the unlifted scheme colours miss it
     H.ok(ratio("#7a7e85", base) < 4.5)
     H.ok(ratio("#5f826b", base) < 4.5)
@@ -442,9 +461,10 @@ describe("island-dark syntax and diagnostics", function()
   end)
 
   it("inlay hints, code lens and window separator", function()
-    H.eq("#868a91", fg("LspInlayHint"))
-    H.eq("#393b40", bg("LspInlayHint"))
-    H.eq("#727782", fg("LspCodeLens"))
+    -- the scheme's #868a91 / #727782 are lifted for legibility (ui-community_spec.lua measures the result)
+    H.ok(ratio(fg("LspInlayHint"), bg("LspInlayHint")) >= 6.0, "hint text >= 6:1 on its chip")
+    H.eq("#2b2d30", bg("LspInlayHint"))
+    H.ok(ratio(fg("LspCodeLens"), "#1e1f22") >= 4.5, "code lens >= 4.5:1")
     H.eq("#393b40", fg("WinSeparator"))
   end)
 
@@ -471,25 +491,76 @@ describe("island-dark group coverage", function()
 
   it("plugin highlight groups are defined and non-empty", function()
     local groups = {
-      "BlinkCmpMenu", "BlinkCmpMenuBorder", "BlinkCmpMenuSelection", "BlinkCmpScrollBarThumb",
-      "SnacksNormal", "SnacksNormalNC", "SnacksWinBar", "SnacksBackdrop",
-      "WhichKey", "WhichKeyGroup", "WhichKeyDesc", "WhichKeySeparator",
-      "NeoTreeNormal", "NeoTreeNormalNC", "NeoTreeEndOfBuffer", "NeoTreeWinSeparator",
-      "TroubleNormal", "TroubleNormalNC", "TroubleText", "TroubleCount",
-      "GitSignsAdd", "GitSignsChange", "GitSignsDelete", "GitSignsTopdelete",
-      "DiffviewNormal", "DiffviewCursorLine", "DiffviewWinSeparator", "DiffviewFilePanelTitle",
-      "DapBreakpoint", "DapBreakpointCondition", "DapBreakpointRejected", "DapLogPoint",
-      "NeotestPassed", "NeotestFailed", "NeotestRunning", "NeotestSkipped",
-      "SatelliteBar", "SatelliteBackground", "SatelliteCursor", "SatelliteSearch",
-      "TreesitterContext", "TreesitterContextLineNumber", "TreesitterContextBottom",
-      "NavicText", "NavicSeparator",
-      "FlashBackdrop", "FlashMatch", "FlashCurrent", "FlashLabel",
-      "NoiceCmdline", "NoiceCmdlinePopup", "NoiceCmdlinePopupBorder",
-      "MiniIconsBlue", "MiniIconsGreen", "MiniIconsRed", "MiniIconsGrey",
-      "HarpoonWindow", "HarpoonBorder", "HarpoonTitle",
-      "RenderMarkdownCode", "RenderMarkdownCodeInline", "RenderMarkdownCodeBorder", "RenderMarkdownBullet",
-      "CoverageCovered", "CoveragePartial", "CoverageUncovered", "CoverageSummaryBorder",
-      "LspInlayHint", "LspCodeLens", "LspCodeLensSeparator",
+      "BlinkCmpMenu",
+      "BlinkCmpMenuBorder",
+      "BlinkCmpMenuSelection",
+      "BlinkCmpScrollBarThumb",
+      "SnacksNormal",
+      "SnacksNormalNC",
+      "SnacksWinBar",
+      "SnacksBackdrop",
+      "WhichKey",
+      "WhichKeyGroup",
+      "WhichKeyDesc",
+      "WhichKeySeparator",
+      "NeoTreeNormal",
+      "NeoTreeNormalNC",
+      "NeoTreeEndOfBuffer",
+      "NeoTreeWinSeparator",
+      "TroubleNormal",
+      "TroubleNormalNC",
+      "TroubleText",
+      "TroubleCount",
+      "GitSignsAdd",
+      "GitSignsChange",
+      "GitSignsDelete",
+      "GitSignsTopdelete",
+      "DiffviewNormal",
+      "DiffviewCursorLine",
+      "DiffviewWinSeparator",
+      "DiffviewFilePanelTitle",
+      "DapBreakpoint",
+      "DapBreakpointCondition",
+      "DapBreakpointRejected",
+      "DapLogPoint",
+      "NeotestPassed",
+      "NeotestFailed",
+      "NeotestRunning",
+      "NeotestSkipped",
+      "SatelliteBar",
+      "SatelliteBackground",
+      "SatelliteCursor",
+      "SatelliteSearch",
+      "TreesitterContext",
+      "TreesitterContextLineNumber",
+      "TreesitterContextBottom",
+      "NavicText",
+      "NavicSeparator",
+      "FlashBackdrop",
+      "FlashMatch",
+      "FlashCurrent",
+      "FlashLabel",
+      "NoiceCmdline",
+      "NoiceCmdlinePopup",
+      "NoiceCmdlinePopupBorder",
+      "MiniIconsBlue",
+      "MiniIconsGreen",
+      "MiniIconsRed",
+      "MiniIconsGrey",
+      "HarpoonWindow",
+      "HarpoonBorder",
+      "HarpoonTitle",
+      "RenderMarkdownCode",
+      "RenderMarkdownCodeInline",
+      "RenderMarkdownCodeBorder",
+      "RenderMarkdownBullet",
+      "CoverageCovered",
+      "CoveragePartial",
+      "CoverageUncovered",
+      "CoverageSummaryBorder",
+      "LspInlayHint",
+      "LspCodeLens",
+      "LspCodeLensSeparator",
     }
     local missing = {}
     for _, g in ipairs(groups) do
@@ -502,12 +573,37 @@ describe("island-dark group coverage", function()
 
   it("treesitter captures resolve to a non-empty highlight", function()
     local caps = {
-      "@keyword", "@keyword.function", "@keyword.return", "@function", "@function.call", "@function.method",
-      "@type", "@type.builtin", "@string", "@string.escape", "@comment", "@comment.documentation",
-      "@variable", "@variable.builtin", "@variable.member", "@punctuation.delimiter", "@punctuation.bracket",
-      "@punctuation.special", "@constant", "@number", "@operator", "@property", "@attribute",
-      "@markup.strong", "@markup.italic", "@markup.heading", "@markup.heading.1", "@markup.link",
-      "@markup.link.url", "@markup.raw", "@markup.quote",
+      "@keyword",
+      "@keyword.function",
+      "@keyword.return",
+      "@function",
+      "@function.call",
+      "@function.method",
+      "@type",
+      "@type.builtin",
+      "@string",
+      "@string.escape",
+      "@comment",
+      "@comment.documentation",
+      "@variable",
+      "@variable.builtin",
+      "@variable.member",
+      "@punctuation.delimiter",
+      "@punctuation.bracket",
+      "@punctuation.special",
+      "@constant",
+      "@number",
+      "@operator",
+      "@property",
+      "@attribute",
+      "@markup.strong",
+      "@markup.italic",
+      "@markup.heading",
+      "@markup.heading.1",
+      "@markup.link",
+      "@markup.link.url",
+      "@markup.raw",
+      "@markup.quote",
     }
     local empty = {}
     for _, c in ipairs(caps) do
@@ -521,12 +617,23 @@ describe("island-dark group coverage", function()
 
   it("LSP semantic groups exist, including the scheme's org.rust.* colours", function()
     local groups = {
-      "@lsp.type.struct", "@lsp.type.enum", "@lsp.type.enumMember", "@lsp.type.interface",
-      "@lsp.type.typeParameter", "@lsp.type.function", "@lsp.type.method", "@lsp.type.macro",
-      "@lsp.type.lifetime.rust", "@lsp.type.selfKeyword.rust", "@lsp.type.static.rust",
-      "@lsp.mod.mutable.rust", "@lsp.mod.static.rust",
-      "@lsp.typemod.function.declaration", "@lsp.typemod.method.trait.rust",
-      "@lsp.typemod.variable.static.rust", "@lsp.typemod.comment.documentation.rust",
+      "@lsp.type.struct",
+      "@lsp.type.enum",
+      "@lsp.type.enumMember",
+      "@lsp.type.interface",
+      "@lsp.type.typeParameter",
+      "@lsp.type.function",
+      "@lsp.type.method",
+      "@lsp.type.macro",
+      "@lsp.type.lifetime.rust",
+      "@lsp.type.selfKeyword.rust",
+      "@lsp.type.static.rust",
+      "@lsp.mod.mutable.rust",
+      "@lsp.mod.static.rust",
+      "@lsp.typemod.function.declaration",
+      "@lsp.typemod.method.trait.rust",
+      "@lsp.typemod.variable.static.rust",
+      "@lsp.typemod.comment.documentation.rust",
     }
     for _, g in ipairs(groups) do
       H.ok(next(hl(g)) ~= nil, g .. " is empty")
@@ -545,8 +652,14 @@ describe("island-dark group coverage", function()
   it("terminal ANSI colours 0..15 and fg/bg are set from the scheme", function()
     local A, C = pal().attrs, pal().colors
     local expected = {
-      [0] = A.TEXT.bg, A.CONSOLE_ERROR_OUTPUT.fg, A.DEFAULT_STRING.fg, A.LOG_INFO_OUTPUT.fg,
-      A.DEFAULT_FUNCTION_DECLARATION.fg, A.DEFAULT_CONSTANT.fg, A.DEFAULT_NUMBER.fg, A.TEXT.fg,
+      [0] = A.TEXT.bg,
+      A.CONSOLE_ERROR_OUTPUT.fg,
+      A.DEFAULT_STRING.fg,
+      A.LOG_INFO_OUTPUT.fg,
+      A.DEFAULT_FUNCTION_DECLARATION.fg,
+      A.DEFAULT_CONSTANT.fg,
+      A.DEFAULT_NUMBER.fg,
+      A.TEXT.fg,
     }
     for i = 0, 7 do
       H.eq(expected[i], vim.g["terminal_color_" .. i], "terminal_color_" .. i)
@@ -612,12 +725,37 @@ describe("transparency", function()
   after_each(reset)
 
   local transparent = {
-    "Normal", "Terminal", "EndOfBuffer", "FoldColumn", "Folded", "SignColumn", "LineNr", "NormalNC",
-    "NeoTreeNormal", "NeoTreeNormalNC", "NeoTreeVertSplit", "NeoTreeWinSeparator", "NeoTreeEndOfBuffer",
-    "NvimTreeNormal", "NvimTreeVertSplit", "NvimTreeEndOfBuffer",
-    "NotifyINFOBody", "NotifyERRORBody", "NotifyWARNBody", "NotifyTRACEBody", "NotifyDEBUGBody",
-    "NotifyINFOTitle", "NotifyERRORTitle", "NotifyWARNTitle", "NotifyTRACETitle", "NotifyDEBUGTitle",
-    "NotifyINFOBorder", "NotifyERRORBorder", "NotifyWARNBorder", "NotifyTRACEBorder", "NotifyDEBUGBorder",
+    "Normal",
+    "Terminal",
+    "EndOfBuffer",
+    "FoldColumn",
+    "Folded",
+    "SignColumn",
+    "LineNr",
+    "NormalNC",
+    "NeoTreeNormal",
+    "NeoTreeNormalNC",
+    "NeoTreeVertSplit",
+    "NeoTreeWinSeparator",
+    "NeoTreeEndOfBuffer",
+    "NvimTreeNormal",
+    "NvimTreeVertSplit",
+    "NvimTreeEndOfBuffer",
+    "NotifyINFOBody",
+    "NotifyERRORBody",
+    "NotifyWARNBody",
+    "NotifyTRACEBody",
+    "NotifyDEBUGBody",
+    "NotifyINFOTitle",
+    "NotifyERRORTitle",
+    "NotifyWARNTitle",
+    "NotifyTRACETitle",
+    "NotifyDEBUGTitle",
+    "NotifyINFOBorder",
+    "NotifyERRORBorder",
+    "NotifyWARNBorder",
+    "NotifyTRACEBorder",
+    "NotifyDEBUGBorder",
   }
 
   local function bg_left()
@@ -667,7 +805,10 @@ describe("transparency", function()
       -- the toggle is only registered when Snacks was loaded as plugin/after ran
       skip("<leader>uO is not mapped in this session (Snacks not loaded when plugin/after/transparency.lua ran)")
     end
-    H.eq("Toggle Transparent background", map.desc and map.desc:gsub("^%s*%[.-%]%s*", ""):gsub("^Disable ", "Toggle "):gsub("^Enable ", "Toggle ") or "")
+    H.eq(
+      "Toggle Transparent background",
+      map.desc and map.desc:gsub("^%s*%[.-%]%s*", ""):gsub("^Disable ", "Toggle "):gsub("^Enable ", "Toggle ") or ""
+    )
     H.is_nil(bg("Normal"))
     H.feed("<leader>uO")
     H.eq(false, vim.g.xynovim_transparent)
@@ -738,7 +879,9 @@ describe("switching and setup()", function()
     require("island").setup()
     local first = snapshot()
     local terms = {}
-    for i = 0, 15 do terms[i] = vim.g["terminal_color_" .. i] end
+    for i = 0, 15 do
+      terms[i] = vim.g["terminal_color_" .. i]
+    end
     require("island").setup()
     require("island").setup()
     local second = snapshot()
@@ -764,25 +907,30 @@ describe("startup cost and legibility claims", function()
     H.ok(ms < 1000, "a load is not absurdly slow")
   end)
 
-  it("README legibility numbers reproduce: comments 4.5, line numbers 3.5, modified 7.2 (hint 6.0 is inconsistent)", function()
-    local base = "#1e1f22"
-    H.ok(ratio(fg("Comment"), base) >= 4.5)
-    near(3.5, ratio(fg("LineNr"), base), 0.1, "line numbers")
-    local modified = ratio(fg("GitSignsChange"), base)
-    local hint = ratio(fg("DiagnosticHint"), base)
-    print(("git modified %.2f:1, hint %.2f:1 on #1e1f22"):format(modified, hint))
-    near(7.2, modified, 0.1, "git modified (README: 7.2:1)")
-    -- lua/island/init.lua's comment says the same colour is 6.0:1; the README says 7.2:1.
-    -- 6.0 is neither the modified colour nor the hint colour here: documentation inconsistency.
-    local readme = H.docs_text()
-    H.match(readme, "7.2:1", true)
-    local init = read(H.repo .. "/lua/island/init.lua")
-    local says_6 = init:find("(6.0:1)", 1, true) ~= nil
-    if says_6 then
-      -- flagged, not failed: the measured 7.2 matches the README, the code comment is stale
-      print("DOC INCONSISTENCY: lua/island/init.lua says FILESTATUS_MODIFIED is 6.0:1, README and measurement say 7.2:1")
+  it(
+    "README legibility numbers reproduce: comments 4.5, line numbers 3.5, modified 7.2 (hint 6.0 is inconsistent)",
+    function()
+      local base = "#1e1f22"
+      H.ok(ratio(fg("Comment"), base) >= 4.5)
+      near(3.5, ratio(fg("LineNr"), base), 0.1, "line numbers")
+      local modified = ratio(fg("GitSignsChange"), base)
+      local hint = ratio(fg("DiagnosticHint"), base)
+      print(("git modified %.2f:1, hint %.2f:1 on #1e1f22"):format(modified, hint))
+      near(7.2, modified, 0.1, "git modified (README: 7.2:1)")
+      -- lua/island/init.lua's comment says the same colour is 6.0:1; the README says 7.2:1.
+      -- 6.0 is neither the modified colour nor the hint colour here: documentation inconsistency.
+      local readme = H.docs_text()
+      H.match(readme, "7.2:1", true)
+      local init = read(H.repo .. "/lua/island/init.lua")
+      local says_6 = init:find("(6.0:1)", 1, true) ~= nil
+      if says_6 then
+        -- flagged, not failed: the measured 7.2 matches the README, the code comment is stale
+        print(
+          "DOC INCONSISTENCY: lua/island/init.lua says FILESTATUS_MODIFIED is 6.0:1, README and measurement say 7.2:1"
+        )
+      end
     end
-  end)
+  )
 end)
 
 -- ------------------------------------------------------------------ 29: rust-analyzer
@@ -860,7 +1008,17 @@ describe("semantic tokens from rust-analyzer", function()
           all[#all + 1] = c .. "=" .. t.opts.hl_group
         end
       end
-      error(("%s: no token group at %d:%s resolves to %s (got %s; row: %s; buffer: %s)"):format(label, row, word, expected, vim.inspect(gs), table.concat(all, " "), vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]))
+      error(
+        ("%s: no token group at %d:%s resolves to %s (got %s; row: %s; buffer: %s)"):format(
+          label,
+          row,
+          word,
+          expected,
+          vim.inspect(gs),
+          table.concat(all, " "),
+          vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1]
+        )
+      )
     end
     local function has_attr(row, word, attr, label)
       local found = vim.wait(30000, function()
