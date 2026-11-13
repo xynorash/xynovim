@@ -185,11 +185,11 @@ describe("deps-freshness: Cargo.toml / Cargo.lock saved from nvim restarts bacon
       "bacon_ls never attaches on Windows (windows-latest run 39647013043; Mason installed bacon-ls but no client starts, cause not found)"
     )
     local mb = buf_of(d .. "/Cargo.toml")
+    -- back to back: the saves must all fall inside one 500 ms window, which a loaded runner's settle(100) steps did not guarantee
     for _ = 1, 4 do
       fire("BufWritePost", RR_GROUP, nil, mb)
-      settle(100)
     end
-    settle(1200)
+    settle(1500)
     H.eq(1, s.restarts())
   end)
 

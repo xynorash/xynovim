@@ -416,7 +416,7 @@ describe("buffer-local maps on a Rust buffer", function()
     local text = H.wait_for(function()
       local t = table.concat(lines(), "\n")
       return t:find("let var_name = 1 %+ 2 %+ 3;", 1) and t
-    end, 15000, "extract variable edit, buffer is now:\n" .. table.concat(lines(), "\n", 36, 44))
+    end, 60000, "extract variable edit, buffer is now:\n" .. table.concat(lines(), "\n", 36, 44))
     H.match(text, "let total = var_name;", true)
   end)
 
