@@ -453,7 +453,7 @@ end
 -- characters were left (`× expecte`). When less than MIN_INLINE columns are left and the message does not fit
 -- whole, it is not drawn at the end of the line; M.block_draw puts it in a virt_lines block under the
 -- line instead, wrapped at words to the window, indented like the code. Other lines keep the compact form.
-local MIN_INLINE = 24
+local MIN_INLINE = 20
 local MAX_BLOCK_LINES = 6
 local block_ns = vim.api.nvim_create_namespace("xynovim_diag_block")
 M.block_ns = block_ns

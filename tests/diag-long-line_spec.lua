@@ -1,6 +1,6 @@
 -- Cursor-line diagnostics on a long line (lua/config/ui.lua, block_draw): beside a long line, or one with inline
 -- inlay hints, the message used to start so far right that a few characters were visible ('× expecte').
--- Now it goes under the line, wrapped, when fewer than 24 columns are left and it does not fit whole.
+-- Now it goes under the line, wrapped, when fewer than 20 columns are left and it does not fit whole.
 local H = require("xynotest.helpers")
 local ui = require("config.ui")
 local ux = require("config.ux")
