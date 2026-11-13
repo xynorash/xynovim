@@ -23,7 +23,8 @@ function M.summary_open()
     return vim.api.nvim_get_current_win()
   end
   local width = math.max(30, math.min(48, vim.o.columns - 36))
-  local height = math.max(8, vim.o.lines - vim.o.cmdheight - 4)
+  -- not the whole height: the dap-ui strip below it stays readable
+  local height = math.max(8, math.min(vim.o.lines - vim.o.cmdheight - 4, math.floor(vim.o.lines * 0.6)))
   local buf = vim.api.nvim_create_buf(false, true)
   vim.bo[buf].bufhidden = "wipe"
   local win = vim.api.nvim_open_win(buf, false, {
@@ -38,6 +39,22 @@ function M.summary_open()
     title_pos = "center",
     zindex = 45,
   })
+  -- neotest swaps its buffer in right after this returns: "q" closes the float (and gives the key back
+  -- the moment the same buffer is shown in a split)
+  vim.schedule(function()
+    if not vim.api.nvim_win_is_valid(win) then
+      return
+    end
+    local b = vim.api.nvim_win_get_buf(win)
+    vim.keymap.set("n", "q", function()
+      if vim.api.nvim_win_get_config(0).relative ~= "" then
+        pcall(vim.api.nvim_win_close, 0, true)
+      else
+        pcall(vim.keymap.del, "n", "q", { buffer = b })
+        vim.api.nvim_feedkeys("q", "n", false)
+      end
+    end, { buffer = b, nowait = true, desc = "Close the test summary float" })
+  end)
   -- leaving the float (jumping to a test, clicking the code) puts it away again; it is never in the way
   vim.api.nvim_create_autocmd("WinLeave", {
     callback = function()

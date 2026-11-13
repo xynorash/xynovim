@@ -55,6 +55,21 @@ describe("neotest summary", function()
     end)
   end)
 
+  it("q closes the float", function()
+    with_columns(93, function()
+      vim.cmd("only | enew!")
+      local win = narrow.summary_open()
+      vim.api.nvim_set_current_win(win)
+      H.wait_for(function()
+        return vim.fn.maparg("q", "n", false, true).desc == "Close the test summary float"
+      end, 2000, "q is not mapped")
+      H.feed("q")
+      H.wait_for(function()
+        return not vim.api.nvim_win_is_valid(win)
+      end, 2000, "q did not close the float")
+    end)
+  end)
+
   it("neotest is configured to use it", function()
     local spec = dofile(H.repo .. "/lua/plugins/neotest.lua")[1]
     H.eq("function", type(spec.opts.summary.open))
