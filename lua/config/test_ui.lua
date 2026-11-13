@@ -668,10 +668,25 @@ function M.rerun_failed()
 end
 
 --- neotest consumer: build the panel when a run finishes.
+M.slow_after_s = 60
+
 function M.consumer(client)
   local started
   client.listeners.run = function()
     started = started or vim.uv.hrtime()
+    -- a test that never ends (a deadlock, a loop) leaves the summary on "running" for ever: say how to get out
+    local mine = started
+    vim.defer_fn(function()
+      if started == mine then
+        vim.notify(
+          "tests still running after "
+            .. M.slow_after_s
+            .. " s: <leader>tS stops them, <leader>to shows the output so far",
+          vim.log.levels.WARN,
+          { title = "tests" }
+        )
+      end
+    end, M.slow_after_s * 1000)
     return {}
   end
   client.listeners.results = function(adapter_id, results, partial)
@@ -841,6 +856,17 @@ end
 
 --- Pick the nextest profile for the neotest runs of this session.
 function M.pick_profile()
+  if vim.fn.executable("cargo-nextest") ~= 1 then
+    -- profiles belong to nextest; without it neotest runs `cargo test`, which has none: picking one
+    -- would change nothing and say nothing
+    vim.notify(
+      "cargo-nextest is not installed: tests run with `cargo test`, which has no profiles."
+        .. " Install it (`cargo install cargo-nextest --locked`, or your package manager) to use them.",
+      vim.log.levels.WARN,
+      { title = "tests" }
+    )
+    return
+  end
   local root = require("xyno_rust.rust_context").root() or vim.uv.cwd()
   local names = M.profiles(root)
   vim.ui.select(names, { prompt = "nextest profile (now: " .. M.profile() .. ")" }, function(choice)
