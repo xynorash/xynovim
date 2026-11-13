@@ -97,6 +97,10 @@ describe("neotest run -> results panel", function()
   end)
 
   it("<CR> on a failure row jumps to the test; the failed ids are what `r` reruns", function()
+    H.known_issue(
+      { "windows" },
+      "needs the panel of the previous test, whose live rust-analyzer + neotest run hangs on windows-latest (run 43440285823)"
+    )
     local w = T.state.win
     H.ok(w and vim.api.nvim_win_is_valid(w))
     vim.api.nvim_set_current_win(w)
@@ -114,6 +118,10 @@ describe("neotest run -> results panel", function()
   end)
 
   it("rerun failed runs the three failed tests again (a fresh panel with the same three failures)", function()
+    H.known_issue(
+      { "windows" },
+      "needs the panel of the previous test, whose live rust-analyzer + neotest run hangs on windows-latest (run 43440285823)"
+    )
     local before = T.state.run
     T.rerun_failed()
     H.wait_for(function()

@@ -373,7 +373,7 @@ describe("rust_context with live servers", function()
     local s = live()
     H.wait_for(function()
       return conflict(s.buf, "rust-analyzer")
-    end, 60000, "rust-analyzer's compile_error diagnostic")
+    end, 150000, "rust-analyzer's compile_error diagnostic") -- the first load on a hosted macOS runner took over 60 s
     if s.bacon then
       H.wait_for(function()
         return conflict(s.buf, "bacon-ls")
