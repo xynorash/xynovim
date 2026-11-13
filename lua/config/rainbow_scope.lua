@@ -5,9 +5,18 @@
 --   Alt+right-click   "Restrain Scope Highlighting": everything outside the pair is dimmed.
 -- ESC (or any key, `scope.any_key`) clears it. Both are one-shot: nothing follows the cursor.
 --
--- Deviation, on purpose: the plugin draws a BOXED effect (a rectangle outline) around the range. A terminal
--- cell grid has no outlines, so the two brackets are drawn inverted (rainbow colour as background) or
--- underlined (`scope.box`), which marks the same two edges.
+-- The plugin draws a BOXED effect (a rectangle outline) around the range. A terminal cell grid has no outline
+-- attribute; `scope.box = "outline"` (default) builds the closest thing from what Neovim has: a top and a
+-- bottom border as virtual lines above and below the scope, the side edges as overlay virtual text on the
+-- blank cells left of the leftmost text and right of the longest line, the two brackets drawn inverted (rainbow
+-- colour as background). Limits, stated: the borders are extra screen lines while it is shown (the text below
+-- moves down by one line each, back on clearing); no side edge when the code starts in column 0 or the window
+-- is scrolled sideways; clipped to the window width. "inverse" draws only the two brackets inverted,
+-- "underline" underlines them, "none" neither.
+--
+-- Debugger: the plugin's rule "respect the Execution Point colour" is kept: the tint is not painted on a line
+-- that carries nvim-dap's stopped-line sign (`DapStoppedLine`), so the current line of a stopped session keeps
+-- its own colour.
 local api = vim.api
 
 local M = {}
@@ -144,6 +153,87 @@ local function keep_colors(buf, pair, o, mark)
   end)
 end
 
+--- 0-based rows of `buf` that carry nvim-dap's "stopped here" sign (the Execution Point), as a set.
+local function stopped_rows(buf)
+  local rows = {}
+  buf = buf == 0 and api.nvim_get_current_buf() or buf
+  local ok, placed = pcall(vim.fn.sign_getplaced, buf, { group = "dap_pos" })
+  if ok and placed and placed[1] then
+    for _, sign in ipairs(placed[1].signs or {}) do
+      rows[sign.lnum - 1] = true
+    end
+  end
+  return rows
+end
+M._stopped_rows = stopped_rows
+
+local function dwidth(s)
+  return vim.fn.strdisplaywidth(s)
+end
+
+--- Draw the box of `pair` (see the header): returns nothing, marks go through `mark`.
+local function outline(buf, pair, mark, prio)
+  local win = vim.fn.bufwinid(buf)
+  if win == -1 then
+    return
+  end
+  local info = vim.fn.getwininfo(win)[1]
+  if info.leftcol and info.leftcol > 0 then
+    return -- window-relative columns would not line up
+  end
+  local avail = info.width - info.textoff
+  local orow, crow = pair.o[1], pair.c[3]
+  local lines = api.nvim_buf_get_lines(buf, orow, crow + 1, false)
+  local hl = pair.group
+  local L, R, sides
+  if orow == crow then
+    local line = lines[1] or ""
+    L = dwidth(line:sub(1, pair.o[2]))
+    R = dwidth(line:sub(1, pair.c[4])) - 1
+    sides = false
+  else
+    local minindent, maxw = math.huge, 0
+    for _, line in ipairs(lines) do
+      local trimmed = line:gsub("%s+$", "")
+      if trimmed ~= "" then
+        local indent = dwidth(line:match("^%s*"))
+        minindent = math.min(minindent, indent)
+        maxw = math.max(maxw, dwidth(trimmed))
+      end
+    end
+    if minindent == math.huge then
+      return
+    end
+    sides = minindent > 0
+    L = sides and minindent - 1 or 0
+    R = math.max(maxw, L + 2)
+  end
+  if R - L < 1 then
+    return
+  end
+  R = math.min(R, avail - 1)
+  if R - L < 1 then
+    return
+  end
+  local function border(l, r)
+    return { { string.rep(" ", L) .. l .. string.rep("─", R - L - 1) .. r, hl } }
+  end
+  mark(orow, 0, { virt_lines = { border("╭", "╮") }, virt_lines_above = true, priority = prio })
+  mark(crow, 0, { virt_lines = { border("╰", "╯") }, priority = prio })
+  if sides then
+    for row = orow, crow do
+      mark(row, 0, { virt_text = { { "│", hl } }, virt_text_pos = "overlay", virt_text_win_col = L, priority = prio })
+      if R < avail then
+        mark(
+          row,
+          0,
+          { virt_text = { { "│", hl } }, virt_text_pos = "overlay", virt_text_win_col = R, priority = prio }
+        )
+      end
+    end
+  end
+end
+
 --- Highlight (mode "scope") or restrain ("restrain") the pair around (row, col) of `buf`.
 ---@return boolean ok, string? message
 function M.show(mode, buf, row, col)
@@ -164,18 +254,44 @@ function M.show(mode, buf, row, col)
     pcall(api.nvim_buf_set_extmark, buf, sns, r, c, opts)
   end
   if mode == "scope" then
-    mark(pair.o[1], pair.o[2], {
-      end_row = pair.c[3],
-      end_col = pair.c[4],
-      hl_group = "XynoRainbowScope" .. pair.index,
-      priority = prio + 5,
-    })
+    -- the tint, split around rows that carry the debugger's Execution Point
+    local tint = "XynoRainbowScope" .. pair.index
+    local stopped = stopped_rows(buf)
+    local seg_start = pair.o[1]
+    local function flush(a, b) -- rows a..b (inclusive) of the range
+      if a > b then
+        return
+      end
+      local sr, sc = a, (a == pair.o[1]) and pair.o[2] or 0
+      local er, ec
+      if b == pair.c[3] then
+        er, ec = pair.c[3], pair.c[4]
+      else
+        er, ec = b + 1, 0
+      end
+      mark(sr, sc, { end_row = er, end_col = ec, hl_group = tint, priority = prio + 5 })
+    end
+    if next(stopped) == nil then
+      flush(pair.o[1], pair.c[3])
+    else
+      for row = pair.o[1], pair.c[3] do
+        if stopped[row] then
+          flush(seg_start, row - 1)
+          seg_start = row + 1
+        end
+      end
+      flush(seg_start, pair.c[3])
+    end
     if o.scope.box ~= "none" then
-      local g = o.scope.box == "inverse" and ("XynoRainbowBox" .. pair.index) or underline_group(pair.group, pair.index)
+      local g = (o.scope.box == "inverse" or o.scope.box == "outline") and ("XynoRainbowBox" .. pair.index)
+        or underline_group(pair.group, pair.index)
       local ob = pair.o
       local cb = pair.c
       mark(ob[1], ob[2], { end_row = ob[1], end_col = ob[2] + 1, hl_group = g, priority = prio + 10 })
       mark(cb[1], cb[2], { end_row = cb[3], end_col = cb[4], hl_group = g, priority = prio + 10 })
+      if o.scope.box == "outline" then
+        outline(buf, pair, mark, prio + 10)
+      end
     end
   else
     local g = "XynoRainbowRestrain"

@@ -55,7 +55,7 @@ local DEFAULTS = {
     restrain_keep_colors = false, -- dim with a blend and keep the syntax colours
     any_key = false, -- false: ESC clears the scope highlight; true: any key does
     mouse = true, -- <C-RightMouse> highlights, <A-RightMouse> restrains
-    box = "inverse", -- how the two brackets of the scope are drawn: inverse | underline | none
+    box = "outline", -- the scope box: outline (borders + inverted brackets) | inverse | underline | none
     suppress_debug = false,
     suppress_diff = false,
   },
@@ -170,7 +170,7 @@ local SPEC = {
     restrain_keep_colors = "boolean",
     any_key = "boolean",
     mouse = "boolean",
-    box = { enum = { "inverse", "underline", "none" } },
+    box = { enum = { "outline", "inverse", "underline", "none" } },
     suppress_debug = "boolean",
     suppress_diff = "boolean",
   },

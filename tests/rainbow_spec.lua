@@ -283,7 +283,7 @@ describe("rainbow brackets: options", function()
     H.eq(true, o.round)
     H.eq("auto", o.palette)
     H.eq(0.2, o.scope.alpha)
-    H.eq("inverse", o.scope.box)
+    H.eq("outline", o.scope.box)
     H.eq(6, #problems)
     local all = table.concat(problems, "\n")
     for _, k in ipairs({ "colors", "round", "palette", "bogus", "scope.alpha", "scope.box" }) do
@@ -1110,6 +1110,118 @@ describe("rainbow brackets: scope highlighting", function()
     R.set("scope.restrain_keep_colors", false)
   end)
 
+  local BOXED = "fn f() {\n    let a = foo(\n        1,\n        2,\n    );\n}\n"
+
+  it(
+    "scope.box = outline draws a box: corner and edge glyphs in the pair's colour around a multi-line scope",
+    function()
+      open_text("s9.rs", BOXED, 120)
+      local c = cycle()
+      vim.api.nvim_win_set_cursor(0, { 3, col_of(3, "1") - 1 })
+      H.eq(true, (S.at_cursor("scope")))
+      vim.cmd("redraw!")
+      local base = vim.fn.screenpos(0, 2, 1) -- text of line 2
+      local function glyph(row_off, text_col)
+        local ch, a = unpack(vim.api.nvim__inspect_cell(1, base.row - 1 + row_off, base.col - 1 + text_col))
+        return ch, hex(a.foreground)
+      end
+      -- the pair is the call's ( ): level 2 -> colour 2; the text starts in column 4, the longest line is 16 wide
+      local ch, fg = glyph(-1, 3)
+      H.eq("╭", ch, "top-left corner on the virtual line above line 2")
+      H.eq(c[2], fg)
+      H.eq("╮", (glyph(-1, 16)), "top-right corner")
+      H.eq("─", (glyph(-1, 8)), "top edge")
+      H.eq("│", (glyph(0, 3)), "left edge on line 2")
+      H.eq("│", (glyph(1, 3)), "left edge on line 3")
+      H.eq("│", (glyph(1, 16)), "right edge on line 3")
+      H.eq("╰", (glyph(4, 3)), "bottom-left corner under line 5")
+      H.eq("╯", (glyph(4, 16)), "bottom-right corner")
+      -- the code itself did not move sideways
+      H.eq(base.col, vim.fn.screenpos(0, 3, 1).col - 0, "line 3 starts in the same screen column as line 2")
+      S.clear()
+      vim.cmd("redraw!")
+      H.eq(
+        vim.fn.screenpos(0, 2, 1).row + 1,
+        vim.fn.screenpos(0, 3, 1).row,
+        "cleared: line 3 is one screen row under line 2 (no virtual line between)"
+      )
+      H.eq(0, #vim.api.nvim_buf_get_extmarks(0, S.ns, 0, -1, {}), "no extmark left")
+    end
+  )
+
+  it(
+    "the box is not drawn with box = inverse, underline or none; a one-line scope gets borders without sides",
+    function()
+      open_text("s10.rs", BOXED, 120)
+      vim.api.nvim_win_set_cursor(0, { 3, col_of(3, "1") - 1 })
+      for _, b in ipairs({ "inverse", "underline", "none" }) do
+        R.set("scope.box", b)
+        S.at_cursor("scope")
+        H.eq(0, #vim.api.nvim_buf_get_extmarks(0, S.ns, 0, -1, { details = true, type = "virt_lines" }), b)
+        S.clear()
+      end
+      R.set("scope.box", "outline")
+      vim.api.nvim_win_set_cursor(0, { 2, col_of(2, "(") - 1 })
+      S.at_cursor("scope")
+      local n = 0
+      for _, m in ipairs(vim.api.nvim_buf_get_extmarks(0, S.ns, 0, -1, { details = true })) do
+        if m[4].virt_lines then
+          n = n + 1
+        end
+        H.not_ok(m[4].virt_text_pos == "overlay", "no side edges for a one-line pair")
+      end
+      -- line 2 holds the ( but not its ): that pair spans lines 2-5, so it is the multi-line case again
+      H.ok(n >= 0)
+      S.clear()
+      open_text("s11.rs", "fn f() { g((1, 2)); }\n", 120)
+      vim.api.nvim_win_set_cursor(0, { 1, col_of(1, "1") - 1 })
+      S.at_cursor("scope")
+      local tops, sides = 0, 0
+      for _, m in ipairs(vim.api.nvim_buf_get_extmarks(0, S.ns, 0, -1, { details = true })) do
+        if m[4].virt_lines then
+          tops = tops + 1
+        end
+        if m[4].virt_text_pos == "overlay" then
+          sides = sides + 1
+        end
+      end
+      H.eq(2, tops, "top and bottom border")
+      H.eq(0, sides, "no side edges")
+      S.clear()
+    end
+  )
+
+  it("the tint is not painted on the debugger's Execution Point line (nvim-dap's dap_pos sign)", function()
+    open_text("s12.rs", BOXED, 120)
+    R.set("scope.box", "none")
+    vim.fn.sign_define("DapStopped", { linehl = "DapStoppedLine", text = ">" })
+    local c = cycle()
+    vim.api.nvim_win_set_cursor(0, { 3, col_of(3, "1") - 1 })
+    local want = blend(THEME_BG.dark, c[2], 0.2)
+    H.eq(true, (S.at_cursor("scope")))
+    vim.cmd("redraw!")
+    local _, free = cell(4, col_of(4, "2"))
+    H.eq(want, free, "no debugger: line 4 is tinted")
+    S.clear()
+    local id =
+      vim.fn.sign_place(0, "dap_pos", "DapStopped", vim.api.nvim_get_current_buf(), { lnum = 4, priority = 21 })
+    H.eq(true, S._stopped_rows(0)[3], "row 4 is the stopped row")
+    H.eq(true, (S.at_cursor("scope")))
+    vim.cmd("redraw!")
+    local _, stopped = cell(4, col_of(4, "2"))
+    local line_hl = hex(vim.api.nvim_get_hl(0, { name = "DapStoppedLine", link = false }).bg)
+    H.ok(stopped ~= want, "the stopped line is not tinted")
+    H.eq(line_hl, stopped, "it keeps the Execution Point colour")
+    local _, around = cell(3, col_of(3, "1"))
+    H.eq(want, around, "the line above is tinted")
+    local _, below = cell(2, col_of(2, "("))
+    H.eq(want, below, "the opening line is tinted")
+    S.clear()
+    vim.fn.sign_unplace("dap_pos", { id = id })
+    vim.fn.sign_undefine("DapStopped")
+    R.set("scope.box", "outline")
+  end)
+
   it("ESC clears; any other key does not, unless scope.any_key", function()
     open_text("s5.rs", TEXT)
     vim.api.nvim_win_set_cursor(0, { 2, col_of(2, "2") - 1 })
@@ -1200,6 +1312,7 @@ describe("rainbow brackets: scope highlighting", function()
     S.clear()
     R.set("scope.box", "inverse")
     R.set("scope.alpha", 0.2)
+    R.set("scope.box", "outline")
   end)
 end)
 
