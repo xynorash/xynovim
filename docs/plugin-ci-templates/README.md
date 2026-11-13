@@ -5,7 +5,7 @@ Ready-to-copy files for xyno-history, xyno-sandbox, xyno-clipboard, xyno-guard, 
 | File | Goes to | What it does |
 | --- | --- | --- |
 | `lint.yml` | `.github/workflows/lint.yml` | `stylua --check .` and `lua-language-server --check` (StyLua v2.6.0 and lua-language-server 3.19.2, each downloaded with a sha256 check, the checkout action pinned by SHA) |
-| `stylua.toml` | `.stylua.toml` | the same formatting rules as xynovim (2 spaces, 120 columns); the plugins already have an identical file except xyno-history, which has none |
+| `stylua.toml` | `.stylua.toml` | the same formatting rules as xynovim (2 spaces, 120 columns); all nine plugins have an equivalent `.stylua.toml` already |
 | `luarc.json` | `.luarc.json` | lua-language-server settings: LuaJIT, global `vim`, no third-party library scan, the noisy type checks off (they need Neovim's type stubs, which CI does not have) |
 | `dependabot.yml` | `.github/dependabot.yml` | weekly GitHub Actions updates, 7-day cooldown. The plugins are Lua only, there is no other ecosystem to list |
 | `SECURITY.md` | `SECURITY.md` | scope and reporting; xyno-sandbox has an alternative paragraph (a seatbelt, not a jail) in a comment |
@@ -13,23 +13,13 @@ Ready-to-copy files for xyno-history, xyno-sandbox, xyno-clipboard, xyno-guard, 
 
 The plugins' existing `ci.yml` already pins Neovim v0.12.5 with the sha256 `bce0f56e...c6875` (xyno-guard names its variable `NVIM_TAG`), so it needs no change here.
 
-## State of the nine repositories against these templates (measured 2026-11-12, local clones on `dev`)
+## State of the nine repositories against these templates (measured 2026-11-13, local clones on `dev`)
 
-`lint.yml` fails on the first run of every repository until the formatting is applied once (`stylua .`, commit it separately), and in four of them until one finding is fixed:
+`stylua --check .` (StyLua 2.6.0, each clone's own `.stylua.toml`, which has the same rules as `stylua.toml` here) passes in all nine. `lua-language-server --check . --checklevel=Warning --configpath docs/plugin-ci-templates/luarc.json` (3.19.2, the exact flags and settings of `lint.yml`) reports nothing in all nine. Before the fixes of that day it reported one finding in each of five clones: xyno-crates `tests/init_spec.lua` (`package.loaders` flagged deprecated; LuaJIT has no `package.searchers`, so a precise `---@diagnostic disable-next-line: deprecated` with that reason), xyno-history `panel.lua` (`M.open` returns nothing outside a git worktree: annotated `table?`), xyno-macros `init.lua` and xyno-sandbox `ui.lua` (a one-line `@param` table type that LuaLS cannot parse: now an `@class`), xyno-new `egui.lua` (ambiguous `or` / `..` mix: parenthesised). `vim.diff`, deprecated in Neovim 0.12, is `vim.text.diff` in xyno-rust, xyno-history and xyno-sandbox.
 
-| Repository | Lua files StyLua would change | lua-language-server (Warning level) |
-| --- | --- | --- |
-| xyno-clipboard | 3 of 6 | clean |
-| xyno-crates | 12 of 18 | 1: `tests/init_spec.lua:19` `package.loaders or package.searchers` flagged as deprecated |
-| xyno-guard | 2 of 5 | clean |
-| xyno-history | 11 of 15 | clean |
-| xyno-imports | 7 of 10 | clean |
-| xyno-macros | 11 of 14 | 1: `lua/xyno_macros/init.lua:26` malformed `---@` annotation (`}` expected) |
-| xyno-new | 9 of 13 | 1: `lua/xyno_new/egui.lua:357` ambiguous string concatenation (`ambiguity-1`, add brackets) |
-| xyno-rust | 18 of 25 | clean |
-| xyno-sandbox | 16 of 21 | 1: `lua/xyno_sandbox/ui.lua:199` malformed annotation (`}` expected) |
+None of the clones has `.github/workflows/lint.yml` or `.luarc.json` yet: copy them with `apply.sh` (the clones' `.stylua.toml` already exist). A real GitHub Actions run of `lint.yml` has not happened (nothing was pushed). `luacheck` is not used: it is not installed here and the workflows do not run it, so what is documented is what was run.
 
-The check was run on a copy of each repository's `lua/` and `tests/` with `luarc.json`; on a clone of xyno-clipboard the whole sequence (apply, `stylua .`, `stylua --check .`, `lua-language-server --check`) passed, and `actionlint` and `zizmor` report nothing for `lint.yml`. A real GitHub Actions run of `lint.yml` has not happened (nothing was pushed).
+A stricter local run (not part of the CI: the main repo's `.luarc.json` with Neovim's own `lua/` and `lua/vim/_meta` as `workspace.library` and none of the type checks disabled) reports 309 findings in the main repository, mostly `param-type-mismatch` (81), `need-check-nil` (80), `duplicate-set-field` (40) and `different-requires` (38): I did not triage them one by one; the other categories (about 40 findings) I read: `deprecated` was the real `vim.diff` (fixed), the rest are stub or test-double mismatches. They are the reason those checks are off in `luarc.json`.
 
 ## What the lint does not do
 

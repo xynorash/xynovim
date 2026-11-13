@@ -98,29 +98,46 @@ local function inspect(row, col)
   return vim.api.nvim__inspect_cell(1, row - 1, col - 1)
 end
 
---- fg, bg, attrs of cell (lr, lc) (0-based, border included) of a float window. A float has a grid
---- of its own, found by its first text row (headless nvim composes floats at 0,0 on the screen, so
---- the screen position cannot be used).
-local function float_colors(win, lr, lc)
+--- The grid number of a float window, found by its first text row (headless nvim composes floats at 0,0 on the
+--- screen, so the screen position cannot be used). Grid ids keep counting up over a long run (every float of
+--- every earlier test took one), so the search is not bounded by a small number: with 80 it found the grid
+--- of a float in the first tests of the file and missed it in a later one, depending on how many floats the
+--- run had opened by then. The grid is also only drawn once the UI has flushed, so this waits for it
+--- (redraw until it is there) instead of failing on the first look.
+local function float_grid(win)
   local cfg = vim.api.nvim_win_get_config(win)
   local pad = cfg.border and 1 or 0
   local line = vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(win), 0, 1, false)[1] or ""
-  for g = 2, 80 do
-    local same = #line > 0
-    for i = 1, #line do
-      local ok, res = pcall(vim.api.nvim__inspect_cell, g, pad, pad + i - 1)
-      if not (ok and res[1] == line:sub(i, i)) then
-        same = false
-        break
+  local function find()
+    for g = 2, 3000 do
+      local same = #line > 0
+      for i = 1, math.min(#line, vim.api.nvim_win_get_width(win)) do
+        local ok, res = pcall(vim.api.nvim__inspect_cell, g, pad, pad + i - 1)
+        if not (ok and res[1] == line:sub(i, i)) then
+          same = false
+          break
+        end
+      end
+      if same then
+        return g
       end
     end
-    if same then
-      local _, a = unpack(vim.api.nvim__inspect_cell(g, lr, lc))
-      local normal = hl("Normal")
-      return hex(a.foreground or normal.fg) or "#bcbec4", hex(a.background or normal.bg) or THEME_BG, a
-    end
   end
-  error("no grid for the float")
+  local found
+  vim.wait(5000, function()
+    vim.cmd("redraw!")
+    found = find()
+    return found ~= nil
+  end, 20)
+  return found
+end
+
+--- fg, bg, attrs of cell (lr, lc) (0-based, border included) of a float window.
+local function float_colors(win, lr, lc)
+  local g = assert(float_grid(win), "no grid for the float")
+  local _, a = unpack(vim.api.nvim__inspect_cell(g, lr, lc))
+  local normal = hl("Normal")
+  return hex(a.foreground or normal.fg) or "#bcbec4", hex(a.background or normal.bg) or THEME_BG, a
 end
 
 --- fg, bg ("#rrggbb") a cell is drawn with; unset colours resolve to the theme's Normal (a
@@ -137,10 +154,12 @@ local function colors_at(row, col)
 end
 
 local function eventually(pred, ms, msg)
+  -- It polls (every 20 ms), so a generous cap costs nothing when the condition comes; a short cap only made
+  -- these specs fail on a loaded machine (a debounced redraw took longer than 3 s with the CPUs busy).
   return H.wait_for(function()
     vim.cmd("redraw!")
     return pred()
-  end, ms or 5000, msg)
+  end, math.max(ms or 5000, 30000), msg)
 end
 
 -- ------------------------------------------------------------------ fixtures
@@ -2320,26 +2339,6 @@ end)
 -- is the case with XYNOVIM_DEV_PLUGINS=<clones> (scripts/dev-plugins.sh test ui-community), and say SKIP otherwise.
 -- ====================================================================================================
 
---- The grid number of a float window (found by its first text row), as in float_colors.
-local function float_grid(win)
-  local cfg = vim.api.nvim_win_get_config(win)
-  local pad = cfg.border and 1 or 0
-  local line = vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(win), 0, 1, false)[1] or ""
-  for g = 2, 3000 do -- grid ids keep counting up over a long run
-    local same = #line > 0
-    for i = 1, math.min(#line, 6) do
-      local ok, res = pcall(vim.api.nvim__inspect_cell, g, pad, pad + i - 1)
-      if not (ok and res[1] == line:sub(i, i)) then
-        same = false
-        break
-      end
-    end
-    if same then
-      return g
-    end
-  end
-end
-
 --- Every non-blank cell of a float grid (border included): { ch, fg, bg, row, col }.
 local function float_cells(win)
   local g = assert(float_grid(win), "no grid for the float")
@@ -2528,19 +2527,23 @@ describe("ui round 2: the real popups of the xyno plugins on the grid", function
     H.wait_lsp("rust-analyzer", buf)
     size(120, 40)
     vim.cmd("ProcMacroStatus")
+    -- wait for the window itself (its text can be on the screen earlier through a message or a notification,
+    -- which is not the report), and drawn
+    local function report_win()
+      for _, w in ipairs(vim.api.nvim_list_wins()) do
+        if vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(w)):find("proc-macro-status", 1, true) then
+          return w
+        end
+      end
+    end
     local ok = pcall(eventually, function()
-      return find("proc-macro") or find("Proc-macro") or find("proc macro")
+      return report_win() and (find("proc-macro") or find("Proc-macro") or find("proc macro"))
     end, 40000, "report")
     if not ok then
       skip("no report window within 40 s on this machine")
     end
     local worst, at, n = 99, nil, 0
-    local rwin
-    for _, w in ipairs(vim.api.nvim_list_wins()) do
-      if vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(w)):find("proc-macro-status", 1, true) then
-        rwin = w
-      end
-    end
+    local rwin = report_win()
     H.ok(rwin, "the report window")
     -- the report's own text, cell by cell through screenpos (not the whole window: the cursor cell and other
     -- plugins' virtual text are not the report)
