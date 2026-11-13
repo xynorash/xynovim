@@ -12,24 +12,83 @@ return {
   -- Everything is reached through these keymaps, so lazy-load on them
   -- instead of eager-loading 99 + telescope + blink.compat at startup.
   keys = {
-    { "<leader>9s", function() require("99").search() end, desc = "99: Search" },
-    { "<leader>9v", function() require("99").vibe() end, desc = "99: Vibe" },
-    { "<leader>9vv", function() require("99").visual() end, mode = "v", desc = "99: Visual" },
-    { "<leader>9o", function() require("99").open() end, desc = "99: Open last interaction" },
-    { "<leader>9l", function() require("99").view_logs() end, desc = "99: View logs" },
-    { "<leader>9c", function() require("99").clear_previous_requests() end, desc = "99: Clear previous" },
-    { "<leader>9x", function() require("99").stop_all_requests() end, desc = "99: Stop all requests" },
-    { "<leader>9w", function() require("99").Extensions.Worker.search() end, desc = "99: Worker search" },
-    { "<leader>9W", function() require("99").Extensions.Worker.set_work() end, desc = "99: Worker set work" },
+    {
+      "<leader>9s",
+      function()
+        require("99").search()
+      end,
+      desc = "99: Search",
+    },
+    {
+      "<leader>9v",
+      function()
+        require("99").vibe()
+      end,
+      desc = "99: Vibe",
+    },
+    {
+      "<leader>9vv",
+      function()
+        require("99").visual()
+      end,
+      mode = "v",
+      desc = "99: Visual",
+    },
+    {
+      "<leader>9o",
+      function()
+        require("99").open()
+      end,
+      desc = "99: Open last interaction",
+    },
+    {
+      "<leader>9l",
+      function()
+        require("99").view_logs()
+      end,
+      desc = "99: View logs",
+    },
+    {
+      "<leader>9c",
+      function()
+        require("99").clear_previous_requests()
+      end,
+      desc = "99: Clear previous",
+    },
+    {
+      "<leader>9x",
+      function()
+        require("99").stop_all_requests()
+      end,
+      desc = "99: Stop all requests",
+    },
+    {
+      "<leader>9w",
+      function()
+        require("99").Extensions.Worker.search()
+      end,
+      desc = "99: Worker search",
+    },
+    {
+      "<leader>9W",
+      function()
+        require("99").Extensions.Worker.set_work()
+      end,
+      desc = "99: Worker set work",
+    },
     {
       "<leader>9m",
-      function() require("99.extensions.telescope").select_model() end,
+      function()
+        require("99.extensions.telescope").select_model()
+      end,
       desc = "99: Select model",
     },
     -- capitalized: keeps the provider picker grouped with the model picker
     {
       "<leader>9P",
-      function() require("99.extensions.telescope").select_provider() end,
+      function()
+        require("99.extensions.telescope").select_provider()
+      end,
       desc = "99: Select provider",
     },
   },
@@ -97,6 +156,68 @@ return {
       end
     end
 
+    -- ---- how a failed agent run reads
+    -- 99's base provider reports a non-zero exit as "process exit code: N" plus vim.inspect of the whole
+    -- result (with the complete stdout and stderr: megabytes for a chatty agent) and then calls
+    -- logger:fatal, which is assert(false): an unhandled Lua error with a stack trace in the exit callback.
+    -- Claude writes its real reason ("Not logged in - Please run /login") to stdout, bwrap writes its own to
+    -- stderr; both are collected here (capped) and the failure is one message: the reason, a hint.
+    local TAIL = 8192
+    local function capped(buf, data)
+      buf[1] = (buf[1] .. data):sub(-TAIL)
+    end
+    local function last_lines(text, n)
+      local out = {}
+      for line in tostring(text or ""):gmatch("[^\r\n]+") do
+        line = vim.trim((line:gsub("\27%[[%d;?]*[%a]", "")))
+        if line ~= "" then
+          out[#out + 1] = line:sub(1, 300)
+        end
+      end
+      return table.concat(vim.list_slice(out, math.max(1, #out - n + 1)), "\n")
+    end
+    local function failure_message(code, out, err)
+      local seen = (err or "") .. "\n" .. (out or "")
+      local low = seen:lower()
+      local hint
+      if low:find("not logged in", 1, true) or low:find("/login", 1, true) or low:find("invalid api key", 1, true) then
+        hint = "run `claude` in a normal terminal and /login (the sandbox uses the same credentials), then retry"
+      elseif low:find("execvp", 1, true) and low:find("no such file", 1, true) then
+        hint = "the `claude` command is not on PATH inside the sandbox: install Claude Code or fix PATH"
+      elseif
+        low:find("creating new namespace", 1, true)
+        or low:find("no permissions to create", 1, true)
+        or low:find("operation not permitted", 1, true) and low:find("bwrap", 1, true)
+        or low:find("unprivileged_userns", 1, true)
+      then
+        hint = "user namespaces are blocked here, so bubblewrap cannot start; the agent will not run unsandboxed"
+          .. " unless you set vim.g.xynovim_99_allow_unsandboxed = true (see :XynoSandboxStatus)"
+      elseif
+        low:find("could not resolve host", 1, true)
+        or low:find("econnrefused", 1, true)
+        or low:find("enotfound", 1, true)
+        or low:find("fetch failed", 1, true)
+        or low:find("unable to connect", 1, true)
+        or low:find("network", 1, true)
+      then
+        hint = "the agent could not reach the API: check the network, the proxy and :XynoSandboxStatus"
+      elseif code == 137 or code == 143 or code == 130 then
+        hint = "the agent was killed (signal), e.g. by the out-of-memory killer or <leader>9x"
+      end
+      local reason = last_lines(err, 3)
+      if reason == "" then
+        reason = last_lines(out, 3)
+      end
+      if reason == "" then
+        reason = "no output"
+      end
+      return ("99: the agent exited with code %s: %s%s (details: <leader>9l)"):format(
+        tostring(code),
+        reason:gsub("\n", " | "),
+        hint and ("\nHint: " .. hint) or ""
+      )
+    end
+
     -- The Claude provider's model list is static (the CLI cannot list models)
     -- and predates claude-sonnet-5, the model set below.
     function Guarded.fetch_models(callback)
@@ -119,7 +240,8 @@ return {
     function Guarded._build_command(self, query, context)
       local cmd = Claude._build_command(self, query, context)
       local project = project_root()
-      local wrapped, err, handle = require("xyno_sandbox").wrap(cmd, project, tmp_dir, pending and { plan = pending.plan })
+      local wrapped, err, handle =
+        require("xyno_sandbox").wrap(cmd, project, tmp_dir, pending and { plan = pending.plan })
       if not wrapped then
         error("99 sandbox: " .. tostring(err), 0)
       end
@@ -180,6 +302,57 @@ return {
           end
           started = true
           pending = { plan = plan }
+          local out, err = { "" }, { "" }
+          local inner = guarded_observer
+          guarded_observer = setmetatable({
+            on_stdout = function(data, ...)
+              if type(data) == "string" then
+                capped(out, data)
+              end
+              return inner.on_stdout(data, ...)
+            end,
+            on_stderr = function(data, ...)
+              if type(data) == "string" then
+                capped(err, data)
+              end
+              return inner.on_stderr(data, ...)
+            end,
+            on_complete = function(status, text, ...)
+              if status == "failed" and type(text) == "string" then
+                local code = text:match("^process exit code: (%-?%d+)")
+                if code then
+                  text = failure_message(tonumber(code), out[1], err[1])
+                end
+                -- one readable message (the logger's print_on_error would print a JSON blob)
+                vim.notify(text:sub(1, 600), vim.log.levels.ERROR)
+              end
+              return inner.on_complete(status, text, ...)
+            end,
+          }, { __index = inner })
+          -- logger:fatal in the base provider is assert(false): downgrade it to an error entry
+          local real_logger = context.logger
+          if type(real_logger) == "table" and type(real_logger.set_area) == "function" then
+            context.logger = setmetatable({
+              set_area = function(_, area)
+                local l = real_logger:set_area(area)
+                return setmetatable({
+                  fatal = function(_, msg, ...)
+                    return l:error(msg, ...)
+                  end,
+                }, {
+                  __index = function(_, k)
+                    local v = l[k]
+                    if type(v) == "function" then
+                      return function(_, ...)
+                        return v(l, ...)
+                      end
+                    end
+                    return v
+                  end,
+                })
+              end,
+            }, { __index = real_logger })
+          end
           local ok, res = pcall(Claude.make_request, self, query, context, guarded_observer)
           local handle = pending.handle
           pending = nil
@@ -250,7 +423,9 @@ return {
         type = "file",
         level = _99.INFO,
         path = vim.fn.stdpath("state") .. "/99.log",
-        print_on_error = true,
+        -- off: a failed request is reported as one readable message (Guarded below); the JSON line
+        -- print_on_error would print is in the log (<leader>9l) either way
+        print_on_error = false,
       },
       completion = {
         -- #rules / @files completion in the prompt buffer via LazyVim's
