@@ -838,9 +838,32 @@ describe("plugins/codelens.lua", function()
     H.eq(1, cC.buffer, "<leader>cC buffer-local")
     H.match(cc.desc, "Run Codelens", true)
     H.match(cC.desc, "Refresh & Display Codelens", true)
+    -- the deprecation shim (LazyVim still calls vim.lsp.codelens.refresh): neither the key nor a direct call
+    -- reaches vim.deprecate
+    local deprecated = {}
+    local orig = vim.deprecate
+    vim.deprecate = function(...)
+      deprecated[#deprecated + 1] = { ... }
+    end
+    local ok, err = pcall(function()
+      vim.lsp.codelens.refresh({ bufnr = buf })
+      if cC.callback then
+        cC.callback()
+      end
+    end)
+    vim.deprecate = orig
+    H.ok(ok, tostring(err))
+    H.eq({}, deprecated, "vim.deprecate calls from codelens.refresh")
     for _, c in ipairs(H.clients(buf, "xyno-fake-codelens")) do
       c:stop(true)
     end
+  end)
+
+  it("vim.lsp.codelens is not loaded before the first file (the shim lives in nvim-lspconfig's opts)", function()
+    -- a start-up cost of 2 to 3 ms when lazy.lua touched it (docs/bench/final-2026-11d.md)
+    local res =
+      child([[ return { loaded = package.loaded["vim.lsp.codelens"] ~= nil } ]], { env = xdg_env(), clear_env = true })
+    H.eq(false, res.loaded, "vim.lsp.codelens loaded at start")
   end)
 end)
 
