@@ -92,13 +92,12 @@ local function keep_colors(buf, pair, o, mark)
   end
   local light = P.variant() == "light"
   local surfaces = P.surfaces()
-  local target = P.restrain_floor(o)
   local cache = {}
   local function dim_group(fg)
     local g = cache[fg]
     if not g then
       local hexfg = string.format("#%06x", fg)
-      local c = P.ensure(P.mix(hexfg, surfaces[1], o.scope.restrain_strength), surfaces, target, light)
+      local c = P.dim(hexfg, o, surfaces, light)
       g = "XynoRainbowDim" .. c:sub(2)
       api.nvim_set_hl(0, g, { fg = tonumber(c:sub(2), 16) })
       cache[fg] = g
@@ -201,6 +200,9 @@ function M.at_cursor(mode)
 end
 
 local function at_mouse(mode)
+  if not R().opts().scope.mouse then
+    return
+  end
   local m = vim.fn.getmousepos()
   if m.winid == 0 or m.line == 0 then
     return

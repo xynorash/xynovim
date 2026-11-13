@@ -140,6 +140,32 @@ function M.restrain_floor(o)
   return math.max(M.min_contrast(o), 4.5)
 end
 
+--- `fg` dimmed towards the background by `strength` (0..1) of the way the contrast floor allows: 0 leaves the
+--- colour alone, 1 dims it as far as the floor (4.5:1, or the minimum contrast when higher) lets it go. The
+--- strength is scaled this way because the floor would otherwise hold every value above ~0.3 at the same
+--- grey; now 0.3, 0.65 and 0.9 give three different greys.
+function M.dim(fg, o, surfaces, light)
+  local floor = M.restrain_floor(o)
+  local bg = surfaces[1]
+  if M.worst_ratio(fg, surfaces) < floor then
+    return M.ensure(fg, surfaces, floor, light)
+  end
+  local tmax = 1
+  if M.worst_ratio(mix(fg, bg, 1), surfaces) < floor then
+    local lo, hi = 0, 1
+    for _ = 1, 14 do
+      local mid = (lo + hi) / 2
+      if M.worst_ratio(mix(fg, bg, mid), surfaces) >= floor then
+        lo = mid
+      else
+        hi = mid
+      end
+    end
+    tmax = lo
+  end
+  return M.ensure(mix(fg, bg, tmax * o.scope.restrain_strength), surfaces, floor, light)
+end
+
 --- `fg` lifted to `target`:1 on every surface (the lowest ratio decides).
 function M.ensure(fg, surfaces, target, light)
   local out = fg
@@ -301,9 +327,9 @@ function M.apply(o)
   end
   local normal = vim.api.nvim_get_hl(0, { name = "Normal", link = false })
   local text = normal.fg and tohex(normal.fg) or (light and "#1f2229" or "#bcbec4")
-  -- restrained text is dimmed towards the background, but never below 4.5:1 (the level of the theme's comments)
+  -- restrained text is dimmed by restrain_strength of the way down to 4.5:1 (the level of the theme's comments)
   set(0, "XynoRainbowRestrain", {
-    fg = hexnum(M.ensure(mix(text, bg, o.scope.restrain_strength), surfaces, M.restrain_floor(o), light)),
+    fg = hexnum(M.dim(text, o, surfaces, light)),
   })
   return { by_kind = by_kind, count = #shared, palette = name, red = red, var_count = nvar }
 end

@@ -193,7 +193,7 @@ SUBS.palette = function(args)
   elseif a == "island" or a == "colorblind" or a == "auto" or a == "custom" then
     R().set("generator.enabled", false)
     local ok, msg = R().set("palette", a)
-    say(ok and ("palette " .. a) or msg, ok and nil or vim.log.levels.WARN)
+    say(ok and ("palette " .. a) or msg, ok and vim.log.levels.INFO or vim.log.levels.WARN)
   else
     say("palette: island, colorblind, generated, custom, auto or next", vim.log.levels.WARN)
   end
@@ -227,17 +227,17 @@ SUBS.colors = function(args)
   else
     local n = tonumber(a) or a -- a non-number stays as typed so the error names it
     local ok, msg = R().set("colors", n)
-    say(ok and ("colours " .. n) or msg, ok and nil or vim.log.levels.WARN)
+    say(ok and ("colours " .. n) or msg, ok and vim.log.levels.INFO or vim.log.levels.WARN)
     show_colors()
   end
 end
 SUBS.hue = function(args)
   local ok, msg = R().set("generator.hue", args[1])
-  say(ok and ("generator hue " .. args[1]) or msg, ok and nil or vim.log.levels.WARN)
+  say(ok and ("generator hue " .. args[1]) or msg, ok and vim.log.levels.INFO or vim.log.levels.WARN)
 end
 SUBS.luminosity = function(args)
   local ok, msg = R().set("generator.luminosity", args[1])
-  say(ok and ("generator luminosity " .. args[1]) or msg, ok and nil or vim.log.levels.WARN)
+  say(ok and ("generator luminosity " .. args[1]) or msg, ok and vim.log.levels.INFO or vim.log.levels.WARN)
 end
 SUBS.scope = function()
   local ok, msg = require("config.rainbow_scope").at_cursor("scope")
@@ -254,30 +254,53 @@ end
 SUBS.clear = function()
   require("config.rainbow_scope").clear()
 end
-SUBS.set = function(args)
-  local path, raw = args[1], args[2]
-  if not path or not raw then
-    say("usage: :XynoRainbow set <option> <value>   (e.g. scope.alpha 0.3)", vim.log.levels.WARN)
-    return
-  end
-  local value
+local function parse_scalar(raw)
   if raw == "true" then
-    value = true
+    return true
   elseif raw == "false" then
-    value = false
+    return false
   elseif tonumber(raw) then
-    value = tonumber(raw)
+    return tonumber(raw)
   elseif raw:find("^[%[{]") then
     local ok, v = pcall(vim.json.decode, raw)
-    value = ok and v or raw
-  else
-    value = raw
+    return ok and v or raw
   end
-  if path == "disable" then
-    value = vim.list_slice(args, 2)
+  return raw
+end
+
+--- The value of `:XynoRainbow set <path> <value...>`: a scalar, JSON, or several words as a list
+--- (`set custom #ff0000 #00ff00`, `set disable md toml`); `set disable` alone, `[]` or `none` clear a list.
+local function parse_value(path, values)
+  local is_list = path == "disable" or path == "custom"
+  if #values == 0 then
+    return path == "disable" and {} or nil
+  end
+  if #values == 1 then
+    local raw = values[1]
+    if is_list and (raw == "none" or raw == "-" or raw == "[]") then
+      return {}
+    end
+    local v = parse_scalar(raw)
+    if is_list and type(v) == "string" then
+      return { v }
+    end
+    return v
+  end
+  if is_list then
+    return values
+  end
+  return vim.tbl_map(parse_scalar, values)
+end
+
+SUBS.set = function(args)
+  local path = args[1]
+  local value = path and parse_value(path, vim.list_slice(args, 2))
+  if not path or value == nil then
+    say("usage: :XynoRainbow set <option> <value>   (e.g. scope.alpha 0.3; lists: set custom #f00 #0f0, set disable md toml)", vim.log.levels.WARN)
+    return
   end
   local ok, msg = R().set(path, value)
-  say(ok and ("%s = %s"):format(path, vim.inspect(msg)) or msg, ok and nil or vim.log.levels.WARN)
+  say(ok and ("%s = %s"):format(path, vim.inspect(msg)) or msg, ok and vim.log.levels.INFO or vim.log.levels.WARN)
 end
 SUBS.reload = function()
   R().setup()
@@ -285,7 +308,7 @@ SUBS.reload = function()
 end
 SUBS.save = function()
   local ok, msg = R().save()
-  say(ok and ("saved to " .. msg) or ("could not save: " .. tostring(msg)), ok and nil or vim.log.levels.ERROR)
+  say(ok and ("saved to " .. msg) or ("could not save: " .. tostring(msg)), ok and vim.log.levels.INFO or vim.log.levels.ERROR)
 end
 SUBS.forget = function()
   R().forget_saved()
@@ -298,7 +321,7 @@ end
 for name, path in pairs(SWITCHES) do
   SUBS[name] = function(args)
     local ok, msg = switch(path, args[1])
-    say(msg, ok and nil or vim.log.levels.WARN)
+    say(msg, ok and vim.log.levels.INFO or vim.log.levels.WARN)
   end
 end
 

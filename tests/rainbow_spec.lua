@@ -1048,12 +1048,7 @@ describe("rainbow brackets: scope highlighting", function()
     H.eq(true, (S.at_cursor("restrain")))
     vim.cmd("redraw!")
     local kept = (cell(1, 1))
-    local want = P.ensure(
-      P.mix(kw_before, THEME_BG.dark, R.get("scope.restrain_strength")),
-      { THEME_BG.dark, CARET_BG.dark },
-      4.5,
-      false
-    )
+    local want = P.dim(kw_before, R.opts(), { THEME_BG.dark, CARET_BG.dark }, false)
     H.eq(want, kept, "the keyword colour, dimmed")
     H.ok(kept ~= plain, "differs from the grey of the plain restrain")
     H.ok(kept ~= kw_before, "dimmed")
@@ -1351,16 +1346,18 @@ end)
 -- ------------------------------------------------------------------ commands
 
 describe("rainbow brackets: :XynoRainbow", function()
-  local notes
+  local notes, levels
 
   before_each(function()
     load()
     defaults(nil)
     vim.cmd("colorscheme island-dark")
     notes = {}
+    levels = {}
     H._rb_notify = vim.notify
-    vim.notify = function(msg)
+    vim.notify = function(msg, level)
       notes[#notes + 1] = msg
+      levels[#levels + 1] = level or vim.log.levels.INFO
     end
     vim.g.xynovim_rainbow = nil
   end)
@@ -1511,6 +1508,77 @@ describe("rainbow brackets: :XynoRainbow", function()
     vim.cmd("XynoRainbow forget")
     vim.cmd("XynoRainbow reload")
     H.eq(0.2, R.get("scope.alpha"))
+  end)
+
+  it("a successful action is an INFO message, a refused one a WARN (not everything a warning)", function()
+    local WARN, INFO = vim.log.levels.WARN, vim.log.levels.INFO
+    for _, c in ipairs({
+      "XynoRainbow palette island",
+      "XynoRainbow colors 5",
+      "XynoRainbow set scope.alpha 0.3",
+      "XynoRainbow round off",
+      "XynoRainbow hue red",
+    }) do
+      levels = {}
+      vim.cmd(c)
+      H.eq(INFO, levels[1], c)
+    end
+    for _, c in ipairs({ "XynoRainbow colors 99", "XynoRainbow set scope.alpha 9", "XynoRainbow round maybe" }) do
+      levels = {}
+      vim.cmd(c)
+      H.eq(WARN, levels[1], c)
+    end
+  end)
+
+  it("mouse off / toggle / set scope.mouse false unmap the click keys and the handler ignores the option", function()
+    local function mapped()
+      return vim.fn.maparg("<C-RightMouse>", "n") ~= "" and vim.fn.maparg("<A-RightMouse>", "n") ~= ""
+    end
+    vim.cmd("XynoRainbow mouse on")
+    H.ok(mapped(), "on: mapped")
+    vim.cmd("XynoRainbow mouse off")
+    H.not_ok(mapped(), "off: unmapped")
+    vim.cmd("XynoRainbow mouse toggle")
+    H.ok(mapped(), "toggle: mapped again")
+    vim.cmd("XynoRainbow set scope.mouse false")
+    H.eq(false, R.get("scope.mouse"))
+    H.not_ok(mapped(), "set false: unmapped")
+    R.set("scope.mouse", true)
+    H.ok(mapped())
+  end)
+
+  it("set takes space-separated lists and can clear the disable list", function()
+    vim.cmd("XynoRainbow set custom #ff0000 #00ff00")
+    H.eq({ all = { "#ff0000", "#00ff00" } }, R.get("custom"))
+    vim.cmd('XynoRainbow set custom ["#112233","#445566"]')
+    H.eq({ all = { "#112233", "#445566" } }, R.get("custom"))
+    vim.cmd("XynoRainbow set custom #abcdef")
+    H.eq({ all = { "#abcdef" } }, R.get("custom"))
+    vim.cmd("XynoRainbow set disable md toml")
+    H.eq({ "md", "toml" }, R.get("disable"))
+    vim.cmd("XynoRainbow set disable []")
+    H.eq({}, R.get("disable"), "[] clears")
+    vim.cmd("XynoRainbow set disable md")
+    H.eq({ "md" }, R.get("disable"))
+    vim.cmd("XynoRainbow set disable")
+    H.eq({}, R.get("disable"), "no value clears")
+    vim.cmd("XynoRainbow set disable none")
+    H.eq({}, R.get("disable"))
+  end)
+
+  it("restrain_strength is meaningful over its whole range: 0.3, 0.65 and 0.9 give three greys, none below 4.5:1", function()
+    local greys = {}
+    for _, v in ipairs({ 0, 0.3, 0.65, 0.9, 1 }) do
+      R.set("scope.restrain_strength", v)
+      local g = hex(vim.api.nvim_get_hl(0, { name = "XynoRainbowRestrain", link = false }).fg)
+      greys[#greys + 1] = g
+      H.ok(ratio(g, THEME_BG.dark) >= 4.5, v .. " keeps 4.5:1: " .. g)
+      H.ok(ratio(g, CARET_BG.dark) >= 4.5, v .. " keeps 4.5:1 on the caret row")
+    end
+    for i = 1, #greys - 1 do
+      H.ok(greys[i] ~= greys[i + 1], ("step %d differs: %s vs %s"):format(i, greys[i], greys[i + 1]))
+      H.ok(lum(greys[i]) > lum(greys[i + 1]), "each step is dimmer than the one before")
+    end
   end)
 
   it("status says what is on; an unknown subcommand lists the known ones", function()

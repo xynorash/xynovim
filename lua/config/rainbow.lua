@@ -937,6 +937,9 @@ function M.set(path, value)
   end
   base[key] = v
   M.apply_colors()
+  if path == "scope.mouse" then
+    require("config.rainbow_scope").setup() -- (un)maps the mouse keys
+  end
   M.refresh()
   return true, v
 end
