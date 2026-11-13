@@ -296,7 +296,10 @@ SUBS.set = function(args)
   local path = args[1]
   local value = path and parse_value(path, vim.list_slice(args, 2))
   if not path or value == nil then
-    say("usage: :XynoRainbow set <option> <value>   (e.g. scope.alpha 0.3; lists: set custom #f00 #0f0, set disable md toml)", vim.log.levels.WARN)
+    say(
+      "usage: :XynoRainbow set <option> <value>   (e.g. scope.alpha 0.3; lists: set custom #f00 #0f0, set disable md toml)",
+      vim.log.levels.WARN
+    )
     return
   end
   local ok, msg = R().set(path, value)
@@ -308,7 +311,10 @@ SUBS.reload = function()
 end
 SUBS.save = function()
   local ok, msg = R().save()
-  say(ok and ("saved to " .. msg) or ("could not save: " .. tostring(msg)), ok and vim.log.levels.INFO or vim.log.levels.ERROR)
+  say(
+    ok and ("saved to " .. msg) or ("could not save: " .. tostring(msg)),
+    ok and vim.log.levels.INFO or vim.log.levels.ERROR
+  )
 end
 SUBS.forget = function()
   R().forget_saved()

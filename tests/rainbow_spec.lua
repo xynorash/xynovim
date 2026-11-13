@@ -1566,20 +1566,23 @@ describe("rainbow brackets: :XynoRainbow", function()
     H.eq({}, R.get("disable"))
   end)
 
-  it("restrain_strength is meaningful over its whole range: 0.3, 0.65 and 0.9 give three greys, none below 4.5:1", function()
-    local greys = {}
-    for _, v in ipairs({ 0, 0.3, 0.65, 0.9, 1 }) do
-      R.set("scope.restrain_strength", v)
-      local g = hex(vim.api.nvim_get_hl(0, { name = "XynoRainbowRestrain", link = false }).fg)
-      greys[#greys + 1] = g
-      H.ok(ratio(g, THEME_BG.dark) >= 4.5, v .. " keeps 4.5:1: " .. g)
-      H.ok(ratio(g, CARET_BG.dark) >= 4.5, v .. " keeps 4.5:1 on the caret row")
+  it(
+    "restrain_strength is meaningful over its whole range: 0.3, 0.65 and 0.9 give three greys, none below 4.5:1",
+    function()
+      local greys = {}
+      for _, v in ipairs({ 0, 0.3, 0.65, 0.9, 1 }) do
+        R.set("scope.restrain_strength", v)
+        local g = hex(vim.api.nvim_get_hl(0, { name = "XynoRainbowRestrain", link = false }).fg)
+        greys[#greys + 1] = g
+        H.ok(ratio(g, THEME_BG.dark) >= 4.5, v .. " keeps 4.5:1: " .. g)
+        H.ok(ratio(g, CARET_BG.dark) >= 4.5, v .. " keeps 4.5:1 on the caret row")
+      end
+      for i = 1, #greys - 1 do
+        H.ok(greys[i] ~= greys[i + 1], ("step %d differs: %s vs %s"):format(i, greys[i], greys[i + 1]))
+        H.ok(lum(greys[i]) > lum(greys[i + 1]), "each step is dimmer than the one before")
+      end
     end
-    for i = 1, #greys - 1 do
-      H.ok(greys[i] ~= greys[i + 1], ("step %d differs: %s vs %s"):format(i, greys[i], greys[i + 1]))
-      H.ok(lum(greys[i]) > lum(greys[i + 1]), "each step is dimmer than the one before")
-    end
-  end)
+  )
 
   it("status says what is on; an unknown subcommand lists the known ones", function()
     open_text("st.rs", RUST)
