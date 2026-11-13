@@ -25,6 +25,29 @@ local function setup()
   return dir, buf
 end
 
+--- A run whose log came back whole. neotest reads the test process's stdout and stderr as two streams, so under
+--- load a panic's `left:`/`right:` lines can arrive after the next test's header: the log is then complete but
+--- misattributed (the assert diff of one test is missing, the lines sit under its neighbour). Such a log is not
+--- what this spec is about, so it counts as "not back yet" and the run is repeated, like an empty result.
+local function complete(parsed)
+  if parsed.summary.failed < 3 then
+    return false
+  end
+  for _, name in ipairs({ "tests::vec_mismatch", "tests::string_mismatch" }) do
+    local t
+    for _, x in ipairs(parsed.tests) do
+      if x.name == name then
+        t = x
+      end
+    end
+    local out = t and table.concat(t.output, "\n") or ""
+    if not (out:find("left:", 1, true) and out:find("right:", 1, true)) then
+      return false
+    end
+  end
+  return true
+end
+
 --- Run the file through neotest; a run started before the adapter discovered the file's positions
 --- finds no tests (and says so with an empty result), so it is retried until tests come back.
 local function run_file(dir)
@@ -35,8 +58,8 @@ local function run_file(dir)
       require("neotest").run.run(dir .. "/src/lib.rs")
     end)
     local ok = pcall(H.wait_for, function()
-      return T.state.run and T.state.run.parsed.summary.failed >= 3
-    end, 20000, "the three failures to come back")
+      return T.state.run and complete(T.state.run.parsed)
+    end, 20000, "the three failures to come back, whole")
     if ok then
       return
     end

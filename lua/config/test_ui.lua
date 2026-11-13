@@ -729,6 +729,22 @@ function M.consumer(client)
       all[#all + 1] = tx
     end
     local parsed = M.parse(table.concat(all, "\n"))
+    -- The adapter decides each test's status from the same stream the panel parses, and under load it can
+    -- miss one (a "skipped" for a test that failed): a test the log shows as failed is rerunnable too.
+    do
+      local have = {}
+      for _, id in ipairs(failed_ids) do
+        have[id] = true
+      end
+      for _, tt in ipairs(parsed.tests) do
+        local id = tt.status == "failed" and ids[tt.name]
+        if id and not have[id] then
+          have[id] = true
+          failed_ids[#failed_ids + 1] = id
+        end
+      end
+      table.sort(failed_ids)
+    end
     vim.schedule(function()
       local prev = M.state.run
       if M.state.rerunning and prev then
