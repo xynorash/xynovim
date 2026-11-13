@@ -63,11 +63,11 @@ below `vim.g`.
 | `variables.enabled` | `false` | rainbow variables: locals coloured by name | Rainbow variables |
 | `variables.colors` | `10` | 2..16 | (premium: generator for variables) |
 | `scope.alpha` | `0.2` | scope tint: the rainbow colour mixed this much into the editor background | the plugin's alpha 0.2 |
-| `scope.restrain_strength` | `0.65` | how far outside text is dimmed towards the background (never below 4.5:1, the level of the theme's comments, or `min_contrast` when higher) | restrain highlighting effect |
+| `scope.restrain_strength` | `0.65` | how far outside text is dimmed, as a fraction (0 to 1) of the way from its colour down to the contrast floor: 0 leaves it alone, 1 dims it as far as the floor allows (4.5:1, the level of the theme's comments, or `min_contrast` when higher). 0.3, 0.65 and 0.9 are three different greys; nothing goes below the floor | restrain highlighting effect |
 | `scope.restrain_keep_colors` | `false` | keep the tree-sitter hue of the dimmed text | Keep original colours when restrained |
 | `scope.any_key` | `false` | `false`: ESC clears the scope highlight; `true`: any key | Press any key to remove the highlighting effect |
 | `scope.mouse` | `true` | `<C-RightMouse>` highlights, `<A-RightMouse>` restrains | the two mouse actions |
-| `scope.box` | `"inverse"` | how the two scope brackets are drawn: `inverse`, `underline`, `none` | BOXED effect |
+| `scope.box` | `"outline"` | the scope box: `outline` (virtual-line borders above and below, side edges, brackets inverted), `inverse` (brackets only), `underline`, `none` | BOXED effect |
 | `scope.suppress_debug` | `false` | no scope highlight while nvim-dap has a session | Suppress scope highlighting while debugging |
 | `scope.suppress_diff` | `false` | none in diff windows | Suppress scope highlighting when diffing |
 
@@ -116,13 +116,22 @@ pair instead. ESC (or any key, `scope.any_key`) clears it.
 
 **Differences from the plugin, stated:**
 
-- The plugin draws a *boxed* effect, a rectangle outline. A terminal grid cannot, so the two brackets are drawn inverted
-  (or underlined, `scope.box`).
+- The plugin draws a *boxed* effect, a rectangle outline. A terminal has no outline attribute; `scope.box = "outline"`
+  builds the closest thing: `╭───╮` / `╰───╯` borders as virtual lines above the opening and below the closing row,
+  `│` edges as overlay text on the blank cells left of the leftmost code and right of the longest line, the two brackets
+  inverted. Stated limits: the borders are extra screen lines while it is shown (text below moves down, back on
+  clearing); no side edges when the code starts in column 0 or the window is scrolled sideways; clipped to the window
+  width; a one-line scope gets the two borders without sides. Asserted on the real grid (`tests/rainbow_spec.lua`); not
+  yet captured on real Ghostty pixels. `inverse` / `underline` / `none` are the old, flat variants.
 - "Keep original colours while restrained" re-colours each syntax capture with its dimmed colour for the rows around
   the window (300 each way); LSP semantic-token colours are not read.
 - The plugin's premium "restrain foreground / background effect colour" has no option here (`restrain_strength` only).
-- "Respects the debugger Execution Point colour" is not implemented: the scope colours are drawn under the line highlight
-  of nvim-dap; `suppress_debug` switches the highlight off while a session is running.
+- "Respects the debugger Execution Point colour": the tint is not painted on a line that carries nvim-dap's
+  `dap_pos` sign (the stopped line keeps `DapStoppedLine`); the other rows of the scope are tinted. Asserted with a
+  placed sign, not against a live debug session. `suppress_debug` additionally switches the highlight off while a
+  session is running.
+- Restrained text: `restrain_strength` is a fraction of the distance down to the contrast floor, so the whole 0 to 1
+  range is meaningful (before, everything above about 0.3 gave the same grey because of the 4.5:1 floor).
 
 ## Rainbow variables
 
@@ -171,16 +180,27 @@ the boot module that `options.lua` requires (a command and an autocmd) took 0.13
 running its `setup()` at VeryLazy 1.0 to 1.7 ms (five fresh processes each, `hrtime` around the calls). The first draw of a Rust buffer also compiles the bracket query once (a
 few milliseconds, inside the first redraw, after the first screen).
 
+## Parser error recovery
+
+When a line is syntactically invalid (`{[<x]}`), tree-sitter recovers by wrapping tokens in `ERROR` nodes or inventing
+`MISSING` ones, and the brackets after the damage may nest differently than you meant. What is done: a node the parser
+could not make sense of (an `ERROR` node or any node holding one) is scanned in full up to 5000 children, so flat
+brackets anywhere inside a big broken region are coloured and unmatched ones marked (before: only the first and last
+four of a host with more than 128 children). Beyond 5000 children only the ends of such a node are scanned and the
+middle gets no colour. The levels of valid code around one invalid line are asserted (`tests/rainbow_spec.lua`); a file
+that is broken throughout can still get levels that differ from the ones you intended, because the tree itself is wrong.
+It cannot be better than the parse.
+
 ## Not implemented, and why
 
 | Plugin feature | Status |
 | --- | --- |
 | rainbow indent guides | excluded by you |
 | Python keywords, C `#if` macros, HTML / XML / JSX tags, YAML | **built** as `words.keywords` / `words.tags` (see the option table), by depth, off by default; demonstrated on real Ghostty pixels (`docs/comparison/screenshots/rainbow/words-{py,c,html,tsx,yaml}.png`) and asserted in `tests/rainbow_spec.lua`. What "depth" means is chosen here (blocks for Python, conditionals for C, elements for tags): the plugin's closed-source rule was not read. Tag names are coloured together with their brackets; attributes and text are untouched. |
-| Ruby keywords, C++ `#if` macros as their own rule, Kotlin function-literal arrows and labels, Pug / Vue / Svelte tags | **not implemented.** The Ruby, C++ and Kotlin grammars are not installed here, so a rule for them could not be tested (the C rule would very likely work for C++, whose grammar extends C; not tried). Nothing in Neovim prevents them: they are rows in the rule table of `rainbow_words.lua`. |
+| Ruby keywords, C++ `#if` macros, Kotlin function-literal arrows | **rules written, never run.** The rules are data rows in `rainbow_words.lua` (`RULES`, `add_rule`), written from the node names of the tree-sitter grammars; the three grammars are not installed here and nothing may be downloaded, so they are dormant and unverified. They start working as soon as the parsers exist: `:TSInstall ruby cpp kotlin` (needs you; `:XynoRainbow status` lists the parsers the rules wait for). A query part that does not parse against the installed grammar is skipped, the others stay. The mechanism is specced with an installed grammar and a synthetic parser-less case. Kotlin labels and Pug / Vue / Svelte tags are not built. |
 | per-colour-scheme XML file (`rainbow_brackets.xml`) | replaced by `vim.g.xynovim_rainbow` and `:XynoRainbow save` |
 | premium "show and save generated colors" window | `:XynoRainbow colors show|save|freeze` |
-| "Respects the debugger Execution Point colour" | not implemented (see above) |
+| "Respects the debugger Execution Point colour" | the tint skips the stopped line (see above) |
 
 ## Compared with the others
 
