@@ -28,8 +28,13 @@
 --
 -- Trust follows the content that runs code. A trust entry of its own (not "everything under <parent>")
 -- stores a fingerprint of what cargo executes or obeys in that workspace: every Cargo.toml and build.rs
--- below the root, .cargo/config(.toml) and rust-toolchain(.toml) in the tree and in the parent
--- directories (cargo and rustup read those upward). When the content differs (a `git pull`, a checkout
+-- below the root, a build script at a custom path (`build = "x/gen.rs"`) and its modules, path
+-- dependencies and workspace members outside the root (manifest, build script), every source file of a
+-- proc-macro crate, .cargo/config(.toml) and rust-toolchain(.toml) in the tree and in the parent
+-- directories (cargo and rustup read those upward). The list comes from `cargo metadata --no-deps
+-- --offline` (read in the background, `prime`) plus a bounded manifest scan that needs no cargo; files are
+-- hashed whole up to 32 MiB (see the fingerprint section). Entries recorded by an older version re-ask once
+-- for a workspace that has such files. When the content differs (a `git pull`, a checkout
 -- of another branch, an unseen edit by another tool) the workspace is untrusted again and the next
 -- action asks once more, naming the files. Not part of it: .rs sources, Cargo.lock, target/, .git/
 -- (ordinary edits and a lockfile refresh never ask). Edits made inside nvim call `rehash`, so the
@@ -47,6 +52,7 @@
 --   trust.drift(root)                    -> nil, or the files whose content differs from what was trusted (api 1.3)
 --   trust.rehash(root, saved?)           -> boolean: record the current content of root's own entry (only `saved`, a path or a list of paths, may differ) (api 1.3)
 --   trust.fingerprint(root)              -> { hash, files = { [rel|abs path] = short hash }, truncated? } (api 1.3)
+--   trust.prime(root, cb?)               read what runs code from `cargo metadata --no-deps --offline` in the background (additive to api 1.3)
 --   trust.ra_overrides(root)             -> rust-analyzer settings table ({} for a trusted workspace)
 local statefile = (function()
   local function rename(from, to)
@@ -202,14 +208,33 @@ function M.normalize(root)
 end
 
 -- ------------------------------------------------------------ fingerprint
+--
+-- What is watched (api 1.4). Two sources, merged:
+--   * `cargo metadata --no-deps --offline` (async, `M.prime`): every workspace member's manifest, build script
+--     targets (`custom-build`, also a custom `package.build = "x/gen.rs"`), proc-macro targets (every .rs file
+--     beside the crate's lib: it runs inside the compiler) and the manifests of path dependencies (their own
+--     build.rs and proc-macro sources too, followed up to MAX_MANIFESTS manifests). `cargo metadata --no-deps`
+--     does not run rustc, a wrapper or a build script (checked with canaries); `RUSTUP_AUTO_INSTALL=0` keeps
+--     a rust-toolchain file from making rustup download a toolchain.
+--   * a bounded fallback that needs no cargo and is what the synchronous calls use until the metadata is
+--     there (and when cargo fails): the old directory walk (depth 6, 2500 directories) plus a scan of the
+--     manifests it found for `build = "path"`, `path = "..."` dependencies, workspace `members` outside the
+--     root and `[lib] proc-macro = true` crates, followed up to MAX_MANIFESTS manifests; modules of a build
+--     script (`mod x;`, `#[path]`, `include!`) one level deep.
+-- Files are hashed whole up to MAX_BYTES (32 MiB, in 1 MiB chunks); a larger file is hashed over its first
+-- 32 MiB, its last MiB and its size. At most MAX_FILES (400) files are watched: more sets `truncated`.
 
 local SKIP_DIR = { target = true, [".git"] = true, [".hg"] = true, [".svn"] = true, node_modules = true }
 local WATCHED =
   { ["Cargo.toml"] = true, ["build.rs"] = true, ["rust-toolchain"] = true, ["rust-toolchain.toml"] = true }
-local MAX_FILES, MAX_DEPTH, MAX_BYTES = 400, 6, 1024 * 1024
+local MAX_FILES, MAX_DEPTH = 400, 6
+local CHUNK, MAX_BYTES = 1024 * 1024, 32 * 1024 * 1024
 local MAX_DIRS = 2500 -- directories scanned per fingerprint: a huge tree is cut off (`truncated`), never walked for ever
+local MAX_MANIFESTS = 64 -- manifests followed through path dependencies / members
+local MAX_PM_FILES = 200 -- .rs files watched per proc-macro crate
 
 M._max_dirs = MAX_DIRS
+M._max_bytes = MAX_BYTES
 
 local function stamp(path)
   local st = vim.uv.fs_stat(path)
@@ -221,6 +246,10 @@ end
 -- changes the directory's mtime), so the callers that ask often (statuslines, FocusGained, every command)
 -- stat the tree instead of scanning and hashing it, and a real change is still seen at once.
 local memo = {}
+-- cargo metadata results: path -> { files = { full path, ... }, stamps = { [manifest] = stamp } }; dropped when
+-- a manifest it was made from changes
+local meta = {}
+local meta_busy = {}
 
 local function memo_valid(m)
   for path, st in pairs(m.stamps) do
@@ -236,22 +265,324 @@ local function digest(path)
   if not f then
     return nil
   end
-  local text = f:read(MAX_BYTES) or ""
+  local parts, total = {}, 0
+  while total < MAX_BYTES do
+    local chunk = f:read(CHUNK)
+    if not chunk then
+      break
+    end
+    total = total + #chunk
+    parts[#parts + 1] = vim.fn.sha256(chunk)
+  end
+  local size = f:seek("end") or total
+  if size > MAX_BYTES then
+    f:seek("set", size - CHUNK)
+    parts[#parts + 1] = vim.fn.sha256(f:read(CHUNK) or "")
+    parts[#parts + 1] = tostring(size)
+  end
   f:close()
-  return vim.fn.sha256(text)
+  return #parts == 1 and parts[1] or vim.fn.sha256(table.concat(parts, ":"))
+end
+
+local function read_text(path, max)
+  local f = io.open(path, "rb")
+  if not f then
+    return nil
+  end
+  local s = f:read(max or 262144)
+  f:close()
+  return s
+end
+
+local function is_file(p)
+  local st = vim.uv.fs_stat(p)
+  return st and st.type == "file"
+end
+
+local function is_dir(p)
+  local st = vim.uv.fs_stat(p)
+  return st and st.type == "directory"
+end
+
+local function join(dir, rel)
+  if rel:sub(1, 1) == "/" then
+    return vim.fs.normalize(rel)
+  end
+  return vim.fs.normalize(dir .. "/" .. rel)
+end
+
+--- The text of the `[section]` table of a manifest (up to the next table header), or "".
+local function section(text, name)
+  local s, e = text:find("\n%[" .. name:gsub("%p", "%%%0") .. "%]%s*\n")
+  if not s then
+    if text:find("^%[" .. name:gsub("%p", "%%%0") .. "%]") then
+      s, e = 1, text:find("\n") or #text
+    else
+      return ""
+    end
+  end
+  local nxt = text:find("\n%[", e)
+  return "\n" .. text:sub(e, nxt and nxt or #text)
+end
+
+--- Every .rs file under `dir` (depth 4, at most `limit`), sorted.
+local function rs_files(dir, limit)
+  local out = {}
+  local function go(d, depth)
+    local h = vim.uv.fs_scandir(d)
+    if not h then
+      return
+    end
+    local subs = {}
+    while true do
+      local name, kind = vim.uv.fs_scandir_next(h)
+      if not name then
+        break
+      end
+      if kind == "file" and name:sub(-3) == ".rs" then
+        out[#out + 1] = d .. "/" .. name
+      elseif kind == "directory" and depth < 4 and not SKIP_DIR[name] then
+        subs[#subs + 1] = d .. "/" .. name
+      end
+    end
+    table.sort(subs)
+    for _, s in ipairs(subs) do
+      if #out < limit then
+        go(s, depth + 1)
+      end
+    end
+  end
+  go(dir, 0)
+  table.sort(out)
+  while #out > limit do
+    out[#out] = nil
+  end
+  return out
+end
+
+--- The modules a build script pulls in beside it: `mod x;`, `#[path = "p"] mod x;`, `include!("p")`.
+local function script_modules(script)
+  local text = read_text(script)
+  local out = {}
+  if not text then
+    return out
+  end
+  text = "\n" .. text
+  local dir = vim.fs.dirname(script)
+  for name in text:gmatch("\nmod%s+([%w_]+)%s*;") do
+    for _, cand in ipairs({ dir .. "/" .. name .. ".rs", dir .. "/" .. name .. "/mod.rs" }) do
+      if is_file(cand) then
+        out[#out + 1] = cand
+      end
+    end
+  end
+  for p in text:gmatch('#%[path%s*=%s*"([^"]+)"%]') do
+    out[#out + 1] = join(dir, p)
+  end
+  for p in text:gmatch('include!%(%s*"([^"]+)"') do
+    out[#out + 1] = join(dir, p)
+  end
+  return out
+end
+
+--- Files of the manifests that matter, found from the manifest text alone (the bounded fallback) and, for each
+--- manifest, the manifests of what it points at. `add(full)` records a file; returns the manifest list.
+local function scan_manifests(seed, add, stamps)
+  local queue, seen, n = {}, {}, 0
+  for _, m in ipairs(seed) do
+    if not seen[m] then
+      seen[m] = true
+      queue[#queue + 1] = m
+    end
+  end
+  local function push(manifest)
+    if not seen[manifest] and is_file(manifest) and #queue < MAX_MANIFESTS * 4 then
+      seen[manifest] = true
+      queue[#queue + 1] = manifest
+    end
+  end
+  local i = 1
+  while queue[i] and n < MAX_MANIFESTS do
+    local manifest = queue[i]
+    i = i + 1
+    n = n + 1
+    add(manifest)
+    local dir = vim.fs.dirname(manifest)
+    stamps[dir] = stamp(dir)
+    local text = read_text(manifest)
+    if text then
+      -- a build script: `build = "x/gen.rs"` (a custom path), `build = false` (none), else build.rs
+      local pkg = section(text, "package")
+      local custom = pkg:match('\nbuild%s*=%s*"([^"]+)"')
+      local script
+      if custom then
+        script = join(dir, custom)
+      elseif not pkg:find("\nbuild%s*=%s*false") then
+        script = dir .. "/build.rs"
+      end
+      if script and is_file(script) then
+        add(script)
+        for _, mod in ipairs(script_modules(script)) do
+          if is_file(mod) then
+            add(mod)
+          end
+        end
+      end
+      -- a proc-macro crate: every .rs file of it runs inside the compiler
+      local lib = section(text, "lib")
+      if lib:find("proc[-_]macro%s*=%s*true") then
+        local lp = lib:match('\npath%s*=%s*"([^"]+)"') or "src/lib.rs"
+        local src = vim.fs.dirname(join(dir, lp))
+        stamps[src] = stamp(src)
+        for _, f in ipairs(rs_files(src, MAX_PM_FILES)) do
+          add(f)
+        end
+      end
+      -- path dependencies, patches, workspace members outside the tree
+      for p in text:gmatch('path%s*=%s*"([^"]+)"') do
+        local target = join(dir, p)
+        if is_dir(target) then
+          push(target .. "/Cargo.toml")
+        end
+      end
+      for list in text:gmatch("members%s*=%s*(%b[])") do
+        for p in list:gmatch('"([^"]+)"') do
+          if p:sub(-2) == "/*" then
+            local base = join(dir, p:sub(1, -3))
+            local h = vim.uv.fs_scandir(base)
+            while h do
+              local name, kind = vim.uv.fs_scandir_next(h)
+              if not name then
+                break
+              end
+              if kind == "directory" then
+                push(base .. "/" .. name .. "/Cargo.toml")
+              end
+            end
+          elseif not p:find("[%*%?%[]") then
+            push(join(dir, p) .. "/Cargo.toml")
+          end
+        end
+      end
+    end
+  end
+  return seen
+end
+
+--- What `cargo metadata` names that runs code, as full paths; nil when it is unavailable or failed.
+local function files_of_metadata(data)
+  local out, manifests = {}, {}
+  for _, pkg in ipairs(data.packages or {}) do
+    if pkg.manifest_path then
+      out[#out + 1] = pkg.manifest_path
+      manifests[#manifests + 1] = pkg.manifest_path
+    end
+    for _, t in ipairs(pkg.targets or {}) do
+      local kinds = table.concat(t.kind or {}, ",")
+      if t.src_path and kinds:find("custom%-build") then
+        out[#out + 1] = t.src_path
+        vim.list_extend(out, script_modules(t.src_path))
+      elseif t.src_path and kinds:find("proc%-macro") then
+        vim.list_extend(out, rs_files(vim.fs.dirname(t.src_path), MAX_PM_FILES))
+      end
+    end
+    for _, dep in ipairs(pkg.dependencies or {}) do
+      if dep.path then
+        manifests[#manifests + 1] = dep.path .. "/Cargo.toml"
+      end
+    end
+  end
+  return out, manifests
+end
+
+--- Run `cargo metadata --no-deps --offline` for `root` in the background and remember what it names; `cb(ok,
+--- err)` when done. Afterwards `fingerprint(root)` includes those files (the memo is dropped). Never runs a
+--- build script, proc macro or rustc wrapper (`--no-deps` is a manifest read); nothing is downloaded.
+function M.prime(root, cb)
+  local path = M.normalize(root)
+  cb = cb or function() end
+  if not path or not is_file(path .. "/Cargo.toml") then
+    return cb(false, "no Cargo.toml")
+  end
+  if vim.fn.executable("cargo") ~= 1 then
+    return cb(false, "no cargo")
+  end
+  if meta_busy[path] then
+    return cb(false, "busy")
+  end
+  meta_busy[path] = true
+  local ok, err = pcall(vim.system, {
+    "cargo",
+    "metadata",
+    "--no-deps",
+    "--offline",
+    "--format-version",
+    "1",
+    "--manifest-path",
+    path .. "/Cargo.toml",
+  }, { text = true, cwd = path, timeout = 20000, env = { RUSTUP_AUTO_INSTALL = "0" } }, function(res)
+    vim.schedule(function()
+      meta_busy[path] = nil
+      if res.code ~= 0 or not res.stdout or res.stdout == "" then
+        return cb(false, (res.stderr or ""):sub(1, 200))
+      end
+      local dok, data = pcall(vim.json.decode, res.stdout)
+      if not dok or type(data) ~= "table" then
+        return cb(false, "bad metadata")
+      end
+      local files, manifests = files_of_metadata(data)
+      -- the path dependencies' own build scripts / proc-macro crates, from their manifests
+      local extra, stamps = {}, {}
+      scan_manifests(manifests, function(f)
+        extra[#extra + 1] = f
+      end, stamps)
+      vim.list_extend(files, extra)
+      for _, m in ipairs(manifests) do
+        stamps[m] = stamp(m)
+      end
+      stamps[path .. "/Cargo.toml"] = stamp(path .. "/Cargo.toml")
+      meta[path] = { files = files, stamps = stamps }
+      memo[path] = nil
+      cb(true)
+    end)
+  end)
+  if not ok then
+    meta_busy[path] = nil
+    cb(false, tostring(err))
+  end
+end
+
+--- true while the metadata of `root` is known and still valid
+function M.primed(root)
+  local path = M.normalize(root)
+  local m = path and meta[path]
+  return m ~= nil and memo_valid({ stamps = m.stamps })
 end
 
 --- What cargo executes or obeys under `root`: { hash = combined, files = { [name] = first 12 hex digits } }.
---- Names are relative to root, or absolute for files in parent directories.
+--- Names are relative to root, or absolute for files outside it (parent directories, path dependencies).
+--- opts.fresh: ignore the memo. opts.assume: a `files` table of a stored entry; its names are watched too (so
+--- the answer matches an entry recorded with the metadata before the metadata of this session is there).
 function M.fingerprint(root, opts)
   local path = M.normalize(root)
   local cached = path and memo[path]
-  if cached and not (opts and opts.fresh) and memo_valid(cached) then
+  local want_key = opts and opts.assume and (opts.key or false) or nil
+  if cached and not (opts and opts.fresh) and cached.key == want_key and memo_valid(cached) then
     return cached.fp
   end
   local files, n, truncated, ndirs = {}, 0, false, 0
   local stamps = {}
-  local function add(name, full)
+  local function name_of(full)
+    if path and full:sub(1, #path + 1) == path .. "/" then
+      return full:sub(#path + 2)
+    end
+    return full
+  end
+  local function add(full, name)
+    name = name or name_of(full)
+    if files[name] then
+      return
+    end
     if n >= MAX_FILES then
       truncated = true
       return
@@ -263,6 +594,7 @@ function M.fingerprint(root, opts)
       stamps[full] = stamp(full)
     end
   end
+  local manifests = {}
   local function walk(dir, rel, depth)
     if ndirs >= MAX_DIRS then
       truncated = true
@@ -287,7 +619,10 @@ function M.fingerprint(root, opts)
           or ((name == "config" or name == "config.toml") and vim.fs.basename(dir) == ".cargo")
           or (name == "run.toml" and vim.fs.basename(dir) == ".xynovim")
         then
-          add(relname, dir .. "/" .. name)
+          add(dir .. "/" .. name, relname)
+          if name == "Cargo.toml" then
+            manifests[#manifests + 1] = dir .. "/" .. name
+          end
         end
       elseif kind == "directory" and not SKIP_DIR[name] and depth < MAX_DEPTH then
         sub[#sub + 1] = { dir .. "/" .. name, relname }
@@ -302,6 +637,27 @@ function M.fingerprint(root, opts)
   end
   if path then
     walk(path, "", 0)
+    -- build scripts at custom paths, path dependencies and members outside the tree, proc-macro crates
+    table.sort(manifests)
+    scan_manifests(manifests, function(full)
+      add(full)
+    end, stamps)
+    -- what cargo metadata named, while it is still valid
+    local m = meta[path]
+    if m and memo_valid({ stamps = m.stamps }) then
+      for _, full in ipairs(m.files) do
+        add(full)
+      end
+    else
+      meta[path] = nil
+    end
+    if opts and opts.assume then
+      local names = vim.tbl_keys(opts.assume)
+      table.sort(names)
+      for _, name in ipairs(names) do
+        add(name:sub(1, 1) == "/" and name or (path .. "/" .. name), name)
+      end
+    end
     -- cargo reads .cargo/config(.toml) and rustup rust-toolchain(.toml) of every parent directory
     local dir = vim.fs.dirname(path)
     local guard = 0
@@ -312,7 +668,7 @@ function M.fingerprint(root, opts)
         stamps[dir .. "/.cargo"] = stamp(dir .. "/.cargo")
       end
       for _, name in ipairs({ ".cargo/config", ".cargo/config.toml", "rust-toolchain", "rust-toolchain.toml" }) do
-        add(dir == "/" and ("/" .. name) or (dir .. "/" .. name), (dir == "/" and "" or dir) .. "/" .. name)
+        add((dir == "/" and "" or dir) .. "/" .. name, dir == "/" and ("/" .. name) or (dir .. "/" .. name))
       end
       local up = vim.fs.dirname(dir)
       if up == dir then
@@ -329,14 +685,16 @@ function M.fingerprint(root, opts)
   end
   local fp = { hash = vim.fn.sha256(table.concat(parts, "\n")), files = files, truncated = truncated or nil }
   if path then
-    memo[path] = { fp = fp, stamps = stamps }
+    memo[path] = { fp = fp, stamps = stamps, key = opts and opts.assume and (opts.key or false) or nil }
   end
   return fp
 end
 
---- Forget the memoised fingerprints (specs; the stat check makes it unnecessary otherwise).
+--- Forget the memoised fingerprints and metadata (specs; the stat check makes it unnecessary otherwise).
 function M._forget()
   memo = {}
+  meta = {}
+  meta_busy = {}
 end
 
 local function changed_files(old, new)
@@ -353,6 +711,15 @@ local function changed_files(old, new)
   end
   table.sort(out)
   return out
+end
+
+--- The fingerprint to compare an entry with: before this session's metadata is there, the names the entry
+--- recorded are watched too.
+local function current_fp(path, e)
+  if e.files and not M.primed(path) then
+    return M.fingerprint(path, { assume = e.files, key = e.hash })
+  end
+  return M.fingerprint(path)
 end
 
 local function entry_of(path)
@@ -399,7 +766,7 @@ local function entry_current(path, e)
     end)
     return true
   end
-  return M.fingerprint(path).hash == e.hash
+  return current_fp(path, e).hash == e.hash
 end
 
 --- Whether `root` (a workspace root or any path in it) is trusted. Second result: the entry that trusts it.
@@ -429,7 +796,7 @@ function M.drift(root)
   if not e or e.recursive or not e.hash then
     return nil
   end
-  local f = M.fingerprint(path)
+  local f = current_fp(path, e)
   if f.hash == e.hash then
     return nil
   end
@@ -447,7 +814,7 @@ function M.rehash(root, saved)
   if not e or e.recursive then
     return false
   end
-  local f = M.fingerprint(path, { fresh = true })
+  local f = M.fingerprint(path, { fresh = true, assume = e.files })
   if saved and e.files then
     local only = {}
     for _, one in ipairs(type(saved) == "table" and saved or { saved }) do
@@ -482,6 +849,29 @@ function M.trust(root, opts)
       all[path].hash, all[path].files = fp.hash, fp.files
     end
   end)
+  if not (opts and opts.recursive) and not (opts and opts.no_prime) then
+    -- read what cargo says runs code (in the background); the files it adds to the ones just recorded
+    -- belong to this decision, so they are recorded too when nothing recorded has changed meanwhile
+    local at = statefile.read(file())[path]
+    at = type(at) == "table" and at.at or nil
+    M.prime(path, function(ok)
+      if not ok then
+        return
+      end
+      statefile.update(file(), function(all)
+        local cur = all[path]
+        if type(cur) == "table" and not cur.recursive and cur.at == at and cur.files then
+          local f = M.fingerprint(path, { fresh = true })
+          for name, h in pairs(cur.files) do
+            if f.files[name] ~= h then
+              return -- something recorded changed: leave the entry, the drift is real
+            end
+          end
+          cur.hash, cur.files = f.hash, f.files
+        end
+      end)
+    end)
+  end
   return path
 end
 
