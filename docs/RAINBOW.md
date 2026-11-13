@@ -84,7 +84,7 @@ below `vim.g`.
 | `colors [N\|show\|freeze\|save]` | the number of colours; `show` prints them in their colours; `freeze` turns the generated colours into `palette = custom`; `save` writes them to `stdpath("state")/xynovim/rainbow-colors.json` |
 | `hue NAME` `luminosity NAME` | generator options |
 | `scope` `restrain` `clear` | at the cursor (the mouse does the same under the pointer) |
-| `set OPTION VALUE` | any option by its dotted path, validated (`set scope.alpha 0.35`, `set disable md toml`) |
+| `set OPTION VALUE` | any option by its dotted path, validated (`set scope.alpha 0.35`). Lists: several words (`set disable md toml`, `set custom #ff0000 #00ff00`) or JSON (`set custom ["#112233","#445566"]`); `set disable`, `set disable []` or `set disable none` empties the list |
 | `save` `forget` `reload` | write the options that differ from the defaults to `stdpath("state")/xynovim-rainbow.json`, delete it, re-read everything |
 | `health` | `:checkhealth xynovim` |
 
