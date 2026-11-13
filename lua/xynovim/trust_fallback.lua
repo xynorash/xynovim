@@ -573,10 +573,7 @@ function M.fingerprint(root, opts)
   local files, n, truncated, ndirs = {}, 0, false, 0
   local stamps = {}
   local function name_of(full)
-    -- `path` is M.normalize's spelling (a Windows drive letter in lower case); a joined path comes from
-    -- vim.fs.normalize, which upper-cases it: compare the prefix with the drive letter folded
-    local folded = vim.fn.has("win32") == 1 and full:gsub("^(%a):", string.lower) or full
-    if path and folded:sub(1, #path + 1) == path .. "/" then
+    if path and full:sub(1, #path + 1) == path .. "/" then
       return full:sub(#path + 2)
     end
     return full
