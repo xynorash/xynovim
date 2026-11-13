@@ -61,3 +61,14 @@ describe("a test run that never ends", function()
     end
   end)
 end)
+
+describe("rust-analyzer unhealthy toast", function()
+  it("is replaced by cargo's own reason where xyno_rust.lsp_status.explain exists", function()
+    local ok, st = pcall(require, "xyno_rust.lsp_status")
+    if not (ok and type(st.explain) == "function") then
+      return skip("needs the xyno-rust.nvim dev branch (XYNOVIM_DEV_PLUGINS): lsp_status.explain")
+    end
+    require("lazy").load({ plugins = { "rustaceanvim" } })
+    H.eq(false, vim.g.rustaceanvim.server.status_notify_level)
+  end)
+end)

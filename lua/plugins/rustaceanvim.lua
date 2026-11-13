@@ -29,6 +29,16 @@ return {
       vim.g.rustaceanvim = vim.tbl_deep_extend("force", vim.g.rustaceanvim or {}, {
         dap = { autoload_configurations = false },
       })
+      -- rustaceanvim's toast for an unhealthy server says "Failed to load workspaces" and nothing else (and
+      -- "Failed to discover workspace" for every lone .rs file). xyno_rust.lsp_status.explain asks cargo
+      -- what is wrong (a TOML parse error with its line, a bad feature) and says that instead; the toast is
+      -- only switched off where that exists.
+      local has_explain, lsp_status = pcall(require, "xyno_rust.lsp_status")
+      if has_explain and type(lsp_status.explain) == "function" then
+        vim.g.rustaceanvim = vim.tbl_deep_extend("force", vim.g.rustaceanvim, {
+          server = { status_notify_level = false },
+        })
+      end
       -- LazyVim's `*` server config advertises workspace.fileOperations.willRename
       -- to every client. With it rust-analyzer answers a module rename
       -- (`vim.lsp.buf.rename`) with the file rename ALONE and expects the client
