@@ -47,7 +47,12 @@ return {
       -- stayed behind. Without the capability the response carries those edits
       -- too. (<leader>cR still asks willRenameFiles itself, see keymaps.lua.)
       vim.lsp.config("rust-analyzer", {
-        capabilities = { workspace = { fileOperations = { willRename = false } } },
+        -- general.positionEncodings: rust-analyzer would pick utf-8 while bacon-ls and the in-process
+        -- xyno clients are utf-16, and :checkhealth vim.lsp warns about mixed encodings on one buffer.
+        capabilities = {
+          workspace = { fileOperations = { willRename = false } },
+          general = { positionEncodings = { "utf-16" } },
+        },
       })
     end,
     opts = {
@@ -67,8 +72,9 @@ return {
             root,
             { default_settings = vim.deepcopy(default_settings) }
           )
+          -- nowait: this runs inside rustaceanvim's start, itself often inside another cargo.locate() wait
           local ctx = require("xyno_rust.rust_context")
-          local cargo = ctx.ra_cargo(ctx.get(ctx.root(root and (root .. "/x"))))
+          local cargo = ctx.ra_cargo(ctx.get(ctx.root(root and (root .. "/x"), { nowait = true })))
           if cargo then
             local ra = settings["rust-analyzer"]
             ra.cargo = vim.tbl_extend("force", ra.cargo or {}, cargo)
@@ -82,7 +88,10 @@ return {
           end
           -- Restricted mode (config/workspace_trust.lua): in a workspace nobody trusted, no build
           -- scripts, no proc macros, no cargo check; trusted workspaces keep the settings above as is.
-          return require("config.workspace_trust").settings_for(ctx.root(root and (root .. "/x")), settings)
+          return require("config.workspace_trust").settings_for(
+            ctx.root(root and (root .. "/x"), { nowait = true }),
+            settings
+          )
         end,
         default_settings = {
           ["rust-analyzer"] = {

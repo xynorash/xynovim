@@ -221,9 +221,8 @@ vim.api.nvim_create_autocmd("LspAttach", {
       -- (code actions: <leader>ca)
       set_rename(ev.buf)
 
-      pcall(function()
-        require("which-key").add({ { "<leader>r", group = "rust", buffer = ev.buf } })
-      end)
+      -- (the "rust" group name of <leader>r comes from which-key's global spec in plugins/editing-ui.lua;
+      -- a second, buffer-local copy made :checkhealth which-key report the key as a duplicate)
     end)
   end,
 })

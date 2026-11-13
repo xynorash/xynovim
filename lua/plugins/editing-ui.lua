@@ -243,4 +243,14 @@ return {
       },
     },
   },
+  {
+    -- :checkhealth render-markdown warned "latex parser: not installed" and "none installed: utftex,
+    -- latex2text" for a feature that cannot render here. Switched on only when a converter exists
+    -- (install utftex or latex2text, plus `:TSInstall latex`, to get formulas drawn).
+    "MeanderingProgrammer/render-markdown.nvim",
+    opts = function(_, opts)
+      local have = vim.fn.executable("utftex") == 1 or vim.fn.executable("latex2text") == 1
+      opts.latex = vim.tbl_deep_extend("force", opts.latex or {}, { enabled = have })
+    end,
+  },
 }

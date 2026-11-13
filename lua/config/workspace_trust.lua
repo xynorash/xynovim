@@ -139,13 +139,14 @@ local function key_of(root)
 end
 
 --- The cargo workspace root of a path (the key trust entries use), nil outside a crate.
-function M.workspace(path)
+---@param opts? { nowait?: boolean } nowait: never block on cargo (the cached answer, else the file-system one)
+function M.workspace(path, opts)
   if not path then
     return nil
   end
   local ok, ctx = pcall(require, "xyno_rust.rust_context")
   if ok and type(ctx.root) == "function" then
-    return ctx.root(path)
+    return ctx.root(path, opts)
   end
   -- no rust_context (a broken checkout): the nearest Cargo.toml still says "this is a crate"
   local found = vim.fs.find("Cargo.toml", { path = vim.fs.dirname(path), upward = true, type = "file" })[1]
@@ -478,7 +479,10 @@ end
 
 local function key_of_buf(b)
   local name = vim.api.nvim_buf_get_name(b)
-  local root = name ~= "" and M.workspace(name)
+  -- nowait: this runs from the statusline. A cold cargo.locate() there waited (vim.wait) inside the
+  -- redraw, and rustaceanvim's own synchronous `pgrep lspmux` inside that wait never returned: the
+  -- editor froze on the first Rust file of an untrusted workspace with the plugin clones.
+  local root = name ~= "" and M.workspace(name, { nowait = true })
   return root and key_of(root) or nil
 end
 
