@@ -2077,6 +2077,10 @@ end)
 
 describe("repo hygiene", function()
   local function git(...)
+    -- a tarball or `git archive` export has no history to ask: these checks are about the checkout, so they skip
+    if not uv.fs_stat(repo .. "/.git") then
+      skip("not a git checkout (no .git: tarball or git archive); these checks ask git what is tracked or changed")
+    end
     return sh({ "git", "-C", repo, ... })
   end
 
