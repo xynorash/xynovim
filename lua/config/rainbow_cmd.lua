@@ -54,6 +54,7 @@ end
 local function status_lines()
   local o = R().opts()
   local st = R().status()
+  local waiting = require("config.rainbow_words").waiting()
   local function onoff(v)
     return v and "on" or "off"
   end
@@ -80,9 +81,12 @@ local function status_lines()
       o.skip_first_level and "plain" or "coloured",
       tostring(o.min_contrast)
     ),
-    ("keywords: %s, tags: %s (by depth; Python, C #if / HTML, XML, JSX, YAML keys)"):format(
+    ("keywords: %s, tags: %s (by depth; Python, C #if / HTML, XML, JSX, YAML keys)%s"):format(
       onoff(o.words.keywords),
-      onoff(o.words.tags)
+      onoff(o.words.tags),
+      #waiting > 0
+          and ("; waiting for parsers: " .. table.concat(waiting, ", ") .. " (:TSInstall " .. table.concat(waiting, " ") .. ")")
+        or ""
     ),
     ("variables: %s (%d colours, by name)"):format(onoff(o.variables.enabled), o.variables.colors),
     ("scope: alpha %.2f, restrain %.2f%s, clear with %s, mouse %s, box %s"):format(

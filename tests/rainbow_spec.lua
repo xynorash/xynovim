@@ -1857,6 +1857,81 @@ describe("rainbow brackets: keywords and tags by depth", function()
     H.eq(c[1], fg_of(9, "#endif"))
   end)
 
+  it(
+    "the rules are data: add_rule makes a grammar that is installed work, a part that does not parse is skipped",
+    function()
+      local W = require("config.rainbow_words")
+      local saved = W.RULES.lua
+      W.add_rule("lua", {
+        kind = "keywords",
+        parts = {
+          '(if_statement ["if" "end"] @w)',
+          '(else_statement "else" @w)',
+          '(no_such_node "nope" @w)', -- does not parse against the lua grammar: dropped, the others stay
+        },
+        nest = { if_statement = true },
+        base = 1,
+        list = "curly",
+      })
+      defaults({ words = { keywords = true } })
+      open_text("w9.lua", "if a then\n  if b then\n    x()\n  else\n    y()\n  end\nend\n")
+      vim.cmd("redraw!")
+      local c = cycle()
+      H.eq(c[1], fg_of(1, "if"))
+      H.eq(c[2], fg_of(2, "if"))
+      H.eq(c[2], fg_of(4, "else"))
+      H.eq(c[2], fg_of(6, "end"))
+      H.eq(c[1], fg_of(7, "end"))
+      W.RULES.lua = saved -- (nil: no rule, as shipped)
+    end
+  )
+
+  it("Ruby, C++ and Kotlin have rules that wait for their grammars: no error, no mark, listed as waiting", function()
+    local W = require("config.rainbow_words")
+    for _, lang in ipairs({ "ruby", "cpp", "kotlin" }) do
+      H.ok(W.RULES[lang], lang .. " has a rule")
+    end
+    local waiting = W.waiting()
+    for _, lang in ipairs({ "ruby", "cpp", "kotlin" }) do
+      local ok = pcall(vim.treesitter.language.add, lang)
+      H.eq(not ok, vim.tbl_contains(waiting, lang), lang .. ": waiting exactly while its parser is missing")
+    end
+    -- a synthetic parser for a language that is not installed: nothing is marked, nothing raises
+    local fake = {
+      for_each_tree = function(_, fn)
+        fn({
+          root = function()
+            error("must not be queried")
+          end,
+        }, {
+          lang = function()
+            return "ruby"
+          end,
+          parent = function() end,
+        })
+      end,
+    }
+    if vim.tbl_contains(waiting, "ruby") then
+      local buf = vim.api.nvim_create_buf(false, true)
+      local ok, marks = pcall(W.collect, buf, fake, 0, 3, { words = { keywords = true, tags = true } }, {
+        by_kind = { curly = { "A" }, angle = { "B" } },
+      })
+      H.ok(ok, "collect does not raise")
+      H.eq({}, marks)
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end
+    local seen = {}
+    local notify = vim.notify
+    vim.notify = function(m)
+      seen[#seen + 1] = m
+    end
+    vim.cmd("XynoRainbow status")
+    vim.notify = notify
+    if #waiting > 0 then
+      H.match(table.concat(seen, "\n"), "waiting for parsers", true)
+    end
+  end)
+
   local HTML = "<div>\n  <p>\n    <b>x</b>\n    <br/>\n  </p>\n</div>\n"
   it("HTML tag names and brackets follow the element depth, open and close tags match", function()
     defaults({ words = { tags = true } })

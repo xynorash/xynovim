@@ -9,9 +9,14 @@
 --             the mapping they sit in (the plugin's exact YAML rule is not documented; this is the same
 --             idea: colour by nesting).
 --
--- Both are off by default (the plugin's tag option is off by default too). Not built: Ruby keywords, C++
--- `#if` macros as a separate rule, Kotlin lambda arrows and labels: those grammars are not installed here
--- and a rule cannot be tested without one (docs/RAINBOW.md).
+-- Both are off by default (the plugin's tag option is off by default too).
+--
+-- The rules are data (RULES below; `M.add_rule(lang, rule)` adds one). Ruby keywords, C++ `#if` and Kotlin
+-- lambda arrows have rules too, written from the grammars' node names but NEVER RUN against a parser: the
+-- three grammars are not installed here (`:TSInstall ruby cpp kotlin`), so these rules are dormant until
+-- they are, and unverified. A rule whose grammar is missing, or whose query does not parse against the
+-- installed grammar, is skipped quietly (a query is checked part by part: the parts that parse still work).
+-- The mechanism itself is specced with a grammar that is installed (tests/rainbow_spec.lua).
 local M = {}
 
 local PY_KW = '["if" "elif" "else" "for" "while" "try" "except" "finally" "with" "def" "class"] @w'
@@ -73,6 +78,57 @@ local RULES = {
     base = 1,
     list = "angle",
   },
+  -- Written against tree-sitter-ruby / -cpp / -kotlin node names, not run (grammars not installed).
+  ruby = {
+    kind = "keywords",
+    parts = {
+      '(if ["if" "end"] @w)',
+      '(elsif "elsif" @w)',
+      '(else "else" @w)',
+      '(unless ["unless" "end"] @w)',
+      '(while ["while" "end"] @w)',
+      '(until ["until" "end"] @w)',
+      '(for ["for" "end"] @w)',
+      '(case ["case" "end"] @w)',
+      '(when "when" @w)',
+      '(begin ["begin" "end"] @w)',
+      '(rescue "rescue" @w)',
+      '(ensure "ensure" @w)',
+      '(method ["def" "end"] @w)',
+      '(singleton_method ["def" "end"] @w)',
+      '(class ["class" "end"] @w)',
+      '(module ["module" "end"] @w)',
+    },
+    nest = {
+      ["if"] = true,
+      unless = true,
+      ["while"] = true,
+      ["until"] = true,
+      ["for"] = true,
+      case = true,
+      begin = true,
+      method = true,
+      singleton_method = true,
+      class = true,
+      module = true,
+    },
+    base = 1,
+    list = "curly",
+  },
+  cpp = {
+    kind = "keywords",
+    query = C_KW,
+    nest = { preproc_if = true, preproc_ifdef = true },
+    base = 1,
+    list = "curly",
+  },
+  kotlin = {
+    kind = "keywords",
+    parts = { '(lambda_literal "->" @w)' },
+    nest = { lambda_literal = true },
+    base = 1,
+    list = "curly",
+  },
   yaml = {
     kind = "tags",
     query = "(block_mapping_pair key: (_) @w)",
@@ -85,14 +141,45 @@ M.RULES = RULES
 
 local queries = {}
 
+--- Add or replace the rule of `lang`: { kind = "keywords"|"tags", query = "...@w" or parts = { "...@w", ... },
+--- nest = { node_type = true }, base = n, list = "curly"|"angle"|... }.
+function M.add_rule(lang, rule)
+  RULES[lang] = rule
+  queries[lang] = nil
+end
+
 local function query_for(lang, rule)
   local q = queries[lang]
   if q == nil then
-    local ok, parsed = pcall(vim.treesitter.query.parse, lang, rule.query)
+    local ok, parsed
+    if rule.parts then
+      local good = {}
+      for _, part in ipairs(rule.parts) do
+        if pcall(vim.treesitter.query.parse, lang, part) then
+          good[#good + 1] = part
+        end
+      end
+      ok, parsed = pcall(vim.treesitter.query.parse, lang, table.concat(good, "\n"))
+      ok = ok and #good > 0
+    else
+      ok, parsed = pcall(vim.treesitter.query.parse, lang, rule.query)
+    end
     q = ok and parsed or false
     queries[lang] = q
   end
   return q
+end
+
+--- Languages that have a rule but no installed grammar (the rules wait for `:TSInstall <lang>`).
+function M.waiting()
+  local out = {}
+  for lang in pairs(RULES) do
+    if not pcall(vim.treesitter.language.add, lang) then
+      out[#out + 1] = lang
+    end
+  end
+  table.sort(out)
+  return out
 end
 
 local function depth(node, rule)
