@@ -199,24 +199,70 @@ end)
 -- ------------------------------------------------------------- 5 - 9 lazy.lua
 
 describe("PATH", function()
-  it("~/.cargo/bin is appended when a non-login start lacks it (rust-analyzer not found)", function()
-    local cargo_bin = vim.uv.os_homedir() .. "/.cargo/bin"
-    if vim.fn.isdirectory(cargo_bin) == 0 then
-      return require("xynotest.harness").skip("no ~/.cargo/bin on this machine")
-    end
+  -- Hermetic: the cargo bin directory is made in a temp dir (as $CARGO_HOME, and as ~/.cargo under a fake $HOME), so
+  -- the spec runs on a machine without ~/.cargo/bin as well and never looks at the real one.
+  local function path_of(env)
+    return child("return { path = vim.env.PATH }", { env = env }).path
+  end
+
+  it("$CARGO_HOME/bin is appended when a non-login start lacks it, and not added twice", function()
+    local cargo_bin = vim.uv.fs_realpath(H.tmpdir()) .. "/cargo-home/bin"
+    vim.fn.mkdir(cargo_bin, "p")
     local env = xdg_env()
+    env.CARGO_HOME = vim.fs.dirname(cargo_bin)
     env.PATH = "/usr/bin:/bin"
-    local res = child("return { path = vim.env.PATH }", { env = env })
-    H.eq("/usr/bin:/bin:" .. cargo_bin, res.path)
+    H.eq("/usr/bin:/bin:" .. cargo_bin, path_of(env))
     env.PATH = cargo_bin .. ":/usr/bin"
-    H.eq(cargo_bin .. ":/usr/bin", child("return { path = vim.env.PATH }", { env = env }).path, "not added twice")
+    H.eq(cargo_bin .. ":/usr/bin", path_of(env), "not added twice")
+  end)
+
+  it("~/.cargo/bin is appended when $CARGO_HOME is unset", function()
+    local home = vim.uv.fs_realpath(H.tmpdir())
+    vim.fn.mkdir(home .. "/.cargo/bin", "p")
+    local env = xdg_env()
+    env.HOME = home
+    env.CARGO_HOME = "" -- empty counts as unset (lua/config/options.lua)
+    env.PATH = "/usr/bin:/bin"
+    H.eq("/usr/bin:/bin:" .. home .. "/.cargo/bin", path_of(env))
   end)
 end)
 
 describe("config/lazy.lua", function()
-  pending(
-    "clones lazy.nvim with --filter=blob:none --branch=stable when missing, 'Failed to clone lazy.nvim' + exit 1 on failure",
-    "needs network (or a faked git on PATH) and an empty stdpath('data'): not testable offline without touching the shared data dir"
+  it(
+    "clones lazy.nvim with --filter=blob:none --branch=stable when missing; a failing clone prints the reason and exits 1",
+    function()
+      -- Hermetic: an empty data dir in a temp dir and a stub `git` first on PATH that records its arguments and fails,
+      -- so nothing is cloned and the shared data dir is not touched.
+      local dir = vim.uv.fs_realpath(H.tmpdir())
+      vim.fn.mkdir(dir .. "/bin", "p")
+      vim.fn.mkdir(dir .. "/data", "p")
+      local rec = dir .. "/git-args"
+      write(
+        dir .. "/bin/git",
+        table.concat(
+          { "#!/bin/sh", 'printf "%s\\n" "$@" > "' .. rec .. '"', "echo 'fatal: stub git refuses'", "exit 128", "" },
+          "\n"
+        )
+      )
+      vim.uv.fs_chmod(dir .. "/bin/git", 493) -- 0755
+      local env = xdg_env()
+      env.XDG_DATA_HOME = dir .. "/data"
+      env.PATH = dir .. "/bin:" .. vim.env.PATH
+      local r = vim
+        .system({ vim.fn.exepath("nvim"), "--headless", "+qa" }, { text = true, env = env, cwd = dir })
+        :wait(60000)
+      H.eq(1, r.code, "exit status of a failed bootstrap: " .. (r.stderr or ""))
+      local out = (r.stdout or "") .. (r.stderr or "")
+      H.match(out, "Failed to clone lazy.nvim", true)
+      H.match(out, "fatal: stub git refuses", true)
+      H.eq({
+        "clone",
+        "--filter=blob:none",
+        "--branch=stable",
+        "https://github.com/folke/lazy.nvim.git",
+        dir .. "/data/nvim/lazy/lazy.nvim",
+      }, vim.fn.readfile(rec))
+    end
   )
 
   it("bootstrap code targets stdpath('data')/lazy/lazy.nvim with a blobless stable clone", function()
