@@ -387,6 +387,10 @@ describe("rust_context with live servers", function()
 
   it("selecting only ssr removes the error in both tiers, reset brings it back", function()
     H.known_issue(
+      { "macos" },
+      "same cause as the compile_error test above: rust-analyzer's diagnostic did not arrive within 150 s on macos-latest (runs 43974762464 and 43981179510 failed, 43978313704 passed); live rust-analyzer flows are flaky there"
+    )
+    H.known_issue(
       { "windows" },
       "live servers need bacon_ls / rust-analyzer (windows-latest run 39647013043); the state-file sanitising failure is not diagnosed"
     )
