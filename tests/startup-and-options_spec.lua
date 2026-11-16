@@ -692,7 +692,7 @@ describe("lazy-lock.json", function()
     H.eq(
       {},
       bad,
-      'installed plugins are off lazy-lock.json (local drift, not a code failure); put them back with: nvim --headless "+Lazy! restore" +qa'
+      'installed plugins are off lazy-lock.json (local drift, not a code failure; expected on an install older than the lock, e.g. before the lock moved to the merged plugin commits); put them back with: nvim --headless "+Lazy! restore" +qa'
     )
     -- kulala sits exactly on its tag
     local r = vim

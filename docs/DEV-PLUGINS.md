@@ -1,7 +1,9 @@
 # Running xynovim against the local plugin clones
 
-`lazy-lock.json` pins every `xyno-*.nvim` plugin to a published commit, so work that exists only on a plugin's `dev`
-branch is not live in xynovim. To try all of it together (and to run the specs and benchmarks against it) point
+`lazy-lock.json` pins every `xyno-*.nvim` plugin to a published commit. Eight of them (rust, imports, crates, macros,
+new, guard, history, clipboard) are pinned at the commits merged into their `main` branches; xyno-sandbox.nvim is still
+pinned at its older commit until its PR is merged, so work that exists only on a plugin's `dev` branch (today the
+sandbox policy preview) is not live in xynovim. To try unmerged work together (and to run the specs and benchmarks against it) point
 xynovim at the clones:
 
 ```sh
@@ -38,7 +40,7 @@ plugins.
 
 ## Making the dev work the pinned version
 
-When the plugin commits are pushed, move the lockfile with the commands below (run by you; they fetch from GitHub and
+Done for eight plugins (the lock holds their merged `main` commits; `nvim --headless "+Lazy! restore" +qa` brings an older install onto them). For xyno-sandbox.nvim, once its PR is merged, move the lockfile with the commands below (run by you; they fetch from GitHub and
 write `lazy-lock.json`, so they are not part of the dev mode). Commit the changed lock lines in this repository.
 
 ```sh
@@ -56,10 +58,13 @@ nvim --headless "+Lazy! restore" +qa
 ## Specs that need the dev versions
 
 A few specs check behaviour that only exists on the plugins' `dev` branches (the OSC 52 fallback in
-`clipboard-e2e`, the xyno-sandbox policy preview in `agent-99-guard`, ...). With the pinned plugins they skip with a
-message that names `XYNOVIM_DEV_PLUGINS`; with the clones they run.
+`clipboard-e2e`, the xyno-sandbox policy preview in `agent-99-guard`, ...). With the pinned plugins of the 2026-11-13 run they skipped with a
+message that names `XYNOVIM_DEV_PLUGINS`; since the lock moved to the merged commits only the xyno-sandbox ones still
+do, the rest run in the default mode.
 
 ## Results of the integration run (2026-11-13)
+
+(Measured before the lock moved to the merged plugin commits: the "pinned" rows are the old pins. They are not re-measured here.)
 
 Same machine, `scripts/test.sh` (pinned plugins) against `scripts/dev-plugins.sh test` (clones on `dev`), 64 spec files each, one whole-suite run per mode:
 
