@@ -47,7 +47,7 @@ describe("a test run that never ends", function()
       client.listeners.run()
       vim.wait(400)
     end)
-    H.eq(1, #notes)
+    H.eq(1, #notes, "notifications: " .. vim.inspect(notes))
     H.has(notes[1].msg, "<leader>tS")
     -- a finished run stays quiet
     local quiet = capture(function()

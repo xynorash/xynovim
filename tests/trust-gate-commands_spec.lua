@@ -530,7 +530,18 @@ describe("the gate decides per case", function()
       )
       vim.cmd("silent write")
       wt._reset()
-      H.ok(wt.allowed(ws), "an in-editor save is not a surprise")
+      H.ok(
+        wt.allowed(ws),
+        "an in-editor save is not a surprise (drift: "
+          .. vim.inspect(trust.drift(ws))
+          .. ", buffer: "
+          .. vim.api.nvim_buf_get_name(buf)
+          .. ", ws: "
+          .. ws
+          .. ", key: "
+          .. tostring(trust.normalize(ws))
+          .. ")"
+      )
       write(ws .. "/build.rs", "fn main() {}\n")
       vim.api.nvim_buf_set_lines(
         buf,

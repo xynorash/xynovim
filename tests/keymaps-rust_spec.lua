@@ -1,3 +1,4 @@
+-- xyno-timeout: 300
 -- Rust keymaps (keymaps.lua), rust_assist.lua, the rust_nav keys, after/ftplugin/rust.lua.
 -- One real rust-analyzer session on tests/fixtures/keymaps-rust-crate is shared by
 -- the tests; the rest of the behaviour is checked with stubs of the editor API
@@ -411,12 +412,31 @@ describe("buffer-local maps on a Rust buffer", function()
         end
       end
     end, 90000, "rust-analyzer to offer 'Extract into variable'")
-    mp("<leader>rv", "x").callback()
-    H.feed("<Esc>")
-    local text = H.wait_for(function()
+    local function extract()
+      mp("<leader>rv", "x").callback()
+      H.feed("<Esc>")
+    end
+    local function edited()
       local t = table.concat(lines(), "\n")
       return t:find("let var_name = 1 %+ 2 %+ 3;", 1) and t
-    end, 60000, "extract variable edit, buffer is now:\n" .. table.concat(lines(), "\n", 36, 44))
+    end
+    extract()
+    -- A hosted macOS runner sometimes drops the first request (rust-analyzer answers "content modified"
+    -- while it still loads): select again and ask again, up to three times 20 s apart, then wait 20 s more.
+    -- A repeat after the edit landed is not made: it only happens while the text still has `1 + 2 + 3`.
+    local text
+    for _ = 1, 3 do
+      if vim.wait(20000, edited, 20) then
+        break
+      end
+      local at = find("let total = 1 + 2 + 3")
+      if at then
+        vim.api.nvim_win_set_cursor(0, { at, col })
+        H.feed("v8l", "x")
+        extract()
+      end
+    end
+    text = H.wait_for(edited, 20000, "extract variable edit, buffer is now:\n" .. table.concat(lines(), "\n", 36, 44))
     H.match(text, "let total = var_name;", true)
   end)
 

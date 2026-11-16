@@ -393,7 +393,7 @@ describe("rust_context with live servers", function()
     local s = live()
     H.wait_for(function()
       return conflict(s.buf, "rust-analyzer") and (not s.bacon or conflict(s.buf, "bacon-ls"))
-    end, 90000, "the compile_error in both tiers before the change")
+    end, 150000, "the compile_error in both tiers before the change") -- as long as the first live test: the first load on a hosted macOS runner is slow
     notes()
 
     rc.apply(s.root, { all = false, no_default = false, features = { "ssr" } })
