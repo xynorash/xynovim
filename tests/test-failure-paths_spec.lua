@@ -43,18 +43,25 @@ describe("a test run that never ends", function()
     T.slow_after_s = 0.1
     local client = { listeners = {}, get_position = function() end }
     T.consumer(client)
-    local notes = capture(function()
+    -- only this feature's notices: a machine without a clipboard tool gets xyno-clipboard's own one-time
+    -- warning (deferred start-up) while the spec waits, and that is not what is counted here
+    local function mine(list)
+      return vim.tbl_filter(function(n)
+        return not tostring(n.msg):find("xyno-clipboard", 1, true)
+      end, list)
+    end
+    local notes = mine(capture(function()
       client.listeners.run()
       vim.wait(400)
-    end)
+    end))
     H.eq(1, #notes, "notifications: " .. vim.inspect(notes))
     H.has(notes[1].msg, "<leader>tS")
     -- a finished run stays quiet
-    local quiet = capture(function()
+    local quiet = mine(capture(function()
       client.listeners.run()
       client.listeners.results("a", {}, false)
       vim.wait(400)
-    end)
+    end))
     T.slow_after_s = old
     for _, n in ipairs(quiet) do
       H.no_match(n.msg, "still running")

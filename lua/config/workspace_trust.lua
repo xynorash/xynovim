@@ -693,7 +693,7 @@ function M.note_saved(root, file, t)
   end
   local only = vim.fs.normalize(vim.uv.fs_realpath(file) or file)
   for name, h in pairs(fp.files) do
-    local full = name:sub(1, 1) == "/" and name or (key .. "/" .. name)
+    local full = (name:sub(1, 1) == "/" or name:match("^%a:[/\\]")) and name or (key .. "/" .. name)
     if e.files[name] ~= h and vim.fs.normalize(vim.uv.fs_realpath(full) or full) ~= only then
       return
     end

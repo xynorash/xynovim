@@ -517,6 +517,10 @@ describe("the gate decides per case", function()
     end)
 
     it("saving Cargo.toml in nvim does not ask; a pulled build.rs next to it still does", function()
+      H.known_issue(
+        { "windows" },
+        "xyno-rust.nvim 56582e7 trust.rehash(root, saved) does not recognise the drive-letter absolute names that cargo metadata adds to the fingerprint (d:\\a\\...\\Cargo.toml next to the relative Cargo.toml), so an in-editor save of a manifest re-asks on Windows; plugin bug, reported to the owner, see docs/KNOWN_ISSUES.md"
+      )
       local ws = trusted_ws()
       wt.setup()
       vim.cmd.edit(vim.fn.fnameescape(ws .. "/Cargo.toml"))
