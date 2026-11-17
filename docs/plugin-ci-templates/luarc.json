@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
+  "runtime.version": "LuaJIT",
+  "workspace.checkThirdParty": false,
+  "workspace.ignoreDir": [".git", "tests/fixtures", "tests/e2e/fixtures"],
+  "diagnostics.globals": ["vim"],
+  "diagnostics.disable": [
+    "undefined-field",
+    "need-check-nil",
+    "param-type-mismatch",
+    "assign-type-mismatch",
+    "cast-local-type",
+    "inject-field",
+    "duplicate-set-field",
+    "missing-fields",
+    "redundant-parameter",
+    "different-requires",
+    "return-type-mismatch",
+    "redundant-return-value",
+    "missing-parameter",
+    "undefined-doc-name",
+    "undefined-doc-param",
+    "unused-local"
+  ]
+}

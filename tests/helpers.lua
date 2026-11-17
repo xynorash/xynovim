@@ -173,6 +173,10 @@ end
 --- :edit a file and fire VeryLazy (never fires headless; LazyVim's setup
 --- hangs off it). Returns the buffer number.
 function H.open(path)
+  -- Callbacks an earlier test left scheduled for buffers it wiped (nvim's undotree, LazyVim's autocmds: "Invalid
+  -- buffer id") must not run inside :edit: xyno-rust.nvim waits for cargo in its FileType autocmd, which pumps the
+  -- event loop, and the error would surface as an error of :edit. Run them here, where an error is harmless.
+  pcall(vim.wait, 50)
   vim.cmd.edit(vim.fn.fnameescape(path))
   H.very_lazy()
   return vim.api.nvim_get_current_buf()
@@ -217,6 +221,27 @@ function H.clear_messages()
   vim.cmd("messages clear")
 end
 
+--- LazyVim.lazy_notify() parks vim.notify in a collecting function for the first 500 ms and then
+--- replays what it collected with `for _, n in ipairs(notifs) do vim.notify(n) end`. A stub that
+--- saved the collector as "the original" and restored it later put it back for good: the replay
+--- then appended to the table it was iterating over and never ended (a spec hanging at 100% CPU in
+--- LazyVim/util/init.lua notify, seen as the hang of rust-context_spec with XYNOVIM_DEV_PLUGINS,
+--- where the config starts faster). A spec that captures notifications while it runs early calls
+--- H.settle_notify() first. (Not done inside capture_notify for every spec: the earlier replay made
+--- the snippets/completion spec hang in the snacks notifier with the dev plugins.)
+function H.settle_notify()
+  local function parked()
+    local info = debug.getinfo(vim.notify, "S")
+    return info and info.short_src:find("lazyvim/util/init.lua", 1, true) ~= nil
+  end
+  if parked() then
+    vim.wait(2000, function()
+      return not parked()
+    end, 10)
+    vim.wait(20) -- the replay is scheduled: let it run
+  end
+end
+
 --- Replace vim.notify; returns { list = {{msg, level}...}, restore = fn }.
 function H.capture_notify()
   local orig = vim.notify
@@ -224,6 +249,9 @@ function H.capture_notify()
   vim.notify = function(msg, level)
     if type(msg) == "string" and msg:find("has been overwritten by another plugin", 1, true) then
       return -- noice's late check (timing dependent, seen on macOS runners)
+    end
+    if type(msg) == "string" and msg:find("^xyno%-clipboard: no clipboard tool found") then
+      return -- the one-time startup hint on a machine without wl-clipboard/xclip, replayed late by the notifier
     end
     cap.list[#cap.list + 1] = { msg = msg, level = level }
   end
@@ -338,8 +366,11 @@ function H.write_icls(path)
     return h:sub(2)
   end
   local fx = { underline = 1, undercurl = 2, strikethrough = 3, underdotted = 5 }
-  local out = { '<scheme name="' .. P.name .. '" version="142" parent_scheme="Darcula">',
-    '<metaInfo><property name="ide">TestIDE</property><property name="ideVersion">1.0</property></metaInfo>', "<colors>" }
+  local out = {
+    '<scheme name="' .. P.name .. '" version="142" parent_scheme="Darcula">',
+    '<metaInfo><property name="ide">TestIDE</property><property name="ideVersion">1.0</property></metaInfo>',
+    "<colors>",
+  }
   local names = vim.tbl_keys(P.colors)
   table.sort(names)
   for _, n in ipairs(names) do
@@ -350,13 +381,25 @@ function H.write_icls(path)
   table.sort(names)
   for _, n in ipairs(names) do
     local a, v = P.attrs[n], {}
-    if a.fg then v[#v + 1] = ('<option name="FOREGROUND" value="%s"/>'):format(raw(a.fg)) end
-    if a.bg then v[#v + 1] = ('<option name="BACKGROUND" value="%s"/>'):format(raw(a.bg)) end
+    if a.fg then
+      v[#v + 1] = ('<option name="FOREGROUND" value="%s"/>'):format(raw(a.fg))
+    end
+    if a.bg then
+      v[#v + 1] = ('<option name="BACKGROUND" value="%s"/>'):format(raw(a.bg))
+    end
     local font = (a.bold and 1 or 0) + (a.italic and 2 or 0)
-    if font > 0 then v[#v + 1] = ('<option name="FONT_TYPE" value="%d"/>'):format(font) end
-    if a.effect then v[#v + 1] = ('<option name="EFFECT_TYPE" value="%d"/>'):format(fx[a.effect]) end
-    if a.effect_color then v[#v + 1] = ('<option name="EFFECT_COLOR" value="%s"/>'):format(raw(a.effect_color)) end
-    if a.stripe then v[#v + 1] = ('<option name="ERROR_STRIPE_COLOR" value="%s"/>'):format(raw(a.stripe)) end
+    if font > 0 then
+      v[#v + 1] = ('<option name="FONT_TYPE" value="%d"/>'):format(font)
+    end
+    if a.effect then
+      v[#v + 1] = ('<option name="EFFECT_TYPE" value="%d"/>'):format(fx[a.effect])
+    end
+    if a.effect_color then
+      v[#v + 1] = ('<option name="EFFECT_COLOR" value="%s"/>'):format(raw(a.effect_color))
+    end
+    if a.stripe then
+      v[#v + 1] = ('<option name="ERROR_STRIPE_COLOR" value="%s"/>'):format(raw(a.stripe))
+    end
     out[#out + 1] = ('<option name="%s"><value>%s</value></option>'):format(n, table.concat(v))
   end
   out[#out + 1] = "</attributes></scheme>"
@@ -365,12 +408,30 @@ function H.write_icls(path)
   f:close()
 end
 
+local trusted_base
+
+--- Workspace trust (xyno-rust.nvim >= the trust gate): running a target, test or cargo tool in an untrusted
+--- workspace asks first, and in a headless spec nobody can answer (vim.ui.select waits for ever). The temp
+--- directory of the run is this spec's own, so it is trusted once, recursively (state lives in the temp
+--- XDG_STATE_HOME). Specs that test the prompt itself stub it. Older plugin versions have no trust module.
+local function trust_base(base)
+  if trusted_base == base then
+    return
+  end
+  trusted_base = base
+  pcall(function()
+    local trust = require("config.workspace_trust").store() -- xyno_rust.trust, or the vendored fallback
+    trust.trust(base, { recursive = true })
+  end)
+end
+
 --- A fresh empty directory, removed by cleanup().
 function H.tmpdir()
   local base = vim.env.XYNO_TEST_TMP
   if not base or base == "" then
     base = vim.fs.dirname(vim.fn.tempname())
   end
+  trust_base(base)
   local dir = assert(vim.uv.fs_mkdtemp(base .. "/spec-XXXXXX"))
   H._dirs[#H._dirs + 1] = dir
   if H.os ~= "linux" then

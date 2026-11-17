@@ -1,0 +1,49 @@
+name: lint
+
+# Format (StyLua) and static check (lua-language-server) for an xyno-*.nvim
+# plugin. Copy to .github/workflows/lint.yml together with .stylua.toml and
+# .luarc.json (see README.md of this directory). Same pins as the main repo.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  STYLUA_VERSION: v2.6.0
+  STYLUA_SHA256: a485f72bbfa22e4642e77a84b5edc2611a5cab7477b34e2e709dd8f78e919895
+  LUALS_VERSION: 3.19.2
+  LUALS_SHA256: 93ad326b10f6c00911dd8c450fa098332dbd8f9f45d1052f5636a2d54479b947
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install StyLua (pinned, checksum verified)
+        run: |
+          curl -fsSL -o stylua.zip "https://github.com/JohnnyMorganz/StyLua/releases/download/${STYLUA_VERSION}/stylua-linux-x86_64.zip"
+          echo "${STYLUA_SHA256}  stylua.zip" | sha256sum -c -
+          mkdir -p "$HOME/stylua"
+          unzip -q stylua.zip -d "$HOME/stylua"
+          echo "$HOME/stylua" >> "$GITHUB_PATH"
+
+      - name: Install lua-language-server (pinned, checksum verified)
+        run: |
+          curl -fsSL -o luals.tar.gz "https://github.com/LuaLS/lua-language-server/releases/download/${LUALS_VERSION}/lua-language-server-${LUALS_VERSION}-linux-x64.tar.gz"
+          echo "${LUALS_SHA256}  luals.tar.gz" | sha256sum -c -
+          mkdir -p "$HOME/luals"
+          tar -xzf luals.tar.gz -C "$HOME/luals"
+          echo "$HOME/luals/bin" >> "$GITHUB_PATH"
+
+      - name: Format (stylua --check, config in .stylua.toml)
+        run: stylua --check .
+
+      - name: Static check (lua-language-server --check, config in .luarc.json)
+        run: lua-language-server --check . --checklevel=Warning --logpath "$RUNNER_TEMP/luals"

@@ -1,0 +1,33 @@
+# Dependabot version updates. What it covers:
+#   github-actions : the SHA-pinned actions in .github/workflows (the pin comment
+#                    "# vX.Y.Z" is rewritten with the new SHA)
+#   cargo          : demo/netwatch, the README demo crate (the crates under
+#                    tests/fixtures are test inputs and stay as they are)
+# What it cannot cover (no ecosystem for them), so they are bumped by hand:
+#   lazy-lock.json (plugin commits)  : `:Lazy update`, then run the spec suite
+#   the Neovim, StyLua and lua-language-server downloads in the workflows : the
+#       version and the sha256 in the workflow's env block, together
+#   the Mason registry pin (lua/plugins/mason-pin.lua)
+# scripts/build-site.py uses the Python standard library only: no pip ecosystem.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7 # let a new release age a week before a PR is opened
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "CI"
+
+  - package-ecosystem: cargo
+    directory: /demo/netwatch
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "Demo"

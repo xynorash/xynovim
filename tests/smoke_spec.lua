@@ -32,7 +32,14 @@ describe("startup", function()
     if vim.fn.has("win32") == 1 then
       -- rustaceanvim's own notice for a lone .rs file (no Cargo.toml above it);
       -- on the Windows runner it arrives within the window, elsewhere later
-      msgs = vim.trim((msgs:gsub("rustaceanvim:%s*No project root found%.%s*Starting rust%-analyzer client in detached/standalone mode[^\n]*", "")))
+      msgs = vim.trim(
+        (
+          msgs:gsub(
+            "rustaceanvim:%s*No project root found%.%s*Starting rust%-analyzer client in detached/standalone mode[^\n]*",
+            ""
+          )
+        )
+      )
     end
     H.eq("", msgs)
   end)

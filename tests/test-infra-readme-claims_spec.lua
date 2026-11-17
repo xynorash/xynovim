@@ -46,7 +46,8 @@ local function sh(cmd, opts)
 end
 
 --- nested test.sh runs must not inherit the outer run's per-process state
-local CLEAN = { "/usr/bin/env", "-u", "XYNO_SPEC", "-u", "XYNO_COV_OUT", "-u", "XYNO_TMUX_PREFIX", "-u", "XYNO_COV_ROOTS" }
+local CLEAN =
+  { "/usr/bin/env", "-u", "XYNO_SPEC", "-u", "XYNO_COV_OUT", "-u", "XYNO_TMUX_PREFIX", "-u", "XYNO_COV_ROOTS" }
 
 --- bash <script> [args...] with the clean environment; returns the sh() result
 local function bash(script, args, env, cwd)
@@ -81,7 +82,12 @@ local function build_fake(copy_lua)
   vim.fn.mkdir(dir .. "/tests", "p")
   local copy = { lua = true, colors = true, plugin = true, after = true }
   for _, name in ipairs(vim.fn.readdir(repo)) do
-    if not vim.tbl_contains({ ".git", ".github", ".remember", "tests", "scripts", "lazy-lock.json", "lazyvim.json" }, name) then
+    if
+      not vim.tbl_contains(
+        { ".git", ".github", ".remember", "tests", "scripts", "lazy-lock.json", "lazyvim.json" },
+        name
+      )
+    then
       if copy_lua and copy[name] then
         assert(sh({ "cp", "-a", repo .. "/" .. name, dir .. "/" .. name }).code == 0)
       else
@@ -120,7 +126,8 @@ local function rows(out)
   for line in out:gmatch("[^\n]+") do
     local st, f, p, fl, sk = line:match("^(%u+)%s+(tests/%S+)%s+(%d+) passed, (%d+) failed, (%d+) skipped %(%d+s%)$")
     if st then
-      t[vim.fs.basename(f)] = { status = st, passed = tonumber(p), failed = tonumber(fl), skipped = tonumber(sk), line = line }
+      t[vim.fs.basename(f)] =
+        { status = st, passed = tonumber(p), failed = tonumber(fl), skipped = tonumber(sk), line = line }
     end
   end
   return t
@@ -629,7 +636,11 @@ describe("scripts/test.sh --coverage and environment switches", function()
         H.no_match(rel, "^tests/")
       end
     end
-    H.eq({ true, true, true, true }, { seen.lua, seen.colors, seen.plugin, seen.after }, report:sub(1, 600):gsub("\r", "\\r"))
+    H.eq(
+      { true, true, true, true },
+      { seen.lua, seen.colors, seen.plugin, seen.after },
+      report:sub(1, 600):gsub("\r", "\\r")
+    )
     H.ok(total, "no TOTAL row")
     H.eq({ sh_, se }, { total[1], total[2] })
     H.ok(total[1] > 0, "the hook recorded executed lines")
@@ -672,8 +683,16 @@ __xyno_cov.dump(vim.env.XYNO_COV_OUT)
     )
     local out = H.tmpdir() .. "/cov.json"
     local r = sh({
-      "nvim", "--headless", "-u", "NONE", "--cmd", "luafile " .. repo .. "/tests/coverage_hook.lua",
-      "-c", "luafile " .. root .. "/run.lua", "-c", "qa!",
+      "nvim",
+      "--headless",
+      "-u",
+      "NONE",
+      "--cmd",
+      "luafile " .. repo .. "/tests/coverage_hook.lua",
+      "-c",
+      "luafile " .. root .. "/run.lua",
+      "-c",
+      "qa!",
     }, { env = { XYNO_COV_ROOTS = "/nonexistent/x:" .. root, XYNO_COV_OUT = out }, cwd = "/" })
     hook_run = { r = r, out = out, root = root }
     return hook_run
@@ -704,27 +723,24 @@ __xyno_cov.dump(vim.env.XYNO_COV_OUT)
 
   it("scripts/coverage.lua merges dumps and estimates the denominator (comments, blanks, closers excluded)", function()
     local root = H.tmpdir()
-    write(
-      root .. "/lua/m.lua",
-      table.concat({
-        "-- comment", -- 1
-        "local x = 1", -- 2 *
-        "", -- 3
-        "if x then", -- 4 *
-        "  print(x) -- tail", -- 5 *
-        "else", -- 6
-        "  y = 2", -- 7 *
-        "end", -- 8
-        "--[[ block", -- 9
-        "still ]]", -- 10
-        "local s = [[", -- 11 *
-        "body", -- 12
-        "body2]]", -- 13
-        "return {", -- 14 *
-        "  a = 1,", -- 15 *
-        "}", -- 16
-      }, "\n") .. "\n"
-    )
+    write(root .. "/lua/m.lua", table.concat({
+      "-- comment", -- 1
+      "local x = 1", -- 2 *
+      "", -- 3
+      "if x then", -- 4 *
+      "  print(x) -- tail", -- 5 *
+      "else", -- 6
+      "  y = 2", -- 7 *
+      "end", -- 8
+      "--[[ block", -- 9
+      "still ]]", -- 10
+      "local s = [[", -- 11 *
+      "body", -- 12
+      "body2]]", -- 13
+      "return {", -- 14 *
+      "  a = 1,", -- 15 *
+      "}", -- 16
+    }, "\n") .. "\n")
     write(root .. "/lua/n.lua", "local z = 2\n")
     write(root .. "/tests/t.lua", "local t = 1\n")
     local dumps = H.tmpdir()
@@ -855,9 +871,22 @@ describe("tests/harness.lua", function()
     end)
     H.eq({ passed = 3, failed = 0, skipped = 0 }, n)
     H.eq({
-      "outer before 1", "outer before 2", "inner before", "t1", "inner after", "outer after",
-      "outer before 1", "outer before 2", "inner before", "t2", "inner after", "outer after",
-      "outer before 1", "outer before 2", "t3", "outer after",
+      "outer before 1",
+      "outer before 2",
+      "inner before",
+      "t1",
+      "inner after",
+      "outer after",
+      "outer before 1",
+      "outer before 2",
+      "inner before",
+      "t2",
+      "inner after",
+      "outer after",
+      "outer before 1",
+      "outer before 2",
+      "t3",
+      "outer after",
     }, log)
   end)
 
@@ -987,7 +1016,7 @@ end)
     H.eq(0, r.code, r.out)
     H.match(r.stdout, "SKIP x_spec.lua (not today)", true)
     H.match(r.stdout, "XYNO_RESULT passed=0 failed=0 skipped=1\n", true)
-    local e = runner('local x = nil\nx.y = 1')
+    local e = runner("local x = nil\nx.y = 1")
     H.eq(1, e.code, e.out)
     H.match(e.stdout, "FAIL loading ", true)
     H.match(e.stdout, "XYNO_RESULT passed=0 failed=1 skipped=0\n", true)
@@ -1007,10 +1036,39 @@ end)
 
 describe("tests/helpers.lua API", function()
   local names = {
-    "eq", "ok", "not_ok", "is_nil", "match", "no_match", "has", "throws", "wait_for", "wait_lsp", "feed", "open",
-    "clients", "diagnostics", "messages", "clear_messages", "capture_notify", "fixture", "open_fixture", "git",
-    "git_init", "sandbox_sh", "tmux", "spawn", "tmpdir", "cleanup", "need_rust", "need_sandbox", "need_tmux",
-    "skip_file", "rust_available", "sandbox_available", "tmux_available",
+    "eq",
+    "ok",
+    "not_ok",
+    "is_nil",
+    "match",
+    "no_match",
+    "has",
+    "throws",
+    "wait_for",
+    "wait_lsp",
+    "feed",
+    "open",
+    "clients",
+    "diagnostics",
+    "messages",
+    "clear_messages",
+    "capture_notify",
+    "fixture",
+    "open_fixture",
+    "git",
+    "git_init",
+    "sandbox_sh",
+    "tmux",
+    "spawn",
+    "tmpdir",
+    "cleanup",
+    "need_rust",
+    "need_sandbox",
+    "need_tmux",
+    "skip_file",
+    "rust_available",
+    "sandbox_available",
+    "tmux_available",
   }
 
   it("provides every documented function", function()
@@ -1020,32 +1078,61 @@ describe("tests/helpers.lua API", function()
   end)
 
   it("assertions pass on true and raise a descriptive error on false", function()
-    H.throws(function() H.eq(1, 2) end, "expected 1")
-    H.throws(function() H.eq({ 1 }, { 2 }, "lists") end, "^.-lists: expected")
+    H.throws(function()
+      H.eq(1, 2)
+    end, "expected 1")
+    H.throws(function()
+      H.eq({ 1 }, { 2 }, "lists")
+    end, "^.-lists: expected")
     H.eq({ a = { 1, 2 } }, { a = { 1, 2 } })
-    H.throws(function() H.ok(nil, "custom message") end, "custom message")
+    H.throws(function()
+      H.ok(nil, "custom message")
+    end, "custom message")
     H.eq("x", H.ok("x"))
-    H.throws(function() H.not_ok(1) end, "falsy")
-    H.throws(function() H.is_nil(0) end, "expected nil")
-    H.throws(function() H.match("abc", "^b") end, "does not match")
+    H.throws(function()
+      H.not_ok(1)
+    end, "falsy")
+    H.throws(function()
+      H.is_nil(0)
+    end, "expected nil")
+    H.throws(function()
+      H.match("abc", "^b")
+    end, "does not match")
     H.match("a.c", ".", true)
-    H.throws(function() H.match("abc", ".", true) end)
-    H.throws(function() H.no_match("abc", "b", true) end, "unexpectedly matches")
+    H.throws(function()
+      H.match("abc", ".", true)
+    end)
+    H.throws(function()
+      H.no_match("abc", "b", true)
+    end, "unexpectedly matches")
     H.has({ { 1 }, 2 }, { 1 })
     H.has("hello", "ell")
-    H.throws(function() H.has({ 1 }, 2) end, "does not contain")
-    H.throws(function() H.throws(function() end) end, "expected an error")
-    H.throws(function() H.throws(function() error("zzz") end, "^yyy$") end, "does not match")
+    H.throws(function()
+      H.has({ 1 }, 2)
+    end, "does not contain")
+    H.throws(function()
+      H.throws(function() end)
+    end, "expected an error")
+    H.throws(function()
+      H.throws(function()
+        error("zzz")
+      end, "^yyy$")
+    end, "does not match")
   end)
 
   it("wait_for returns the predicate's value and raises with the message on timeout", function()
     local n = 0
-    H.eq("done", H.wait_for(function()
-      n = n + 1
-      return n > 3 and "done"
-    end, 2000))
+    H.eq(
+      "done",
+      H.wait_for(function()
+        n = n + 1
+        return n > 3 and "done"
+      end, 2000)
+    )
     H.throws(function()
-      H.wait_for(function() return false end, 60, "the moon")
+      H.wait_for(function()
+        return false
+      end, 60, "the moon")
     end, "timed out waiting for the moon")
   end)
 
@@ -1058,7 +1145,9 @@ describe("tests/helpers.lua API", function()
     H.eq("1", H.git(a, "rev-list", "--count", "HEAD"))
     H.eq("main", H.git(a, "branch", "--show-current"))
     H.eq("t", H.git(a, "log", "-1", "--format=%an"))
-    H.throws(function() H.git(a, "no-such-subcommand") end, "failed")
+    H.throws(function()
+      H.git(a, "no-such-subcommand")
+    end, "failed")
     local job = H.spawn({ "sleep", "301" })
     H.ok(alive(job.pid))
     H.eq(job, H._jobs[#H._jobs])
@@ -1084,8 +1173,18 @@ describe("tests/helpers.lua API", function()
       { lnum = 0, col = 0, message = "m2", source = "clippy::needless_return" },
     })
     H.eq(2, #H.diagnostics(nil, buf))
-    H.eq({ "m1" }, vim.tbl_map(function(d) return d.message end, H.diagnostics("rustc", buf)))
-    H.eq({ "m2" }, vim.tbl_map(function(d) return d.message end, H.diagnostics("clippy", buf)))
+    H.eq(
+      { "m1" },
+      vim.tbl_map(function(d)
+        return d.message
+      end, H.diagnostics("rustc", buf))
+    )
+    H.eq(
+      { "m2" },
+      vim.tbl_map(function(d)
+        return d.message
+      end, H.diagnostics("clippy", buf))
+    )
     vim.diagnostic.reset(ns, buf)
     vim.api.nvim_buf_delete(buf, { force = true })
     vim.api.nvim_echo({ { "an infra test message" } }, true, {})
@@ -1106,8 +1205,7 @@ end)
 describe("tests/helpers.lua cleanup and open", function()
   it("cleanup removes temp dirs, kills jobs, tmux servers and LSP clients; open fires User VeryLazy", function()
     local out = H.tmpdir() .. "/result.json"
-    local r = runner(
-      [[
+    local r = runner([[
 local H = require("xynotest.helpers")
 local result = {}
 it("does everything", function()
@@ -1165,9 +1263,7 @@ it("does everything", function()
   w:write(vim.json.encode(result))
   w:close()
 end)
-]],
-      { XYNO_TMUX_PREFIX = "xynotest-selftest-" .. uv.os_getpid() }
-    )
+]], { XYNO_TMUX_PREFIX = "xynotest-selftest-" .. uv.os_getpid() })
     H.eq(0, r.code, r.out)
     local d = vim.json.decode(read(out))
     H.eq(1, d.fired, "H.open fires User VeryLazy once")
@@ -1213,7 +1309,11 @@ describe("fixtures", function()
     H.match(core, "csr = []", true)
     H.match(core, 'default = ["ssr"]', true)
     H.match(read(fx .. "/workspace/app/Cargo.toml"), 'core-lib = { path = "../core" }', true)
-    H.match(read(fx .. "/workspace/core/src/lib.rs"), '#[cfg(all(feature = "ssr", feature = "csr"))]\ncompile_error!', true)
+    H.match(
+      read(fx .. "/workspace/core/src/lib.rs"),
+      '#[cfg(all(feature = "ssr", feature = "csr"))]\ncompile_error!',
+      true
+    )
     H.ok(exists(fx .. "/workspace/app/src/main.rs"))
   end)
 
@@ -1245,7 +1345,9 @@ describe("fixtures", function()
     local f = H.fixture("standalone.rs")
     H.eq("standalone.rs", vim.fs.basename(f))
     H.eq(read(fx .. "/standalone.rs"), read(f))
-    H.throws(function() H.fixture("no-such-fixture") end, "copying fixture")
+    H.throws(function()
+      H.fixture("no-such-fixture")
+    end, "copying fixture")
   end)
 end)
 
@@ -1257,7 +1359,11 @@ describe("existing specs", function()
     local rs = r.rows
     H.eq({ "PASS", 6, 0 }, { rs["smoke_spec.lua"].status, rs["smoke_spec.lua"].passed, rs["smoke_spec.lua"].failed })
     -- a test that needs tmux skips (not passes) on a machine without it
-    H.eq({ "PASS", 8, 0 }, { rs["harness_spec.lua"].status, rs["harness_spec.lua"].passed + rs["harness_spec.lua"].skipped, rs["harness_spec.lua"].failed })
+    H.eq({ "PASS", 8, 0 }, {
+      rs["harness_spec.lua"].status,
+      rs["harness_spec.lua"].passed + rs["harness_spec.lua"].skipped,
+      rs["harness_spec.lua"].failed,
+    })
     H.eq({ "PASS", 1, 0 }, { rs["routes_spec.lua"].status, rs["routes_spec.lua"].passed, rs["routes_spec.lua"].failed })
     local ra = rs["rust_spec.lua"]
     if ra.status == "FAIL" or ra.status == "TIMEOUT" then
@@ -1323,7 +1429,11 @@ describe("README 'Tests' section", function()
   end)
 
   it("exit statuses 0 / 1 / 2 are the ones test.sh uses", function()
-    H.match(sec, "0 = no failure (skips allowed), 1 = a failure, timeout or crash, 2 = nothing matched or the setup is missing", true)
+    H.match(
+      sec,
+      "0 = no failure (skips allowed), 1 = a failure, timeout or crash, 2 = nothing matched or the setup is missing",
+      true
+    )
     -- 0: skip run (C), 1: run (A), 2: no match / setup
     H.eq(0, run_cov().code)
     H.eq(1, run_a().code)
@@ -1340,9 +1450,26 @@ describe("README 'Tests' section", function()
       H.eq("function", type(H[n]), n)
     end
     local named = {
-      "wait_for", "wait_lsp", "feed", "open", "clients", "diagnostics", "messages", "capture_notify", "fixture",
-      "open_fixture", "git", "sandbox_sh", "tmux", "spawn", "tmpdir", "cleanup", "need_rust", "need_sandbox",
-      "need_tmux", "skip_file",
+      "wait_for",
+      "wait_lsp",
+      "feed",
+      "open",
+      "clients",
+      "diagnostics",
+      "messages",
+      "capture_notify",
+      "fixture",
+      "open_fixture",
+      "git",
+      "sandbox_sh",
+      "tmux",
+      "spawn",
+      "tmpdir",
+      "cleanup",
+      "need_rust",
+      "need_sandbox",
+      "need_tmux",
+      "skip_file",
     }
     for _, n in ipairs(named) do
       H.match(sec, n, true, "README names " .. n)
@@ -1397,8 +1524,23 @@ describe("README layout and path claims", function()
     end
     H.eq(17, n, "layout lists 17 entries")
     for _, want in ipairs({
-      "lua/config/", "lua/xynovim/", "snippets/", "lua/plugins/", "colors/", "lua/island/", "lua/lualine/", "tools/",
-      "scripts/", "tests/", "Makefile", "plugin/after/", "after/ftplugin/", "queries/", "after/queries/", ".github/", "site/",
+      "lua/config/",
+      "lua/xynovim/",
+      "snippets/",
+      "lua/plugins/",
+      "colors/",
+      "lua/island/",
+      "lua/lualine/",
+      "tools/",
+      "scripts/",
+      "tests/",
+      "Makefile",
+      "plugin/after/",
+      "after/ftplugin/",
+      "queries/",
+      "after/queries/",
+      ".github/",
+      "site/",
     }) do
       H.match("\n" .. layout, "\n" .. want, true, want)
     end
@@ -1424,7 +1566,16 @@ describe("README layout and path claims", function()
         H.ok(exists(repo .. "/lua/plugins/" .. p .. ".lua"), "lua/plugins/" .. p .. ".lua")
       end
     end
-    for _, p in ipairs({ "bacon-ls", "rustaceanvim", "ninety-nine", "auto-save", "dap", "gitsigns", "telescope", "island-theme" }) do
+    for _, p in ipairs({
+      "bacon-ls",
+      "rustaceanvim",
+      "ninety-nine",
+      "auto-save",
+      "dap",
+      "gitsigns",
+      "telescope",
+      "island-theme",
+    }) do
       H.match(list, p, true)
     end
     H.ok(exists(repo .. "/after/queries/rust"))
@@ -1434,17 +1585,40 @@ describe("README layout and path claims", function()
   it("every file path the README names resolves (lua/plugins, lua/config, plugin/after, tools)", function()
     local want = {}
     for _, p in ipairs({
-      "bacon-ls", "rustaceanvim", "dap", "auto-save", "ninety-nine", "editing-ui", "navigation", "supply-chain",
-      "coverage", "diffview", "domain", "gitsigns", "telescope", "island-theme", "lualine", "no-ghost-text", "xyno-history", "xyno-sandbox", "xyno-clipboard", "xyno-guard", "xyno-rust",
+      "bacon-ls",
+      "rustaceanvim",
+      "dap",
+      "auto-save",
+      "ninety-nine",
+      "editing-ui",
+      "navigation",
+      "supply-chain",
+      "coverage",
+      "diffview",
+      "domain",
+      "gitsigns",
+      "telescope",
+      "island-theme",
+      "lualine",
+      "no-ghost-text",
+      "xyno-history",
+      "xyno-sandbox",
+      "xyno-clipboard",
+      "xyno-guard",
+      "xyno-rust",
     }) do
       want[#want + 1] = "lua/plugins/" .. p .. ".lua"
     end
     for _, p in ipairs({
-      "rust_assist", "ux",
+      "rust_assist",
+      "ux",
     }) do
       want[#want + 1] = "lua/config/" .. p .. ".lua"
     end
-    vim.list_extend(want, { "plugin/after/transparency.lua", "plugin/after/unsafe-highlight.lua", "tools/icls2nvim.py" })
+    vim.list_extend(
+      want,
+      { "plugin/after/transparency.lua", "plugin/after/unsafe-highlight.lua", "tools/icls2nvim.py" }
+    )
     for _, rel in ipairs(want) do
       H.ok(exists(repo .. "/" .. rel), rel)
       local stem = (vim.fs.basename(rel):gsub("%.%a+$", ""))
@@ -1456,34 +1630,43 @@ describe("README layout and path claims", function()
     end
   end)
 
-  it("no backticked repo path in the README points at a missing file (placeholders and removed files excepted)", function()
-    local missing = {}
-    for p in readme:gmatch("`([^` ]+)`") do
-      if
-        p:match("^lua/") or p:match("^plugin/") or p:match("^tools/") or p:match("^scripts/") or p:match("^tests/")
-        or p:match("^after/") or p:match("^snippets/") or p:match("^colors/")
-      then
+  it(
+    "no backticked repo path in the README points at a missing file (placeholders and removed files excepted)",
+    function()
+      local missing = {}
+      for p in readme:gmatch("`([^` ]+)`") do
         if
-          not p:find("[<*{~]")
-          and p:match("%.%a+$")
-          and p ~= "lua/plugins/theme.lua" -- named as a historical finding of roadmap step 1
-          and p ~= "tools/Dark.icls" -- named in the CHANGELOG as the removed scheme export
-          -- named in docs/HISTORY.md as they were, now the plugins xyno-history.nvim and xyno-sandbox.nvim
-          and p ~= "lua/config/local_history.lua"
-          and p ~= "lua/config/agent_sandbox.lua"
-          -- named in docs/HISTORY.md as they were, now the modules of xyno-rust.nvim
-          and p ~= "lua/config/rust_nav.lua"
-          and p ~= "lua/config/rust_tasks.lua"
-          and p ~= "lua/config/rust_routes.lua"
-          and p ~= "lua/config/lsp_status.lua"
-          and not exists(repo .. "/" .. p)
+          p:match("^lua/")
+          or p:match("^plugin/")
+          or p:match("^tools/")
+          or p:match("^scripts/")
+          or p:match("^tests/")
+          or p:match("^after/")
+          or p:match("^snippets/")
+          or p:match("^colors/")
         then
-          missing[#missing + 1] = p
+          if
+            not p:find("[<*{~]")
+            and p:match("%.%a+$")
+            and p ~= "lua/plugins/theme.lua" -- named as a historical finding of roadmap step 1
+            and p ~= "tools/Dark.icls" -- named in the CHANGELOG as the removed scheme export
+            -- named in docs/HISTORY.md as they were, now the plugins xyno-history.nvim and xyno-sandbox.nvim
+            and p ~= "lua/config/local_history.lua"
+            and p ~= "lua/config/agent_sandbox.lua"
+            -- named in docs/HISTORY.md as they were, now the modules of xyno-rust.nvim
+            and p ~= "lua/config/rust_nav.lua"
+            and p ~= "lua/config/rust_tasks.lua"
+            and p ~= "lua/config/rust_routes.lua"
+            and p ~= "lua/config/lsp_status.lua"
+            and not exists(repo .. "/" .. p)
+          then
+            missing[#missing + 1] = p
+          end
         end
       end
+      H.eq({}, missing)
     end
-    H.eq({}, missing)
-  end)
+  )
 
   it("the named commands exist: :checkhealth xynovim, :Mason, :Lazy, :LazyExtras", function()
     H.very_lazy()
@@ -1496,10 +1679,31 @@ describe("README layout and path claims", function()
     for _, c in ipairs({ ":checkhealth xynovim", ":Mason", ":LazyExtras", ":Lazy sync" }) do
       H.match(readme, "`" .. c .. "`", true, c .. " named in README")
     end
-    vim.cmd("checkhealth xynovim")
-    local text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
-    vim.cmd("bwipeout!")
-    H.match(text, "xynovim", true)
+    -- In a child nvim: the in-process :checkhealth of this long-lived spec process never returned once with
+    -- the dev branch of xyno-clipboard.nvim (XYNOVIM_DEV_PLUGINS; cause not found, a fresh process is fine),
+    -- which stalled the whole file. A child with a timeout can only fail this one check.
+    local out = H.tmpdir() .. "/health.txt"
+    local env = {}
+    for _, k in ipairs({
+      "HOME",
+      "PATH",
+      "XDG_CONFIG_HOME",
+      "XDG_DATA_HOME",
+      "XDG_STATE_HOME",
+      "XDG_CACHE_HOME",
+      "TMPDIR",
+      "XYNOVIM_DEV_PLUGINS",
+    }) do
+      env[k] = vim.env[k]
+    end
+    local r = vim
+      .system(
+        { vim.fn.exepath("nvim"), "--headless", "+checkhealth xynovim", "+w! " .. out, "+qa!" },
+        { env = env, clear_env = true, text = true }
+      )
+      :wait(90000)
+    H.eq(0, r.code, "child :checkhealth xynovim: " .. (r.stderr or ""))
+    H.match(read(out), "xynovim", true)
   end)
 end)
 
@@ -1522,11 +1726,13 @@ describe("README mechanical numeric claims", function()
     H.eq(actual, tonumber(total), "README plugin count vs the installed plugin count")
   end)
 
-  it("independent .icls parse (fixture rebuilt from the palette): group colours/italics of the loaded scheme match (>= 35 checks)", function()
-    local script = H.tmpdir() .. "/icls.py"
-    write(
-      script,
-      [[
+  it(
+    "independent .icls parse (fixture rebuilt from the palette): group colours/italics of the loaded scheme match (>= 35 checks)",
+    function()
+      local script = H.tmpdir() .. "/icls.py"
+      write(
+        script,
+        [[
 import json, sys, xml.etree.ElementTree as ET
 root = ET.parse(sys.argv[1]).getroot()
 raw = {}
@@ -1548,56 +1754,84 @@ def res(n, seen=()):
     return out
 print(json.dumps({n: res(n) for n in raw}))
 ]]
-    )
-    local fixture = H.tmpdir() .. "/fixture.icls"
-    H.write_icls(fixture)
-    local r = sh({ "python3", "-I", script, fixture })
-    H.eq(0, r.code, r.out)
-    local attrs = vim.json.decode(r.stdout)
-    local pairs_ = {
-      { "Keyword", "DEFAULT_KEYWORD" }, { "Statement", "DEFAULT_KEYWORD" }, { "Conditional", "DEFAULT_KEYWORD" },
-      { "Repeat", "DEFAULT_KEYWORD" }, { "Label", "DEFAULT_KEYWORD" }, { "Include", "DEFAULT_KEYWORD" },
-      { "Exception", "DEFAULT_KEYWORD" }, { "StorageClass", "DEFAULT_KEYWORD" }, { "Boolean", "DEFAULT_KEYWORD" },
-      { "@boolean", "DEFAULT_KEYWORD" }, { "@constant.builtin", "DEFAULT_KEYWORD" }, { "@module.builtin", "DEFAULT_KEYWORD" },
-      { "@type.builtin", "DEFAULT_KEYWORD" },
-      { "String", "DEFAULT_STRING" }, { "Character", "DEFAULT_STRING" }, { "@string", "DEFAULT_STRING" },
-      { "@character", "DEFAULT_STRING" }, { "@string.special.path", "DEFAULT_STRING" },
-      { "Number", "DEFAULT_NUMBER" }, { "Float", "DEFAULT_NUMBER" }, { "@number", "DEFAULT_NUMBER" },
-      { "@number.float", "DEFAULT_NUMBER" },
-      { "Function", "DEFAULT_FUNCTION_DECLARATION" },
-      { "Constant", "DEFAULT_CONSTANT" }, { "@constant", "DEFAULT_CONSTANT" }, { "@string.special.symbol", "DEFAULT_CONSTANT" },
-      { "Operator", "DEFAULT_OPERATION_SIGN" },
-      { "PreProc", "DEFAULT_METADATA" }, { "PreCondit", "DEFAULT_METADATA" },
-      { "Special", "DEFAULT_VALID_STRING_ESCAPE" }, { "SpecialChar", "DEFAULT_VALID_STRING_ESCAPE" },
-      { "@string.escape", "DEFAULT_VALID_STRING_ESCAPE" }, { "@string.special", "DEFAULT_VALID_STRING_ESCAPE" },
-      { "@character.special", "DEFAULT_VALID_STRING_ESCAPE" },
-      { "Delimiter", "DEFAULT_BRACKETS" },
-      { "SpecialComment", "DEFAULT_DOC_COMMENT_TAG" },
-      { "@variable.member", "DEFAULT_INSTANCE_FIELD" },
-    }
-    vim.cmd("colorscheme island-dark")
-    local checked, bad = 0, {}
-    for _, p in ipairs(pairs_) do
-      local a = attrs[p[2]]
-      if a and a.FOREGROUND then
-        checked = checked + 1
-        local hl = vim.api.nvim_get_hl(0, { name = p[1], link = false })
-        local got = hl.fg and ("%06x"):format(hl.fg) or "none"
-        local font = tonumber(a.FONT_TYPE or "0")
-        local want_italic = (font == 2 or font == 3)
-        if got ~= a.FOREGROUND:lower() then
-          bad[#bad + 1] = ("%s fg %s expected %s (%s)"):format(p[1], got, a.FOREGROUND:lower(), p[2])
-        end
-        if (hl.italic == true) ~= want_italic then
-          bad[#bad + 1] = ("%s italic %s expected %s (%s)"):format(p[1], tostring(hl.italic), tostring(want_italic), p[2])
+      )
+      local fixture = H.tmpdir() .. "/fixture.icls"
+      H.write_icls(fixture)
+      local r = sh({ "python3", "-I", script, fixture })
+      H.eq(0, r.code, r.out)
+      local attrs = vim.json.decode(r.stdout)
+      local pairs_ = {
+        { "Keyword", "DEFAULT_KEYWORD" },
+        { "Statement", "DEFAULT_KEYWORD" },
+        { "Conditional", "DEFAULT_KEYWORD" },
+        { "Repeat", "DEFAULT_KEYWORD" },
+        { "Label", "DEFAULT_KEYWORD" },
+        { "Include", "DEFAULT_KEYWORD" },
+        { "Exception", "DEFAULT_KEYWORD" },
+        { "StorageClass", "DEFAULT_KEYWORD" },
+        { "Boolean", "DEFAULT_KEYWORD" },
+        { "@boolean", "DEFAULT_KEYWORD" },
+        { "@constant.builtin", "DEFAULT_KEYWORD" },
+        { "@module.builtin", "DEFAULT_KEYWORD" },
+        { "@type.builtin", "DEFAULT_KEYWORD" },
+        { "String", "DEFAULT_STRING" },
+        { "Character", "DEFAULT_STRING" },
+        { "@string", "DEFAULT_STRING" },
+        { "@character", "DEFAULT_STRING" },
+        { "@string.special.path", "DEFAULT_STRING" },
+        { "Number", "DEFAULT_NUMBER" },
+        { "Float", "DEFAULT_NUMBER" },
+        { "@number", "DEFAULT_NUMBER" },
+        { "@number.float", "DEFAULT_NUMBER" },
+        { "Function", "DEFAULT_FUNCTION_DECLARATION" },
+        { "Constant", "DEFAULT_CONSTANT" },
+        { "@constant", "DEFAULT_CONSTANT" },
+        { "@string.special.symbol", "DEFAULT_CONSTANT" },
+        { "Operator", "DEFAULT_OPERATION_SIGN" },
+        { "PreProc", "DEFAULT_METADATA" },
+        { "PreCondit", "DEFAULT_METADATA" },
+        { "Special", "DEFAULT_VALID_STRING_ESCAPE" },
+        { "SpecialChar", "DEFAULT_VALID_STRING_ESCAPE" },
+        { "@string.escape", "DEFAULT_VALID_STRING_ESCAPE" },
+        { "@string.special", "DEFAULT_VALID_STRING_ESCAPE" },
+        { "@character.special", "DEFAULT_VALID_STRING_ESCAPE" },
+        { "Delimiter", "DEFAULT_BRACKETS" },
+        { "SpecialComment", "DEFAULT_DOC_COMMENT_TAG" },
+        { "@variable.member", "DEFAULT_INSTANCE_FIELD" },
+      }
+      vim.cmd("colorscheme island-dark")
+      local checked, bad = 0, {}
+      for _, p in ipairs(pairs_) do
+        local a = attrs[p[2]]
+        if a and a.FOREGROUND then
+          checked = checked + 1
+          local hl = vim.api.nvim_get_hl(0, { name = p[1], link = false })
+          local got = hl.fg and ("%06x"):format(hl.fg) or "none"
+          local font = tonumber(a.FONT_TYPE or "0")
+          local want_italic = (font == 2 or font == 3)
+          if got ~= a.FOREGROUND:lower() then
+            bad[#bad + 1] = ("%s fg %s expected %s (%s)"):format(p[1], got, a.FOREGROUND:lower(), p[2])
+          end
+          if (hl.italic == true) ~= want_italic then
+            bad[#bad + 1] = ("%s italic %s expected %s (%s)"):format(
+              p[1],
+              tostring(hl.italic),
+              tostring(want_italic),
+              p[2]
+            )
+          end
         end
       end
+      H.eq({}, bad)
+      H.ok(checked >= 35, "only " .. checked .. " attribute checks had an .icls foreground")
+      -- the README claim is "49 group/attribute checks"; this independent re-implementation does `checked`
+      H.match(
+        readme,
+        "49 group/attribute checks against an independent parse of an `.icls` rebuilt from the palette",
+        true
+      )
     end
-    H.eq({}, bad)
-    H.ok(checked >= 35, "only " .. checked .. " attribute checks had an .icls foreground")
-    -- the README claim is "49 group/attribute checks"; this independent re-implementation does `checked`
-    H.match(readme, "49 group/attribute checks against an independent parse of an `.icls` rebuilt from the palette", true)
-  end)
+  )
 end)
 
 -- ============================================== 21. roadmap done-items
@@ -1636,10 +1870,32 @@ describe("README roadmap 'done' items that can be checked mechanically", functio
     end
     table.sort(listed)
     H.eq(listed, have)
-    for _, e in ipairs({ "ui.treesitter-context", "editor.navic", "coding.mini-surround", "coding.neogen", "editor.inc-rename", "util.rest", "dap.core", "test.core", "editor.overseer" }) do
+    for _, e in ipairs({
+      "ui.treesitter-context",
+      "editor.navic",
+      "coding.mini-surround",
+      "coding.neogen",
+      "editor.inc-rename",
+      "util.rest",
+      "dap.core",
+      "test.core",
+      "editor.overseer",
+    }) do
       H.has(have, e)
     end
-    for _, pl in ipairs({ "nvim-treesitter-context", "nvim-navic", "mini.surround", "neogen", "inc-rename.nvim", "kulala.nvim", "nvim-dap", "neotest", "overseer.nvim", "rustaceanvim", "neo-tree.nvim" }) do
+    for _, pl in ipairs({
+      "nvim-treesitter-context",
+      "nvim-navic",
+      "mini.surround",
+      "neogen",
+      "inc-rename.nvim",
+      "kulala.nvim",
+      "nvim-dap",
+      "neotest",
+      "overseer.nvim",
+      "rustaceanvim",
+      "neo-tree.nvim",
+    }) do
       H.ok(cfg().plugins[pl], pl .. " from an extra is in the plugin spec")
     end
   end)
@@ -1701,12 +1957,15 @@ describe("README roadmap 'done' items that can be checked mechanically", functio
     H.ok(exists(repo .. "/snippets"), "blink's default search path stdpath('config')/snippets")
   end)
 
-  it("which-key group names: '99 (agent)' is in the plugin spec, 'rust' for <leader>r is added", function()
+  it("which-key group names: '99 (agent)' and 'rust' for <leader>r are in the plugin spec", function()
     -- read from the plugin spec file: at runtime which-key has already
     -- consumed (and reshaped) opts.spec once it is loaded
     local src = read(repo .. "/lua/plugins/editing-ui.lua")
     H.match(src, '{ "<leader>9", group = "99 (agent)" }', true)
-    H.match(read(repo .. "/lua/config/keymaps.lua"), '{ "<leader>r", group = "rust"', true)
+    -- one global group (a second, buffer-local copy from the LspAttach handler made :checkhealth which-key
+    -- report <leader>r as a duplicate)
+    H.match(src, '{ "<leader>r", group = "rust"', true)
+    H.no_match(read(repo .. "/lua/config/keymaps.lua"), 'group = "rust"', true)
   end)
 end)
 
@@ -1733,7 +1992,10 @@ describe("CHANGELOG.md", function()
     for h in changelog:gmatch("\n## %[(%d+%.%d+%.%d+)%]") do
       versions[#versions + 1] = h
     end
-    H.eq({ "1.8.0", "1.7.0", "1.6.0", "1.5.0", "1.4.1", "1.4.0", "1.3.0", "1.2.0", "1.1.0", "1.0.0", "0.2.0", "0.1.0" }, versions)
+    H.eq(
+      { "1.8.0", "1.7.0", "1.6.0", "1.5.0", "1.4.1", "1.4.0", "1.3.0", "1.2.0", "1.1.0", "1.0.0", "0.2.0", "0.1.0" },
+      versions
+    )
     local function key(v)
       local a, b, c = v:match("(%d+)%.(%d+)%.(%d+)")
       return a * 1e6 + b * 1e3 + c
@@ -1775,8 +2037,20 @@ describe("Omarchy removal", function()
 
   it("no code reads omarchy variables or the follow flag", function()
     local r = sh({
-      "grep", "-rniI", "omarchy", repo .. "/lua", repo .. "/plugin", repo .. "/after", repo .. "/colors", repo .. "/init.lua",
-      repo .. "/snippets", repo .. "/tools", repo .. "/scripts", repo .. "/lazy-lock.json", repo .. "/lazyvim.json", repo .. "/Makefile",
+      "grep",
+      "-rniI",
+      "omarchy",
+      repo .. "/lua",
+      repo .. "/plugin",
+      repo .. "/after",
+      repo .. "/colors",
+      repo .. "/init.lua",
+      repo .. "/snippets",
+      repo .. "/tools",
+      repo .. "/scripts",
+      repo .. "/lazy-lock.json",
+      repo .. "/lazyvim.json",
+      repo .. "/Makefile",
     })
     H.eq({ 1, "" }, { r.code, vim.trim(r.stdout) })
     H.is_nil(vim.g.xynovim_follow_omarchy)
@@ -1806,6 +2080,10 @@ end)
 
 describe("repo hygiene", function()
   local function git(...)
+    -- a tarball or `git archive` export has no history to ask: these checks are about the checkout, so they skip
+    if not uv.fs_stat(repo .. "/.git") then
+      skip("not a git checkout (no .git: tarball or git archive); these checks ask git what is tracked or changed")
+    end
     return sh({ "git", "-C", repo, ... })
   end
 
@@ -1824,8 +2102,36 @@ describe("repo hygiene", function()
 
   it("no .DS_Store, *.log or editor leftovers in the checkout", function()
     local r = sh({
-      "find", repo, "(", "-path", repo .. "/.git", "-o", "-path", repo .. "/.remember", ")", "-prune", "-o",
-      "(", "-name", ".DS_Store", "-o", "-name", "*.log", "-o", "-name", "*.orig", "-o", "-name", "*.rej", "-o", "-name", "*.swp", "-o", "-name", "*~", ")",
+      "find",
+      repo,
+      "(",
+      "-path",
+      repo .. "/.git",
+      "-o",
+      "-path",
+      repo .. "/.remember",
+      ")",
+      "-prune",
+      "-o",
+      "(",
+      "-name",
+      ".DS_Store",
+      "-o",
+      "-name",
+      "*.log",
+      "-o",
+      "-name",
+      "*.orig",
+      "-o",
+      "-name",
+      "*.rej",
+      "-o",
+      "-name",
+      "*.swp",
+      "-o",
+      "-name",
+      "*~",
+      ")",
       "-print",
     })
     H.eq("", vim.trim(r.stdout))
@@ -1833,11 +2139,24 @@ describe("repo hygiene", function()
 
   it("tests/fixtures and the test infrastructure are committed", function()
     for _, f in ipairs({
-      "tests/fixtures/basic/Cargo.toml", "tests/fixtures/basic/src/lib.rs", "tests/fixtures/basic/src/main.rs",
-      "tests/fixtures/basic/tests/it.rs", "tests/fixtures/workspace/Cargo.toml", "tests/fixtures/workspace/core/src/lib.rs",
-      "tests/fixtures/workspace/app/src/main.rs", "tests/fixtures/broken/src/main.rs", "tests/fixtures/standalone.rs",
-      "tests/fixtures/sql_and_routes.rs", "scripts/test.sh", "scripts/coverage.lua", "tests/harness.lua", "tests/helpers.lua",
-      "tests/runner.lua", "tests/coverage_hook.lua", "tests/smoke_spec.lua", "Makefile",
+      "tests/fixtures/basic/Cargo.toml",
+      "tests/fixtures/basic/src/lib.rs",
+      "tests/fixtures/basic/src/main.rs",
+      "tests/fixtures/basic/tests/it.rs",
+      "tests/fixtures/workspace/Cargo.toml",
+      "tests/fixtures/workspace/core/src/lib.rs",
+      "tests/fixtures/workspace/app/src/main.rs",
+      "tests/fixtures/broken/src/main.rs",
+      "tests/fixtures/standalone.rs",
+      "tests/fixtures/sql_and_routes.rs",
+      "scripts/test.sh",
+      "scripts/coverage.lua",
+      "tests/harness.lua",
+      "tests/helpers.lua",
+      "tests/runner.lua",
+      "tests/coverage_hook.lua",
+      "tests/smoke_spec.lua",
+      "Makefile",
     }) do
       local r = git("ls-files", "--error-unmatch", f)
       H.eq(0, r.code, f .. " is not tracked: " .. r.out)
@@ -1853,8 +2172,17 @@ describe("repo hygiene", function()
   end)
 
   it("the suite (including the nested runs above) left lazy-lock.json and the fixtures unchanged", function()
-    H.eq(0, git("diff", "--quiet", "HEAD", "--", "lazy-lock.json", "lazyvim.json").code, "lockfile/lazyvim.json changed")
+    H.eq(
+      0,
+      git("diff", "--quiet", "HEAD", "--", "lazy-lock.json", "lazyvim.json").code,
+      "lockfile/lazyvim.json changed"
+    )
     H.eq(0, git("diff", "--quiet", "HEAD", "--", "tests/fixtures").code, "tracked fixtures changed")
-    H.eq("", vim.trim(git("status", "--porcelain", "--", "tests/fixtures/basic", "tests/fixtures/workspace", "tests/fixtures/broken").stdout))
+    H.eq(
+      "",
+      vim.trim(
+        git("status", "--porcelain", "--", "tests/fixtures/basic", "tests/fixtures/workspace", "tests/fixtures/broken").stdout
+      )
+    )
   end)
 end)

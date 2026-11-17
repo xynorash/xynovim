@@ -1,0 +1,9 @@
+server:
+  http:
+    port: 8080
+    tls:
+      cert: a.pem
+      key: a.key
+  workers: 4
+logging:
+  level: info

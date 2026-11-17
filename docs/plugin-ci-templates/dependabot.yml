@@ -1,0 +1,17 @@
+# Copy to .github/dependabot.yml. The plugins have no language ecosystem (Lua
+# only, no package manifest): the SHA-pinned actions in .github/workflows are
+# what Dependabot can update. The Neovim, StyLua and lua-language-server
+# versions and checksums in the workflows are bumped by hand, together.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "CI"

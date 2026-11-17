@@ -18,9 +18,31 @@ return {
   -- auto_refresh=false: the lsp_* sources refresh on CursorHold/BufEnter, which blanked the tree.
   {
     "folke/trouble.nvim",
+    -- The Problems panel (<leader>xx all files, <leader>xX this buffer): Trouble's `s` cycles one
+    -- severity and `gb` limits to the buffer; config/problems.lua adds e / w / S / a (errors only,
+    -- errors and warnings, next source, clear) and a header that names the active filter.
+    opts = function(_, opts)
+      opts.modes = opts.modes or {}
+      opts.modes.diagnostics = vim.tbl_deep_extend("force", opts.modes.diagnostics or {}, {
+        keys = require("config.problems").keys(),
+      })
+    end,
     keys = {
-      { "<leader>cI", "<cmd>Trouble lsp_incoming_calls toggle focus=true auto_refresh=false<cr>", desc = "Incoming calls (tree)" },
-      { "<leader>cO", "<cmd>Trouble lsp_outgoing_calls toggle focus=true auto_refresh=false<cr>", desc = "Outgoing calls (tree)" },
+      {
+        "<leader>xe",
+        "<cmd>Trouble diagnostics toggle filter.severity=vim.diagnostic.severity.ERROR<cr>",
+        desc = "Errors (Trouble)",
+      },
+      {
+        "<leader>cI",
+        "<cmd>Trouble lsp_incoming_calls toggle focus=true auto_refresh=false<cr>",
+        desc = "Incoming calls (tree)",
+      },
+      {
+        "<leader>cO",
+        "<cmd>Trouble lsp_outgoing_calls toggle focus=true auto_refresh=false<cr>",
+        desc = "Outgoing calls (tree)",
+      },
     },
   },
 

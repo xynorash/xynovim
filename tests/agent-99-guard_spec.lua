@@ -7,7 +7,11 @@ local H = require("xynotest.helpers")
 -- scripts/test.sh, never in the real cache.
 local test_tmp = vim.env.XYNO_TEST_TMP
 local cache = vim.fn.stdpath("cache")
-if not test_tmp or test_tmp == "" or not vim.startswith(vim.fs.normalize(cache), vim.fs.normalize(vim.fs.dirname(test_tmp)) .. "/") then
+if
+  not test_tmp
+  or test_tmp == ""
+  or not vim.startswith(vim.fs.normalize(cache), vim.fs.normalize(vim.fs.dirname(test_tmp)) .. "/")
+then
   H.skip_file("run through scripts/test.sh (stdpath('cache') must be a temp dir, got " .. cache .. ")")
 end
 
@@ -191,10 +195,10 @@ describe("config", function()
     H.ok(getmetatable(g).__index == Claude, "Guarded.__index is not ClaudeCodeProvider")
   end)
 
-  it("logs to stdpath('state')/99.log at INFO with print_on_error", function()
+  it("logs to stdpath('state')/99.log at INFO; failures are one notify, not a printed JSON line", function()
     local Logger = require("99.logger.logger")
     H.eq(require("99").INFO, Logger.level)
-    H.eq(true, Logger.print_on_error)
+    H.eq(false, Logger.print_on_error)
     H.ok(Logger.sink.fd, "logger has no file sink (type = 'file' missing?)")
     local path = vim.fn.stdpath("state") .. "/99.log"
     H.ok(vim.uv.fs_stat(path), "log file " .. path .. " not created")
@@ -323,9 +327,22 @@ describe("Guarded._build_command", function()
     local out = guarded():_build_command("do it", ctx)
     vim.env.GITHUB_TOKEN = nil
     vim.g.xynovim_99_sandbox = saved
-    H.eq("bwrap", out[1])
+    -- Newer xyno-sandbox starts bwrap with an empty environment (`env -i NAME=value... bwrap ...`), older
+    -- ones start with bwrap itself; the token must be gone in either case.
+    -- The newer one uses absolute paths (`/usr/bin/env`, `/usr/bin/bwrap`), so compare base names.
+    local at = 1
+    local is_env = vim.fs.basename(out[1]) == "env"
+    if is_env then
+      H.eq("-i", out[2])
+      at = 3
+      while out[at] and out[at]:find("=", 1, true) do
+        H.no_match(out[at], "^GITHUB_TOKEN=", false, "the token must not be passed through env -i")
+        at = at + 1
+      end
+    end
+    H.eq("bwrap", vim.fs.basename(out[at]))
     H.eq("claude", out[#out - #claude():_build_command("do it", ctx) + 1])
-    local unset = false
+    local unset = is_env -- `env -i` passes only an allowlist: the token never exists
     for i, a in ipairs(out) do
       if a == "--unsetenv" and out[i + 1] == "GITHUB_TOKEN" then
         unset = true
@@ -444,7 +461,10 @@ describe("Guarded.make_request", function()
   end)
 
   it("takes a forced 'before 99 request' snapshot of the buffer path before the request starts", function()
-    H.need_os({ "linux" }, "times out waiting for the snapshot commit on macos-latest (run 38912021512), cause not diagnosed")
+    H.need_os(
+      { "linux" },
+      "times out waiting for the snapshot commit on macos-latest (run 38912021512), cause not diagnosed"
+    )
     local dir = H.open_fixture("basic", "src/main.rs", { git = true })
     local lh = require("xyno_history")
     local order, snap = {}, nil
@@ -544,17 +564,27 @@ describe("Guarded.make_request", function()
     H.eq(true, autosave().enabled())
   end)
 
-  it("releases and re-raises on a synchronous throw from Claude.make_request", function()
+  it("releases and reports one message on a synchronous throw from Claude.make_request (no Lua error)", function()
     restore_claude()
     restore_claude = patch(claude(), {
       make_request = function()
-        error("spawn failed", 0)
+        error("ENOENT: no such file or directory", 0)
+      end,
+    })
+    local notes = {}
+    patch(vim, {
+      notify = function(m, l)
+        notes[#notes + 1] = { m, l }
       end,
     })
     vim.cmd("enew!")
-    local ok, e = pcall(guarded().make_request, guarded(), "q", new_context(), new_observer())
-    H.not_ok(ok)
-    H.eq("spawn failed", e)
+    local obs = new_observer()
+    local ok, e = pcall(guarded().make_request, guarded(), "q", new_context(), obs)
+    H.ok(ok, tostring(e))
+    H.eq("failed", obs.completed[1][1])
+    H.has(obs.completed[1][2], "`claude` command was not found")
+    H.has(notes[#notes][1], "could not start the agent")
+    H.eq(vim.log.levels.ERROR, notes[#notes][2])
     H.eq(true, autosave().enabled(), "auto-save stayed off after a throw")
     H.eq(1, as_on_calls)
   end)
@@ -609,7 +639,7 @@ describe("Guarded.make_request", function()
   end)
 
   it("works for a context without a cancel function", function()
-    local ctx = { }
+    local ctx = {}
     start(ctx)
     H.eq(false, autosave().enabled())
     H.is_nil(ctx.cancel)
@@ -656,7 +686,8 @@ describe("Guarded.make_request", function()
     H.ok(w ~= obs, "the observer is not wrapped")
     H.eq("kept", w.extra)
     H.ok(w.on_start == obs.on_start)
-    H.ok(w.on_stderr == obs.on_stderr)
+    -- stdout/stderr are wrapped (they feed the failure message) and forward to the original
+    H.eq("function", type(w.on_stderr))
     H.ok(w.on_complete ~= obs.on_complete)
     H.ok(rawget(w, "on_complete"), "on_complete not overridden on the wrapper")
     w.on_start()
@@ -897,6 +928,170 @@ pending(
   "a real 99 request end to end (claude, sandbox, response applied)",
   "not verified in the README: needs a real claude session and network"
 )
+
+-- ------------------------------------------- sandbox policy preview, handle
+
+describe("Guarded.make_request with the policy preview (xyno-sandbox.nvim)", function()
+  local sandbox = require("xyno_sandbox")
+  local rec, restore_claude
+
+  before_each(function()
+    if type(sandbox.confirm) ~= "function" then
+      skip("needs xyno-sandbox.nvim with the policy preview (the lock file still pins the older plugin)")
+    end
+    vim.g.xynovim_99_sandbox = nil
+    rec, restore_claude = fake_claude()
+    autosave().on()
+  end)
+
+  after_each(function()
+    restore_claude()
+    for _, fn in ipairs(H._restore) do
+      pcall(fn)
+    end
+    H._restore = {}
+    vim.g.xynovim_99_sandbox = nil
+    autosave().on()
+  end)
+
+  it(
+    "shows the policy first; cancelling ends the request as cancelled with no process, no snapshot, auto-save untouched",
+    function()
+      if vim.fn.executable("bwrap") ~= 1 then
+        skip("bwrap not found")
+      end
+      local asked
+      patch(sandbox, {
+        confirm = function(cmd, project, tmp, cb)
+          asked = { cmd = cmd, project = project, tmp = tmp }
+          cb(false, "cancelled")
+        end,
+      })
+      local _, obs = start()
+      H.ok(asked, "confirm was asked")
+      H.eq("claude", asked.cmd[1])
+      H.has(asked.cmd, "--dangerously-skip-permissions")
+      H.eq(tmp_dir, asked.tmp)
+      H.eq(0, rec.n, "claude was not started")
+      H.eq("cancelled", obs.completed[1][1])
+      H.ok(autosave().enabled(), "auto-save untouched")
+    end
+  )
+
+  it(
+    "the plan the operator confirmed is the plan that is wrapped, and the handle is released when the request ends",
+    function()
+      if vim.fn.executable("bwrap") ~= 1 then
+        skip("bwrap not found")
+      end
+      local shown_plan, wrapped_with
+      local released = 0
+      local orig_wrap = sandbox.wrap
+      patch(sandbox, {
+        confirm = function(cmd, project, tmp, cb)
+          shown_plan = sandbox.plan(cmd, project, tmp)
+          cb(true, shown_plan, {})
+        end,
+        wrap = function(cmd, project, tmp, opts)
+          wrapped_with = opts
+          local w, err, h = orig_wrap(cmd, project, tmp, opts)
+          if h then
+            local rel = h.release
+            h.release = function()
+              released = released + 1
+              return rel()
+            end
+          end
+          return w, err, h
+        end,
+      })
+      patch(claude(), {
+        make_request = function(self, query, context, observer)
+          -- the real provider builds the command from Guarded:_build_command
+          guarded()._build_command(self, query, context)
+          rec.observers[#rec.observers + 1] = observer
+          return "ran"
+        end,
+      })
+      local _, obs = start()
+      H.ok(wrapped_with and wrapped_with.plan == shown_plan, "wrap() got the confirmed plan")
+      H.eq(0, released)
+      rec.observers[1].on_complete("success", "done")
+      H.eq(1, released, "the sandbox handle was released on completion")
+      H.eq("success", obs.completed[1][1])
+    end
+  )
+
+  it("a cancelled request releases the handle too", function()
+    if vim.fn.executable("bwrap") ~= 1 then
+      skip("bwrap not found")
+    end
+    local released = 0
+    local orig_wrap = sandbox.wrap
+    patch(sandbox, {
+      wrap = function(...)
+        local w, err, h = orig_wrap(...)
+        if h then
+          local rel = h.release
+          h.release = function()
+            released = released + 1
+            return rel()
+          end
+        end
+        return w, err, h
+      end,
+    })
+    patch(claude(), {
+      make_request = function(self, query, context)
+        guarded()._build_command(self, query, context)
+        return "ran"
+      end,
+    })
+    local ctx = start()
+    ctx:cancel()
+    H.eq(1, released)
+  end)
+end)
+
+describe("the sandbox commands and statusline in this config", function()
+  it(":XynoSandboxStatus and :XynoSandboxRun exist; the policy commands exist with the preview plugin", function()
+    require("lazy").load({ plugins = { "xyno-sandbox.nvim" } })
+    H.eq(2, vim.fn.exists(":XynoSandboxStatus"))
+    H.eq(2, vim.fn.exists(":XynoSandboxRun"))
+    if type(require("xyno_sandbox").confirm) == "function" then
+      H.eq(2, vim.fn.exists(":XynoSandboxPolicy"))
+      H.eq(2, vim.fn.exists(":XynoSandboxApprovals"))
+    end
+  end)
+
+  it("vim.g.xynovim_99_sandbox / allow_unsandboxed are still read at every call", function()
+    local sandbox = require("xyno_sandbox")
+    local old_sb, old_au = vim.g.xynovim_99_sandbox, vim.g.xynovim_99_allow_unsandboxed
+    vim.g.xynovim_99_sandbox = false
+    H.eq("sandbox=false", sandbox.status().via)
+    vim.g.xynovim_99_sandbox = nil
+    H.ok(sandbox.status().mode ~= "unsandboxed" or sandbox.status().via == "allow_unsandboxed")
+    vim.g.xynovim_99_sandbox, vim.g.xynovim_99_allow_unsandboxed = old_sb, old_au
+  end)
+
+  it("lualine shows the sandbox state only once the sandbox module is loaded", function()
+    local spec = dofile(H.repo .. "/lua/plugins/lualine.lua")
+    local opts = { sections = { lualine_x = {} } }
+    spec.opts(nil, opts)
+    local comp
+    for _, c in ipairs(opts.sections.lualine_x) do
+      if type(c) == "table" and type(c.cond) == "function" and type(c.color) == "function" then
+        comp = c
+      end
+    end
+    H.ok(comp, "sandbox component present")
+    local sandbox = require("xyno_sandbox")
+    if type(sandbox.statusline) == "function" then
+      H.eq(true, comp.cond())
+      H.match(comp[1](), "^sandbox: ")
+    end
+  end)
+end)
 
 -- ------------------------------------------- the provider picker is guarded
 

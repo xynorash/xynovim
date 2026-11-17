@@ -8,3 +8,8 @@ vim.o.background = "dark"
 vim.o.termguicolors = true
 vim.g.colors_name = "island-dark"
 require("island").setup()
+vim.schedule(function()
+  if vim.g.colors_name == "island-dark" then
+    require("island").late() -- groups plugins derived or defined after this file ran
+  end
+end)

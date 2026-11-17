@@ -46,7 +46,9 @@ local function crate(files)
 end
 
 local function cargo_meta(dir)
-  local o = vim.system({ "cargo", "metadata", "--format-version", "1", "--no-deps" }, { cwd = dir, text = true }):wait(30000)
+  local o = vim
+    .system({ "cargo", "metadata", "--format-version", "1", "--no-deps" }, { cwd = dir, text = true })
+    :wait(30000)
   H.eq(0, o.code, "cargo metadata of the test crate: " .. (o.stderr or ""))
   return vim.json.decode(o.stdout)
 end
@@ -54,7 +56,7 @@ end
 local function bin_crate(name)
   return crate({
     ["Cargo.toml"] = ('[package]\nname = "%s"\nversion = "0.1.0"\nedition = "2021"\n'):format(name),
-    ["src/main.rs"] = "fn main() { println!(\"hi\"); }\n",
+    ["src/main.rs"] = 'fn main() { println!("hi"); }\n',
   })
 end
 
@@ -133,9 +135,12 @@ describe("codelldb handler: Rust configurations", function()
     p.opts.handlers.codelldb(codelldb_cfg())
     local cfgs = dap.configurations.rust
     H.eq(3, #cfgs)
-    H.eq({ "LLDB: Launch", "LLDB: Launch (args)", "Rust: run current package binary (args prompt)" }, vim.tbl_map(function(c)
-      return c.name
-    end, cfgs))
+    H.eq(
+      { "LLDB: Launch", "LLDB: Launch (args)", "Rust: run current package binary (args prompt)" },
+      vim.tbl_map(function(c)
+        return c.name
+      end, cfgs)
+    )
     for _, c in ipairs(cfgs) do
       H.eq("codelldb", c.type)
       H.eq("launch", c.request)
@@ -204,20 +209,31 @@ describe("configurations: program / args / cwd", function()
     H.eq({ "a", "b" }, c.args())
   end)
 
-  it("config 3: program builds the binary in the package dir (blocking outside a coroutine) and notifies with title 'dap'", function()
-    dap_available()
-    local dir = bin_crate("blockpkg")
-    edit(dir .. "/src/main.rs")
-    local _, cfgs = fresh_setup()
-    local c = by_name(cfgs, "Rust: run current package binary (args prompt)")
-    local n = capture()
-    H.eq(nil, coroutine.running(), "the test runs on the main thread")
-    local path = c.program()
-    H.eq(cargo_meta(dir).target_directory .. "/debug/blockpkg" .. EXE, path)
-    H.ok(vim.uv.fs_stat(path), "binary was built at " .. path)
-    H.eq({ msg = "cargo build --package blockpkg --bin blockpkg", level = vim.log.levels.INFO, title = "dap" }, n[1])
-    H.eq(1, #n)
-  end)
+  it(
+    "config 3: program builds the binary in the package dir (blocking outside a coroutine) and notifies with title 'dap'",
+    function()
+      dap_available()
+      local dir = bin_crate("blockpkg")
+      edit(dir .. "/src/main.rs")
+      local _, cfgs = fresh_setup()
+      local c = by_name(cfgs, "Rust: run current package binary (args prompt)")
+      local n = capture()
+      H.eq(nil, coroutine.running(), "the test runs on the main thread")
+      local path = c.program()
+      H.eq(cargo_meta(dir).target_directory .. "/debug/blockpkg" .. EXE, path)
+      H.ok(vim.uv.fs_stat(path), "binary was built at " .. path)
+      -- only the dap notes: a startup notice of another plugin (xyno-clipboard's one-time hint on a machine
+      -- without a clipboard tool) can be replayed through vim.notify while the stub is installed
+      local dap_notes = vim.tbl_filter(function(x)
+        return x.title == "dap"
+      end, n)
+      H.eq(
+        { msg = "cargo build --package blockpkg --bin blockpkg", level = vim.log.levels.INFO, title = "dap" },
+        dap_notes[1]
+      )
+      H.eq(1, #dap_notes)
+    end
+  )
 
   it("config 3: inside a coroutine the build yields (UI not blocked) and resumes with the path", function()
     dap_available()
@@ -299,15 +315,18 @@ describe("current_binary selection (seen through config 3's cwd and config 1's d
     H.eq(target .. "/debug/first" .. EXE, default_for(cfgs))
   end)
 
-  it("a package without a bin is skipped: the file's own package is not chosen, the first package with a bin is", function()
-    dap_available()
-    local dir = workspace()
-    local target = cargo_meta(dir).target_directory
-    local _, cfgs = fresh_setup()
-    edit(dir .. "/libonly/src/lib.rs")
-    H.eq(target .. "/debug/a" .. EXE, default_for(cfgs))
-    H.eq(dir .. "/a", cwd_of(cfgs))
-  end)
+  it(
+    "a package without a bin is skipped: the file's own package is not chosen, the first package with a bin is",
+    function()
+      dap_available()
+      local dir = workspace()
+      local target = cargo_meta(dir).target_directory
+      local _, cfgs = fresh_setup()
+      edit(dir .. "/libonly/src/lib.rs")
+      H.eq(target .. "/debug/a" .. EXE, default_for(cfgs))
+      H.eq(dir .. "/a", cwd_of(cfgs))
+    end
+  )
 
   it("longest directory match: a nested package wins over its parent", function()
     dap_available()
@@ -370,14 +389,17 @@ describe("build_current_binary failures", function()
     local n = capture()
     local r = by_name(cfgs, "Rust: run current package binary (args prompt)").program()
     H.eq(require("dap").ABORT, r)
-    H.eq({ { msg = "no Cargo package with a binary found for this buffer", level = vim.log.levels.ERROR, title = "dap" } }, n)
+    H.eq(
+      { { msg = "no Cargo package with a binary found for this buffer", level = vim.log.levels.ERROR, title = "dap" } },
+      n
+    )
   end)
 
   it("a failing cargo build: ERROR 'cargo build failed:' + stderr and ABORT", function()
     dap_available()
     local dir = crate({
       ["Cargo.toml"] = '[package]\nname = "badbuild"\nversion = "0.1.0"\nedition = "2021"\n',
-      ["src/main.rs"] = "fn main() { let x: u32 = \"no\"; }\n",
+      ["src/main.rs"] = 'fn main() { let x: u32 = "no"; }\n',
     })
     local _, cfgs = fresh_setup()
     edit(dir .. "/src/main.rs")
@@ -516,7 +538,13 @@ describe("rust_lldb_init (dap.listeners.on_config)", function()
     end
     local _, _, listener = fresh_setup()
     local out = listener(rust())
-    H.eq({ 'command script import "' .. script .. '"', "breakpoint set -n rust_panic" }, out.initCommands)
+    local preview = require("config.dap_values").preview_script()
+    H.eq({
+      'command script import "' .. script .. '"',
+      'command script import "' .. preview .. '"',
+      "breakpoint set -n rust_panic",
+    }, out.initCommands)
+    H.eq({ "type category enable XynoRust" }, out.postRunCommands)
     for _, c in ipairs(out.initCommands) do
       H.no_match(c, "lldb_commands", true)
     end
@@ -532,6 +560,7 @@ describe("rust_lldb_init (dap.listeners.on_config)", function()
     local out = listener(rust({ initCommands = { "settings set x y", "log enable lldb all" } }))
     H.eq({
       'command script import "' .. script .. '"',
+      'command script import "' .. require("config.dap_values").preview_script() .. '"',
       "settings set x y",
       "log enable lldb all",
       "breakpoint set -n rust_panic",
@@ -543,7 +572,10 @@ describe("rust_lldb_init (dap.listeners.on_config)", function()
     local _, _, listener = fresh_setup()
     local mine = 'command script import "/somewhere/lldb_lookup.py"'
     local out = listener(rust({ initCommands = { mine } }))
-    H.eq({ mine, "breakpoint set -n rust_panic" }, out.initCommands)
+    H.eq(mine, out.initCommands[1])
+    H.eq(3, #out.initCommands)
+    H.match(out.initCommands[2], "xyno_rust_preview.py", true, "the content previews still load")
+    H.eq("breakpoint set -n rust_panic", out.initCommands[3])
   end)
 
   it("is idempotent: a second call adds nothing", function()
@@ -594,46 +626,60 @@ describe("dap-ui opts", function()
     H.eq(true, o.wrap)
   end)
 
-  it("the UI stays open when the session terminates or exits (the output is only in the hidden dap-terminal otherwise)", function()
-    local lazy = require("lazy")
-    lazy.load({ plugins = { "nvim-dap-ui" } })
-    local dap = require("dap")
-    H.wait_for(function()
-      return dap.listeners.before.event_terminated["dapui_config"] == nil
-    end, 5000, "LazyVim's closing listener to be removed")
-    H.is_nil(dap.listeners.before.event_exited["dapui_config"])
-    H.eq("function", type(dap.listeners.after.event_initialized["dapui_config"]), "it still opens on start")
-  end)
-
-  it("the console is re-scrolled when its topline is at or past the buffer end; breakpoint signs use the theme's groups", function()
-    H.need_os({ "linux" }, "topline never resets on macos-latest and windows-latest (run 38912021512), cause not diagnosed")
-    require("lazy").load({ plugins = { "nvim-dap-ui" } })
-    local dap = require("dap")
-    H.wait_for(function()
-      return dap.listeners.after.event_stopped["xynovim_console"] ~= nil
-    end, 5000, "the console listener")
-    for _, ev in ipairs({ "event_stopped", "event_terminated", "event_exited" }) do
-      H.eq("function", type(dap.listeners.after[ev]["xynovim_console"]), ev)
+  it(
+    "the UI stays open when the session terminates or exits (the output is only in the hidden dap-terminal otherwise)",
+    function()
+      local lazy = require("lazy")
+      lazy.load({ plugins = { "nvim-dap-ui" } })
+      local dap = require("dap")
+      H.wait_for(function()
+        return dap.listeners.before.event_terminated["dapui_config"] == nil
+      end, 5000, "LazyVim's closing listener to be removed")
+      H.is_nil(dap.listeners.before.event_exited["dapui_config"])
+      H.eq("function", type(dap.listeners.after.event_initialized["dapui_config"]), "it still opens on start")
     end
-    H.eq("DapBreakpoint", vim.fn.sign_getdefined("DapBreakpoint")[1].texthl)
-    H.eq("DapBreakpointCondition", vim.fn.sign_getdefined("DapBreakpointCondition")[1].texthl)
-    -- a window in the state the field test saw: 10 lines, topline 19
-    local b = vim.api.nvim_create_buf(false, true)
-    vim.bo[b].filetype = "dapui_console"
-    vim.api.nvim_buf_set_lines(b, 0, -1, false, vim.fn["repeat"]({ "out" }, 10))
-    vim.cmd("botright 5split")
-    local w = vim.api.nvim_get_current_win()
-    vim.api.nvim_win_set_buf(w, b)
-    vim.fn.winrestview({ topline = 10 })
-    local before = vim.fn.getwininfo(w)[1].topline
-    dap.listeners.after.event_terminated["xynovim_console"]()
-    H.wait_for(function()
-      return vim.fn.getwininfo(w)[1].topline == 1
-    end, 2000, "topline back at 1 (was " .. before .. ")")
-    vim.api.nvim_win_close(w, true)
-  end)
+  )
 
-  it("wrap on; left sidebar elements and sizes; bottom panel", function()
+  it(
+    "the console is re-scrolled when its topline is at or past the buffer end; breakpoint signs use the theme's groups",
+    function()
+      H.need_os(
+        { "linux" },
+        "topline never resets on macos-latest and windows-latest (run 38912021512), cause not diagnosed"
+      )
+      require("lazy").load({ plugins = { "nvim-dap-ui" } })
+      local dap = require("dap")
+      H.wait_for(function()
+        return dap.listeners.after.event_stopped["xynovim_console"] ~= nil
+      end, 5000, "the console listener")
+      for _, ev in ipairs({ "event_stopped", "event_terminated", "event_exited" }) do
+        H.eq("function", type(dap.listeners.after[ev]["xynovim_console"]), ev)
+      end
+      H.eq("DapBreakpoint", vim.fn.sign_getdefined("DapBreakpoint")[1].texthl)
+      H.eq("DapBreakpointCondition", vim.fn.sign_getdefined("DapBreakpointCondition")[1].texthl)
+      -- a window in the state the field test saw: 10 lines, topline 19
+      local b = vim.api.nvim_create_buf(false, true)
+      vim.bo[b].filetype = "dapui_console"
+      vim.api.nvim_buf_set_lines(b, 0, -1, false, vim.fn["repeat"]({ "out" }, 10))
+      vim.cmd("botright 5split")
+      local w = vim.api.nvim_get_current_win()
+      vim.api.nvim_win_set_buf(w, b)
+      vim.fn.winrestview({ topline = 10 })
+      local before = vim.fn.getwininfo(w)[1].topline
+      dap.listeners.after.event_terminated["xynovim_console"]()
+      H.wait_for(function()
+        return vim.fn.getwininfo(w)[1].topline == 1
+      end, 2000, "topline back at 1 (was " .. before .. ")")
+      vim.api.nvim_win_close(w, true)
+    end
+  )
+
+  it("wrap on; left sidebar elements and sizes; bottom panel (a wide window)", function()
+    local real = vim.o
+    undo[#undo + 1] = function()
+      vim.o = real
+    end
+    vim.o = setmetatable({ columns = 160 }, { __index = real })
     local o = opts()
     H.eq(true, o.wrap)
     H.eq("left", o.layouts[1].position)
@@ -654,9 +700,22 @@ describe("dap-ui opts", function()
     undo[#undo + 1] = function()
       vim.o = real
     end
-    for cols, want in pairs({ [80] = 40, [100] = 40, [140] = 49, [171] = 59, [200] = 60, [400] = 60 }) do
+    for cols, want in pairs({ [120] = 42, [140] = 49, [171] = 59, [200] = 60, [400] = 60 }) do
       vim.o = setmetatable({ columns = cols }, { __index = real })
       H.eq(want, opts().layouts[1].size, "columns=" .. cols)
+    end
+  end)
+
+  it("below 120 columns: one bottom strip, no sidebar (config/narrow.lua; tests/layout-narrow_spec.lua)", function()
+    local real = vim.o
+    undo[#undo + 1] = function()
+      vim.o = real
+    end
+    for _, cols in ipairs({ 80, 93, 119 }) do
+      vim.o = setmetatable({ columns = cols }, { __index = real })
+      local o = opts()
+      H.eq(1, #o.layouts, "columns=" .. cols)
+      H.eq("bottom", o.layouts[1].position)
     end
   end)
 end)
@@ -867,28 +926,31 @@ describe("<leader>dP pause", function()
     return k[2]
   end
 
-  it("a running session with no known threads asks for them and pauses the first (codelldb fills them only on a stop)", function()
-    local dap = require("dap")
-    local pauses, reqs = {}, {}
-    local orig_pause, orig_session = dap.pause, dap.session
-    dap.pause = function(...)
-      pauses[#pauses + 1] = { ... }
+  it(
+    "a running session with no known threads asks for them and pauses the first (codelldb fills them only on a stop)",
+    function()
+      local dap = require("dap")
+      local pauses, reqs = {}, {}
+      local orig_pause, orig_session = dap.pause, dap.session
+      dap.pause = function(...)
+        pauses[#pauses + 1] = { ... }
+      end
+      dap.session = function()
+        return {
+          threads = {},
+          request = function(_, cmd, _, cb)
+            reqs[#reqs + 1] = cmd
+            cb(nil, { threads = { { id = 7, name = "main" } } })
+          end,
+        }
+      end
+      local ok, err = pcall(key_fn())
+      dap.pause, dap.session = orig_pause, orig_session
+      H.ok(ok, tostring(err))
+      H.eq({ "threads" }, reqs)
+      H.eq({ { 7 } }, pauses)
     end
-    dap.session = function()
-      return {
-        threads = {},
-        request = function(_, cmd, _, cb)
-          reqs[#reqs + 1] = cmd
-          cb(nil, { threads = { { id = 7, name = "main" } } })
-        end,
-      }
-    end
-    local ok, err = pcall(key_fn())
-    dap.pause, dap.session = orig_pause, orig_session
-    H.ok(ok, tostring(err))
-    H.eq({ "threads" }, reqs)
-    H.eq({ { 7 } }, pauses)
-  end)
+  )
 
   it("known threads: plain dap.pause(); no session: a notice", function()
     local dap = require("dap")
@@ -963,13 +1025,19 @@ describe("neotest, overseer", function()
     end
   end)
 
-  it("neotest is configured with rustaceanvim's adapter", function()
-    local p = require("lazy.core.config").plugins["neotest"]
-    H.ok(p, "neotest plugin spec")
-    -- the raw spec: resolving it with lazy's values() would run LazyVim's opts
-    -- function (it replaces the adapter names by objects) before neotest loads
-    H.eq("table", type(p.opts.adapters["rustaceanvim.neotest"]), "adapters['rustaceanvim.neotest']")
-  end)
+  it(
+    "lua/plugins/neotest.lua: output panel at the bottom, summary at the right, no float per run, no quickfix popup",
+    function()
+      local spec = dofile(H.repo .. "/lua/plugins/neotest.lua")[1]
+      local opts = spec.opts
+      H.eq(false, opts.output.open_on_run)
+      H.eq("botright split | resize 14", opts.output_panel.open)
+      H.eq("function", type(opts.summary.open), "a 48-column split when wide, a float when narrow (config/narrow.lua)")
+      H.eq(true, opts.status.virtual_text)
+      H.eq(false, opts.quickfix.open, "no second (Trouble quickfix) panel next to the results panel")
+      H.eq("function", type(opts.consumers.xyno_panel), "the results panel consumer")
+    end
+  )
 
   it("test keys exist and neotest's watch consumer is present", function()
     H.need_rust()
@@ -998,6 +1066,13 @@ describe("neotest, overseer", function()
     end, 50)
     H.ok(waited, "neotest.consumers.watch; messages: " .. H.messages())
     H.ok(nt.watch, "neotest.watch (consumer)")
+    -- the configuration neotest actually runs with: rustaceanvim's adapter and our panel options merged over LazyVim's
+    local cfg = require("neotest.config")
+    H.eq("rustaceanvim", cfg.adapters[1].name)
+    H.eq("botright split | resize 14", cfg.output_panel.open)
+    H.eq("function", type(cfg.summary.open))
+    H.eq(false, cfg.output.open_on_run)
+    H.eq("function", type(nt.xyno_panel) == "table" and "function" or type(nt.xyno_panel), "xyno_panel consumer ran")
     H.eq("function", type(nt.watch.toggle))
     H.ok(nt.run and nt.summary and nt.output_panel)
   end)
@@ -1066,7 +1141,14 @@ describe("neotest, overseer", function()
       H.eq(desc, m.desc, lhs)
     end
     require("lazy").load({ plugins = { "overseer.nvim" } })
-    for _, c in ipairs({ "OverseerRun", "OverseerToggle", "OverseerTaskAction", "OverseerOpen", "OverseerClose", "OverseerShell" }) do
+    for _, c in ipairs({
+      "OverseerRun",
+      "OverseerToggle",
+      "OverseerTaskAction",
+      "OverseerOpen",
+      "OverseerClose",
+      "OverseerShell",
+    }) do
       H.eq(2, vim.fn.exists(":" .. c), c)
     end
   end)
@@ -1123,14 +1205,20 @@ describe("coverage honours :RustContext", function()
     if vim.fn.executable("cargo-nextest") == 1 then
       want[#want + 1] = "nextest"
     end
-    vim.list_extend(want, { "--workspace", "--ignore-run-fail", "--lcov", "--output-path", "target/lcov.info", "--all-features" })
+    vim.list_extend(
+      want,
+      { "--workspace", "--ignore-run-fail", "--lcov", "--output-path", "target/lcov.info", "--all-features" }
+    )
     H.eq(want, s.cmd)
   end)
 
   it("a stored context (features, no default, target) is passed on", function()
     H.need_rust()
     local dir = setup_crate()
-    require("xyno_rust.rust_context").apply(dir, { all = false, no_default = true, features = { "b" }, target = "x86_64-unknown-linux-gnu" })
+    require("xyno_rust.rust_context").apply(
+      dir,
+      { all = false, no_default = true, features = { "b" }, target = "x86_64-unknown-linux-gnu" }
+    )
     local s = run_tc(dir)
     local tail = vim.list_slice(s.cmd, #s.cmd - 4)
     H.eq({ "--no-default-features", "--features", "b", "--target", "x86_64-unknown-linux-gnu" }, tail)
@@ -1146,6 +1234,10 @@ describe("coverage honours :RustContext", function()
       items = o.items
     end)
     require("xyno_rust.rust_tasks").tools()
+    -- the root is resolved asynchronously in xyno-rust.nvim's cargo layer; the pinned version is synchronous
+    H.wait_for(function()
+      return items
+    end, 10000, "the tools picker")
     H.ok(items, "the tools picker was opened")
     local cov
     for _, i in ipairs(items) do
@@ -1158,6 +1250,9 @@ describe("coverage honours :RustContext", function()
     require("xyno_rust.rust_context").apply(dir, nil)
     items = nil
     require("xyno_rust.rust_tasks").tools()
+    H.wait_for(function()
+      return items
+    end, 10000, "the tools picker (second call)")
     for _, i in ipairs(items) do
       if i.text:find("coverage report", 1, true) then
         H.eq({ "cargo", "llvm-cov", "--workspace", "--ignore-run-fail", "--summary-only", "--all-features" }, i.cmd)
@@ -1202,15 +1297,21 @@ describe("real debug session (codelldb + cargo)", function()
   }, "\n")
   local MAIN_LINE = 19 -- `check(x);`
 
+  local isolated_cargo
   local function need()
     H.need_rust()
     if vim.fn.stdpath("data") and not vim.uv.fs_stat(vim.fn.stdpath("data") .. "/mason/bin/codelldb") then
       H.skip_file("Mason's codelldb is not installed")
     end
-    local cfg = vim.fn.expand("~/.cargo/config.toml")
-    local txt = vim.uv.fs_stat(cfg) and table.concat(vim.fn.readfile(cfg), "\n") or ""
-    if not txt:find("[profile.dev]", 1, true) or not txt:find("debug%s*=%s*true") then
-      H.skip_file("~/.cargo/config.toml lacks profile.dev debug = true (locals need full debuginfo)")
+    -- Hermetic: the spec brings its own CARGO_HOME with the profile it needs (locals need full debuginfo), so
+    -- neither the user's ~/.cargo/config.toml nor $CARGO_HOME/config.toml decides whether this runs. The fixture
+    -- crate has no dependencies, so an empty registry is fine; RUSTUP_HOME is untouched (the toolchain stays).
+    if not isolated_cargo then
+      isolated_cargo = vim.uv.fs_realpath(H.tmpdir()) .. "/cargo-home"
+      vim.fn.mkdir(isolated_cargo, "p")
+      vim.fn.writefile({ "[profile.dev]", "debug = true" }, isolated_cargo .. "/config.toml")
+      vim.env.CARGO_HOME = isolated_cargo
+      vim.env.CARGO_PROFILE_DEV_DEBUG = "true"
     end
   end
 
@@ -1284,7 +1385,7 @@ describe("real debug session (codelldb + cargo)", function()
     local vars, frames = locals_of(s, "check")
     H.match(frames[1].name, "rust_panic", true, "top frame")
     H.eq('"hello"', vars.owned)
-    H.eq("size=4", vars.v)
+    H.eq("size=4 [1, 2, 3, 4]", vars.v) -- rust summary "size=4" plus the xyno_rust_preview element list
     H.eq("B(7)", vars.k)
   end
 
@@ -1318,6 +1419,27 @@ describe("real debug session (codelldb + cargo)", function()
     capture()
     dap.run(vim.deepcopy(by_name(cfgs, "Rust: run current package binary (args prompt)")))
     assert_panic_stop(stopped())
+    release()
+  end)
+
+  it("after a panic stop the selected frame is the workspace's check(), not the runtime's rust_panic", function()
+    need()
+    local s0 = session()
+    vim.cmd("only")
+    local p = require("lazy.core.config").plugins["mason-nvim-dap.nvim"]
+    p.opts.handlers.codelldb(codelldb_cfg())
+    local dap = require("dap")
+    stub_input(s0.bin)
+    dap.run(vim.deepcopy(by_name(require("dap").configurations.rust, "LLDB: Launch")))
+    local s = stopped()
+    local frame = H.wait_for(function()
+      local f = s.current_frame
+      return f and f.name and f.name:find("check", 1, true) and f
+    end, 20000, "the session to select check() (the first non-runtime frame)")
+    H.match(frame.source.path, "src/main.rs", true, "the selected frame is in the project's source")
+    -- the full stack is still there: the runtime frame stays frame 1
+    local _, frames = locals_of(s, "check")
+    H.match(frames[1].name, "rust_panic", true, "top frame of the stack")
     release()
   end)
 
@@ -1380,6 +1502,13 @@ describe("real debug session (codelldb + cargo)", function()
       end
       error("no 'bin panicker (panicker)' entry in " .. vim.inspect(vim.tbl_map(opts.format_item, items)))
     end)
+    -- Same as the <leader>dr spec below: the real rust-analyzer does not answer experimental/runnables in
+    -- time right after the builds of the earlier specs (90 s without an answer, seen twice), so its answer
+    -- is "no runnables for this file"; the bins come from `cargo metadata`, which is what is under test.
+    stub(require("rustaceanvim.rust_analyzer"), "buf_request", function(_, method, _, handler)
+      H.eq("experimental/runnables", method)
+      handler(nil, {})
+    end)
     press("<leader>dR")
     assert_panic_stop(stopped())
     release()
@@ -1432,8 +1561,14 @@ describe("real debug session (codelldb + cargo)", function()
 end)
 
 -- 18 -----------------------------------------------------------------------
-pending("interactive prompts with a real terminal (vim.fn.input / vim.ui.select are stubbed here)", "needs a pty-driven nvim session")
-pending("multi-bin workspaces in a real debug session (selection logic is covered above, no launch)", "README: untested")
+pending(
+  "interactive prompts with a real terminal (vim.fn.input / vim.ui.select are stubbed here)",
+  "needs a pty-driven nvim session"
+)
+pending(
+  "multi-bin workspaces in a real debug session (selection logic is covered above, no launch)",
+  "README: untested"
+)
 pending("narrow terminals (dap-ui width is checked through vim.o.columns, not rendered)", "README: untested")
 pending("clicking a Debug codelens", "needs a mouse-driven UI session")
 pending("threads that panic (only the main thread is covered)", "README: untested")

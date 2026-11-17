@@ -1,0 +1,22 @@
+   3   struct Holder(String);
+   4
+   5   impl Holder {
+   6   │   fn pick<'self, '_other>(&'self self, _other: &'_o
+   7   │   │   &self.0
+   8   │   }
+   9   }
+  10
+  11   fn add(a: i32, b: i32) -> i32 {
+  12   │   a + b
+  13   }
+  14
+          ▶︎ Run  | ⚙︎ Debug
+  15   fn main() {
+  16   │   let n: i32 = add(a: 1, b: 2);
+  17   │   let mut table: HashMap<&str, i32> = HashMap::new(
+  18   │   table.insert(k: "one", v: n);
+ 19   │   let s: String = n;     ● expected String, found i
+  20   │   let unused: i32 = 5;                            ⎼
+  21   │   println!("{} {}", Holder(String::new()).pick("x")
+  22   }
+ NORMAL <main  RA ready | clippy 1E  86%  19:1    07:25

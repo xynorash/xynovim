@@ -16,7 +16,11 @@ end
 local function dep_line(bufnr, name)
   local esc = vim.pesc(name)
   for i, l in ipairs(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)) do
-    if l:match("^%s*" .. esc .. "%s*[.=]") or l:match('^%s*"' .. esc .. '"%s*[.=]') or l:match("^%s*%[.*dependencies%." .. esc .. "%]") then
+    if
+      l:match("^%s*" .. esc .. "%s*[.=]")
+      or l:match('^%s*"' .. esc .. '"%s*[.=]')
+      or l:match("^%s*%[.*dependencies%." .. esc .. "%]")
+    then
       return i - 1
     end
   end
@@ -42,6 +46,13 @@ local deny_severity = {
   help = vim.diagnostic.severity.HINT,
 }
 
+--- cargo-deny and cargo-machete run `cargo metadata` of the project, which honours its .cargo/config.toml
+--- (rustc wrappers: code that runs). Not in a workspace nobody trusted (restricted mode, workspace_trust.lua);
+--- the answer is the cached one, these run on every save / InsertLeave. A manifest outside any crate runs.
+local function trusted_manifest(ctx)
+  return require("config.workspace_trust").trusted(require("config.workspace_trust").workspace(ctx.filename))
+end
+
 local function in_workflows(ctx)
   return require("xyno_rust.fsutil").slash(ctx.filename):find("/%.github/workflows/") ~= nil
 end
@@ -64,9 +75,10 @@ return {
         condition = function(ctx)
           local name = basename(ctx.filename)
           return (name == "Cargo.toml" or name == "Cargo.lock")
+            and trusted_manifest(ctx)
             and vim.fs.find({ "deny.toml", ".cargo/deny.toml" }, { path = ctx.dirname, upward = true })[1] ~= nil
         end,
-        cmd = "cargo",
+        cmd = "cargo", -- gated by `condition` above (config.workspace_trust)
         stdin = false,
         append_fname = false, -- the checks are positional args; the manifest goes via --manifest-path
         stream = "stderr",
@@ -165,9 +177,9 @@ return {
       -- those with [package.metadata.cargo-machete] ignored = ["name"].
       cargo_machete = {
         condition = function(ctx)
-          return basename(ctx.filename) == "Cargo.toml"
+          return basename(ctx.filename) == "Cargo.toml" and trusted_manifest(ctx)
         end,
-        cmd = "cargo-machete",
+        cmd = "cargo-machete", -- gated by `condition` above (config.workspace_trust)
         stdin = false,
         -- the directory is the argument: nvim-lint's default also appended
         -- the file name, which ran cargo-machete twice (every finding doubled)
@@ -186,7 +198,8 @@ return {
             local path = line:match("^%S+ %-%- (.+):$")
             if path then
               -- relative to the scanned dir, or absolute when given an absolute dir
-              local full = (path:sub(1, 1) == "/" or path:match("^%a:[/\\]")) and path or (dir .. "/" .. path:gsub("^%./", ""))
+              local full = (path:sub(1, 1) == "/" or path:match("^%a:[/\\]")) and path
+                or (dir .. "/" .. path:gsub("^%./", ""))
               current = vim.fs.normalize(full) == file
             elseif current and line:match("^\t%S+$") then
               local dep = vim.trim(line)

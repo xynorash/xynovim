@@ -49,14 +49,34 @@ local function lift(fg, on, target)
   for i = 1, 3 do
     f[i] = tonumber(fg:sub(2 * i, 2 * i + 1), 16)
   end
-  local out = fg
-  for t = 0, 100 do
-    out = string.format(
+  local function mix(t)
+    return string.format(
       "#%02x%02x%02x",
       f[1] + (255 - f[1]) * t / 100 + 0.5,
       f[2] + (255 - f[2]) * t / 100 + 0.5,
       f[3] + (255 - f[3]) * t / 100 + 0.5
     )
+  end
+  local out = mix(0)
+  if ratio(out, on) >= target then
+    return out
+  end
+  if lum(out) >= lum(on) then
+    -- text lighter than its surface: the ratio only grows with t, so the first t that reaches the target
+    -- is found by bisection (7 steps instead of up to 100; startup runs ~30 of these)
+    local lo, hi = 0, 100
+    while hi - lo > 1 do
+      local mid = math.floor((lo + hi) / 2)
+      if ratio(mix(mid), on) >= target then
+        hi = mid
+      else
+        lo = mid
+      end
+    end
+    return mix(hi)
+  end
+  for t = 1, 100 do
+    out = mix(t)
     if ratio(out, on) >= target then
       break
     end
@@ -64,8 +84,151 @@ local function lift(fg, on, target)
   return out
 end
 
+M.ratio, M.lift = ratio, lift
+
 local function fgof(key)
   return (A[key] or {}).fg
+end
+
+--- Groups whose text the high-contrast variant lifts to 7:1 (see M.setup).
+M.HIGH_CONTRAST_GROUPS = {
+  "Comment",
+  "@comment",
+  "@comment.documentation",
+  "LineNr",
+  "LineNrAbove",
+  "LineNrBelow",
+  "NonText",
+  "Whitespace",
+  "SpecialKey",
+  "Conceal",
+  "SignColumn",
+  "FoldColumn",
+  "LspInlayHint",
+  "LspCodeLens",
+  "DiagnosticHint",
+  "DiagnosticVirtualTextHint",
+  "DiagnosticFloatingHint",
+  "DiagnosticSignHint",
+  "DiagnosticUnnecessary",
+  "FloatFooter",
+  "StatusLineNC",
+  "TabLine",
+  "WinBarNC",
+  "XynoPopupFooter",
+  "XynoPopupMuted",
+  "XynoHistoryAge",
+  "XynoHistoryHint",
+  "XynoMacrosDim",
+  "XynoRenderedGutter",
+  "XynoStatusMuted",
+  "XynoStatusBusy",
+  "SnacksDashboardDir",
+  "ComplHint",
+  "ComplHintMore",
+  "PmenuExtra",
+  "PmenuKind",
+  "Directory",
+  "CursorLineNr",
+}
+
+--- Group names that are lines, frames or fills rather than text: lifted to 4.5:1 (WCAG non-text is 3:1)
+--- instead of 7:1.
+local DECORATIVE = { "Border", "Separator", "Split", "Indent", "Backdrop", "Guide", "Progress" }
+
+--- Text groups that plugins derive themselves after every ColorScheme (bufferline tints its diagnostic
+--- counts and tab labels from Normal: its error count measured 2.55:1) are floored at 4.5:1 against their
+--- own background. Runs once after the ColorScheme event, for both variants, before the high-contrast pass.
+function M.late()
+  local L = require("island.light")
+  local function hx(n)
+    return n and string.format("#%06x", n) or nil
+  end
+  local nbg = hx(vim.api.nvim_get_hl(0, { name = "Normal", link = false }).bg)
+    or (vim.g.colors_name == "island-light" and "#ffffff" or "#1e1f22")
+  local n = 0
+  -- a tab group without its own background is drawn on whatever the tabline is: TabLineFill / TabLine
+  local function bg_of(name)
+    return hx(vim.api.nvim_get_hl(0, { name = name, link = false }).bg)
+  end
+  local fallbacks = {}
+  for _, c in ipairs({ bg_of("TabLineFill"), bg_of("TabLine"), nbg }) do
+    fallbacks[#fallbacks + 1] = c
+  end
+  for name in pairs(vim.api.nvim_get_hl(0, {})) do
+    if name:find("^BufferLine") and not name:find("Separator") and not name:find("Indicator") then
+      local h = vim.api.nvim_get_hl(0, { name = name, link = false })
+      if h.fg then
+        local backs = h.bg and { hx(h.bg) } or fallbacks
+        local fg, changed = hx(h.fg), false
+        for _ = 1, 2 do
+          for _, on in ipairs(backs) do
+            local r = L.ratio(fg, on)
+            if r > 1.3 and r < 4.5 then
+              local dark_on = L.ratio(on, "#000000") < L.ratio(on, "#ffffff")
+              fg = dark_on and L.lighten_to(fg, on, 4.5) or L.darken_to(fg, on, 4.5)
+              changed = true
+            end
+          end
+        end
+        if changed then
+          h.fg = tonumber(fg:sub(2), 16)
+          h.default = nil
+          vim.api.nvim_set_hl(0, name, h)
+          n = n + 1
+        end
+      end
+    end
+  end
+  return n + M.apply_high_contrast()
+end
+
+--- High-contrast variant: every highlight group with a foreground reaches 7:1 (AAA) against its own
+--- background, or the editor background when it has none; frames and separators 4.5:1. Hue is kept
+--- (OKLab lightness moves only). Groups that are invisible on purpose (foreground equal to the
+--- background, below 1.2:1: EndOfBuffer, the built-in Nvim* markers) are left alone. Runs inside
+--- `setup()` and once more after the ColorScheme event, so groups plugins define later are lifted too.
+function M.apply_high_contrast()
+  if vim.g.xynovim_contrast ~= "high" then
+    return 0
+  end
+  local L = require("island.light")
+  local function hx(n)
+    return n and string.format("#%06x", n) or nil
+  end
+  local normal = vim.api.nvim_get_hl(0, { name = "Normal", link = false })
+  local nbg = hx(normal.bg)
+  nbg = nbg or (vim.g.colors_name == "island-light" and "#ffffff" or "#1e1f22")
+  local changed = 0
+  for name in pairs(vim.api.nvim_get_hl(0, {})) do
+    local h = vim.api.nvim_get_hl(0, { name = name, link = false })
+    if h.fg and not h.reverse then
+      local on = hx(h.bg) or nbg
+      local fg = hx(h.fg)
+      local r = L.ratio(fg, on)
+      local target = 7.0
+      for _, w in ipairs(DECORATIVE) do
+        if name:find(w, 1, true) then
+          target = 4.5
+          break
+        end
+      end
+      if r >= 1.2 and r < target then
+        local dark_on = L.ratio(on, "#000000") < L.ratio(on, "#ffffff")
+        h.fg = tonumber((dark_on and L.lighten_to(fg, on, target) or L.darken_to(fg, on, target)):sub(2), 16)
+        if h.bg and L.ratio(hx(h.fg), on) < target then
+          -- text already as dark (or light) as it can get on a coloured pill: move the pill instead
+          local fg_dark = L.ratio(hx(h.fg), "#000000") < L.ratio(hx(h.fg), "#ffffff")
+          local moved = fg_dark and L.lighten_to(on, hx(h.fg), target) or L.darken_to(on, hx(h.fg), target)
+          h.bg = tonumber(moved:sub(2), 16)
+        end
+        h.default = nil -- bufferline & co. define their groups `default`: a default set would be ignored
+        vim.api.nvim_set_hl(0, name, h)
+        changed = changed + 1
+      end
+    end
+  end
+  return changed
 end
 
 function M.setup()
@@ -169,7 +332,8 @@ function M.setup()
     WinSeparator = { fg = C.RIGHT_MARGIN_COLOR },
     VertSplit = { link = "WinSeparator" },
     WinBar = { fg = sub, bg = bg },
-    WinBarNC = { fg = A.BREADCRUMBS_INACTIVE.fg, bg = bg },
+    -- (the scheme's inactive-breadcrumb grey #6f737a is 3.5:1; winbars show file names and panel titles)
+    WinBarNC = { fg = lift(A.BREADCRUMBS_INACTIVE.fg, bg, 4.5), bg = bg },
     TabLine = { fg = sub, bg = C.DIFF_SEPARATORS_BACKGROUND },
     TabLineSel = { fg = bright, bg = bg, bold = true },
     TabLineFill = { bg = C.DIFF_SEPARATORS_BACKGROUND },
@@ -207,9 +371,12 @@ function M.setup()
     DiagnosticUnnecessary = { fg = A.NOT_USED_ELEMENT_ATTRIBUTES.fg },
     DiagnosticDeprecated = at("DEPRECATED_ATTRIBUTES", { fg = muted }),
     DiagnosticUnderlineError = { undercurl = true, sp = err_c },
-    DiagnosticUnderlineWarn = { undercurl = true, sp = warn_c },
-    DiagnosticUnderlineInfo = { undercurl = true, sp = A.INFO_ATTRIBUTES.effect_color },
-    DiagnosticUnderlineHint = { underdotted = true, sp = hint_c },
+    -- Severity is not carried by colour alone (ui-community.md item 4): each severity has its own
+    -- underline STYLE (error curly, warning dashed, info dotted, hint plain line). A terminal
+    -- without that style falls back to a plain underline, the colour still differs.
+    DiagnosticUnderlineWarn = { underdashed = true, sp = warn_c },
+    DiagnosticUnderlineInfo = { underdotted = true, sp = A.INFO_ATTRIBUTES.effect_color },
+    DiagnosticUnderlineHint = { underline = true, sp = hint_c },
     DiagnosticUnderlineOk = { undercurl = true, sp = green },
     DiagnosticVirtualTextError = { fg = lift(red, C.ERROR_HINT, 4.5), bg = C.ERROR_HINT },
     DiagnosticVirtualTextWarn = { fg = yellow },
@@ -483,12 +650,19 @@ function M.setup()
 
   -- LSP / editor features ------------------------------------------------------
   local feat = {
-    LspInlayHint = at("INLAY_DEFAULT"),
+    -- Inlay hints (ui-community.md item 3): the scheme's #868a91 on its #393b40 chip is 3.2:1. The chip
+    -- is darkened to the statusline bar colour (#2b2d30, still a visible chip on #1e1f22) and the text is
+    -- lifted to 6.0:1 on it (VS Code ships 5.3:1, tokyonight 2.5:1). On the old chip 6:1 needed #bcbfc3,
+    -- the code text's own colour; here the hint stays visibly dimmer than code (code 8.9:1).
+    LspInlayHint = {
+      fg = lift(A.INLAY_DEFAULT.fg, C.DIFF_SEPARATORS_BACKGROUND, 6.0),
+      bg = C.DIFF_SEPARATORS_BACKGROUND,
+    },
     LspReferenceText = { bg = A.IDENTIFIER_UNDER_CARET_ATTRIBUTES.bg },
     LspReferenceRead = { bg = A.IDENTIFIER_UNDER_CARET_ATTRIBUTES.bg },
     LspReferenceWrite = { bg = A.WRITE_IDENTIFIER_UNDER_CARET_ATTRIBUTES.bg },
     LspReferenceTarget = { bg = A.IDENTIFIER_UNDER_CARET_ATTRIBUTES.bg },
-    LspCodeLens = { fg = A.INLAY_TEXT_WITHOUT_BACKGROUND.fg },
+    LspCodeLens = { fg = lift(A.INLAY_TEXT_WITHOUT_BACKGROUND.fg, bg, 4.5) }, -- scheme: 3.7:1
     LspCodeLensSeparator = { fg = C.RIGHT_MARGIN_COLOR },
     LspSignatureActiveParameter = at("INLINE_PARAMETER_HINT_HIGHLIGHTED", { bold = true }),
     LspInfoBorder = { link = "FloatBorder" },
@@ -1175,6 +1349,66 @@ function M.setup()
   }
   for name, spec in pairs(ui2) do
     set(name, spec)
+  end
+
+  -- Plugin popups and state (ui-community.md; sandbox / history / guard / macros). The popups
+  -- are plain floats; config.ui maps their windows onto the Xyno* groups below, the
+  -- statusline components use the state groups. All state texts also say the state in words.
+  local xyno = {
+    XynoPopupNormal = { fg = fg, bg = float_bg },
+    XynoPopupBorder = { fg = lift(border, float_bg, 3.0), bg = float_bg }, -- non-text: 3:1
+    XynoPopupTitle = { fg = bright, bg = float_bg, bold = true },
+    XynoPopupFooter = { fg = sub, bg = float_bg },
+    -- file tree name with an error in it (config/ui_chrome.lua): >= 4.5:1 on the editor background and on the selected row
+    XynoTreeError = { fg = lift(red, sel_bg, 4.5), bold = true }, -- also on the selected row (sel_bg)
+    -- rustc's rendering in the :DiagnosticRendered float (config/rendered.lua), all >= 4.5:1 on the popup
+    XynoRenderedError = { fg = lift(red, float_bg, 4.5), bg = float_bg, bold = true },
+    XynoRenderedWarn = { fg = lift(yellow, float_bg, 4.5), bg = float_bg, bold = true },
+    XynoRenderedNote = { fg = lift(cyan, float_bg, 4.5), bg = float_bg, bold = true },
+    XynoRenderedHelp = { fg = lift(green, float_bg, 4.5), bg = float_bg, bold = true },
+    XynoRenderedMessage = { fg = bright, bg = float_bg, bold = true },
+    XynoRenderedGutter = { fg = lift(sub, float_bg, 4.5), bg = float_bg },
+    XynoRenderedPath = { fg = lift(blue, float_bg, 4.5), bg = float_bg },
+    -- The plugin popups' own groups (xyno-history panel, xyno-macros signature popup, xyno-guard): the plugins
+    -- only link them to generic groups (`default = true`, so these definitions win), and several of those
+    -- fall below 4.5:1 on the surfaces they sit on (found by rendering the real panels, tests/ui-community_spec.lua).
+    -- History text sits on the editor background and on the selected row (cl_bg), the lighter of the two.
+    XynoHistoryTitle = { fg = bright, bold = true },
+    XynoHistoryAge = { fg = lift(sub, cl_bg, 4.5) },
+    XynoHistoryHint = { fg = lift(sub, cl_bg, 4.5) },
+    XynoHistoryLabel = { fg = lift(orange, cl_bg, 4.5) },
+    XynoHistoryAdded = { fg = lift(green, cl_bg, 4.5) },
+    XynoHistoryModified = { fg = lift(yellow, cl_bg, 4.5) },
+    XynoHistoryDeleted = { fg = lift(red, cl_bg, 4.5) },
+    XynoHistoryRenamed = { fg = lift(blue, cl_bg, 4.5) },
+    XynoHistoryDiffAdd = { fg = fg, bg = C["NEXT_EDIT.DIFF_AFTER_BACKGROUND"] },
+    XynoHistoryDiffDelete = { fg = fg, bg = C["NEXT_EDIT.REMOVAL_BACKGROUND"] },
+    XynoHistoryDiffHunk = { fg = fg, bg = C.NOTIFICATION_BACKGROUND },
+    XynoHistoryOk = { link = "XynoStatusOk" },
+    XynoHistoryPending = { link = "XynoStatusWarn" },
+    XynoHistoryFailing = { link = "XynoStatusError" },
+    XynoMacrosDim = { fg = lift(sub, float_bg, 4.5), bg = float_bg },
+    XynoGuardDependency = { link = "XynoStatusBusy" },
+    XynoGuardStale = { link = "XynoStatusWarn" },
+    XynoGuardGone = { link = "XynoStatusError" },
+    XynoPopupKey = { fg = orange, bg = float_bg, bold = true },
+    XynoPopupMuted = { fg = sub, bg = float_bg },
+    XynoPopupWarn = { fg = yellow, bg = float_bg, bold = true },
+    XynoPopupDanger = { fg = lift(red, float_bg, 4.5), bg = float_bg, bold = true },
+    -- on the statusline bar (lualine's c section): >= 4.5:1 there
+    XynoStatusOk = { fg = lift(green, C.DIFF_SEPARATORS_BACKGROUND, 4.5) },
+    XynoStatusBusy = { fg = lift(hint_c, C.DIFF_SEPARATORS_BACKGROUND, 4.5) },
+    XynoStatusWarn = { fg = lift(yellow, C.DIFF_SEPARATORS_BACKGROUND, 4.5), bold = true },
+    XynoStatusError = { fg = lift(red, C.DIFF_SEPARATORS_BACKGROUND, 4.5), bold = true },
+    XynoStatusMuted = { fg = lift(sub, C.DIFF_SEPARATORS_BACKGROUND, 4.5) },
+  }
+  for name, spec in pairs(xyno) do
+    set(name, spec)
+  end
+
+  -- High-contrast variant (ui-community.md item 6): vim.g.xynovim_contrast = "high" (see M.apply_high_contrast)
+  if vim.g.xynovim_contrast == "high" then
+    M.apply_high_contrast()
   end
 
   -- Terminal ANSI palette (the scheme's own console colours) -------------------------------

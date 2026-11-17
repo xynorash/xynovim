@@ -41,12 +41,18 @@ describe("xyno-new.nvim glue", function()
   end)
 
   it("the old globals work: set before startup, they reach the plugin (child nvim)", function()
-    local out = vim.system({
-      vim.v.progpath, "--headless",
-      "--cmd", "lua vim.g.xynovim_projects_dir = '/old/dir'; vim.g.xynovim_egui_template = { base_url = 'file:///t' }; vim.g.xynovim_egui_build_after_new = true",
-      "-c", "lua io.stdout:write(vim.inspect({ vim.g.xyno_new_projects_dir, vim.g.xyno_new_egui_template.base_url, vim.g.xyno_new_egui_build_after_new }))",
-      "-c", "qa!",
-    }, { text = true, timeout = 60000 }):wait()
+    local out = vim
+      .system({
+        vim.v.progpath,
+        "--headless",
+        "--cmd",
+        "lua vim.g.xynovim_projects_dir = '/old/dir'; vim.g.xynovim_egui_template = { base_url = 'file:///t' }; vim.g.xynovim_egui_build_after_new = true",
+        "-c",
+        "lua io.stdout:write(vim.inspect({ vim.g.xyno_new_projects_dir, vim.g.xyno_new_egui_template.base_url, vim.g.xyno_new_egui_build_after_new }))",
+        "-c",
+        "qa!",
+      }, { text = true, timeout = 60000 })
+      :wait()
     H.eq(0, out.code, out.stderr)
     H.match(out.stdout, '"/old/dir"')
     H.match(out.stdout, '"file:///t"')
@@ -197,7 +203,17 @@ describe("dashboard entry 'New egui Project'", function()
     H.eq("e", keys[idx].key)
     H.eq(":EguiNew", keys[idx].action)
     H.ok(keys[idx].icon and #keys[idx].icon > 0)
-    for _, d in ipairs({ "Find File", "New File", "Find Text", "Recent Files", "Config", "Restore Session", "Lazy Extras", "Lazy", "Quit" }) do
+    for _, d in ipairs({
+      "Find File",
+      "New File",
+      "Find Text",
+      "Recent Files",
+      "Config",
+      "Restore Session",
+      "Lazy Extras",
+      "Lazy",
+      "Quit",
+    }) do
       local found
       for _, k in ipairs(keys) do
         found = found or k.desc == d
@@ -235,20 +251,23 @@ describe("dashboard entry 'New egui Project'", function()
   end
 
   for _, c in ipairs({ { 24, "short" }, { 50, "tall" } }) do
-    it(("is visible at 80x%d (%s layout) with Quit and the footer, and `e` opens the name prompt"):format(c[1], c[2]), function()
-      local capture, send = in_tmux(c[1], "egui" .. c[2])
-      H.wait_for(function()
-        local p = capture()
-        return p:find("Quit", 1, true) and p:find("loaded", 1, true)
-      end, 30000, "dashboard")
-      H.has(capture(), "New egui Project")
-      H.has(capture(), "Find File")
-      H.match(capture(), "loaded %d+/%d+ plugins")
-      send("e")
-      H.wait_for(function()
-        return capture():find("Project name", 1, true)
-      end, 10000, "the prompt after pressing e:\n" .. capture())
-      send("Escape") -- cancel: nothing is created
-    end)
+    it(
+      ("is visible at 80x%d (%s layout) with Quit and the footer, and `e` opens the name prompt"):format(c[1], c[2]),
+      function()
+        local capture, send = in_tmux(c[1], "egui" .. c[2])
+        H.wait_for(function()
+          local p = capture()
+          return p:find("Quit", 1, true) and p:find("loaded", 1, true)
+        end, 30000, "dashboard")
+        H.has(capture(), "New egui Project")
+        H.has(capture(), "Find File")
+        H.match(capture(), "loaded %d+/%d+ plugins")
+        send("e")
+        H.wait_for(function()
+          return capture():find("Project name", 1, true)
+        end, 10000, "the prompt after pressing e:\n" .. capture())
+        send("Escape") -- cancel: nothing is created
+      end
+    )
   end
 end)

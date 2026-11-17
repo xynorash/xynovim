@@ -3,31 +3,53 @@
 -- require("config.remote_clipboard").setup() in options.lua made it. No :XynoClipboardStatus
 -- (commands = false): xynovim never had it. The provider is now named XynoClipboard.
 return {
-  "xynorash/xyno-clipboard.nvim",
-  lazy = false,
-  config = function()
-    require("xyno_clipboard").setup({ commands = false })
-    -- the old switch stays honoured at run time: vim.g.xynovim_remote_clipboard_osc52 = false stops the
-    -- OSC 52 emit, which the plugin spells vim.g.xyno_clipboard_osc52 = false (the Wayland copy still happens)
-    local clip = vim.g.clipboard
-    if not clip then
-      return
-    end
-    local function honour_old_switch(copy)
-      return function(lines)
-        if vim.g.xynovim_remote_clipboard_osc52 ~= false then
-          return copy(lines)
-        end
-        local prev = vim.g.xyno_clipboard_osc52
-        vim.g.xyno_clipboard_osc52 = false
-        local ok, err = pcall(copy, lines)
-        vim.g.xyno_clipboard_osc52 = prev
-        if not ok then
-          error(err, 0)
+  {
+    "xynorash/xyno-clipboard.nvim",
+    lazy = false,
+    config = function()
+      require("xyno_clipboard").setup({ commands = false })
+      -- the old switch stays honoured at run time: vim.g.xynovim_remote_clipboard_osc52 = false stops the
+      -- OSC 52 emit, which the plugin spells vim.g.xyno_clipboard_osc52 = false (the Wayland copy still happens)
+      local clip = vim.g.clipboard
+      if not clip then
+        return
+      end
+      local function honour_old_switch(copy)
+        return function(lines, ...)
+          if vim.g.xynovim_remote_clipboard_osc52 ~= false then
+            return copy(lines, ...)
+          end
+          local prev = vim.g.xyno_clipboard_osc52
+          vim.g.xyno_clipboard_osc52 = false
+          local ok, err = pcall(copy, lines, ...)
+          vim.g.xyno_clipboard_osc52 = prev
+          if not ok then
+            error(err, 0)
+          end
         end
       end
-    end
-    clip.copy = { ["+"] = honour_old_switch(clip.copy["+"]), ["*"] = honour_old_switch(clip.copy["*"]) }
-    vim.g.clipboard = clip
-  end,
+      clip.copy = { ["+"] = honour_old_switch(clip.copy["+"]), ["*"] = honour_old_switch(clip.copy["*"]) }
+      vim.g.clipboard = clip
+    end,
+  },
+  {
+    -- statusline hint when a tool is missing or tmux would drop the yank ("clip: no tool", "clip: tmux drops
+    -- OSC52", groups XynoClipboardWarn/Error); empty when all is well. Needs the plugin version with statusline().
+    "nvim-lualine/lualine.nvim",
+    opts = function(_, opts)
+      local clip = require("xynovim.clip")
+      table.insert(opts.sections.lualine_x, {
+        function()
+          return (clip.status())
+        end,
+        cond = function()
+          return clip.status() ~= ""
+        end,
+        color = function()
+          local _, hl = clip.status()
+          return hl
+        end,
+      })
+    end,
+  },
 }

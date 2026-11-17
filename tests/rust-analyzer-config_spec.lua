@@ -108,15 +108,22 @@ local function global_map(lhs)
 end
 
 local function online()
-  return vim.system({ "curl", "-sS", "-m", "8", "-o", "/dev/null", "https://json.schemastore.org/cargo.json" }):wait(15000).code == 0
+  return vim
+    .system({ "curl", "-sS", "-m", "8", "-o", "/dev/null", "https://json.schemastore.org/cargo.json" })
+    :wait(15000).code == 0
 end
 
 -- =========================================================== plugin specs (no server)
 
 describe("rustaceanvim spec", function()
-  it("1. depends on nvim-dap", function()
-    local deps = Config.plugins["rustaceanvim"].dependencies
-    H.has(deps, "nvim-dap")
+  it("1. nvim-dap: no hard dependency (it ran before the first paint), but the dap module is loaded with it", function()
+    local deps = Config.plugins["rustaceanvim"].dependencies or {}
+    H.not_ok(vim.tbl_contains(deps, "nvim-dap"), "a dependency makes the whole dap stack load before the first paint")
+    require("lazy").load({ plugins = { "rustaceanvim" } })
+    H.ok(package.loaded["dap"], "the dap module is loaded when rustaceanvim loads (debugSingle capability)")
+    -- the plugin proper follows on VeryLazy (or at once when a dap key asks for it)
+    require("lazy").load({ plugins = { "nvim-dap" } })
+    H.ok(Config.plugins["nvim-dap"]._.loaded, "nvim-dap loads through lazy.nvim")
   end)
 
   it("2. init: vim.npcall is vim.F.npcall, dap autoload_configurations stays false", function()
@@ -154,9 +161,11 @@ describe("rustaceanvim spec", function()
     H.eq("clippy", s["rust-analyzer"].check.command)
     H.eq(4, s["rust-analyzer"].cachePriming.numThreads)
     H.eq(8, s["rust-analyzer"].numThreads)
+    -- the malloc arena cap for the server process only (a user's own value wins)
+    H.eq(vim.env.MALLOC_ARENA_MAX or "2", ra_opts().cmd_env.MALLOC_ARENA_MAX)
 
     -- ... and the stored :RustContext cargo settings win over the cargo table
-    vim.fn.writefile({ '[package]', 'name = "x"', 'version = "0.1.0"', 'edition = "2021"' }, root .. "/Cargo.toml")
+    vim.fn.writefile({ "[package]", 'name = "x"', 'version = "0.1.0"', 'edition = "2021"' }, root .. "/Cargo.toml")
     local ctx = require("xyno_rust.rust_context")
     local real_root = vim.uv.fs_realpath(root)
     local function with_ctx(c)
@@ -371,7 +380,7 @@ describe("rust-analyzer effective settings", function()
     H.eq("self", ra.imports.prefix)
     H.eq("with_block", ra.inlayHints.closureReturnTypeHints.enable)
     H.eq("never", ra.inlayHints.expressionAdjustmentHints.enable)
-    H.eq("skip_trivial", ra.inlayHints.lifetimeElisionHints.enable)
+    H.eq("never", ra.inlayHints.lifetimeElisionHints.enable, "lifetime hints are off by default")
     H.eq(true, ra.inlayHints.lifetimeElisionHints.useParameterNames)
     H.eq(true, ra.procMacro.enable)
     H.eq(true, ra.references.excludeImports)
@@ -506,7 +515,13 @@ describe("rust-analyzer effective settings", function()
     vim.bo[buf].modified = false
     local labels = {}
     for _, h in ipairs(hints) do
-      labels[#labels + 1] = type(h.label) == "string" and h.label or vim.iter(h.label):map(function(p) return p.value end):join("")
+      labels[#labels + 1] = type(h.label) == "string" and h.label
+        or vim
+          .iter(h.label)
+          :map(function(p)
+            return p.value
+          end)
+          :join("")
     end
     H.has(labels, ": i32")
   end)
@@ -560,66 +575,79 @@ end)
 -- =========================================================== editing-ui / domain
 
 describe("module rename", function()
-  it("21. renaming a module through LSP updates `mod` and the paths, not only the file (willRename not advertised)", function()
-    H.need_rust()
-    local dir = H.tmpdir()
-    local function write(path, text)
-      vim.fn.mkdir(vim.fs.dirname(path), "p")
-      vim.fn.writefile(vim.split(text, "\n"), path)
-    end
-    write(dir .. "/Cargo.toml", '[package]\nname = "renm"\nversion = "0.1.0"\nedition = "2021"\n')
-    write(dir .. "/src/lib.rs", "pub mod util;\n\npub fn go() -> i32 {\n    util::helper()\n}\n")
-    write(dir .. "/src/util.rs", "pub fn helper() -> i32 {\n    1\n}\n")
-    local buf = H.open(dir .. "/src/lib.rs")
-    local client = H.wait_lsp("rust-analyzer", buf)
-    H.eq(false, client.config.capabilities.workspace.fileOperations.willRename, "willRename must not be advertised")
-    H.wait_for(function()
-      local res = vim.lsp.buf_request_sync(buf, "textDocument/documentSymbol", { textDocument = vim.lsp.util.make_text_document_params(buf) }, 5000)
-      for _, r in pairs(res or {}) do
-        for _, sym in ipairs(r.result or {}) do
-          if sym.name == "go" then
-            return true
+  it(
+    "21. renaming a module through LSP updates `mod` and the paths, not only the file (willRename not advertised)",
+    function()
+      H.need_rust()
+      local dir = H.tmpdir()
+      local function write(path, text)
+        vim.fn.mkdir(vim.fs.dirname(path), "p")
+        vim.fn.writefile(vim.split(text, "\n"), path)
+      end
+      write(dir .. "/Cargo.toml", '[package]\nname = "renm"\nversion = "0.1.0"\nedition = "2021"\n')
+      write(dir .. "/src/lib.rs", "pub mod util;\n\npub fn go() -> i32 {\n    util::helper()\n}\n")
+      write(dir .. "/src/util.rs", "pub fn helper() -> i32 {\n    1\n}\n")
+      local buf = H.open(dir .. "/src/lib.rs")
+      local client = H.wait_lsp("rust-analyzer", buf)
+      H.eq(false, client.config.capabilities.workspace.fileOperations.willRename, "willRename must not be advertised")
+      H.wait_for(function()
+        local res = vim.lsp.buf_request_sync(
+          buf,
+          "textDocument/documentSymbol",
+          { textDocument = vim.lsp.util.make_text_document_params(buf) },
+          5000
+        )
+        for _, r in pairs(res or {}) do
+          for _, sym in ipairs(r.result or {}) do
+            if sym.name == "go" then
+              return true
+            end
           end
         end
-      end
-    end, 90000, "rust-analyzer to know lib.rs")
-    vim.api.nvim_win_set_cursor(0, { 1, 9 }) -- on `util` of `pub mod util;`
-    local params = vim.lsp.util.make_position_params(0, client.offset_encoding)
-    params.newName = "utils"
-    -- until the file is known to rust-analyzer the answer lacks the file rename
-    local res, edits, renames
-    H.wait_for(function()
-      res, edits, renames = nil, 0, 0
-      local r = vim.lsp.buf_request_sync(buf, "textDocument/rename", params, 20000)
-      for _, x in pairs(r or {}) do
-        res = x.result
-      end
-      for _, ch in ipairs(res and res.documentChanges or {}) do
-        if ch.kind == "rename" then
-          renames = renames + 1
-        elseif ch.edits then
-          edits = edits + #ch.edits
+      end, 90000, "rust-analyzer to know lib.rs")
+      vim.api.nvim_win_set_cursor(0, { 1, 9 }) -- on `util` of `pub mod util;`
+      local params = vim.lsp.util.make_position_params(0, client.offset_encoding)
+      params.newName = "utils"
+      -- until the file is known to rust-analyzer the answer lacks the file rename
+      local res, edits, renames
+      H.wait_for(function()
+        res, edits, renames = nil, 0, 0
+        local r = vim.lsp.buf_request_sync(buf, "textDocument/rename", params, 20000)
+        for _, x in pairs(r or {}) do
+          res = x.result
         end
-      end
-      return renames > 0
-    end, 90000, "a rename answer with the file rename")
-    H.eq(1, renames, "the file rename: " .. vim.inspect(res))
-    H.ok(edits >= 2, "text edits for `mod util;` and `util::helper()` came with it (got " .. edits .. "): " .. vim.inspect(res))
+        for _, ch in ipairs(res and res.documentChanges or {}) do
+          if ch.kind == "rename" then
+            renames = renames + 1
+          elseif ch.edits then
+            edits = edits + #ch.edits
+          end
+        end
+        return renames > 0
+      end, 90000, "a rename answer with the file rename")
+      H.eq(1, renames, "the file rename: " .. vim.inspect(res))
+      H.ok(
+        edits >= 2,
+        "text edits for `mod util;` and `util::helper()` came with it (got " .. edits .. "): " .. vim.inspect(res)
+      )
 
-    -- <leader>cR (Snacks.rename.rename_file) asks willRenameFiles itself: it still gets the `mod` edit
-    local r = client:request_sync("workspace/willRenameFiles", {
-      files = { { oldUri = vim.uri_from_fname(dir .. "/src/util.rs"), newUri = vim.uri_from_fname(dir .. "/src/other.rs") } },
-    }, 20000, buf)
-    H.ok(r and r.result, "willRenameFiles answered: " .. vim.inspect(r))
-    local n = 0
-    for _, ch in ipairs(r.result.documentChanges or {}) do
-      n = n + #(ch.edits or {})
+      -- <leader>cR (Snacks.rename.rename_file) asks willRenameFiles itself: it still gets the `mod` edit
+      local r = client:request_sync("workspace/willRenameFiles", {
+        files = {
+          { oldUri = vim.uri_from_fname(dir .. "/src/util.rs"), newUri = vim.uri_from_fname(dir .. "/src/other.rs") },
+        },
+      }, 20000, buf)
+      H.ok(r and r.result, "willRenameFiles answered: " .. vim.inspect(r))
+      local n = 0
+      for _, ch in ipairs(r.result.documentChanges or {}) do
+        n = n + #(ch.edits or {})
+      end
+      for _, es in pairs(r.result.changes or {}) do
+        n = n + #es
+      end
+      H.ok(n >= 1, "willRenameFiles edits for the `mod` declaration: " .. vim.inspect(r.result))
     end
-    for _, es in pairs(r.result.changes or {}) do
-      n = n + #es
-    end
-    H.ok(n >= 1, "willRenameFiles edits for the `mod` declaration: " .. vim.inspect(r.result))
-  end)
+  )
 end)
 
 describe("editing-ui and domain specs", function()
@@ -705,7 +733,8 @@ describe("editing-ui and domain specs", function()
   end)
 
   local function wgsl_available()
-    return vim.fn.executable("wgsl-analyzer") == 1 or vim.fn.filereadable(vim.fn.stdpath("data") .. "/mason/bin/wgsl-analyzer") == 1
+    return vim.fn.executable("wgsl-analyzer") == 1
+      or vim.fn.filereadable(vim.fn.stdpath("data") .. "/mason/bin/wgsl-analyzer") == 1
   end
 
   it("15b. wgsl-analyzer attaches to a .wgsl file and reports a type mismatch", function()
@@ -783,7 +812,9 @@ describe("editing-ui and domain specs", function()
     srv:close()
     H.spawn({ "python3", "-m", "http.server", tostring(port), "--bind", "127.0.0.1", "--directory", dir })
     H.wait_for(function()
-      return vim.system({ "curl", "-s", "-m", "2", "-o", "/dev/null", ("http://127.0.0.1:%d/index.html"):format(port) }):wait(5000).code == 0
+      return vim
+        .system({ "curl", "-s", "-m", "2", "-o", "/dev/null", ("http://127.0.0.1:%d/index.html"):format(port) })
+        :wait(5000).code == 0
     end, 10000, "the http.server")
     vim.fn.writefile({ ("GET http://127.0.0.1:%d/index.html HTTP/1.1"):format(port) }, dir .. "/req.http")
     vim.cmd.cd(vim.fn.fnameescape(dir))
@@ -796,7 +827,10 @@ describe("editing-ui and domain specs", function()
     local text = H.wait_for(function()
       for _, b in ipairs(vim.api.nvim_list_bufs()) do
         local all = table.concat(vim.api.nvim_buf_get_lines(b, 0, -1, false), "\n")
-        if b ~= buf and (all:find("Status: 200", 1, true) or all:find("HTTP/1.1 200", 1, true) or all:find("Status 200", 1, true)) then
+        if
+          b ~= buf
+          and (all:find("Status: 200", 1, true) or all:find("HTTP/1.1 200", 1, true) or all:find("Status 200", 1, true))
+        then
           return all
         end
       end

@@ -4,12 +4,12 @@
 -- transparency.lua this is applied now and on every ColorScheme, because a
 -- theme switch (`highlight clear` from a theme switch) wipes it.
 local function apply()
-	vim.api.nvim_set_hl(0, "@lsp.mod.unsafe.rust", { underline = true })
+  vim.api.nvim_set_hl(0, "@lsp.mod.unsafe.rust", { underline = true })
 end
 
 vim.api.nvim_create_autocmd("ColorScheme", {
-	group = vim.api.nvim_create_augroup("user_unsafe_highlight", { clear = true }),
-	callback = apply,
+  group = vim.api.nvim_create_augroup("user_unsafe_highlight", { clear = true }),
+  callback = apply,
 })
 
 apply()

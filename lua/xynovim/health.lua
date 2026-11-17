@@ -4,7 +4,7 @@ local M = {}
 
 local function first_line(cmd)
   local ok, o = pcall(function()
-    return vim.system(cmd, { text = true }):wait(5000)
+    return vim.system(cmd, { text = true }):wait(5000) -- trust: read-only `--version` probes of tools, no workspace involved
   end)
   if not ok or o.code ~= 0 then
     return nil
@@ -37,7 +37,13 @@ local TOOLS = {
   { "unzip", "Mason package archives", false, { "-v" }, "warn" },
   { "gzip", "Mason unpacks .gz archives", false, { "--version" }, "warn" },
   { "gcc", "compiles tree-sitter parsers", false, { "--version" }, "warn" },
-  { "tree-sitter", "CLI nvim-treesitter builds parsers with (Mason supplies it as tree-sitter-cli)", true, { "--version" }, "warn" },
+  {
+    "tree-sitter",
+    "CLI nvim-treesitter builds parsers with (Mason supplies it as tree-sitter-cli)",
+    true,
+    { "--version" },
+    "warn",
+  },
   { "node", "Mason's npm tools and yaml-language-server", false, { "--version" }, "warn" },
   { "cargo", "builds, clippy, tests (every Rust key)", false, { "--version" }, "error" },
   { "rust-analyzer", "language server (rustaceanvim)", false, { "--version" }, "error" },
@@ -53,7 +59,13 @@ local TOOLS = {
   { "mold", "fast linker (~/.cargo/config.toml)", false, { "--version" }, "warn" },
   { "clang", "linker driver for mold (~/.cargo/config.toml)", false, { "--version" }, "warn" },
   { "npm", "Mason installs markdownlint-cli2, markdown-toc, yaml-language-server", false, { "--version" }, "warn" },
-  { "bwrap", "bubblewrap sandbox for the 99 agent (Linux only; without it 99 refuses to run unless vim.g.xynovim_99_allow_unsandboxed = true)", false, { "--version" }, "warn" },
+  {
+    "bwrap",
+    "bubblewrap sandbox for the 99 agent (Linux only; without it 99 refuses to run unless vim.g.xynovim_99_allow_unsandboxed = true)",
+    false,
+    { "--version" },
+    "warn",
+  },
 }
 
 -- Not needed (or not available) on Windows: Mason there unpacks with PowerShell / tar,
@@ -102,7 +114,17 @@ function M.check()
   -- the parts of the config that are plugins of their own (lua/plugins/xyno-*.lua), restored from the lockfile
   vim.health.start("xynovim: xyno plugins")
   local plugins = require("lazy.core.config").plugins
-  for _, name in ipairs({ "xyno-history.nvim", "xyno-sandbox.nvim", "xyno-clipboard.nvim", "xyno-guard.nvim", "xyno-rust.nvim", "xyno-new.nvim", "xyno-imports.nvim", "xyno-crates.nvim", "xyno-macros.nvim" }) do
+  for _, name in ipairs({
+    "xyno-history.nvim",
+    "xyno-sandbox.nvim",
+    "xyno-clipboard.nvim",
+    "xyno-guard.nvim",
+    "xyno-rust.nvim",
+    "xyno-new.nvim",
+    "xyno-imports.nvim",
+    "xyno-crates.nvim",
+    "xyno-macros.nvim",
+  }) do
     local plugin = plugins[name]
     if plugin and plugin._.installed then
       vim.health.ok(name .. " installed (" .. plugin[1] .. ")")
@@ -111,12 +133,81 @@ function M.check()
     end
   end
 
+  -- a yank that reaches no clipboard is silent, so say what is missing
+  vim.health.start("xynovim: clipboard")
+  local wayland, x11 = vim.env.WAYLAND_DISPLAY ~= nil, vim.env.DISPLAY ~= nil
+  if wayland and vim.fn.executable("wl-copy") == 1 and vim.fn.executable("wl-paste") == 1 then
+    vim.health.ok("wl-copy and wl-paste found")
+  elseif x11 and (vim.fn.executable("xclip") == 1 or vim.fn.executable("xsel") == 1) then
+    vim.health.ok("xclip/xsel found")
+  elseif wayland or x11 then
+    vim.health.warn(
+      "no clipboard tool for this "
+        .. (wayland and "Wayland" or "X11")
+        .. " session: yanks only reach the terminal via OSC 52",
+      "pacman -S wl-clipboard (Wayland) or xclip / xsel (X11)"
+    )
+  else
+    vim.health.info("no graphical session: clipboard goes through OSC 52 / the terminal")
+  end
+
+  require("xynovim.term").report()
+
+  vim.health.start("xynovim: workspace trust")
+  local wt_ok, wt = pcall(require, "config.workspace_trust")
+  if not wt_ok or not wt.enabled() then
+    if vim.g.xynovim_workspace_trust ~= false then
+      vim.health.error(
+        "no workspace trust store loads (neither xyno_rust.trust nor lua/xynovim/trust_fallback.lua): Rust workspaces stay RESTRICTED and nothing can run their code",
+        {
+          "check the checkout: lua/xynovim/trust_fallback.lua must load (:lua require('xynovim.trust_fallback'))",
+          "or switch the gate off: vim.g.xynovim_workspace_trust = false (rust-analyzer and clippy then run build scripts and proc macros)",
+        }
+      )
+    else
+      vim.health.warn(
+        "restricted mode is switched off (vim.g.xynovim_workspace_trust = false)",
+        "rust-analyzer, clippy, tests, coverage and debug builds always run build scripts and proc macros"
+      )
+    end
+  else
+    if wt.using_fallback() then
+      vim.health.info(
+        "the pinned xyno-rust.nvim has no trust module: the vendored lua/xynovim/trust_fallback.lua is the trust store (same file and API; the plugin's own wins once the pin has it)"
+      )
+    end
+    local r = wt.report()
+    if not r.workspace then
+      vim.health.info("no Cargo workspace at the current directory")
+    elseif r.trusted then
+      vim.health.ok(
+        ("%s is trusted (%s): rust-analyzer and clippy run with the full settings"):format(r.workspace, r.by or "?")
+      )
+    else
+      vim.health.warn(
+        ("%s is NOT trusted: restricted mode (rust-analyzer without build scripts, proc macros and cargo check; no clippy)"):format(
+          r.workspace
+        ),
+        ":RustTrust add (or answer the prompt) trusts it and restarts the servers"
+      )
+    end
+    for _, key in ipairs(r.restricted) do
+      vim.health.info("restricted in this session: " .. key)
+    end
+  end
+
+  vim.health.start("xynovim: blink.cmp binary")
+  for _, l in ipairs(require("config.blink_binary").report()) do
+    vim.health[l[1]](l[2])
+  end
+
   vim.health.start("xynovim: rust toolchain")
   if vim.fn.executable("rustup") == 0 then
     vim.health.warn("rustup not found", "components cannot be checked; install rustup")
     return
   end
-  local out = vim.system({ "rustup", "component", "list", "--toolchain", "stable", "--installed" }, { text = true })
+  local out = vim
+    .system({ "rustup", "component", "list", "--toolchain", "stable", "--installed" }, { text = true })
     :wait(10000)
   if out.code ~= 0 then
     vim.health.warn("stable toolchain not installed", "rustup toolchain install stable")
@@ -134,7 +225,9 @@ function M.check()
     end
   end
   -- :RustContext's target step lists the installed targets: web/WASM crates need this one
-  local targets = vim.system({ "rustup", "target", "list", "--toolchain", "stable", "--installed" }, { text = true }):wait(10000)
+  local targets = vim
+    .system({ "rustup", "target", "list", "--toolchain", "stable", "--installed" }, { text = true })
+    :wait(10000)
   if targets.code == 0 then
     if (targets.stdout or ""):find("wasm32-unknown-unknown", 1, true) then
       vim.health.ok("stable has the wasm32-unknown-unknown target: web/WASM crates (:RustContext target)")
@@ -144,6 +237,41 @@ function M.check()
         "rustup target add --toolchain stable wasm32-unknown-unknown"
       )
     end
+  end
+
+  vim.health.start("xynovim: debugger value rendering")
+  do
+    local ok, o = pcall(function()
+      return vim.system({ "rustc", "--print", "sysroot" }, { text = true }):wait(10000) -- trust: read-only prints the toolchain path, runs no project code
+    end)
+    local script = ok and o.code == 0 and vim.trim(o.stdout) .. "/lib/rustlib/etc/lldb_lookup.py"
+    if script and vim.uv.fs_stat(script) then
+      vim.health.ok("rust's lldb formatters: " .. script .. " (String, Vec, Option, enums)")
+    else
+      vim.health.warn(
+        "lldb_lookup.py is not in the active toolchain: values show as raw fields in the debugger",
+        "the script ships with rustc: check `rustc --print sysroot`/lib/rustlib/etc, or reinstall the toolchain"
+      )
+    end
+    local preview = require("config.dap_values").preview_script()
+    if preview then
+      vim.health.ok("content previews (Vec [1, 2, 3], HashMap, Rc, RefCell): " .. preview)
+    else
+      vim.health.warn("scripts/lldb/xyno_rust_preview.py is missing: containers show only their size")
+    end
+    local nextest = vim.fn.executable("cargo-nextest") == 1
+    vim.health[nextest and "ok" or "info"](
+      nextest and "cargo-nextest found: neotest runs nextest, profiles via <leader>tP"
+        or "cargo-nextest not installed: neotest runs `cargo test` (the results panel parses both)"
+    )
+  end
+
+  vim.health.start("xynovim: rainbow brackets")
+  local ok_rb, rb_err = pcall(function()
+    require("config.rainbow_cmd").health()
+  end)
+  if not ok_rb then
+    vim.health.error("rainbow brackets health check failed: " .. tostring(rb_err))
   end
 end
 

@@ -17,7 +17,7 @@ local function metadata(path)
     return nil
   end
   local o = vim
-    .system({ "cargo", "metadata", "--format-version", "1", "--no-deps" }, { cwd = root, text = true })
+    .system({ "cargo", "metadata", "--format-version", "1", "--no-deps" }, { cwd = root, text = true }) -- trust: read-only no-deps metadata reads manifests (checked in xyno-rust's trust spec)
     :wait(30000)
   if o.code ~= 0 then
     return nil
@@ -108,19 +108,42 @@ local function build_current_binary()
     notify("no Cargo package with a binary found for this buffer", vim.log.levels.ERROR)
     return require("dap").ABORT
   end
-  notify("cargo build --package " .. b.pkg .. " --bin " .. b.bin)
+  local wt = require("config.workspace_trust")
   local cmd = { "cargo", "build", "--package", b.pkg, "--bin", b.bin }
+  -- the build runs build.rs and proc macros of the workspace: workspace trust first. nvim-dap calls this in
+  -- a coroutine (the prompt can be answered while the UI stays alive); outside one nothing can wait for an
+  -- answer, so an untrusted workspace aborts with the command to trust it.
   local co = coroutine.running()
+  if not wt.allowed(b.dir) then
+    if not co then
+      notify("not built: " .. b.dir .. " is not a trusted workspace (:RustTrust add)", vim.log.levels.WARN)
+      return require("dap").ABORT
+    end
+    local asked
+    wt.require(b.dir, table.concat(cmd, " "), function(ok)
+      asked = { ok = ok }
+      if co and coroutine.status(co) == "suspended" then
+        coroutine.resume(co)
+      end
+    end)
+    if not asked then
+      coroutine.yield()
+    end
+    if not (asked and asked.ok) then
+      return require("dap").ABORT
+    end
+  end
+  notify("cargo build --package " .. b.pkg .. " --bin " .. b.bin)
   local res
   if co then
-    vim.system(cmd, { cwd = b.dir, text = true }, function(o)
+    vim.system(cmd, { cwd = b.dir, text = true }, function(o) -- trust: checked above (wt.allowed / wt.require)
       vim.schedule(function()
         coroutine.resume(co, o)
       end)
     end)
     res = coroutine.yield()
   else
-    res = vim.system(cmd, { cwd = b.dir, text = true }):wait()
+    res = vim.system(cmd, { cwd = b.dir, text = true }):wait() -- trust: checked above (wt.allowed)
   end
   if res.code ~= 0 then
     notify("cargo build failed:\n" .. (res.stderr or ""), vim.log.levels.ERROR)
@@ -141,7 +164,7 @@ local sysroot_script
 --- Resolved once, on the first launch (not at startup).
 local function lldb_lookup_script()
   if sysroot_script == nil then
-    local o = vim.system({ "rustc", "--print", "sysroot" }, { text = true }):wait(10000)
+    local o = vim.system({ "rustc", "--print", "sysroot" }, { text = true }):wait(10000) -- trust: read-only prints the toolchain path, runs no project code
     local script = o.code == 0 and vim.trim(o.stdout) .. "/lib/rustlib/etc/lldb_lookup.py"
     sysroot_script = script and vim.uv.fs_stat(script) and script or false
   end
@@ -166,6 +189,30 @@ local function rust_lldb_init(config)
     return c:find("lldb_lookup.py", 1, true)
   end) then
     table.insert(cmds, 1, 'command script import "' .. script .. '"')
+  end
+  -- content previews (Vec [1, 2, 3], HashMap {"a": 1}, Rc/RefCell value) on top of rust's summaries
+  local preview = require("config.dap_values").preview_script()
+  if
+    script
+    and preview
+    and not vim.iter(cmds):any(function(c)
+      return c:find("xyno_rust_preview.py", 1, true)
+    end)
+  then
+    local at = 1
+    for i, c in ipairs(cmds) do
+      if c:find("lldb_lookup.py", 1, true) then
+        at = i + 1
+      end
+    end
+    table.insert(cmds, at, 'command script import "' .. preview .. '"')
+    -- codelldb loads rust's formatters itself after initCommands and enables their category again,
+    -- which puts it in front of ours; enabling ours once the process exists moves it back to the front.
+    local post = vim.deepcopy(type(config.postRunCommands) == "table" and config.postRunCommands or {})
+    if not vim.tbl_contains(post, "type category enable XynoRust") then
+      post[#post + 1] = "type category enable XynoRust"
+    end
+    config.postRunCommands = post
   end
   if not vim.tbl_contains(cmds, "breakpoint set -n rust_panic") then
     cmds[#cmds + 1] = "breakpoint set -n rust_panic"
@@ -310,6 +357,43 @@ return {
     keys = {
       { "<leader>dR", pick_workspace_debuggable, desc = "Rust Debuggables (whole workspace)" },
       { "<leader>dP", pause, desc = "Pause" },
+      {
+        "<leader>dv",
+        function()
+          require("config.dap_values").show_value()
+        end,
+        mode = { "n", "x" },
+        desc = "Value under cursor (full, with children)",
+      },
+      {
+        "<leader>dL",
+        function()
+          require("config.dap_values").logpoint()
+        end,
+        desc = "Logpoint",
+      },
+      {
+        "<leader>dH",
+        function()
+          require("config.dap_values").hit_count()
+        end,
+        desc = "Breakpoint with hit count",
+      },
+      {
+        "<leader>dX",
+        function()
+          require("config.dap_values").exception_breakpoints()
+        end,
+        desc = "Exception breakpoints (panic, throw, catch)",
+      },
+      {
+        "<leader>dQ",
+        function()
+          require("dap").list_breakpoints()
+          vim.cmd("copen")
+        end,
+        desc = "Breakpoints to quickfix",
+      },
     },
   },
   {
@@ -321,7 +405,37 @@ return {
           -- default_setup extends c/cpp/rust with the same shared tables;
           -- give Rust its own list.
           require("dap").configurations.rust = rust_configurations()
+          -- nvim-dap's answer to a missing adapter binary is "Executable `...` not found, fix the adapter
+          -- definition" and then "Couldn't connect to 127.0.0.1:${port}": a message for the author of the
+          -- config, and a second one with an unexpanded placeholder. One message with the way out instead.
+          local adapter = require("dap").adapters.codelldb
+          if type(adapter) == "table" and adapter.executable and adapter.executable.command then
+            require("dap").adapters.codelldb = function(on_adapter)
+              local cmd = adapter.executable.command
+              if vim.fn.executable(cmd) ~= 1 then
+                vim.notify(
+                  "The debugger (codelldb) is not installed: "
+                    .. cmd
+                    .. " does not exist.\n"
+                    .. "Install it with :MasonInstall codelldb, then start the session again.",
+                  vim.log.levels.ERROR,
+                  { title = "debugger" }
+                )
+                return
+              end
+              on_adapter(adapter)
+            end
+          end
           require("dap").listeners.on_config["xynovim_rust_lldb"] = rust_lldb_init
+          require("config.dap_panic").setup()
+          require("config.dap_values").setup()
+          -- once per project: a debugger shows threads, not tokio tasks (xyno-rust.nvim, :TokioConsole)
+          require("dap").listeners.after.event_initialized["xynovim_tokio_hint"] = function()
+            local ok, tk = pcall(require, "xyno_rust.tokio")
+            if ok then
+              pcall(tk.debug_hint)
+            end
+          end
         end,
       },
     },
@@ -337,6 +451,7 @@ return {
         callback = function(ev)
           if ev.data == "nvim-dap-ui" then
             vim.schedule(function()
+              require("config.narrow").follow_dapui()
               local l = require("dap").listeners.before
               l.event_terminated["dapui_config"] = nil
               l.event_exited["dapui_config"] = nil
@@ -347,7 +462,10 @@ return {
                 vim.defer_fn(function()
                   for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
                     local b = vim.api.nvim_win_get_buf(w)
-                    if vim.bo[b].filetype == "dapui_console" and vim.fn.getwininfo(w)[1].topline >= vim.api.nvim_buf_line_count(b) then
+                    if
+                      vim.bo[b].filetype == "dapui_console"
+                      and vim.fn.getwininfo(w)[1].topline >= vim.api.nvim_buf_line_count(b)
+                    then
                       vim.api.nvim_win_call(w, function()
                         vim.cmd("normal! gg")
                       end)
@@ -360,7 +478,11 @@ return {
               end
               -- LazyVim gives the breakpoint signs DiagnosticInfo (blue) unless the icon carries a group;
               -- the theme's red / yellow / grey groups exist
-              for name, hl in pairs({ DapBreakpoint = "DapBreakpoint", DapBreakpointCondition = "DapBreakpointCondition", DapBreakpointRejected = "DapBreakpointRejected" }) do
+              for name, hl in pairs({
+                DapBreakpoint = "DapBreakpoint",
+                DapBreakpointCondition = "DapBreakpointCondition",
+                DapBreakpointRejected = "DapBreakpointRejected",
+              }) do
                 local def = vim.fn.sign_getdefined(name)[1]
                 if def then
                   vim.fn.sign_define(name, { text = def.text, texthl = hl, linehl = def.linehl, numhl = def.numhl })
@@ -372,32 +494,27 @@ return {
       })
     end,
     opts = function()
-      -- wide enough for `alloc::vec::Vec<alloc::string::String, alloc::alloc::Global>`
-      -- on a normal terminal, but never more than a third of a narrow one.
-      local width = math.max(40, math.min(60, math.floor(vim.o.columns * 0.35)))
+      -- the sidebar is wide enough for `alloc::vec::Vec<alloc::string::String, alloc::alloc::Global>`
+      -- on a normal terminal, but never more than a third of it.
       return {
         wrap = true,
-        layouts = {
-          {
-            elements = {
-              { id = "scopes", size = 0.4 },
-              { id = "breakpoints", size = 0.15 },
-              { id = "stacks", size = 0.25 },
-              { id = "watches", size = 0.2 },
-            },
-            position = "left",
-            size = width,
-          },
-          {
-            elements = {
-              { id = "repl", size = 0.5 },
-              { id = "console", size = 0.5 },
-            },
-            position = "bottom",
-            size = 10,
-          },
-        },
+        -- a side bar plus a bottom strip on a wide window, one bottom strip below 120 columns
+        -- (config/narrow.lua; the layouts are read again before the UI opens when the width class changed)
+        layouts = require("config.narrow").dapui_layouts(),
       }
     end,
+  },
+  {
+    -- inline values: the previews of xyno_rust_preview.py, one line each (a 600-character String filled the
+    -- line); the whole value is one <leader>dv away
+    "theHamsta/nvim-dap-virtual-text",
+    -- a top-level spec is eager unless it says otherwise: without this nvim-dap, mason-nvim-dap and mason
+    -- were loaded at every start (+25 ms, measured); LazyVim loads it as a dependency of nvim-dap
+    lazy = true,
+    opts = {
+      display_callback = function(variable, _, _, _, options)
+        return require("config.dap_values").inline_text(variable, options)
+      end,
+    },
   },
 }

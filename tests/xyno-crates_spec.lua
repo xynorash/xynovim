@@ -18,22 +18,28 @@ end)
 describe("xyno-crates.nvim glue", function()
   local plugin = require("lazy.core.config").plugins["xyno-crates.nvim"]
 
-  it("is installed, a plugin spec of xynorash/xyno-crates.nvim needing xyno-rust.nvim and xyno-imports.nvim, loaded at VeryLazy", function()
-    H.ok(plugin and plugin._.installed, "xyno-crates.nvim is not installed")
-    H.eq("xynorash/xyno-crates.nvim", plugin[1])
-    H.eq({ "xyno-rust.nvim", "xyno-imports.nvim" }, plugin.dependencies)
-    H.eq("VeryLazy", plugin.event[1] or plugin.event)
-    H.very_lazy()
-    H.ok(plugin._.loaded, "xyno-crates.nvim did not load at VeryLazy")
-  end)
+  it(
+    "is installed, a plugin spec of xynorash/xyno-crates.nvim needing xyno-rust.nvim and xyno-imports.nvim, loaded at VeryLazy",
+    function()
+      H.ok(plugin and plugin._.installed, "xyno-crates.nvim is not installed")
+      H.eq("xynorash/xyno-crates.nvim", plugin[1])
+      H.eq({ "xyno-rust.nvim", "xyno-imports.nvim" }, plugin.dependencies)
+      H.eq("VeryLazy", plugin.event[1] or plugin.event)
+      H.very_lazy()
+      H.ok(plugin._.loaded, "xyno-crates.nvim did not load at VeryLazy")
+    end
+  )
 
-  it("setup() ran: :CrateAdd and :CrateFeatures exist, the module autocommands and in-process clients are there", function()
-    H.very_lazy()
-    H.eq(2, vim.fn.exists(":CrateAdd"))
-    H.eq(2, vim.fn.exists(":CrateFeatures"))
-    H.ok(#vim.api.nvim_get_autocmds({ group = "xyno-crates-add" }) > 0, "augroup xyno-crates-add")
-    H.ok(#vim.api.nvim_get_autocmds({ group = "xyno_crates_features" }) > 0, "augroup xyno_crates_features")
-  end)
+  it(
+    "setup() ran: :CrateAdd and :CrateFeatures exist, the module autocommands and in-process clients are there",
+    function()
+      H.very_lazy()
+      H.eq(2, vim.fn.exists(":CrateAdd"))
+      H.eq(2, vim.fn.exists(":CrateFeatures"))
+      H.ok(#vim.api.nvim_get_autocmds({ group = "xyno-crates-add" }) > 0, "augroup xyno-crates-add")
+      H.ok(#vim.api.nvim_get_autocmds({ group = "xyno_crates_features" }) > 0, "augroup xyno_crates_features")
+    end
+  )
 
   it("<leader>rA is buffer-local in Rust and Cargo.toml buffers, <leader>rG in Rust buffers, neither global", function()
     H.very_lazy()
@@ -50,7 +56,10 @@ describe("xyno-crates.nvim glue", function()
     vim.cmd("enew")
     for _, lhs in ipairs({ " rA", " rG" }) do
       local g = vim.fn.maparg(lhs, "n", false, true)
-      H.not_ok(g.rhs and g.rhs ~= "" and not (g.desc or ""):find("which_key_ignore", 1, true), "global map on <leader>" .. lhs:sub(2))
+      H.not_ok(
+        g.rhs and g.rhs ~= "" and not (g.desc or ""):find("which_key_ignore", 1, true),
+        "global map on <leader>" .. lhs:sub(2)
+      )
     end
     -- <leader>rE keeps its meaning
     local e = vim.fn.maparg(" rE", "n", false, true)
@@ -58,24 +67,37 @@ describe("xyno-crates.nvim glue", function()
   end)
 
   it("vim.g.xynovim_crate_check = false reaches the plugin's switch (child nvim)", function()
-    local out = vim.system({
-      vim.v.progpath, "--headless",
-      "--cmd", "lua vim.g.xynovim_crate_check = false",
-      "-c", "doautocmd User VeryLazy",
-      "-c", "lua io.stdout:write(vim.inspect(vim.g.xyno_crate_check))",
-      "-c", "qa!",
-    }, { text = true, timeout = 60000 }):wait()
+    local out = vim
+      .system({
+        vim.v.progpath,
+        "--headless",
+        "--cmd",
+        "lua vim.g.xynovim_crate_check = false",
+        "-c",
+        "doautocmd User VeryLazy",
+        "-c",
+        "lua io.stdout:write(vim.inspect(vim.g.xyno_crate_check))",
+        "-c",
+        "qa!",
+      }, { text = true, timeout = 60000 })
+      :wait()
     H.eq(0, out.code, out.stderr)
     H.eq("false", out.stdout)
   end)
 
   it("the hint stays on when neither global is set", function()
-    local out = vim.system({
-      vim.v.progpath, "--headless",
-      "-c", "doautocmd User VeryLazy",
-      "-c", "lua io.stdout:write(vim.inspect(vim.g.xyno_crate_check))",
-      "-c", "qa!",
-    }, { text = true, timeout = 60000 }):wait()
+    local out = vim
+      .system({
+        vim.v.progpath,
+        "--headless",
+        "-c",
+        "doautocmd User VeryLazy",
+        "-c",
+        "lua io.stdout:write(vim.inspect(vim.g.xyno_crate_check))",
+        "-c",
+        "qa!",
+      }, { text = true, timeout = 60000 })
+      :wait()
     H.eq(0, out.code, out.stderr)
     H.eq("nil", out.stdout)
   end)

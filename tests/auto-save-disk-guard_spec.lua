@@ -210,16 +210,19 @@ describe("auto-save and disk guard", function()
 
   -- ------------------------------------------------------------- 1, 2: setup
   describe("configuration", function()
-    it("1 lazy-loads on InsertLeave/TextChanged/TextChangedI and sets up enabled, noautocmd, 1000ms, can_save", function()
-      local spec = dofile(H.repo .. "/lua/plugins/auto-save.lua")
-      H.eq("okuuva/auto-save.nvim", spec[1])
-      H.eq({ "InsertLeave", "TextChanged", "TextChangedI" }, spec.event)
-      local o = require("auto-save.config").opts
-      H.eq(true, o.enabled)
-      H.eq(true, o.noautocmd)
-      H.eq(1000, o.debounce_delay)
-      H.ok(o.condition == dg.can_save, "condition is xyno_guard.can_save")
-    end)
+    it(
+      "1 lazy-loads on InsertLeave/TextChanged/TextChangedI and sets up enabled, noautocmd, 1000ms, can_save",
+      function()
+        local spec = dofile(H.repo .. "/lua/plugins/auto-save.lua")
+        H.eq("okuuva/auto-save.nvim", spec[1])
+        H.eq({ "InsertLeave", "TextChanged", "TextChangedI" }, spec.event)
+        local o = require("auto-save.config").opts
+        H.eq(true, o.enabled)
+        H.eq(true, o.noautocmd)
+        H.eq(1000, o.debounce_delay)
+        H.ok(o.condition == dg.can_save, "condition is xyno_guard.can_save")
+      end
+    )
 
     it("2 has the documented trigger events", function()
       H.eq({
@@ -235,7 +238,16 @@ describe("auto-save and disk guard", function()
       for _, a in ipairs(vim.api.nvim_get_autocmds({ group = "AutoSave" })) do
         seen[a.event] = true
       end
-      for _, e in ipairs({ "BufLeave", "FocusLost", "QuitPre", "VimSuspend", "InsertLeave", "TextChanged", "TextChangedI", "InsertEnter" }) do
+      for _, e in ipairs({
+        "BufLeave",
+        "FocusLost",
+        "QuitPre",
+        "VimSuspend",
+        "InsertLeave",
+        "TextChanged",
+        "TextChangedI",
+        "InsertEnter",
+      }) do
         H.ok(seen[e], "autocmd for " .. e)
       end
     end)
@@ -266,7 +278,8 @@ describe("auto-save and disk guard", function()
       local function pane()
         return H.tmux({ "capture-pane", "-p", "-t", "t" }, "typing").stdout or ""
       end
-      local r = H.tmux({ "new-session", "-d", "-s", "t", "-x", "120", "-y", "30", "-c", dir, "nvim " .. path }, "typing")
+      local r =
+        H.tmux({ "new-session", "-d", "-s", "t", "-x", "120", "-y", "30", "-c", dir, "nvim " .. path }, "typing")
       H.eq(0, r.code, r.stderr)
       H.wait_for(function()
         return pane():find("one", 1, true)
@@ -287,39 +300,43 @@ describe("auto-save and disk guard", function()
       end, 6000, "second autosave, still typing")
     end)
 
-    it("3 an autosave in the middle of an insert does not split the undo block: one u undoes the whole insert", function()
-      H.need_tmux()
-      -- field test: the debounced write closed the insert-mode undo block, so `u` after
-      -- "abc" <pause> "def" <pause> "ghi" removed only " ghi"; the hook now runs :undojoin
-      local dir = H.tmpdir()
-      local path = dir .. "/undo.txt"
-      write(path, "one\n")
-      local function pane()
-        return H.tmux({ "capture-pane", "-p", "-t", "t" }, "undo").stdout or ""
+    it(
+      "3 an autosave in the middle of an insert does not split the undo block: one u undoes the whole insert",
+      function()
+        H.need_tmux()
+        -- field test: the debounced write closed the insert-mode undo block, so `u` after
+        -- "abc" <pause> "def" <pause> "ghi" removed only " ghi"; the hook now runs :undojoin
+        local dir = H.tmpdir()
+        local path = dir .. "/undo.txt"
+        write(path, "one\n")
+        local function pane()
+          return H.tmux({ "capture-pane", "-p", "-t", "t" }, "undo").stdout or ""
+        end
+        local r =
+          H.tmux({ "new-session", "-d", "-s", "t", "-x", "120", "-y", "30", "-c", dir, "nvim " .. path }, "undo")
+        H.eq(0, r.code, r.stderr)
+        H.wait_for(function()
+          return pane():find("one", 1, true)
+        end, 60000, "nvim to show the file")
+        vim.wait(1500)
+        H.tmux({ "send-keys", "-t", "t", "A", " abc" }, "undo")
+        H.wait_for(function()
+          return read(path) == "one abc\n"
+        end, 6000, "first autosave while typing")
+        H.tmux({ "send-keys", "-t", "t", " def" }, "undo")
+        H.wait_for(function()
+          return read(path) == "one abc def\n"
+        end, 6000, "second autosave while typing")
+        H.tmux({ "send-keys", "-t", "t", " ghi", "Escape" }, "undo")
+        H.wait_for(function()
+          return read(path) == "one abc def ghi\n"
+        end, 6000, "autosave on leaving insert mode")
+        H.tmux({ "send-keys", "-t", "t", "u" }, "undo")
+        H.wait_for(function()
+          return read(path) == "one\n"
+        end, 6000, "u undid the whole insert (and the undo was autosaved)")
       end
-      local r = H.tmux({ "new-session", "-d", "-s", "t", "-x", "120", "-y", "30", "-c", dir, "nvim " .. path }, "undo")
-      H.eq(0, r.code, r.stderr)
-      H.wait_for(function()
-        return pane():find("one", 1, true)
-      end, 60000, "nvim to show the file")
-      vim.wait(1500)
-      H.tmux({ "send-keys", "-t", "t", "A", " abc" }, "undo")
-      H.wait_for(function()
-        return read(path) == "one abc\n"
-      end, 6000, "first autosave while typing")
-      H.tmux({ "send-keys", "-t", "t", " def" }, "undo")
-      H.wait_for(function()
-        return read(path) == "one abc def\n"
-      end, 6000, "second autosave while typing")
-      H.tmux({ "send-keys", "-t", "t", " ghi", "Escape" }, "undo")
-      H.wait_for(function()
-        return read(path) == "one abc def ghi\n"
-      end, 6000, "autosave on leaving insert mode")
-      H.tmux({ "send-keys", "-t", "t", "u" }, "undo")
-      H.wait_for(function()
-        return read(path) == "one\n"
-      end, 6000, "u undid the whole insert (and the undo was autosaved)")
-    end)
+    )
 
     it("3 does not write when nothing changed and when auto-save is off", function()
       local path, buf = open_file("one\n")
@@ -336,9 +353,11 @@ describe("auto-save and disk guard", function()
       it("4 an autosave does not format, :w does not format, <leader>cf does", function()
         H.eq(false, vim.g.autoformat)
         local path, buf = open_file(ugly .. "\n", "fmt.lua")
-        if not vim.iter(require("conform").list_formatters(buf)):any(function(f)
-          return f.available
-        end) then
+        if
+          not vim.iter(require("conform").list_formatters(buf)):any(function(f)
+            return f.available
+          end)
+        then
           H.skip_file("no conform formatter available for lua (stylua)")
         end
 
@@ -390,7 +409,10 @@ describe("auto-save and disk guard", function()
       local path, buf = open_file("one\n")
       local log_a = fake_lsp(buf, "fake-save", { includeText = false })
       local log_b = fake_lsp(buf, "fake-nosave", false)
-      H.eq("user_autosave_didsave", vim.api.nvim_get_autocmds({ event = "User", pattern = "AutoSaveWritePost", group = "user_autosave_didsave" })[1].group_name)
+      H.eq(
+        "user_autosave_didsave",
+        vim.api.nvim_get_autocmds({ event = "User", pattern = "AutoSaveWritePost", group = "user_autosave_didsave" })[1].group_name
+      )
 
       as().on()
       set_lines(buf, { "x" })
@@ -419,7 +441,10 @@ describe("auto-save and disk guard", function()
     -- A BufWritePost autocmd whose callback "lives in" neotest's watcher.lua
     local function fake_watcher()
       local fn = load("return function() end", "@/fake/neotest/consumers/watch/watcher.lua")()
-      return vim.api.nvim_create_autocmd("BufWritePost", { group = vim.api.nvim_create_augroup("spec_fake_watcher", { clear = true }), callback = fn })
+      return vim.api.nvim_create_autocmd(
+        "BufWritePost",
+        { group = vim.api.nvim_create_augroup("spec_fake_watcher", { clear = true }), callback = fn }
+      )
     end
     after_each(function()
       pcall(vim.api.nvim_del_augroup_by_name, "spec_fake_watcher")
@@ -464,51 +489,57 @@ describe("auto-save and disk guard", function()
       H.eq(0, n())
     end)
 
-    it("an autosaved non-Rust buffer reaches nvim-lint's BufWritePost handler (Cargo.toml lints stayed stale); a Rust one does not", function()
-      local lint_was = package.loaded["lint"]
-      package.loaded["lint"] = lint_was or {}
-      local g = vim.api.nvim_create_augroup("nvim-lint", { clear = false })
-      local hits = {}
-      local id = vim.api.nvim_create_autocmd("BufWritePost", {
-        group = g,
-        callback = function(ev)
-          hits[#hits + 1] = ev.buf
-        end,
-      })
-      local _, buf = open_file("one\n")
-      vim.bo[buf].filetype = "toml"
-      autosave_once(buf)
-      H.eq({ buf }, hits)
-      vim.bo[buf].filetype = "rust"
-      autosave_once(buf)
-      H.eq({ buf }, hits, "no lint re-emit for Rust")
-      pcall(vim.api.nvim_del_autocmd, id)
-      package.loaded["lint"] = lint_was
-    end)
+    it(
+      "an autosaved non-Rust buffer reaches nvim-lint's BufWritePost handler (Cargo.toml lints stayed stale); a Rust one does not",
+      function()
+        local lint_was = package.loaded["lint"]
+        package.loaded["lint"] = lint_was or {}
+        local g = vim.api.nvim_create_augroup("nvim-lint", { clear = false })
+        local hits = {}
+        local id = vim.api.nvim_create_autocmd("BufWritePost", {
+          group = g,
+          callback = function(ev)
+            hits[#hits + 1] = ev.buf
+          end,
+        })
+        local _, buf = open_file("one\n")
+        vim.bo[buf].filetype = "toml"
+        autosave_once(buf)
+        H.eq({ buf }, hits)
+        vim.bo[buf].filetype = "rust"
+        autosave_once(buf)
+        H.eq({ buf }, hits, "no lint re-emit for Rust")
+        pcall(vim.api.nvim_del_autocmd, id)
+        package.loaded["lint"] = lint_was
+      end
+    )
 
-    it("6 an autosaved Rust buffer reaches neotest's own rediscovery (group neotest.Client) and no other BufWritePost handler", function()
-      local _, buf = open_file("one\n")
-      vim.bo[buf].filetype = "rust"
-      local n = count_bufwritepost(buf)
-      local seen = {}
-      local g = vim.api.nvim_create_augroup("neotest.Client", { clear = true })
-      vim.api.nvim_create_autocmd("BufWritePost", {
-        group = g,
-        callback = function(ev)
-          seen[#seen + 1] = ev.buf
-        end,
-      })
-      local had = package.loaded["neotest.client"]
-      package.loaded["neotest.client"] = {}
-      autosave_once(buf)
-      H.eq({ buf }, seen, "rediscovery requested (the tree kept the old tests: <leader>tr ran another one)")
-      H.eq(0, n(), "the global BufWritePost event is not re-emitted")
-      vim.bo[buf].filetype = "text"
-      autosave_once(buf)
-      H.eq(1, #seen, "not for other filetypes")
-      package.loaded["neotest.client"] = had
-      pcall(vim.api.nvim_del_augroup_by_name, "neotest.Client")
-    end)
+    it(
+      "6 an autosaved Rust buffer reaches neotest's own rediscovery (group neotest.Client) and no other BufWritePost handler",
+      function()
+        local _, buf = open_file("one\n")
+        vim.bo[buf].filetype = "rust"
+        local n = count_bufwritepost(buf)
+        local seen = {}
+        local g = vim.api.nvim_create_augroup("neotest.Client", { clear = true })
+        vim.api.nvim_create_autocmd("BufWritePost", {
+          group = g,
+          callback = function(ev)
+            seen[#seen + 1] = ev.buf
+          end,
+        })
+        local had = package.loaded["neotest.client"]
+        package.loaded["neotest.client"] = {}
+        autosave_once(buf)
+        H.eq({ buf }, seen, "rediscovery requested (the tree kept the old tests: <leader>tr ran another one)")
+        H.eq(0, n(), "the global BufWritePost event is not re-emitted")
+        vim.bo[buf].filetype = "text"
+        autosave_once(buf)
+        H.eq(1, #seen, "not for other filetypes")
+        package.loaded["neotest.client"] = had
+        pcall(vim.api.nvim_del_augroup_by_name, "neotest.Client")
+      end
+    )
 
     it("23 an autosave sends didSave although noautocmd suppresses BufWritePost", function()
       local _, buf = open_file("one\n")
@@ -526,23 +557,26 @@ describe("auto-save and disk guard", function()
       vim.api.nvim_exec_autocmds("User", { pattern = pattern, data = { saved_buffer = buf } })
     end
 
-    it("13/14 a file changed inside the debounce window is not overwritten, no W12 prompt, buffer stays modified", function()
-      local path, buf = open_file("one\n")
-      local cap = H.capture_notify()
-      H.clear_messages()
-      as().on()
-      set_lines(buf, { "mine" })
-      vim.api.nvim_exec_autocmds("TextChanged", { buffer = buf }) -- condition passes: timer starts
-      external_write(path, "theirs\n") -- ... then the file changes before the write
-      vim.wait(2000)
-      H.eq("theirs\n", read(path))
-      H.eq(true, vim.bo[buf].modified, "a refused write leaves modified=true")
-      H.eq("", vim.bo[buf].buftype)
-      H.is_nil(vim.b[buf].xyno_guard_buftype)
-      H.no_match(H.messages(), "Do you really want to write", true)
-      H.eq({ "mine" }, vim.api.nvim_buf_get_lines(buf, 0, -1, false))
-      cap.restore()
-    end)
+    it(
+      "13/14 a file changed inside the debounce window is not overwritten, no W12 prompt, buffer stays modified",
+      function()
+        local path, buf = open_file("one\n")
+        local cap = H.capture_notify()
+        H.clear_messages()
+        as().on()
+        set_lines(buf, { "mine" })
+        vim.api.nvim_exec_autocmds("TextChanged", { buffer = buf }) -- condition passes: timer starts
+        external_write(path, "theirs\n") -- ... then the file changes before the write
+        vim.wait(2000)
+        H.eq("theirs\n", read(path))
+        H.eq(true, vim.bo[buf].modified, "a refused write leaves modified=true")
+        H.eq("", vim.bo[buf].buftype)
+        H.is_nil(vim.b[buf].xyno_guard_buftype)
+        H.no_match(H.messages(), "Do you really want to write", true)
+        H.eq({ "mine" }, vim.api.nvim_buf_get_lines(buf, 0, -1, false))
+        cap.restore()
+      end
+    )
 
     it("14 handlers keyed on modified skip a refused write (no didSave, no BufWritePost re-emit)", function()
       local path, buf = open_file("one\n")
@@ -595,6 +629,9 @@ describe("auto-save and disk guard", function()
       end, 4000, "autosave after on()")
     end)
 
-    pending("22 the guard only turns auto-save back on if it turned it off", "lives in agent-99-guard's closure (lua/plugins/ninety-nine.lua); covered by that area's spec")
+    pending(
+      "22 the guard only turns auto-save back on if it turned it off",
+      "lives in agent-99-guard's closure (lua/plugins/ninety-nine.lua); covered by that area's spec"
+    )
   end)
 end)

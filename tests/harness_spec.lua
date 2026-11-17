@@ -64,12 +64,17 @@ end)
 describe("sandbox wrapper", function()
   it("keeps the project writable and the rest of the disk read-only", function()
     local project = H.fixture("basic")
+    -- Newer xyno-sandbox gives $HOME an empty in-memory view (a write there succeeds but is gone with the
+    -- sandbox), older ones leave it read-only: either way nothing may reach the real disk. /usr stays read-only.
     local r = H.sandbox_sh(
-      "echo ok > inside.txt && ! touch " .. vim.fn.shellescape(vim.env.HOME) .. "/xyno-sandbox-probe",
+      "echo ok > inside.txt && ! touch /usr/xyno-sandbox-probe && { touch "
+        .. vim.fn.shellescape(vim.env.HOME)
+        .. "/xyno-sandbox-probe; true; }",
       project
     )
     H.eq(0, r.code, r.stderr)
     H.eq(1, vim.fn.filereadable(project .. "/inside.txt"))
     H.eq(0, vim.fn.filereadable(vim.env.HOME .. "/xyno-sandbox-probe"))
+    H.eq(0, vim.fn.filereadable("/usr/xyno-sandbox-probe"))
   end)
 end)

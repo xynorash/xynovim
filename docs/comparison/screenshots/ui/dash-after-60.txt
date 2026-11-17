@@ -1,0 +1,24 @@
+
+
+
+  Find File                                               f
+  New File                                                n
+  Projects                                                p
+  Find Text                                               g
+  Recent Files                                            r
+  Config                                                  c
+  Restore Session                                         s
+  Lazy Extras                                             x
+󰒲  Lazy                                                    l
+  New Rust Binary                                         b
+  New Rust Library                                        i
+󰙅  New Rust Workspace                                      w
+󰏗  New egui Project                                        e
+  Quit                                                    q
+
+          ⚡ Neovim loaded 9/70 plugins in 53.46ms
+
+
+
+
+

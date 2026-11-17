@@ -20,7 +20,8 @@ describe("scripts/bootstrap.ps1 mirrors scripts/bootstrap.sh", function()
       H.has(sh, step)
       H.has(ps, step)
     end
-    local a, b, c = ps:find("Lazy! install", 1, true), ps:find("Lazy! restore", 1, true), ps:find("provision.lua", 1, true)
+    local a, b, c =
+      ps:find("Lazy! install", 1, true), ps:find("Lazy! restore", 1, true), ps:find("provision.lua", 1, true)
     H.ok(a < b and b < c, "install, then restore, then provision")
     H.has(ps, "step 1/3")
     H.has(ps, "step 3/3")
@@ -33,21 +34,24 @@ describe("scripts/bootstrap.ps1 mirrors scripts/bootstrap.sh", function()
     H.has(ps, "lazy-lock.json changed")
   end)
 
-  it("checks the same prerequisites (minus unzip / gzip, which Windows does not use) and keeps the skip switch", function()
-    local list = sh:match("for tool in ([^;]-); do")
-    H.ok(list, "the tool list in bootstrap.sh")
-    for tool in list:gmatch("%S+") do
-      if tool ~= "unzip" and tool ~= "gzip" and tool ~= "gcc" and tool ~= "rust-analyzer" then
-        H.has(ps, "'" .. tool .. "'")
+  it(
+    "checks the same prerequisites (minus unzip / gzip, which Windows does not use) and keeps the skip switch",
+    function()
+      local list = sh:match("for tool in ([^;]-); do")
+      H.ok(list, "the tool list in bootstrap.sh")
+      for tool in list:gmatch("%S+") do
+        if tool ~= "unzip" and tool ~= "gzip" and tool ~= "gcc" and tool ~= "rust-analyzer" then
+          H.has(ps, "'" .. tool .. "'")
+        end
       end
+      H.has(ps, "rust-analyzer")
+      H.has(ps, "'gcc', 'cc', 'clang', 'cl', 'zig'")
+      H.has(ps, "BOOTSTRAP_SKIP_PREREQS")
+      H.has(sh, "BOOTSTRAP_SKIP_PREREQS")
+      H.has(ps, "winget")
+      H.not_ok(ps:find("'unzip'", 1, true), "Windows does not need unzip")
     end
-    H.has(ps, "rust-analyzer")
-    H.has(ps, "'gcc', 'cc', 'clang', 'cl', 'zig'")
-    H.has(ps, "BOOTSTRAP_SKIP_PREREQS")
-    H.has(sh, "BOOTSTRAP_SKIP_PREREQS")
-    H.has(ps, "winget")
-    H.not_ok(ps:find("'unzip'", 1, true), "Windows does not need unzip")
-  end)
+  )
 
   it("links the config with a junction (no administrator rights) and never replaces an existing directory", function()
     H.has(ps, "mklink /J")
@@ -64,7 +68,9 @@ describe("scripts/bootstrap.ps1 mirrors scripts/bootstrap.sh", function()
   end)
 
   it("parses with the PowerShell parser (when pwsh or powershell exists)", function()
-    local exe = vim.fn.executable("pwsh") == 1 and "pwsh" or vim.fn.executable("powershell") == 1 and "powershell" or nil
+    local exe = vim.fn.executable("pwsh") == 1 and "pwsh"
+      or vim.fn.executable("powershell") == 1 and "powershell"
+      or nil
     if not exe then
       return skip("no pwsh / powershell on this machine")
     end
@@ -88,7 +94,17 @@ describe("scripts/test.lua and test.ps1 mirror scripts/test.sh", function()
   end)
 
   it("use the same protocol: XYNO_SPEC, the runner, the XYNO_RESULT line, xyno-timeout, the 30 s grace", function()
-    for _, w in ipairs({ "XYNO_SPEC", "tests/runner.lua", "XYNO_RESULT", "xyno%-timeout", "30000", "XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "XYNO_TEST_TMP" }) do
+    for _, w in ipairs({
+      "XYNO_SPEC",
+      "tests/runner.lua",
+      "XYNO_RESULT",
+      "xyno%-timeout",
+      "30000",
+      "XDG_CONFIG_HOME",
+      "XDG_STATE_HOME",
+      "XDG_CACHE_HOME",
+      "XYNO_TEST_TMP",
+    }) do
       H.ok(tl:find(w) or tl:find(w, 1, true), "test.lua lacks " .. w)
     end
     H.has(tsh, "XYNO_RESULT")
@@ -104,7 +120,9 @@ describe("scripts/test.lua and test.ps1 mirror scripts/test.sh", function()
 
   it("--list prints the spec files (same list as test.sh --list)", function()
     local nvim = vim.v.progpath
-    local r = vim.system({ nvim, "--clean", "-l", H.repo .. "/scripts/test.lua", "--list" }, { text = true }):wait(30000)
+    local r = vim
+      .system({ nvim, "--clean", "-l", H.repo .. "/scripts/test.lua", "--list" }, { text = true })
+      :wait(30000)
     H.eq(0, r.code, r.stderr)
     local got = vim.split(vim.trim(r.stdout), "\r?\n")
     local want = {}
@@ -124,12 +142,18 @@ describe("OS-aware skips", function()
     local dir = H.tmpdir()
     local spec = dir .. "/os_spec.lua"
     local f = assert(io.open(spec, "wb"))
-    f:write(("-- xyno-os: %s (only there)\nlocal H = require('xynotest.helpers')\nit('x', function() error('must not run') end)\n"):format(other))
+    f:write(
+      ("-- xyno-os: %s (only there)\nlocal H = require('xynotest.helpers')\nit('x', function() error('must not run') end)\n"):format(
+        other
+      )
+    )
     f:close()
-    local r = vim.system({ vim.v.progpath, "--headless", "-S", H.repo .. "/tests/runner.lua" }, {
-      text = true,
-      env = { XYNO_SPEC = spec },
-    }):wait(120000)
+    local r = vim
+      .system({ vim.v.progpath, "--headless", "-S", H.repo .. "/tests/runner.lua" }, {
+        text = true,
+        env = { XYNO_SPEC = spec },
+      })
+      :wait(120000)
     H.eq(0, r.code, r.stdout .. r.stderr)
     H.match(r.stdout, "SKIP os_spec.lua (needs " .. other .. ", this is " .. H.os .. ": only there)", true)
     H.match(r.stdout, "XYNO_RESULT passed=0 failed=0 skipped=1", true)

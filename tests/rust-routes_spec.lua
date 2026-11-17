@@ -55,4 +55,3 @@ describe("<leader>rN", function()
     H.eq(0, lookup(vim.api.nvim_get_current_buf()).buffer or 0)
   end)
 end)
-

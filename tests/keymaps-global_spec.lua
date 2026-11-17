@@ -144,7 +144,15 @@ describe("Diffview keys", function()
   it("<leader>gv runs :DiffviewOpen (working tree / conflicts)", function()
     H.eq("Diffview: working tree / conflicts", md("<leader>gv").desc)
     H.feed("<leader>gv")
-    H.eq({ { cmd = "DiffviewOpen", args = "", range = 0, line1 = calls[1] and calls[1].line1, line2 = calls[1] and calls[1].line2 } }, calls)
+    H.eq({
+      {
+        cmd = "DiffviewOpen",
+        args = "",
+        range = 0,
+        line1 = calls[1] and calls[1].line1,
+        line2 = calls[1] and calls[1].line2,
+      },
+    }, calls)
   end)
 
   it("<leader>gq runs :DiffviewClose", function()
@@ -202,10 +210,7 @@ describe("Diffview keys", function()
     cap.restore()
     H.eq(0, #calls)
     H.eq(1, #cap.list)
-    H.eq(
-      "no origin/HEAD, origin/main or origin/master here (git remote set-head origin -a sets it)",
-      cap.list[1].msg
-    )
+    H.eq("no origin/HEAD, origin/main or origin/master here (git remote set-head origin -a sets it)", cap.list[1].msg)
     H.eq(vim.log.levels.WARN, cap.list[1].level)
   end)
 end)
@@ -245,7 +250,12 @@ describe("99 (agent) keys", function()
     found = false
     seen = {}
     walk(require("which-key.config").options.spec or {})
-    print(("INFO <leader>9 group seen in the opts spec: %s, in which-key's resolved spec: %s"):format(tostring(in_opts), tostring(found)))
+    print(
+      ("INFO <leader>9 group seen in the opts spec: %s, in which-key's resolved spec: %s"):format(
+        tostring(in_opts),
+        tostring(found)
+      )
+    )
   end)
 
   -- README table of keys of 99: key -> documented desc
@@ -317,7 +327,15 @@ describe("harpoon, claudecode and coverage keys", function()
     for _, k in ipairs(lazy_keys("harpoon")) do
       H.no_match(k.lhs, "^<leader>a", false, "harpoon key " .. k.lhs)
     end
-    for _, lhs in ipairs({ "<leader>ab", "<leader>ac", "<leader>af", "<leader>ar", "<leader>aC", "<leader>aa", "<leader>ad" }) do
+    for _, lhs in ipairs({
+      "<leader>ab",
+      "<leader>ac",
+      "<leader>af",
+      "<leader>ar",
+      "<leader>aC",
+      "<leader>aa",
+      "<leader>ad",
+    }) do
       local m = md(lhs, "n")
       H.ok(next(m), lhs .. " not mapped")
       H.no_match(m.desc or "", "Harpoon")
@@ -327,7 +345,10 @@ describe("harpoon, claudecode and coverage keys", function()
     -- trigger (no popup when typed fast): it is off, the group comes from which-key's spec
     for _, mode in ipairs({ "n", "v" }) do
       local m = md("<leader>a", mode)
-      H.ok(not next(m) or (m.desc or ""):find("which-key-trigger", 1, true), "no stub mapping on <leader>a (" .. mode .. ")")
+      H.ok(
+        not next(m) or (m.desc or ""):find("which-key-trigger", 1, true),
+        "no stub mapping on <leader>a (" .. mode .. ")"
+      )
     end
     local nt = md("<leader>t", "n")
     H.ok(not next(nt) or (nt.desc or ""):find("which-key-trigger", 1, true), "no stub mapping on <leader>t")
@@ -397,7 +418,27 @@ describe("LazyVim keys of the enabled extras", function()
     neotest = { "n", { "tt", "tr", "tT", "tl", "tw", "ts", "to", "tO", "tS", "ta", "td" } },
     dap = {
       "n",
-      { "db", "dB", "dc", "dC", "da", "dg", "di", "dj", "dk", "dl", "do", "dO", "dP", "dr", "ds", "dt", "du", "dw", "de" },
+      {
+        "db",
+        "dB",
+        "dc",
+        "dC",
+        "da",
+        "dg",
+        "di",
+        "dj",
+        "dk",
+        "dl",
+        "do",
+        "dO",
+        "dP",
+        "dr",
+        "ds",
+        "dt",
+        "du",
+        "dw",
+        "de",
+      },
     },
     overseer = { "n", { "oo", "ow", "ot" } },
     ["neo-tree"] = { "n", { "e", "E", "fe", "fE", "ge", "be" } },
@@ -462,31 +503,34 @@ describe("LazyVim keys of the enabled extras", function()
 end)
 
 describe("<leader>r outside Rust buffers", function()
-  it("an unbound <leader>r<key> in Cargo.toml notifies instead of replacing a character (<Space>rv made `name` into `nvme`)", function()
-    local dir = H.fixture("basic")
-    H.open(dir .. "/Cargo.toml")
-    local before = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-    local l = vim.fn.search("^name", "cw")
-    H.ok(l > 0)
-    vim.api.nvim_win_set_cursor(0, { l, 0 })
-    -- per-key stubs, no `<leader>r` leaf: a leaf blocking in getcharstr() made which-key skip its popup
-    H.eq(0, next(md("<leader>r", "n")) and 1 or 0, "no <leader>r leaf mapping")
-    H.eq("which_key_ignore", md("<leader>rv", "n").desc)
-    H.eq("which_key_ignore", md("<leader>rv", "x").desc)
-    H.eq("which_key_ignore", md("<leader>r/", "n").desc)
-    local cap = H.capture_notify()
-    H.feed("<leader>rv")
-    H.feed("<leader>rr")
-    cap.restore()
-    H.eq(before, vim.api.nvim_buf_get_lines(0, 0, -1, false))
-    H.not_ok(vim.bo.modified)
-    H.eq(2, #cap.list)
-    H.match(cap.list[1].msg, "Rust buffers only", true)
-    -- a visual-mode press: the selection is not touched either
-    H.feed("v<leader>rv")
-    H.eq(before, vim.api.nvim_buf_get_lines(0, 0, -1, false))
-    H.feed("<Esc>")
-  end)
+  it(
+    "an unbound <leader>r<key> in Cargo.toml notifies instead of replacing a character (<Space>rv made `name` into `nvme`)",
+    function()
+      local dir = H.fixture("basic")
+      H.open(dir .. "/Cargo.toml")
+      local before = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      local l = vim.fn.search("^name", "cw")
+      H.ok(l > 0)
+      vim.api.nvim_win_set_cursor(0, { l, 0 })
+      -- per-key stubs, no `<leader>r` leaf: a leaf blocking in getcharstr() made which-key skip its popup
+      H.eq(0, next(md("<leader>r", "n")) and 1 or 0, "no <leader>r leaf mapping")
+      H.eq("which_key_ignore", md("<leader>rv", "n").desc)
+      H.eq("which_key_ignore", md("<leader>rv", "x").desc)
+      H.eq("which_key_ignore", md("<leader>r/", "n").desc)
+      local cap = H.capture_notify()
+      H.feed("<leader>rv")
+      H.feed("<leader>rr")
+      cap.restore()
+      H.eq(before, vim.api.nvim_buf_get_lines(0, 0, -1, false))
+      H.not_ok(vim.bo.modified)
+      H.eq(2, #cap.list)
+      H.match(cap.list[1].msg, "Rust buffers only", true)
+      -- a visual-mode press: the selection is not touched either
+      H.feed("v<leader>rv")
+      H.eq(before, vim.api.nvim_buf_get_lines(0, 0, -1, false))
+      H.feed("<Esc>")
+    end
+  )
 
   it("in a Rust buffer an unbound <leader>r<key> says so (not 'Rust buffers only')", function()
     H.open(H.fixture("standalone.rs"))
@@ -520,30 +564,68 @@ describe("colourscheme picker", function()
   it("opening the picker on island-dark neither errors nor changes the scheme", function()
     if vim.env.XYNO_COV_OUT then
       -- the line hook makes the preview loads of the picker take 20+ minutes (nvim busy, never done)
-      require("xynotest.harness").skip("under --coverage (the line hook makes the colourscheme previews take 20+ minutes)")
+      require("xynotest.harness").skip(
+        "under --coverage (the line hook makes the colourscheme previews take 20+ minutes)"
+      )
     end
-    H.open(H.fixture("standalone.rs"))
-    H.clear_messages()
-    H.feed("<leader>uC")
-    local picker = H.wait_for(function()
-      return Snacks.picker.get()[1]
-    end, 10000, "the colourscheme picker")
-    -- move over the first entries: each move applies a preview
-    H.wait_for(function()
-      return #picker.list.items > 3
-    end, 20000, "picker items")
-    picker:action("list_down")
-    vim.wait(300)
-    picker:action("cancel")
-    H.wait_for(function()
-      return #Snacks.picker.get() == 0
-    end, 30000, "the picker to close")
-    H.eq("", vim.v.errmsg)
-    H.no_match(H.messages(), "E%d+:")
-    -- the restore after a cancel is asynchronous
-    H.wait_for(function()
-      return vim.g.colors_name == "island-dark"
-    end, 30000, "island-dark restored after cancelling the picker")
+    -- Runs in a child nvim with a hard timeout: when the picker's colourscheme previews keep nvim busy
+    -- (a hang seen on one machine, never reproduced on others) an in-process run froze the whole spec
+    -- file until the 400 s file timeout and lost every check of it. Now it is one failing test.
+    local dir = H.tmpdir()
+    assert(io.open(dir .. "/note.txt", "w")):close()
+    local f = assert(io.open(dir .. "/picker.lua", "w"))
+    f:write(([[
+vim.api.nvim_create_autocmd("VimEnter", { once = true, callback = function()
+  vim.defer_fn(function()
+    local ok, err = xpcall(function()
+      local function wait_for(pred, ms, what)
+        if not vim.wait(ms, pred, 50) then error("timeout waiting for " .. what, 0) end
+      end
+      vim.cmd.edit(%q)
+      vim.cmd("messages clear")
+      vim.api.nvim_feedkeys(vim.keycode("<leader>uC"), "x", false)
+      wait_for(function() return Snacks.picker.get()[1] end, 10000, "the colourscheme picker")
+      local picker = Snacks.picker.get()[1]
+      wait_for(function() return #picker.list.items > 3 end, 20000, "picker items")
+      picker:action("list_down")
+      vim.wait(300)
+      picker:action("cancel")
+      wait_for(function() return #Snacks.picker.get() == 0 end, 30000, "the picker to close")
+      wait_for(function() return vim.g.colors_name == "island-dark" end, 30000, "island-dark restored after cancelling")
+      local msgs = vim.api.nvim_exec2("messages", { output = true }).output
+      if vim.v.errmsg ~= "" or msgs:find("E%%d+:") then error("errors: " .. vim.v.errmsg .. " " .. msgs, 0) end
+    end, debug.traceback)
+    io.stdout:write("\nPICKER_RESULT " .. (ok and "ok" or ("ERR " .. tostring(err):gsub("\n", " "))) .. "\n")
+    vim.cmd("qa!")
+  end, 300)
+end })
+]]):format(dir .. "/note.txt"))
+    f:close()
+    local env = {}
+    for _, k in ipairs({
+      "HOME",
+      "PATH",
+      "XDG_CONFIG_HOME",
+      "XDG_DATA_HOME",
+      "XDG_STATE_HOME",
+      "XDG_CACHE_HOME",
+      "TMPDIR",
+    }) do
+      env[k] = vim.env[k]
+    end
+    local obj = vim.system(
+      { vim.fn.exepath("nvim"), "--headless", "-S", dir .. "/picker.lua" },
+      { text = true, env = env, clear_env = true, cwd = dir }
+    )
+    local r = obj:wait(100000)
+    if r.code == 124 or r.signal ~= 0 then
+      H.ok(
+        false,
+        "the colourscheme picker hung nvim for 100 s (killed); output: " .. (r.stdout or "") .. (r.stderr or "")
+      )
+    end
+    local line = ((r.stdout or "") .. (r.stderr or "")):match("PICKER_RESULT ([^\n]*)")
+    H.eq("ok", line, "child result; output: " .. (r.stdout or "") .. (r.stderr or ""))
   end)
 end)
 
@@ -577,6 +659,10 @@ describe("keymap uniqueness", function()
       while i <= #lines do
         -- lazy keys: `{ "<lhs>", rhs, mode = .., desc = ".." }`, possibly over several lines
         local lhs = lines[i]:match('^%s*{%s*"(<[^"]+)"') or lines[i]:match('^%s*"(<[^"]+)",')
+        -- an rhs on a line of its own (StyLua splits long key specs) is not a lhs
+        if lhs and lhs:find("^<[cC]md>") then
+          lhs = nil
+        end
         if lhs and not lines[i]:find("keymap") then
           local acc, j = lines[i], i
           while not acc:find('desc%s*=%s*"') and j < i + 30 and j < #lines do
@@ -586,7 +672,8 @@ describe("keymap uniqueness", function()
           local desc = acc:match('desc%s*=%s*"([^"]+)"')
           if desc then
             for _, m in ipairs(modes_of(acc)) do
-              out[#out + 1] = { file = rel, scope = "global", mode = m, lhs = lhs, desc = desc, ft = acc:find("ft%s*=") ~= nil }
+              out[#out + 1] =
+                { file = rel, scope = "global", mode = m, lhs = lhs, desc = desc, ft = acc:find("ft%s*=") ~= nil }
             end
           end
         end
@@ -649,7 +736,9 @@ describe("keys in a Rust buffer", function()
   before_each(function()
     if vim.env.XYNO_COV_OUT then
       -- with the line hook an attaching rust-analyzer left nvim busy for 20+ minutes (never done)
-      require("xynotest.harness").skip("under --coverage (hang with the line hook while rust-analyzer attaches; keymaps-rust covers the same code)")
+      require("xynotest.harness").skip(
+        "under --coverage (hang with the line hook while rust-analyzer attaches; keymaps-rust covers the same code)"
+      )
     end
     H.need_rust()
     _, buf = H.open_fixture("basic", "src/lib.rs")
@@ -676,7 +765,7 @@ describe("keys in a Rust buffer", function()
     H.wait_for(function()
       return bmap("<leader>ra", "n")
     end, 15000, "<leader>ra")
-    H.eq("Refactor actions", bmap("<leader>ra", "n").desc)
+    H.eq("Refactor menu (diff preview)", bmap("<leader>ra", "n").desc)
     for _, m in ipairs(vim.api.nvim_get_keymap("n")) do
       -- the only global ones are the hidden "not bound" stubs
       if (m.lhs:match("^ r%a") or m.lhs:match("^<Space>r%a")) and m.desc ~= "which_key_ignore" then
@@ -755,7 +844,12 @@ describe("keys in a Rust buffer", function()
     end
     vim.cmd("silent! bwipeout!")
     -- informational: record, do not fail (the claim itself is "not reproduced")
-    io.stdout:write(("INFO gc overlap lines in :checkhealth which-key: %d%s\n"):format(#hits, #hits > 0 and (" " .. vim.inspect(hits)) or ""))
+    io.stdout:write(
+      ("INFO gc overlap lines in :checkhealth which-key: %d%s\n"):format(
+        #hits,
+        #hits > 0 and (" " .. vim.inspect(hits)) or ""
+      )
+    )
     H.ok(true)
   end)
 end)

@@ -16,5 +16,8 @@ return {
       vim.g.xyno_crate_check = false
     end
     require("xyno_crates").setup({ commands = true, keymaps = true })
+    -- cargo add / feature switches are the editor's own edits: the workspace trust must not ask again
+    -- (newer xyno-crates.nvim does this itself; this wraps the pinned one)
+    require("config.workspace_trust").wrap_crates()
   end,
 }

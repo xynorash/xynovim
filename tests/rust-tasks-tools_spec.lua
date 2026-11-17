@@ -165,8 +165,18 @@ describe("<leader>tc (coverage run)", function()
     local cap = harness(true)
     fn()
     local expected = {
-      "cargo", "llvm-cov", "nextest", "--workspace", "--ignore-run-fail", "--lcov", "--output-path", "target/lcov.info",
-      "--features", "a", "--target", "x86_64-unknown-linux-gnu",
+      "cargo",
+      "llvm-cov",
+      "nextest",
+      "--workspace",
+      "--ignore-run-fail",
+      "--lcov",
+      "--output-path",
+      "target/lcov.info",
+      "--features",
+      "a",
+      "--target",
+      "x86_64-unknown-linux-gnu",
     }
     H.eq(expected, cap.sys.cmd)
     H.eq(dir, cap.sys.opts.cwd)
@@ -183,12 +193,22 @@ describe("<leader>tc (coverage run)", function()
     local cap = harness(false)
     fn()
     H.eq({
-      "cargo", "llvm-cov", "--workspace", "--ignore-run-fail", "--lcov", "--output-path", "target/lcov.info", "--all-features",
+      "cargo",
+      "llvm-cov",
+      "--workspace",
+      "--ignore-run-fail",
+      "--lcov",
+      "--output-path",
+      "target/lcov.info",
+      "--all-features",
     }, cap.sys.cmd)
   end)
 
   it("on exit 0 loads and shows the coverage and says where it came from", function()
-    H.known_issue({ "macos" }, "coverage run specs hang on macos-latest (run 39655339161: file timed out after 240 s; cause not diagnosed)")
+    H.known_issue(
+      { "macos" },
+      "coverage run specs hang on macos-latest (run 39655339161: file timed out after 240 s; cause not diagnosed)"
+    )
     H.need_rust()
     local fn = tc()
     with_ctx(nil)
@@ -206,7 +226,10 @@ describe("<leader>tc (coverage run)", function()
   end)
 
   it("warns that tests failed (nextest and cargo test wording) but still loads the report", function()
-    H.known_issue({ "macos" }, "coverage run notification timed out after 183 s on macos-latest (run 39647013043; cause not diagnosed)")
+    H.known_issue(
+      { "macos" },
+      "coverage run notification timed out after 183 s on macos-latest (run 39647013043; cause not diagnosed)"
+    )
     H.need_rust()
     local fn = tc()
     with_ctx(nil)
@@ -230,7 +253,10 @@ describe("<leader>tc (coverage run)", function()
   end)
 
   it("does not warn for '0 failed'", function()
-    H.known_issue({ "macos" }, "coverage run specs hang on macos-latest (run 39655339161: file timed out after 240 s; cause not diagnosed)")
+    H.known_issue(
+      { "macos" },
+      "coverage run specs hang on macos-latest (run 39655339161: file timed out after 240 s; cause not diagnosed)"
+    )
     H.need_rust()
     local fn = tc()
     with_ctx(nil)
@@ -246,7 +272,10 @@ describe("<leader>tc (coverage run)", function()
   end)
 
   it("a non-zero exit is an ERROR with the last 600 chars of stderr and loads nothing", function()
-    H.known_issue({ "macos" }, "coverage run specs hang on macos-latest (run 39655339161: file timed out after 240 s; cause not diagnosed)")
+    H.known_issue(
+      { "macos" },
+      "coverage run specs hang on macos-latest (run 39655339161: file timed out after 240 s; cause not diagnosed)"
+    )
     H.need_rust()
     local fn = tc()
     with_ctx(nil)
@@ -292,7 +321,15 @@ describe("nvim-coverage options", function()
     H.ok(plugin, "nvim-coverage is not in the lazy spec")
     local cmds = vim.deepcopy(plugin.cmd)
     table.sort(cmds)
-    H.eq({ "Coverage", "CoverageClear", "CoverageHide", "CoverageLoad", "CoverageShow", "CoverageSummary", "CoverageToggle" }, cmds)
+    H.eq({
+      "Coverage",
+      "CoverageClear",
+      "CoverageHide",
+      "CoverageLoad",
+      "CoverageShow",
+      "CoverageSummary",
+      "CoverageToggle",
+    }, cmds)
     local keys = {}
     for _, k in ipairs(plugin.keys or {}) do
       keys[k.lhs or k[1]] = true
@@ -461,4 +498,3 @@ describe("<leader>tc end to end (optional, slow)", function()
 end)
 
 -- ============================================ 17. profiling profile (info)
-

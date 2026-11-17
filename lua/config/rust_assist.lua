@@ -104,6 +104,7 @@ function M.explain_error()
   if not code then
     return vim.notify("no E0000 error code in the diagnostics on this line", vim.log.levels.INFO)
   end
+  -- trust: read-only prints the built-in text of an error code, reads no project
   vim.system({ "rustc", "--explain", code }, { text = true }, function(o)
     vim.schedule(function()
       if o.code ~= 0 then
@@ -130,18 +131,24 @@ function M.open_docs()
   if not client then
     return
   end
-  ra.buf_request(0, "experimental/externalDocs", vim.lsp.util.make_position_params(0, client.offset_encoding or "utf-8"), function(_, res)
-    if type(res) ~= "table" then
-      return vim.notify("no documentation for the item under the cursor", vim.log.levels.INFO)
+  ra.buf_request(
+    0,
+    "experimental/externalDocs",
+    vim.lsp.util.make_position_params(0, client.offset_encoding or "utf-8"),
+    function(_, res)
+      if type(res) ~= "table" then
+        return vim.notify("no documentation for the item under the cursor", vim.log.levels.INFO)
+      end
+      local loc = res["local"] ~= nil and res["local"] ~= vim.NIL and tostring(res["local"]) or nil
+      local url = (loc and vim.uv.fs_stat(vim.uri_to_fname(loc))) and loc
+        or (res.web ~= vim.NIL and res.web and tostring(res.web))
+      if url then
+        require("rustaceanvim.config.internal").tools.open_url(url)
+      else
+        vim.notify("no documentation for the item under the cursor", vim.log.levels.INFO)
+      end
     end
-    local loc = res["local"] ~= nil and res["local"] ~= vim.NIL and tostring(res["local"]) or nil
-    local url = (loc and vim.uv.fs_stat(vim.uri_to_fname(loc))) and loc or (res.web ~= vim.NIL and res.web and tostring(res.web))
-    if url then
-      require("rustaceanvim.config.internal").tools.open_url(url)
-    else
-      vim.notify("no documentation for the item under the cursor", vim.log.levels.INFO)
-    end
-  end)
+  )
 end
 
 --- Indented JSON (vim.json.encode has no indent option).
@@ -272,5 +279,71 @@ function M.move_item(direction)
     pcall(vim.api.nvim_win_set_cursor, 0, { math.max(1, cursor[1]), cursor[2] or 0 })
   end)
 end
+
+--- Organize imports after `:w` (opt-in: `vim.g.xynovim_organize_on_save = true`, or `vim.b.xynovim_organize_on_save`
+--- for one buffer). rust-analyzer has no `source.organizeImports`, so this is xyno-imports' organize (merge,
+--- normalise, remove unused) run when the write has finished; if it changed anything the buffer is written
+--- again, unless you are typing (insert mode). Autosaves
+--- (auto-save.nvim writes with `noautocmd`) never trigger it.
+function M.organize_on_save(buf)
+  local flag = vim.b[buf].xynovim_organize_on_save
+  if flag == nil then
+    flag = vim.g.xynovim_organize_on_save
+  end
+  if flag ~= true or vim.b[buf].xynovim_organizing then
+    return
+  end
+  local ok, engine = pcall(require, "xyno_imports.engine")
+  if not ok then
+    return
+  end
+  vim.b[buf].xynovim_organizing = true
+  -- The flag must come off however organize ends: its callback, an error raised by it, a request the server
+  -- never answers (timeout), or a buffer that goes away. Before, only the callback cleared it, and then
+  -- organize-on-save was off for that buffer for the rest of the session.
+  local cleared = false
+  -- one BufUnload autocmd per buffer, in a group that is replaced on the next save and removed when this run
+  -- ends (an ungrouped one was added by EVERY save and stayed until the buffer was unloaded)
+  local group = vim.api.nvim_create_augroup("xynovim_organize_" .. buf, { clear = true })
+  local function clear()
+    if cleared then
+      return false
+    end
+    cleared = true
+    pcall(vim.api.nvim_del_augroup_by_id, group)
+    if vim.api.nvim_buf_is_valid(buf) then
+      vim.b[buf].xynovim_organizing = nil
+    end
+    return true
+  end
+  local timer = vim.defer_fn(clear, M.organize_timeout_ms)
+  vim.api.nvim_create_autocmd("BufUnload", { group = group, buffer = buf, once = true, callback = clear })
+  local started, err = pcall(engine.organize, buf, function(applied)
+    pcall(function()
+      timer:stop()
+      timer:close()
+    end)
+    if not clear() then
+      return -- it timed out earlier: do not write the buffer behind the user's back now
+    end
+    if not vim.api.nvim_buf_is_valid(buf) or applied == 0 then
+      return
+    end
+    local typing = vim.fn.mode():sub(1, 1) == "i" and vim.api.nvim_get_current_buf() == buf
+    if typing or not vim.bo[buf].modified then
+      return
+    end
+    vim.api.nvim_buf_call(buf, function()
+      vim.cmd("silent! noautocmd update")
+    end)
+  end)
+  if not started then
+    clear()
+    vim.notify("organize imports on save failed: " .. tostring(err), vim.log.levels.WARN)
+  end
+end
+
+--- How long organize_on_save waits for xyno-imports before it gives the buffer back.
+M.organize_timeout_ms = 20000
 
 return M

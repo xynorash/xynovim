@@ -122,7 +122,17 @@ describe("the build", function()
   end)
 
   it("the required files exist, with .nojekyll and no source README", function()
-    for _, f in ipairs({ "index.html", "404.html", "robots.txt", "sitemap.xml", ".nojekyll", "assets/style.css", "assets/app.js", "assets/favicon.svg", "assets/og.png" }) do
+    for _, f in ipairs({
+      "index.html",
+      "404.html",
+      "robots.txt",
+      "sitemap.xml",
+      ".nojekyll",
+      "assets/style.css",
+      "assets/app.js",
+      "assets/favicon.svg",
+      "assets/og.png",
+    }) do
       H.ok(exists(out .. "/" .. f), f)
     end
     H.not_ok(exists(out .. "/README.md"))
@@ -188,7 +198,7 @@ end)
 describe("index.html head", function()
   it("has lang, charset, viewport, one unique title, description, canonical, theme-color", function()
     local html = page()
-    H.match(html, "^<!doctype html>\n<html lang=\"en\">")
+    H.match(html, '^<!doctype html>\n<html lang="en">')
     H.ok(find(html, "meta")[1].attrs.charset, "charset first")
     H.match(meta(html, "name", "viewport"), "width=device-width", true)
     H.eq(1, #find(html, "title"))
@@ -237,7 +247,15 @@ describe("index.html head", function()
     for _, file in ipairs({ "index.html", "404.html" }) do
       local csp = meta(read(out .. "/" .. file), "http-equiv", "Content-Security-Policy")
       H.ok(csp, file)
-      for _, d in ipairs({ "default-src 'self'", "img-src 'self' data:", "media-src 'self'", "style-src 'self'", "script-src 'self'", "base-uri 'none'", "form-action 'none'" }) do
+      for _, d in ipairs({
+        "default-src 'self'",
+        "img-src 'self' data:",
+        "media-src 'self'",
+        "style-src 'self'",
+        "script-src 'self'",
+        "base-uri 'none'",
+        "form-action 'none'",
+      }) do
         H.match(csp, d, true, file .. ": " .. d)
       end
       H.no_match(csp, "unsafe", true)
@@ -343,7 +361,7 @@ describe("index.html structure", function()
       H.ok(a["aria-label"] and #a["aria-label"] > 10)
     end
     H.eq(13, n, "recordings 02-09 and 11-15")
-    H.match(html, 'download the MP4', true)
+    H.match(html, "download the MP4", true)
     local sources = find(html, "source")
     H.eq(13, #sources)
     for _, s in ipairs(sources) do
@@ -376,7 +394,7 @@ describe("index.html structure", function()
     H.eq(0, #find(html, "button"), "no dead buttons without JS")
     local css = read(out .. "/assets/style.css")
     H.not_ok(css:find("%f[%w-]order:"), "no CSS order: the tab order is the visual order")
-    H.match(read(out .. "/assets/app.js"), "createElement%(\"button\"%)")
+    H.match(read(out .. "/assets/app.js"), 'createElement%("button"%)')
     H.match(read(out .. "/assets/style.css"), ".nav-toggle:checked ~ #site-nav", true)
   end)
 end)
@@ -386,7 +404,8 @@ end)
 describe("the page says what the README says", function()
   local function readme_numbers()
     local tests = readme:match("badge/tests%-(%d+)%%20passing")
-    local specs, checks, skipped, failing = readme:match("%*%*(%d+) spec files, (%d+) checks passing, (%d+) skipped with a stated reason, (%d+) failing%*%*")
+    local specs, checks, skipped, failing =
+      readme:match("%*%*(%d+) spec files, (%d+) checks passing, (%d+) skipped with a stated reason, (%d+) failing%*%*")
     return tests, specs, checks, skipped, failing
   end
 
@@ -403,7 +422,10 @@ describe("the page says what the README says", function()
     end
     H.eq(files, tonumber(specs), "README spec files vs tests/*_spec.lua")
     for _, want in ipairs({
-      { specs, "spec files" }, { tests, "checks passing" }, { skipped, "skipped with a stated reason" }, { failing, "failing" },
+      { specs, "spec files" },
+      { tests, "checks passing" },
+      { skipped, "skipped with a stated reason" },
+      { failing, "failing" },
     }) do
       H.match(html, "<b>" .. want[1] .. "</b><span>" .. want[2] .. "</span>", true, want[2])
     end
@@ -456,7 +478,14 @@ describe("the page says what the README says", function()
     H.match(html, pitch, true)
     H.match(html, "Neovim <b>0.12</b>", true)
     H.match(html, "Apache-2.0", true)
-    for _, d in ipairs({ "docs/DETAILS.md", "docs/KNOWN_ISSUES.md", "docs/TESTING.md", "tests/COVERAGE.md", "docs/PLAN_MACROS_DEPS.md", "CHANGELOG.md" }) do
+    for _, d in ipairs({
+      "docs/DETAILS.md",
+      "docs/KNOWN_ISSUES.md",
+      "docs/TESTING.md",
+      "tests/COVERAGE.md",
+      "docs/PLAN_MACROS_DEPS.md",
+      "CHANGELOG.md",
+    }) do
       H.ok(exists(repo .. "/" .. d), d)
       H.match(html, "https://github.com/xynorash/xynovim/blob/main/" .. d, true)
     end
@@ -474,7 +503,11 @@ describe("the page says what the README says", function()
       H.match(html, run, true, run)
       H.match(plat, run, true, run)
     end
-    for _, fact in ipairs({ "1749 passed, 0 failed, 76 skipped", "1077 passed, 0 failed, 87 skipped", "1431 passed, 0 failed, 73 skipped" }) do
+    for _, fact in ipairs({
+      "1749 passed, 0 failed, 76 skipped",
+      "1077 passed, 0 failed, 87 skipped",
+      "1431 passed, 0 failed, 73 skipped",
+    }) do
       H.match(html, fact, true, fact)
       H.match(plat, fact, true, fact)
     end
@@ -489,7 +522,16 @@ describe("the page says what the README says", function()
     H.ok(ack, "README Acknowledgements section")
     local foot = html:match('<footer class="site%-footer">(.-)</footer>')
     H.ok(foot, "footer")
-    for _, w in ipairs({ "amazing products", "RustRover, one IDE of that suite", "derived from", "not affiliated with or endorsed by JetBrains", "I still use JetBrains tools", "I am a full-in JetBrains user", "I wanted to build my own dream configuration", "not an alternative" }) do
+    for _, w in ipairs({
+      "amazing products",
+      "RustRover, one IDE of that suite",
+      "derived from",
+      "not affiliated with or endorsed by JetBrains",
+      "I still use JetBrains tools",
+      "I am a full-in JetBrains user",
+      "I wanted to build my own dream configuration",
+      "not an alternative",
+    }) do
       H.match(ack, w, true, w)
       H.match(foot, w, true, w)
     end
@@ -538,7 +580,10 @@ local function all_pages()
       if vim.fn.isdirectory(full) == 1 then
         walk(full, r)
       elseif name == "index.html" then
-        table.insert(list, { path = r, dir = rel, html = read(full), url = CANON .. (rel == "" and "" or (rel .. "/")) })
+        table.insert(
+          list,
+          { path = r, dir = rel, html = read(full), url = CANON .. (rel == "" and "" or (rel .. "/")) }
+        )
       end
     end
   end
@@ -573,34 +618,37 @@ local function url_to_file(url)
 end
 
 describe("every page: head and social cards", function()
-  it("has lang, charset, viewport, a unique title of at most 60 characters, a description of 120 to 160 and its own canonical URL", function()
-    local titles = {}
-    local descriptions = {}
-    for _, pg in ipairs(all_pages()) do
-      local html, id = pg.html, pg.path
-      H.match(html, '^<!doctype html>\n<html lang="en">', false, id)
-      H.ok(find(html, "meta")[1].attrs.charset, "charset first in " .. id)
-      H.match(meta(html, "name", "viewport"), "width=device-width", true)
-      H.eq(1, #find(html, "title"), id)
-      local title = html:match("<title>(.-)</title>")
-      H.ok(title and #title >= 8 and #title <= 60, ("title of %s is %d characters"):format(id, #(title or "")))
-      H.not_ok(titles[title], "duplicate title " .. title)
-      titles[title] = true
-      local d = meta(html, "name", "description")
-      H.ok(d and #d >= 120 and #d <= 160, ("description of %s is %d characters"):format(id, #(d or "")))
-      H.not_ok(descriptions[d], "duplicate description in " .. id)
-      descriptions[d] = true
-      H.ok(meta(html, "name", "theme-color"), id)
-      local canon, n = nil, 0
-      for _, t in ipairs(find(html, "link")) do
-        if t.attrs.rel == "canonical" then
-          canon, n = t.attrs.href, n + 1
+  it(
+    "has lang, charset, viewport, a unique title of at most 60 characters, a description of 120 to 160 and its own canonical URL",
+    function()
+      local titles = {}
+      local descriptions = {}
+      for _, pg in ipairs(all_pages()) do
+        local html, id = pg.html, pg.path
+        H.match(html, '^<!doctype html>\n<html lang="en">', false, id)
+        H.ok(find(html, "meta")[1].attrs.charset, "charset first in " .. id)
+        H.match(meta(html, "name", "viewport"), "width=device-width", true)
+        H.eq(1, #find(html, "title"), id)
+        local title = html:match("<title>(.-)</title>")
+        H.ok(title and #title >= 8 and #title <= 60, ("title of %s is %d characters"):format(id, #(title or "")))
+        H.not_ok(titles[title], "duplicate title " .. title)
+        titles[title] = true
+        local d = meta(html, "name", "description")
+        H.ok(d and #d >= 120 and #d <= 160, ("description of %s is %d characters"):format(id, #(d or "")))
+        H.not_ok(descriptions[d], "duplicate description in " .. id)
+        descriptions[d] = true
+        H.ok(meta(html, "name", "theme-color"), id)
+        local canon, n = nil, 0
+        for _, t in ipairs(find(html, "link")) do
+          if t.attrs.rel == "canonical" then
+            canon, n = t.attrs.href, n + 1
+          end
         end
+        H.eq(1, n, "canonical links in " .. id)
+        H.eq(pg.url, canon, id)
       end
-      H.eq(1, n, "canonical links in " .. id)
-      H.eq(pg.url, canon, id)
     end
-  end)
+  )
 
   it("has Open Graph and Twitter tags: absolute canonical URLs, a 1200x630 card under 300 KB and alt text", function()
     for _, pg in ipairs(all_pages()) do
@@ -678,7 +726,10 @@ describe("every page: JSON-LD structured data", function()
         H.ok(ok, ("JSON-LD of %s does not parse: %s"):format(pg.path, tostring(data)))
         H.eq("https://schema.org", data["@context"], pg.path)
         walk(data, function(key, v)
-          if type(v) == "string" and (key == "url" or key == "item" or key == "codeRepository" or key == "@id" or key == "license") then
+          if
+            type(v) == "string"
+            and (key == "url" or key == "item" or key == "codeRepository" or key == "@id" or key == "license")
+          then
             H.match(v, "^https://", false, ("%s: %s = %s"):format(pg.path, key, v))
             if key == "url" and not v:match("^https://github%.com/") then
               H.match(v, HOST_PREFIX, false, "url on the canonical host: " .. v)
@@ -782,7 +833,10 @@ describe("every page: structure", function()
           H.ok(exists(target), pg.path .. ": " .. r.ref)
           local frag = r.ref:match("#(.+)$")
           if frag and target:match("%.html$") then
-            H.ok(ids_of[vim.fs.normalize(target)] and ids_of[vim.fs.normalize(target)][frag], pg.path .. ": anchor " .. r.ref)
+            H.ok(
+              ids_of[vim.fs.normalize(target)] and ids_of[vim.fs.normalize(target)][frag],
+              pg.path .. ": anchor " .. r.ref
+            )
           end
         end
       end
@@ -794,7 +848,12 @@ describe("every page: structure", function()
       for _, r in ipairs(refs(pg.html)) do
         if not is_local(r.ref) and r.rel ~= "canonical" then
           H.eq("a", r.tag, ("%s: external %s on <%s>: %s"):format(pg.path, r.attr, r.tag, r.ref))
-          H.ok(r.ref:match("^https://github%.com/") or r.ref:match("^https://nexte%.st/?$") or r.ref:match("^https://crates%.io/"), r.ref)
+          H.ok(
+            r.ref:match("^https://github%.com/")
+              or r.ref:match("^https://nexte%.st/?$")
+              or r.ref:match("^https://crates%.io/"),
+            r.ref
+          )
         end
       end
       for _, t in ipairs(find(pg.html, "link")) do
@@ -806,7 +865,14 @@ describe("every page: structure", function()
   end)
 
   it("every img has alt, width and height; every link says where it goes", function()
-    local vague = { ["here"] = true, ["click here"] = true, ["link"] = true, ["read more"] = true, ["more"] = true, ["this"] = true }
+    local vague = {
+      ["here"] = true,
+      ["click here"] = true,
+      ["link"] = true,
+      ["read more"] = true,
+      ["more"] = true,
+      ["this"] = true,
+    }
     for _, pg in ipairs(all_pages()) do
       for _, t in ipairs(find(pg.html, "img")) do
         local a = t.attrs
@@ -818,7 +884,10 @@ describe("every page: structure", function()
       end
       for attrs, inner in pg.html:gmatch("<a ([^>]*)>(.-)</a>") do
         local text = vim.trim(inner:gsub("<[^>]+>", " "):gsub("&[%w#]+;", " "):gsub("%s+", " ")):lower()
-        H.ok(#text > 0 or attrs:match("aria%-label=") or inner:match('<img[^>]-alt="[^"]+"'), pg.path .. ": empty link " .. attrs)
+        H.ok(
+          #text > 0 or attrs:match("aria%-label=") or inner:match('<img[^>]-alt="[^"]+"'),
+          pg.path .. ": empty link " .. attrs
+        )
         H.not_ok(vague[text], pg.path .. ": vague link text '" .. text .. "'")
       end
     end
@@ -1006,7 +1075,16 @@ describe("the guides (site/guides/<slug>/)", function()
   it("is in the voice of a personal project: no comparison with other products", function()
     for _, g in ipairs(guides()) do
       local text = plain_text(g.article):lower()
-      for _, bad in ipairs({ "rustrover", "jetbrains", "alternative", "better than", " beats ", " vs ", "competitor", "replacement for" }) do
+      for _, bad in ipairs({
+        "rustrover",
+        "jetbrains",
+        "alternative",
+        "better than",
+        " beats ",
+        " vs ",
+        "competitor",
+        "replacement for",
+      }) do
         H.no_match(text, bad, true, g.slug .. ": " .. bad)
       end
     end
@@ -1062,7 +1140,11 @@ describe("the guides (site/guides/<slug>/)", function()
       for k, slug in pairs(keys) do
         -- LazyVim maps <leader>gg only where lazygit is installed
         local optional = k == "gg" and vim.fn.executable("lazygit") == 0
-        if vim.fn.maparg("<leader>" .. k, "n", false, true).lhs == nil and not optional and (with_ra or not keymaps_lua:find('"<leader>' .. k .. '"', 1, true)) then
+        if
+          vim.fn.maparg("<leader>" .. k, "n", false, true).lhs == nil
+          and not optional
+          and (with_ra or not keymaps_lua:find('"<leader>' .. k .. '"', 1, true))
+        then
           table.insert(missing, slug .. ": <leader>" .. k)
         end
       end
@@ -1112,7 +1194,10 @@ describe("budgets and assets", function()
     H.ok(size(out .. "/index.html") < 80 * 1024, "html " .. size(out .. "/index.html"))
     H.ok(size(out .. "/assets/style.css") < 40 * 1024, "css")
     H.ok(size(out .. "/assets/app.js") < 12 * 1024, "js")
-    local first = size(out .. "/index.html") + size(out .. "/assets/style.css") + size(out .. "/assets/app.js") + size(out .. "/assets/favicon.svg")
+    local first = size(out .. "/index.html")
+      + size(out .. "/assets/style.css")
+      + size(out .. "/assets/app.js")
+      + size(out .. "/assets/favicon.svg")
     for _, t in ipairs(find(page(), "img")) do
       if t.attrs.loading ~= "lazy" then
         first = first + size(out .. "/" .. t.attrs.src)
@@ -1177,8 +1262,10 @@ describe("budgets and assets", function()
       H.ok(ratio(v["on-accent"], v.blue) >= 4.5, name .. ": button text")
     end
     -- the dark palette is Island Dark's
-    H.eq({ "#1e1f22", "#2b2d30", "#bcbec4", "#9da0a8", "#56a8f5", "#6aab73", "#cf8e6d", "#c77dbb", "#f2c55c" },
-      { dark.bg, dark.panel, dark.text, dark.muted, dark.blue, dark.green, dark.orange, dark.purple, dark.yellow })
+    H.eq(
+      { "#1e1f22", "#2b2d30", "#bcbec4", "#9da0a8", "#56a8f5", "#6aab73", "#cf8e6d", "#c77dbb", "#f2c55c" },
+      { dark.bg, dark.panel, dark.text, dark.muted, dark.blue, dark.green, dark.orange, dark.purple, dark.yellow }
+    )
     local palette = read(repo .. "/lua/island/palette.lua"):lower()
     for _, hex in pairs(dark) do
       if hex ~= "#ffffff" and hex ~= "#17181b" and hex ~= "#e6e8ec" and hex ~= "#4b5059" and hex ~= "#393b40" then
@@ -1219,7 +1306,14 @@ describe(".github/workflows/pages.yml", function()
       end
     end
     H.eq(1, n)
-    for _, bad in ipairs({ "deploy-pages", "upload-pages-artifact", "peaceiris", "JamesIves", "configure-pages", "gh-pages@" }) do
+    for _, bad in ipairs({
+      "deploy-pages",
+      "upload-pages-artifact",
+      "peaceiris",
+      "JamesIves",
+      "configure-pages",
+      "gh-pages@",
+    }) do
       H.no_match(code_only, bad, true)
     end
   end)
@@ -1237,7 +1331,13 @@ describe(".github/workflows/pages.yml", function()
   it("never runs on pull requests; push to main with paths, and manual runs; only in this repository", function()
     H.no_match(workflow, "pull_request", true)
     H.match(workflow, "on:\n  push:\n    branches: [main]\n    paths:", true)
-    for _, p in ipairs({ "site/**", "docs/media/**", "README.md", "scripts/build-site.py", ".github/workflows/pages.yml" }) do
+    for _, p in ipairs({
+      "site/**",
+      "docs/media/**",
+      "README.md",
+      "scripts/build-site.py",
+      ".github/workflows/pages.yml",
+    }) do
       H.match(workflow, '"' .. p .. '"', true)
     end
     H.match(workflow, "workflow_dispatch:", true)
@@ -1251,7 +1351,7 @@ describe(".github/workflows/pages.yml", function()
     for line in code_only:gmatch("[^\n]+") do
       if line:match("git .*push") then
         pushes = pushes + 1
-        H.match(line, 'HEAD:refs/heads/${branch}', true)
+        H.match(line, "HEAD:refs/heads/${branch}", true)
         H.match(line, "http.extraheader", true)
       end
     end
@@ -1342,72 +1442,88 @@ describe("the plugins page and the home plugins section", function()
     H.match(read(out .. "/sitemap.xml"), "<loc>" .. CANON .. "plugins/</loc>", true)
   end)
 
-  it("the JSON-LD lists exactly the nine plugins as SoftwareSourceCode of the author, MIT, Lua, 0.1.0 (sandbox 0.1.1)", function()
-    local pg = plugins_page()
-    local list, person
-    for body in pg.html:gmatch('<script type="application/ld%+json">(.-)</script>') do
-      for _, node in ipairs(vim.json.decode(body)["@graph"]) do
-        if node["@type"] == "ItemList" then
-          list = node
-        elseif node["@type"] == "Person" then
-          person = node
+  it(
+    "the JSON-LD lists exactly the nine plugins as SoftwareSourceCode of the author, MIT, Lua, 0.1.0 (sandbox 0.1.1)",
+    function()
+      local pg = plugins_page()
+      local list, person
+      for body in pg.html:gmatch('<script type="application/ld%+json">(.-)</script>') do
+        for _, node in ipairs(vim.json.decode(body)["@graph"]) do
+          if node["@type"] == "ItemList" then
+            list = node
+          elseif node["@type"] == "Person" then
+            person = node
+          end
         end
       end
+      H.ok(list and person, "ItemList and Person")
+      H.eq("Xynorash", person.name)
+      H.eq(9, #list.itemListElement)
+      H.eq(9, list.numberOfItems)
+      local seen = {}
+      for i, it in ipairs(list.itemListElement) do
+        H.eq(i, it.position)
+        local code = it.item
+        H.eq("SoftwareSourceCode", code["@type"])
+        H.eq(GH .. "xyno-" .. PLUGINS[i] .. ".nvim", code.codeRepository)
+        seen[code.codeRepository] = true
+        H.eq("https://opensource.org/licenses/MIT", code.license)
+        H.eq("Lua", code.programmingLanguage)
+        H.eq(PLUGINS[i] == "sandbox" and "0.1.1" or "0.1.0", code.version)
+        H.eq(person["@id"], code.author["@id"])
+        H.ok(#code.description > 40, code.name)
+      end
+      H.eq(9, vim.tbl_count(seen))
     end
-    H.ok(list and person, "ItemList and Person")
-    H.eq("Xynorash", person.name)
-    H.eq(9, #list.itemListElement)
-    H.eq(9, list.numberOfItems)
-    local seen = {}
-    for i, it in ipairs(list.itemListElement) do
-      H.eq(i, it.position)
-      local code = it.item
-      H.eq("SoftwareSourceCode", code["@type"])
-      H.eq(GH .. "xyno-" .. PLUGINS[i] .. ".nvim", code.codeRepository)
-      seen[code.codeRepository] = true
-      H.eq("https://opensource.org/licenses/MIT", code.license)
-      H.eq("Lua", code.programmingLanguage)
-      H.eq(PLUGINS[i] == "sandbox" and "0.1.1" or "0.1.0", code.version)
-      H.eq(person["@id"], code.author["@id"])
-      H.ok(#code.description > 40, code.name)
-    end
-    H.eq(9, vim.tbl_count(seen))
-  end)
+  )
 
-  it("every plugin link on the page and in the home section is one of the repository, release, LICENSE or issues URLs", function()
-    local section, _ = home_section()
-    local pg = plugins_page()
-    local ok_url = {}
-    for _, n in ipairs(PLUGINS) do
-      local repo_url = GH .. "xyno-" .. n .. ".nvim"
-      ok_url[repo_url] = true
-      ok_url[repo_url .. "/releases/tag/" .. (n == "sandbox" and "v0.1.1" or "v0.1.0")] = true
-      ok_url[repo_url .. "/blob/main/LICENSE"] = true
-      ok_url[repo_url .. "/issues"] = true
-    end
-    local home_ok = { [GH .. "xynovim"] = true }
-    for url in pairs(ok_url) do
-      if not url:match("/blob/") and not url:match("/issues$") then
-        home_ok[url] = true
+  it(
+    "every plugin link on the page and in the home section is one of the repository, release, LICENSE or issues URLs",
+    function()
+      local section, _ = home_section()
+      local pg = plugins_page()
+      local ok_url = {}
+      for _, n in ipairs(PLUGINS) do
+        local repo_url = GH .. "xyno-" .. n .. ".nvim"
+        ok_url[repo_url] = true
+        ok_url[repo_url .. "/releases/tag/" .. (n == "sandbox" and "v0.1.1" or "v0.1.0")] = true
+        ok_url[repo_url .. "/blob/main/LICENSE"] = true
+        ok_url[repo_url .. "/issues"] = true
       end
-    end
-    for _, case in ipairs({ { section, home_ok, "home section" }, { pg.html:match("<main.-</main>"), ok_url, "plugins page" } }) do
-      local n = 0
-      for attrs in case[1]:gmatch("<a ([^>]*)>") do
-        local href = attrs:match('href="([^"]+)"')
-        if href and href:match("^https://") then
-          n = n + 1
-          if not (case[3] == "plugins page" and (href:match("^https://github%.com/xynorash/xynovim") or href == "https://github.com/xynorash/xynovim")) then
-            H.ok(case[2][href], case[3] .. ": unexpected link " .. href)
-          end
-          if href:match("^https://github%.com/xynorash/xyno%-") then
-            H.match(attrs, 'rel="noopener"', true, case[3] .. ": " .. href)
-          end
+      local home_ok = { [GH .. "xynovim"] = true }
+      for url in pairs(ok_url) do
+        if not url:match("/blob/") and not url:match("/issues$") then
+          home_ok[url] = true
         end
       end
-      H.ok(n >= 18, case[3] .. " links: " .. n)
+      for _, case in ipairs({
+        { section, home_ok, "home section" },
+        { pg.html:match("<main.-</main>"), ok_url, "plugins page" },
+      }) do
+        local n = 0
+        for attrs in case[1]:gmatch("<a ([^>]*)>") do
+          local href = attrs:match('href="([^"]+)"')
+          if href and href:match("^https://") then
+            n = n + 1
+            if
+              not (
+                case[3] == "plugins page"
+                and (
+                  href:match("^https://github%.com/xynorash/xynovim") or href == "https://github.com/xynorash/xynovim"
+                )
+              )
+            then
+              H.ok(case[2][href], case[3] .. ": unexpected link " .. href)
+            end
+            if href:match("^https://github%.com/xynorash/xyno%-") then
+              H.match(attrs, 'rel="noopener"', true, case[3] .. ": " .. href)
+            end
+          end
+        end
+        H.ok(n >= 18, case[3] .. " links: " .. n)
+      end
     end
-  end)
+  )
 
   it("every install snippet is valid Lua and lists the plugin and everything it needs", function()
     local section = home_section()
@@ -1466,7 +1582,11 @@ describe("the plugins page and the home plugins section", function()
     for p in main:gmatch('<p class="inspired">(.-)</p>') do
       n = n + 1
       H.match(p, "^The .- inspired by .-JetBrains", false, p)
-      H.match(p, "I still use JetBrains tools; this plugin is my own independent project and is not affiliated with JetBrains.", true)
+      H.match(
+        p,
+        "I still use JetBrains tools; this plugin is my own independent project and is not affiliated with JetBrains.",
+        true
+      )
     end
     H.eq(5, n, "plugins whose README names the JetBrains inspiration: history, rust, imports, crates, macros")
     -- JetBrains appears nowhere else in the main text
@@ -1475,45 +1595,72 @@ describe("the plugins page and the home plugins section", function()
     local section = home_section()
     H.no_match(section:lower(), "jetbrains", true)
     for _, text in ipairs({ plain(main):lower(), plain(section):lower() }) do
-      for _, bad in ipairs({ "rustrover", "alternative", "better than", " vs ", "competitor", "replacement", "beats", "the author", "author's" }) do
+      for _, bad in ipairs({
+        "rustrover",
+        "alternative",
+        "better than",
+        " vs ",
+        "competitor",
+        "replacement",
+        "beats",
+        "the author",
+        "author's",
+      }) do
         H.no_match(text, bad, true, bad)
       end
     end
     H.no_match(main:lower(), "<img", true)
   end)
 
-  it("says the platform status as the READMEs do: Linux tested, sandbox and clipboard Linux only, nothing claimed elsewhere", function()
-    local pg = plugins_page()
-    local main = pg.html:match("<main.-</main>")
-    local section = home_section()
-    for _, n in ipairs(PLUGINS) do
-      local sec = main:match('<h3 id="xyno%-' .. n .. '">(.-)<h3 ') or main:match('<h3 id="xyno%-' .. n .. '">(.-)<h2 ')
-      H.match(sec, "Platform status.", true, n)
-      H.match(sec, "Linux", true, n)
+  it(
+    "says the platform status as the READMEs do: Linux tested, sandbox and clipboard Linux only, nothing claimed elsewhere",
+    function()
+      local pg = plugins_page()
+      local main = pg.html:match("<main.-</main>")
+      local section = home_section()
+      for _, n in ipairs(PLUGINS) do
+        local sec = main:match('<h3 id="xyno%-' .. n .. '">(.-)<h3 ')
+          or main:match('<h3 id="xyno%-' .. n .. '">(.-)<h2 ')
+        H.match(sec, "Platform status.", true, n)
+        H.match(sec, "Linux", true, n)
+      end
+      for _, n in ipairs({ "sandbox", "clipboard" }) do
+        local card = section:match('id="plugin%-' .. n .. '">(.-)</li>')
+        H.match(card, 'class="badge">Linux only<', true, n)
+      end
+      for _, n in ipairs({ "history", "guard", "rust", "new", "imports", "crates", "macros" }) do
+        local card = section:match('id="plugin%-' .. n .. '">(.-)</li>')
+        H.match(card, 'class="badge">Linux tested; Windows and macOS not verified<', true, n)
+      end
+      -- "I do not claim the live part works on Windows" is the README's own caveat, not a claim
+      local text = (plain(main):lower() .. plain(section):lower()):gsub("i do not claim[^.]-works on %a+", "")
+      for _, bad in ipairs({
+        "works on windows",
+        "works on macos",
+        "cross-platform",
+        "runs everywhere",
+        "fully supported",
+      }) do
+        H.no_match(text, bad, true, bad)
+      end
+      H.match(plain(main), "I do not claim", true)
+      H.match(plain(main), "no evidence", true)
     end
-    for _, n in ipairs({ "sandbox", "clipboard" }) do
-      local card = section:match('id="plugin%-' .. n .. '">(.-)</li>')
-      H.match(card, 'class="badge">Linux only<', true, n)
-    end
-    for _, n in ipairs({ "history", "guard", "rust", "new", "imports", "crates", "macros" }) do
-      local card = section:match('id="plugin%-' .. n .. '">(.-)</li>')
-      H.match(card, 'class="badge">Linux tested; Windows and macOS not verified<', true, n)
-    end
-    -- "I do not claim the live part works on Windows" is the README's own caveat, not a claim
-    local text = (plain(main):lower() .. plain(section):lower()):gsub("i do not claim[^.]-works on %a+", "")
-    for _, bad in ipairs({ "works on windows", "works on macos", "cross-platform", "runs everywhere", "fully supported" }) do
-      H.no_match(text, bad, true, bad)
-    end
-    H.match(plain(main), "I do not claim", true)
-    H.match(plain(main), "no evidence", true)
-  end)
+  )
 
   it("has four to six FAQ questions, answered from the READMEs, and the sandbox limits", function()
     local pg = plugins_page()
     local faq = pg.html:match('<h2 id="faq">(.-)<h2 ')
     local n = select(2, faq:gsub("<h3 ", ""))
     H.ok(n >= 4 and n <= 6, "questions: " .. n)
-    for _, q in ipairs({ "Do I need xynovim", "Which Neovim version", "sandbox plugin not protect", "separate repositories", "report issues", "pin a version" }) do
+    for _, q in ipairs({
+      "Do I need xynovim",
+      "Which Neovim version",
+      "sandbox plugin not protect",
+      "separate repositories",
+      "report issues",
+      "pin a version",
+    }) do
       H.match(faq, q, true, q)
     end
     H.match(faq, "not a security boundary against a determined attacker", true)
@@ -1521,32 +1668,40 @@ describe("the plugins page and the home plugins section", function()
     H.match(faq, 'tag = "v0.1.0"', true)
   end)
 
-  it("the home page has the section between the tour and Tested, a nav link, nine cards, the diagram and the page link", function()
-    local section, html = home_section()
-    H.ok(section, "section #plugins")
-    local pos = function(s)
-      return html:find(s, 1, true)
+  it(
+    "the home page has the section between the tour and Tested, a nav link, nine cards, the diagram and the page link",
+    function()
+      local section, html = home_section()
+      H.ok(section, "section #plugins")
+      local pos = function(s)
+        return html:find(s, 1, true)
+      end
+      H.ok(
+        pos('id="tour"') < pos('id="plugins"')
+          and pos('id="plugins"') < pos('id="tested"')
+          and pos('id="tested"') < pos('id="install"'),
+        "section order"
+      )
+      H.match(html, '<li><a href="#plugins">Plugins</a></li>', true)
+      H.eq(9, select(2, section:gsub('<li class="plugin" id="plugin%-', "")))
+      H.eq(9, select(2, section:gsub("<pre data%-copy", "")))
+      H.eq(1, select(2, section:gsub('<figure class="dep">', "")))
+      H.eq(1, select(2, section:gsub('class="dep%-stack"', "")))
+      for _, n in ipairs(PLUGINS) do
+        H.match(section, 'href="#plugin-' .. n .. '"', true, "diagram link " .. n)
+      end
+      H.match(section, 'href="plugins/"', true)
+      for _, g in ipairs({ "Standalone", "Rust toolkit" }) do
+        H.match(section, ">" .. g .. "</h3>", true, g)
+      end
+      -- each plugin the diagram says needs xyno-rust says so in its card as well
+      for _, n in ipairs({ "new", "imports", "crates", "macros" }) do
+        H.match(section:match('id="plugin%-' .. n .. '">(.-)</li>'), "xyno-rust.nvim", true, n)
+      end
+      H.match(section:match('id="plugin%-crates">(.-)</li>'), "xyno-imports.nvim", true)
+      H.match(section:match('id="plugin%-macros">(.-)</li>'), "xyno-imports.nvim", true)
     end
-    H.ok(pos('id="tour"') < pos('id="plugins"') and pos('id="plugins"') < pos('id="tested"') and pos('id="tested"') < pos('id="install"'), "section order")
-    H.match(html, '<li><a href="#plugins">Plugins</a></li>', true)
-    H.eq(9, select(2, section:gsub('<li class="plugin" id="plugin%-', "")))
-    H.eq(9, select(2, section:gsub("<pre data%-copy", "")))
-    H.eq(1, select(2, section:gsub('<figure class="dep">', "")))
-    H.eq(1, select(2, section:gsub('class="dep%-stack"', "")))
-    for _, n in ipairs(PLUGINS) do
-      H.match(section, 'href="#plugin-' .. n .. '"', true, "diagram link " .. n)
-    end
-    H.match(section, 'href="plugins/"', true)
-    for _, g in ipairs({ "Standalone", "Rust toolkit" }) do
-      H.match(section, ">" .. g .. "</h3>", true, g)
-    end
-    -- each plugin the diagram says needs xyno-rust says so in its card as well
-    for _, n in ipairs({ "new", "imports", "crates", "macros" }) do
-      H.match(section:match('id="plugin%-' .. n .. '">(.-)</li>'), "xyno-rust.nvim", true, n)
-    end
-    H.match(section:match('id="plugin%-crates">(.-)</li>'), "xyno-imports.nvim", true)
-    H.match(section:match('id="plugin%-macros">(.-)</li>'), "xyno-imports.nvim", true)
-  end)
+  )
 
   it("the home nav and every guide link the plugins page", function()
     H.match(all_pages()[1].html, 'href="plugins/"', true)
@@ -1561,17 +1716,20 @@ describe("the plugins page and the home plugins section", function()
     H.match(plugins_page().html, 'href="../"', true)
   end)
 
-  it("the README lists the nine plugins with their repositories and the site page, and DETAILS and the CHANGELOG say so", function()
-    local sec = readme:match("\n## Plugins\n(.-)\n## ")
-    H.ok(sec, "README ## Plugins")
-    for _, n in ipairs(PLUGINS) do
-      H.match(sec, "(" .. GH .. "xyno-" .. n .. ".nvim)", true, n)
+  it(
+    "the README lists the nine plugins with their repositories and the site page, and DETAILS and the CHANGELOG say so",
+    function()
+      local sec = readme:match("\n## Plugins\n(.-)\n## ")
+      H.ok(sec, "README ## Plugins")
+      for _, n in ipairs(PLUGINS) do
+        H.match(sec, "(" .. GH .. "xyno-" .. n .. ".nvim)", true, n)
+      end
+      H.match(sec, "https://xynorash.github.io/xynovim/plugins/", true)
+      H.match(sec, "MIT", true)
+      H.match(sec, "Apache-2.0", true)
+      H.no_match(sec:lower(), "the author", true)
+      H.match(read(repo .. "/docs/DETAILS.md"), "\n## The xyno plugins\n", true)
+      H.match(read(repo .. "/CHANGELOG.md"), "Plugins page", true)
     end
-    H.match(sec, "https://xynorash.github.io/xynovim/plugins/", true)
-    H.match(sec, "MIT", true)
-    H.match(sec, "Apache-2.0", true)
-    H.no_match(sec:lower(), "the author", true)
-    H.match(read(repo .. "/docs/DETAILS.md"), "\n## The xyno plugins\n", true)
-    H.match(read(repo .. "/CHANGELOG.md"), "Plugins page", true)
-  end)
+  )
 end)

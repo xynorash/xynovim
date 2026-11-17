@@ -1,0 +1,52 @@
+
+]9;4;0;\
+]9;4;0;\
+]9;4;0;\
+[1m[92m   Compiling[0m failing-tests v0.1.0 (/tmp/xynotest.A8FrW2/tmp/spec-7fnfZ9)
+
+[1m[96m    Building[0m [                             ] 0/1: failing_tests(test)     ]9;4;1;0\
+[K]9;4;0;\[1m[92m    Finished[0m ]8;;https://doc.rust-lang.org/cargo/reference/profiles.html#default-profiles\`test` profile [unoptimized + debuginfo]]8;;\ target(s) in 0.12s
+
+]9;4;0;\[1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/failing_tests-a2444ae240db5307)
+
+
+running 4 tests
+
+
+thread 'tests::plain_panic' (1680325) panicked at src/lib.rs:41:18:
+index out of bounds: the len is 0 but the index is 3
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'tests::string_mismatch' (1680326) panicked at src/lib.rs:35:9:
+assertion `left == right` failed
+  left: "refused"
+ right: "reset"
+
+test tests::doubles ... ok
+
+test tests::plain_panic ... FAILEDprobing before the check
+
+
+thread 'tests::vec_mismatch' (1680327) panicked at src/lib.rs:30:9:
+assertion `left == right` failed: ports differ
+  left: [1, 2, 3]
+ right: [1, 2, 4]
+test tests::string_mismatch ... FAILED
+test tests::vec_mismatch ... FAILED
+
+failures:
+
+failures:
+    tests::plain_panic
+    tests::string_mismatch
+    tests::vec_mismatch
+
+test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+[1m[91merror[0m: test failed, to rerun pass `-p failing-tests --lib`
+
+[1m[91merror[0m: 1 target failed:
+    `-p failing-tests --lib`
+
+

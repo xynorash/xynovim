@@ -13,6 +13,10 @@ return {
         virtual_text = {
           -- the source is part of the format ("if_many" put it in front)
           source = false,
+          -- a glyph per severity (shape, not only colour), config/ui.lua
+          prefix = function(d)
+            return require("config.ui").prefix(d)
+          end,
           format = function(d)
             return require("config.ux").diagnostic_text(d)
           end,
@@ -129,7 +133,7 @@ return {
             return not tall()
           end,
         },
-        { section = "startup" },
+        { section = "startup", icon = require("config.ui").ascii_active() and "" or "⚡ " },
       }
       -- Pickers: below 120 columns snacks uses its `vertical` layout, which asks for
       -- min_height = 30 and puts the preview in the lower 40%; at 80x24 the preview's
@@ -161,8 +165,20 @@ return {
     opts = function(_, opts)
       opts.kind_filter = opts.kind_filter or {}
       opts.kind_filter.rust = {
-        "Class", "Constructor", "Enum", "Field", "Function", "Interface", "Method", "Module",
-        "Namespace", "Object", "Package", "Property", "Struct", "Trait",
+        "Class",
+        "Constructor",
+        "Enum",
+        "Field",
+        "Function",
+        "Interface",
+        "Method",
+        "Module",
+        "Namespace",
+        "Object",
+        "Package",
+        "Property",
+        "Struct",
+        "Trait",
       }
     end,
   },
@@ -191,6 +207,22 @@ return {
               mode = { "n" },
               has = { "workspace/didRenameFiles", "workspace/willRenameFiles" },
             },
+            -- <leader>ca: in a Rust buffer the code actions come with a diff preview (xyno-rust.nvim,
+            -- :RustActions); everywhere else LazyVim's vim.lsp.buf.code_action. Same description, so
+            -- which-key and the existing mapping tests see no change.
+            {
+              "<leader>ca",
+              function()
+                if vim.bo.filetype == "rust" and vim.fn.exists(":RustActions") == 2 then
+                  vim.cmd("RustActions")
+                else
+                  vim.lsp.buf.code_action()
+                end
+              end,
+              desc = "Code Action",
+              mode = { "n", "x" },
+              has = "codeAction",
+            },
           },
         },
       },
@@ -210,5 +242,15 @@ return {
         { "<leader>r", group = "rust", mode = { "n", "x" } },
       },
     },
+  },
+  {
+    -- :checkhealth render-markdown warned "latex parser: not installed" and "none installed: utftex,
+    -- latex2text" for a feature that cannot render here. Switched on only when a converter exists
+    -- (install utftex or latex2text, plus `:TSInstall latex`, to get formulas drawn).
+    "MeanderingProgrammer/render-markdown.nvim",
+    opts = function(_, opts)
+      local have = vim.fn.executable("utftex") == 1 or vim.fn.executable("latex2text") == 1
+      opts.latex = vim.tbl_deep_extend("force", opts.latex or {}, { enabled = have })
+    end,
   },
 }

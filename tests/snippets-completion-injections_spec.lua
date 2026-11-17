@@ -203,10 +203,7 @@ describe("snippets/rust.json", function()
     )
     H.eq("#[test]\nfn ${1:name}() {\n\t$0\n}", joined("Test fn"))
     H.eq("#[tokio::test]\nasync fn ${1:name}() {\n\t$0\n}", joined("Tokio test"))
-    H.eq(
-      "#[tokio::main]\nasync fn main() -> ${1:anyhow::Result<()>} {\n\t$0\n\tOk(())\n}",
-      joined("Tokio main")
-    )
+    H.eq("#[tokio::main]\nasync fn main() -> ${1:anyhow::Result<()>} {\n\t$0\n\tOk(())\n}", joined("Tokio main"))
     local disp = joined("impl Display")
     H.has(disp, "impl std::fmt::Display for ${1:Type} {")
     H.has(disp, "fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {")
@@ -305,35 +302,38 @@ end)
 -- ------------------------------------------------------------ blink menu (insert)
 
 describe("blink menu in a Rust buffer", function()
-  it("offers testmod (not tmod: rust-analyzer's own tmod outranked ours), and ttest which expands to the Tokio test snippet", function()
-    open_rust_file()
-    local labels = in_insert(2, "testm", function()
-      return snippet_labels(menu_items("testmod", "testm"))
-    end)
-    H.has(labels, "testmod")
-    local result = in_insert(3, "tte", function()
-      local items = menu_items("ttest", "tte")
-      local idx
-      for i, item in ipairs(items) do
-        if item.label == "ttest" and item.source_id == "snippets" then
-          idx = i
+  it(
+    "offers testmod (not tmod: rust-analyzer's own tmod outranked ours), and ttest which expands to the Tokio test snippet",
+    function()
+      open_rust_file()
+      local labels = in_insert(2, "testm", function()
+        return snippet_labels(menu_items("testmod", "testm"))
+      end)
+      H.has(labels, "testmod")
+      local result = in_insert(3, "tte", function()
+        local items = menu_items("ttest", "tte")
+        local idx
+        for i, item in ipairs(items) do
+          if item.label == "ttest" and item.source_id == "snippets" then
+            idx = i
+          end
         end
-      end
-      H.ok(idx, "ttest in the menu: " .. vim.inspect(snippet_labels(items)))
-      require("blink.cmp").accept({ index = idx })
-      vim.wait(3000, function()
-        return table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n"):find("#[tokio::test]", 1, true)
-      end, 20)
-      return {
-        text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n"),
-        active = vim.snippet.active(),
-      }
-    end)
-    pcall(vim.snippet.stop)
-    H.has(result.text, "#[tokio::test]")
-    H.has(result.text, "async fn name() {")
-    H.eq(true, result.active, "snippet session active (placeholder jumps)")
-  end)
+        H.ok(idx, "ttest in the menu: " .. vim.inspect(snippet_labels(items)))
+        require("blink.cmp").accept({ index = idx })
+        vim.wait(3000, function()
+          return table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n"):find("#[tokio::test]", 1, true)
+        end, 20)
+        return {
+          text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n"),
+          active = vim.snippet.active(),
+        }
+      end)
+      pcall(vim.snippet.stop)
+      H.has(result.text, "#[tokio::test]")
+      H.has(result.text, "async fn name() {")
+      H.eq(true, result.active, "snippet session active (placeholder jumps)")
+    end
+  )
 
   it("friendly-snippets `if` is offered at a statement start but not after `x.`", function()
     open_rust_file()
@@ -376,14 +376,17 @@ describe("ux.snippets_allowed", function()
     H.eq(true, allowed('foo("abc") |'))
   end)
 
-  it("is false in expression positions (call arguments, struct literals, macro token trees), true in a block inside them", function()
-    H.eq(false, allowed("fn f() { call(a, be|"), "unfinished call arguments")
-    H.eq(false, allowed("fn f() { call(a, be|) }"), "call arguments")
-    H.eq(false, allowed("fn f() { S { a: be| } }"), "struct literal")
-    H.eq(false, allowed("fn f() { vec![1, be|] }"), "macro token tree")
-    H.eq(true, allowed("fn f() { call(unsafe { be| }) }"), "statement position in a block inside the arguments")
-    H.eq(true, allowed("fn f() { call(a); be| }"), "after the call")
-  end)
+  it(
+    "is false in expression positions (call arguments, struct literals, macro token trees), true in a block inside them",
+    function()
+      H.eq(false, allowed("fn f() { call(a, be|"), "unfinished call arguments")
+      H.eq(false, allowed("fn f() { call(a, be|) }"), "call arguments")
+      H.eq(false, allowed("fn f() { S { a: be| } }"), "struct literal")
+      H.eq(false, allowed("fn f() { vec![1, be|] }"), "macro token tree")
+      H.eq(true, allowed("fn f() { call(unsafe { be| }) }"), "statement position in a block inside the arguments")
+      H.eq(true, allowed("fn f() { call(a); be| }"), "after the call")
+    end
+  )
 
   it("is true when treesitter's get_node errors", function()
     local orig = vim.treesitter.get_node
@@ -424,7 +427,8 @@ describe("injections.scm", function()
   end)
 
   it("injects SQL into the string of the sqlx macros (identifier or scoped, plain or raw string)", function()
-    local macros = { "query", "query_as", "query_scalar", "query_unchecked", "query_as_unchecked", "query_scalar_unchecked" }
+    local macros =
+      { "query", "query_as", "query_scalar", "query_unchecked", "query_as_unchecked", "query_scalar_unchecked" }
     for _, m in ipairs(macros) do
       for _, prefix in ipairs({ "", "sqlx::" }) do
         local first = m == "query" and "" or "Row, "
@@ -435,55 +439,61 @@ describe("injections.scm", function()
     end
   end)
 
-  it("no nested Rust layer over the SQL string of a sqlx macro (it painted @string on top of the SQL highlights)", function()
-    -- field test: `:Inspect` on SELECT in `query!("SELECT ...")` listed @string.rust twice; the
-    -- headless captures-at-pos check passed because the SQL layer was there too. The nested
-    -- rust layer (nvim-treesitter parses every macro's token_tree as Rust) is skipped for the
-    -- sqlx macros in queries/rust/injections.scm.
-    local function rust_layers_over_sql(src)
-      local buf = scratch(vim.split(src, "\n", { plain = true }))
-      local parser = vim.treesitter.get_parser(buf, "rust")
-      parser:parse(true)
-      local sql = parser:children().sql
-      H.ok(sql, "sql layer exists")
-      local srow = sql:included_regions()[1][1][1]
-      local n = 0
-      for lang, child in pairs(parser:children()) do
-        if lang == "rust" then
-          for _, region in ipairs(child:included_regions()) do
-            for _, r in ipairs(region) do
-              if r[1] <= srow and r[4] >= srow then
-                n = n + 1
+  it(
+    "no nested Rust layer over the SQL string of a sqlx macro (it painted @string on top of the SQL highlights)",
+    function()
+      -- field test: `:Inspect` on SELECT in `query!("SELECT ...")` listed @string.rust twice; the
+      -- headless captures-at-pos check passed because the SQL layer was there too. The nested
+      -- rust layer (nvim-treesitter parses every macro's token_tree as Rust) is skipped for the
+      -- sqlx macros in queries/rust/injections.scm.
+      local function rust_layers_over_sql(src)
+        local buf = scratch(vim.split(src, "\n", { plain = true }))
+        local parser = vim.treesitter.get_parser(buf, "rust")
+        parser:parse(true)
+        local sql = parser:children().sql
+        H.ok(sql, "sql layer exists")
+        local srow = sql:included_regions()[1][1][1]
+        local n = 0
+        for lang, child in pairs(parser:children()) do
+          if lang == "rust" then
+            for _, region in ipairs(child:included_regions()) do
+              for _, r in ipairs(region) do
+                if r[1] <= srow and r[4] >= srow then
+                  n = n + 1
+                end
               end
             end
           end
         end
+        return n
       end
-      return n
+      H.eq(0, rust_layers_over_sql(body('let s = sqlx::query!("SELECT id FROM users WHERE id = $1", 1);')))
+      H.eq(0, rust_layers_over_sql(body('let s = query_as!(Row, "select 1");')))
+      -- other macros keep their nested Rust layer
+      local buf = scratch(vim.split(body("vec![1, 2];"), "\n", { plain = true }))
+      local parser = vim.treesitter.get_parser(buf, "rust")
+      parser:parse(true)
+      H.ok(parser:children().rust, "vec! token tree is still parsed as Rust")
     end
-    H.eq(0, rust_layers_over_sql(body('let s = sqlx::query!("SELECT id FROM users WHERE id = $1", 1);')))
-    H.eq(0, rust_layers_over_sql(body('let s = query_as!(Row, "select 1");')))
-    -- other macros keep their nested Rust layer
-    local buf = scratch(vim.split(body('vec![1, 2];'), "\n", { plain = true }))
-    local parser = vim.treesitter.get_parser(buf, "rust")
-    parser:parse(true)
-    H.ok(parser:children().rust, "vec! token tree is still parsed as Rust")
-  end)
+  )
 
-  it("injects SQL into the string of the runtime calls query, query_as, query_scalar (also scoped and with turbofish)", function()
-    local cases = {
-      'query("select 1")',
-      'sqlx::query("select 1")',
-      'query_as::<_, Row>("select 1")',
-      'sqlx::query_as::<_, Row>("select 1")',
-      'query_scalar("select 1")',
-      'sqlx::query_scalar::<_, i64>("select 1")',
-      'query(r#"select 1"#)',
-    }
-    for _, c in ipairs(cases) do
-      H.eq({ "select 1" }, sql_regions(body(c .. ";")), c)
+  it(
+    "injects SQL into the string of the runtime calls query, query_as, query_scalar (also scoped and with turbofish)",
+    function()
+      local cases = {
+        'query("select 1")',
+        'sqlx::query("select 1")',
+        'query_as::<_, Row>("select 1")',
+        'sqlx::query_as::<_, Row>("select 1")',
+        'query_scalar("select 1")',
+        'sqlx::query_scalar::<_, i64>("select 1")',
+        'query(r#"select 1"#)',
+      }
+      for _, c in ipairs(cases) do
+        H.eq({ "select 1" }, sql_regions(body(c .. ";")), c)
+      end
     end
-  end)
+  )
 
   it("does not inject into the *_unchecked runtime functions (only the macros have them)", function()
     for _, c in ipairs({
@@ -496,38 +506,41 @@ describe("injections.scm", function()
     end
   end)
 
-  it("injects only strings starting with a SQL keyword as a whole word (any case, leading whitespace/newlines)", function()
-    local kws = vim.split(
-      "select insert update delete with create alter drop replace values pragma begin commit rollback truncate explain vacuum analyze attach detach reindex savepoint release set show grant revoke call merge lock",
-      " "
-    )
-    H.eq(30, #kws)
-    local calls, want = {}, {}
-    for i, kw in ipairs(kws) do
-      local text = (i % 3 == 0 and kw:upper()) or (i % 3 == 1 and kw) or (kw:sub(1, 1):upper() .. kw:sub(2))
-      calls[#calls + 1] = 'query("' .. text .. ' x");'
-      want[#want + 1] = text .. " x"
+  it(
+    "injects only strings starting with a SQL keyword as a whole word (any case, leading whitespace/newlines)",
+    function()
+      local kws = vim.split(
+        "select insert update delete with create alter drop replace values pragma begin commit rollback truncate explain vacuum analyze attach detach reindex savepoint release set show grant revoke call merge lock",
+        " "
+      )
+      H.eq(30, #kws)
+      local calls, want = {}, {}
+      for i, kw in ipairs(kws) do
+        local text = (i % 3 == 0 and kw:upper()) or (i % 3 == 1 and kw) or (kw:sub(1, 1):upper() .. kw:sub(2))
+        calls[#calls + 1] = 'query("' .. text .. ' x");'
+        want[#want + 1] = text .. " x"
+      end
+      table.sort(want)
+      H.eq(want, sql_regions(body(table.concat(calls, "\n    "))))
+
+      -- not SQL: bind arguments, prose, a keyword that is only a prefix of a word
+      H.eq({}, sql_regions(body('query("not sql here");')))
+      H.eq({}, sql_regions(body('query("selection");')))
+      H.eq({}, sql_regions(body('query("settings");')))
+      H.eq({}, sql_regions(body('query("set_x");')))
+      H.eq({}, sql_regions(body('query("");')))
+      H.eq({}, sql_regions(body('query("   ");')))
+      -- the bind argument "alice" next to the statement is left alone
+      H.eq({ "select 1" }, sql_regions(body('query!("select 1", "alice");')))
+      H.eq({ "select $1" }, sql_regions(body('query_as!(User, "select $1", "alice");')))
+
+      -- leading newline/indent, multi-line statement
+      local multi = "\n        UPDATE users\n        SET name = $1\n        WHERE id = $2"
+      local got = sql_regions(body('query("' .. multi .. '");'))
+      H.eq({ multi }, got)
+      H.eq({ "  \tselect 1" }, sql_regions(body('query("  \tselect 1");')))
     end
-    table.sort(want)
-    H.eq(want, sql_regions(body(table.concat(calls, "\n    "))))
-
-    -- not SQL: bind arguments, prose, a keyword that is only a prefix of a word
-    H.eq({}, sql_regions(body('query("not sql here");')))
-    H.eq({}, sql_regions(body('query("selection");')))
-    H.eq({}, sql_regions(body('query("settings");')))
-    H.eq({}, sql_regions(body('query("set_x");')))
-    H.eq({}, sql_regions(body('query("");')))
-    H.eq({}, sql_regions(body('query("   ");')))
-    -- the bind argument "alice" next to the statement is left alone
-    H.eq({ "select 1" }, sql_regions(body('query!("select 1", "alice");')))
-    H.eq({ "select $1" }, sql_regions(body('query_as!(User, "select $1", "alice");')))
-
-    -- leading newline/indent, multi-line statement
-    local multi = "\n        UPDATE users\n        SET name = $1\n        WHERE id = $2"
-    local got = sql_regions(body('query("' .. multi .. '");'))
-    H.eq({ multi }, got)
-    H.eq({ "  \tselect 1" }, sql_regions(body('query("  \tselect 1");')))
-  end)
+  )
 
   it("tests/fixtures/sql_and_routes.rs: sql children for the query! string and the multi-line query string", function()
     local src = read(H.fixtures .. "/sql_and_routes.rs")
@@ -540,7 +553,7 @@ describe("injections.scm", function()
     H.no_match(texts, "/health", true)
   end)
 
-  it("known imprecision: any macro or function named query is injected (other::query!(\"select 2\"))", function()
+  it('known imprecision: any macro or function named query is injected (other::query!("select 2"))', function()
     H.eq({ "select 2" }, sql_regions(body('other::query!("select 2");')))
     H.eq({ "select 2" }, sql_regions(body('other::query("select 2");')))
     H.eq({ "select 2" }, sql_regions(body('my::inner::query!("select 2");')))
