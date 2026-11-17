@@ -1,9 +1,8 @@
 # Running xynovim against the local plugin clones
 
-`lazy-lock.json` pins every `xyno-*.nvim` plugin to a published commit. Eight of them (rust, imports, crates, macros,
-new, guard, history, clipboard) are pinned at the commits merged into their `main` branches; xyno-sandbox.nvim is still
-pinned at its older commit until its PR is merged, so work that exists only on a plugin's `dev` branch (today the
-sandbox policy preview) is not live in xynovim. To try unmerged work together (and to run the specs and benchmarks against it) point
+`lazy-lock.json` pins every `xyno-*.nvim` plugin to a published commit. All nine (rust, imports, crates, macros,
+new, guard, history, clipboard, sandbox) are pinned at the commits merged into their `main` branches (xyno-sandbox.nvim at
+`266db2b`, which includes the policy preview), so work that exists only on a plugin's `dev` branch is not live in xynovim. To try unmerged work together (and to run the specs and benchmarks against it) point
 xynovim at the clones:
 
 ```sh
@@ -40,7 +39,7 @@ plugins.
 
 ## Making the dev work the pinned version
 
-Done for eight plugins (the lock holds their merged `main` commits; `nvim --headless "+Lazy! restore" +qa` brings an older install onto them). For xyno-sandbox.nvim, once its PR is merged, move the lockfile with the commands below (run by you; they fetch from GitHub and
+Done for all nine plugins (the lock holds their merged `main` commits; `nvim --headless "+Lazy! restore" +qa` brings an older install onto them). For the next merge, move the lockfile with the commands below (run by you; they fetch from GitHub and
 write `lazy-lock.json`, so they are not part of the dev mode). Commit the changed lock lines in this repository.
 
 ```sh
@@ -59,8 +58,8 @@ nvim --headless "+Lazy! restore" +qa
 
 A few specs check behaviour that only exists on the plugins' `dev` branches (the OSC 52 fallback in
 `clipboard-e2e`, the xyno-sandbox policy preview in `agent-99-guard`, ...). With the pinned plugins of the 2026-11-13 run they skipped with a
-message that names `XYNOVIM_DEV_PLUGINS`; since the lock moved to the merged commits only the xyno-sandbox ones still
-do, the rest run in the default mode.
+message that names `XYNOVIM_DEV_PLUGINS`; since the lock moved to the merged commits (the xyno-sandbox one included) they
+run in the default mode. On an install older than the lock they still skip, with a message that says to run `Lazy! restore`.
 
 ## Results of the integration run (2026-11-13)
 

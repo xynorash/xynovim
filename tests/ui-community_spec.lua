@@ -2338,8 +2338,8 @@ end)
 
 -- ====================================================================================================
 -- The real popups of the xyno plugins (not synthetic floats). The locked plugin versions (lazy-lock.json) have
--- no sandbox policy window and no history panel: these tests use them when the loaded plugin has them, which
--- is the case with XYNOVIM_DEV_PLUGINS=<clones> (scripts/dev-plugins.sh test ui-community), and say SKIP otherwise.
+-- no sandbox policy window and no history panel on an install older than the lock: these tests use them when the loaded plugin has them, which
+-- is the case with the pinned plugins and with XYNOVIM_DEV_PLUGINS=<clones> (scripts/dev-plugins.sh test ui-community), and say SKIP otherwise.
 -- ====================================================================================================
 
 --- Every non-blank cell of a float grid (border included): { ch, fg, bg, row, col }.
@@ -2396,7 +2396,9 @@ describe("ui round 2: the real popups of the xyno plugins on the grid", function
     function()
       H.need_sandbox()
       if not pcall(require, "xyno_sandbox.ui") then
-        skip("the loaded xyno-sandbox.nvim has no policy window (lock file pins the older plugin)")
+        skip(
+          "the loaded xyno-sandbox.nvim has no policy window (an install older than the lock: run `nvim --headless '+Lazy! restore' +qa`)"
+        )
       end
       local restore = hermetic_home()
       local project = H.fixture("basic", { git = true })
@@ -2466,7 +2468,9 @@ describe("ui round 2: the real popups of the xyno plugins on the grid", function
 
   it("local-history panel (:LocalHistoryPanel): every text cell >= 4.5:1, selected row included", function()
     if not pcall(require, "xyno_history.panel") then
-      skip("the loaded xyno-history.nvim has no panel (lock file pins the older plugin)")
+      skip(
+        "the loaded xyno-history.nvim has no panel (an install older than the lock: run `nvim --headless '+Lazy! restore' +qa`)"
+      )
     end
     H.need_posix("git")
     local root = H.fixture("basic", { git = true })

@@ -937,7 +937,9 @@ describe("Guarded.make_request with the policy preview (xyno-sandbox.nvim)", fun
 
   before_each(function()
     if type(sandbox.confirm) ~= "function" then
-      skip("needs xyno-sandbox.nvim with the policy preview (the lock file still pins the older plugin)")
+      skip(
+        "needs xyno-sandbox.nvim with the policy preview (an install older than the lock: run `nvim --headless '+Lazy! restore' +qa`)"
+      )
     end
     vim.g.xynovim_99_sandbox = nil
     rec, restore_claude = fake_claude()

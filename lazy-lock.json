@@ -68,5 +68,5 @@
   "xyno-macros.nvim": { "branch": "main", "commit": "e4a140de1af360361717c26f3a247ccc206ada44" },
   "xyno-new.nvim": { "branch": "main", "commit": "2297630e8bbec3c197d035e66ebbe5815e3aa0e8" },
   "xyno-rust.nvim": { "branch": "main", "commit": "56582e794708a151a2b8cadeafb22b19bf7cf12f" },
-  "xyno-sandbox.nvim": { "branch": "main", "commit": "c85b7013232a2b751b31fbd963fa2e63b25c0a37" }
+  "xyno-sandbox.nvim": { "branch": "main", "commit": "266db2b28cf5296ff522f5437c7d8f1582544afd" }
 }
