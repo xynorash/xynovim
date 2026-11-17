@@ -129,7 +129,15 @@ describe("vendored trust fallback", function()
     local a = fb.fingerprint(ws)
     H.ok(rawequal(a, fb.fingerprint(ws)), "unchanged tree: the memo answers")
     write(ws .. "/sub/build.rs", "fn main() {}\n")
-    H.not_ok(rawequal(a, fb.fingerprint(ws)), "a new file is seen at once")
+    if vim.fn.has("win32") == 1 then
+      -- NTFS may publish a directory's new mtime a moment after the file is created (one hosted-runner run
+      -- saw the old stamp, the run before passed): poll up to 5 s there; Linux and macOS stay immediate
+      H.wait_for(function()
+        return not rawequal(a, fb.fingerprint(ws))
+      end, 5000, "a new file is seen (Windows: within 5 s)")
+    else
+      H.not_ok(rawequal(a, fb.fingerprint(ws)), "a new file is seen at once")
+    end
   end)
 end)
 

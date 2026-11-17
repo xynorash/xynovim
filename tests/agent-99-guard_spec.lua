@@ -739,9 +739,11 @@ describe("Guard with a stub provider", function()
     }
     guarded():make_request("q", context, obs)
 
+    -- generous upper bound only (the hosted Windows runner took longer than 10 s once in a slow file of 43 s;
+    -- the same file took 7 s in the run before): the checks after it are unchanged
     H.wait_for(function()
       return vim.uv.fs_stat(flag)
-    end, 10000, "stub to start")
+    end, 40000, "stub to start")
     H.is_nil(done, "request already finished")
     H.eq(false, autosave().enabled(), "auto-save on while the request is in flight")
 
