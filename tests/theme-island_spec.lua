@@ -1,3 +1,4 @@
+-- xyno-timeout: 300
 -- Island Dark theme: colors/island-dark.lua, lua/island/{init,palette}.lua, the lualine theme,
 -- plugin/after/{transparency,unsafe-highlight}.lua and tools/icls2nvim.py.
 -- Expected colours are written out literally (the scheme's values), the

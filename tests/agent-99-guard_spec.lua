@@ -756,6 +756,14 @@ describe("Guard with a stub provider", function()
     H.eq(true, autosave().enabled())
     H.eq("--effort medium", vim.trim(table.concat(vim.fn.readfile(args_file), "\n")))
 
+    -- everything above (auto-save off in flight, on afterwards, args, success) has been checked; only the snapshot
+    -- ref is left, and on macos-latest it was not found in 20 s in one run in three (the sibling spec that takes
+    -- the same snapshot is skipped there with the same reason)
+    vim.g.xynovim_99_sandbox = nil
+    H.known_issue(
+      { "macos" },
+      "the 'before 99 request' snapshot ref did not show up within 20 s on macos-latest (runs 38912021512 and 43995672717; the file passed in 43993353661), cause not diagnosed"
+    )
     H.wait_for(function()
       local refs = H.git(dir, "for-each-ref", "--format=%(refname)", "refs/lochist")
       for ref in refs:gmatch("[^\n]+") do
@@ -764,7 +772,6 @@ describe("Guard with a stub provider", function()
         end
       end
     end, 20000, "'before 99 request' snapshot")
-    vim.g.xynovim_99_sandbox = nil
   end)
 end)
 
